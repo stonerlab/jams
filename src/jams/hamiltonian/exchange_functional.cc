@@ -245,8 +245,8 @@ ExchangeFunctionalHamiltonian::functional_from_params(const std::string& name, c
   }
   if (name == "c3z") {
     return std::bind(functional_c3z, _1,
-      input_distance_unit_conversion_ * Vec3{params[0], params[1], params[2]}, // qs
-      input_distance_unit_conversion_ * Vec3{params[3], params[4], params[5]}, // qc
+      (1.0 / input_distance_unit_conversion_) * Vec3{params[0], params[1], params[2]}, // qs
+      (1.0 / input_distance_unit_conversion_) * Vec3{params[3], params[4], params[5]}, // qc
       input_energy_unit_conversion_ * params[6], // J0
       input_energy_unit_conversion_ * params[7], // J1s
       input_energy_unit_conversion_ * params[8], // J1c
