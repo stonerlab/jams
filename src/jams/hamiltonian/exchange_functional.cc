@@ -70,7 +70,7 @@ ExchangeFunctionalHamiltonian::ExchangeFunctionalHamiltonian(const libconfig::Se
   if (output_functionals) {
     for (const auto& [type, functional] : exchange_functional_map) {
       std::ofstream functional_file(jams::output::full_path_filename("exchange_functional_" + type.first + "_" + type.second + ".tsv"));
-      output_exchange_functional(functional_file, functional.second, functional.first, 0.1);
+      output_exchange_functional(functional_file, functional.second, functional.first);
     }
   }
 
@@ -268,13 +268,12 @@ void
 ExchangeFunctionalHamiltonian::output_exchange_functional(
     std::ostream &os,
     const ExchangeFunctionalHamiltonian::ExchangeFunctionalType &functional,
-    double r_cutoff,
-    double delta_r)
+    double r_cutoff)
 {
   const double a = ::globals::lattice->parameter(); // metres
+  const auto delta_r = r_cutoff / 100.0;
 
   const int n = static_cast<int>(std::ceil(r_cutoff / delta_r));
-
   os << "x_nm  y_nm  z_nm  exchange_meV\n";
 
   for (int ix = -n; ix <= n; ++ix) {
