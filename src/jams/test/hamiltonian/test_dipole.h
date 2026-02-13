@@ -159,7 +159,7 @@ public:
 
       pcg32 rng = pcg_extras::seed_seq_from<std::random_device>();
       for (unsigned int i = 0; i < globals::num_spins; ++i) {
-        Vec3 spin = uniform_random_sphere(rng);
+        Vec3 spin = uniform_random_sphere<double>(rng);
         globals::s(i, 0) = spin[0];
         globals::s(i, 1) = spin[1];
         globals::s(i, 2) = spin[2];
