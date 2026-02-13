@@ -121,6 +121,12 @@ void SparseInteractionHamiltonian::finalize(jams::SparseMatrixSymmetryCheck symm
         throw std::runtime_error("sparse matrix for " + name() + " is not structurally symmetric");
       }
       break;
+    case jams::SparseMatrixSymmetryCheck::ForceSymmetric:
+      sparse_matrix_builder_.symmetrise();
+      if (!sparse_matrix_builder_.is_symmetric()) {
+        throw std::runtime_error("sparse matrix for " + name() + " failed to symmetrise");
+      }
+      break;
   }
 
   interaction_matrix_ = sparse_matrix_builder_
