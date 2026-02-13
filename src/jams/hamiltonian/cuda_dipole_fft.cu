@@ -1,4 +1,5 @@
 #include <fstream>
+#include <complex>
 
 #include <libconfig.h++>
 #include <cufft.h>
@@ -259,28 +260,12 @@ CudaDipoleFFTHamiltonian::CudaDipoleFFTHamiltonian(const libconfig::Setting &set
 
   const int num_pairs = num_sites * (num_sites + 1) / 2;
   kspace_tensors_.resize(num_pairs, num_tensor_components, num_kpoints);
+  kspace_tensors_.zero();
   for (int pos_i = 0; pos_i < num_sites; ++pos_i) {
     for (int pos_j = pos_i; pos_j < num_sites; ++pos_j) {
       std::vector<Vec3> generated_positions;
-      auto wq = generate_kspace_dipole_tensor(pos_i, pos_j, generated_positions);
-
-      assert(wq.size(1) * wq.size(2) * wq.size(3) == kspace_tensors_.size(2));
-
       const int pair = upper_tri_index(pos_i, pos_j, num_sites);
-      for (auto m = 0; m < num_tensor_components; ++m) {
-        for (auto h = 0; h < wq.size(1); ++h) {
-          for (auto k = 0; k < wq.size(2); ++k) {
-            for (auto l = 0; l < wq.size(3); ++l) {
-              auto k_idx = (h * kspace_embed[1] + k) * kspace_embed[2] + l;
-#if DO_MIXED_PRECISION
-              kspace_tensors_(pair, m, k_idx) = make_cuComplex(wq(m, h, k, l).real(), wq(m, h, k, l).imag());
-#else
-              kspace_tensors_(pair, m, k_idx) = make_cuDoubleComplex(wq(m, h, k, l).real(), wq(m, h, k, l).imag());
-#endif
-            }
-          }
-        }
-      }
+      generate_kspace_dipole_tensor(pos_i, pos_j, pair, generated_positions);
 
       if (check_symmetry_ && (globals::lattice->is_periodic(0) && globals::lattice->is_periodic(1) && globals::lattice->is_periodic(2))) {
         if (!globals::lattice->is_a_symmetry_complete_set(pos_i, generated_positions, distance_tolerance_)) {
@@ -360,31 +345,16 @@ DEBUG_CHECK_CUDA_ASYNC_STATUS;
 
 // Generates the dipole tensor between unit cell positions i and j and appends
 // the generated positions to a vector
-jams::MultiArray<jams::Complex, 4>
-CudaDipoleFFTHamiltonian::generate_kspace_dipole_tensor(const int pos_i, const int pos_j, std::vector<Vec3> &generated_positions) {
+void CudaDipoleFFTHamiltonian::generate_kspace_dipole_tensor(const int pos_i, const int pos_j, const int pair, std::vector<Vec3> &generated_positions) {
     using std::pow;
   
     const Vec3 r_frac_i = globals::lattice->basis_site_atom(pos_i).position_frac;
     const Vec3 r_frac_j = globals::lattice->basis_site_atom(pos_j).position_frac;
 
-    const Vec3 r_cart_i = globals::lattice->fractional_to_cartesian(r_frac_i);
     const Vec3 r_cart_j = globals::lattice->fractional_to_cartesian(r_frac_j);
 
-  jams::MultiArray<double, 4> rspace_tensor(
-        6,
-        kspace_padded_size_[0],
-        kspace_padded_size_[1],
-        kspace_padded_size_[2]);
-
-  jams::MultiArray<jams::ComplexHi, 4> kspace_tensor_hi(
-        6,
-        kspace_padded_size_[0],
-        kspace_padded_size_[1],
-        kspace_padded_size_[2]/2 + 1);
-
-
-    rspace_tensor.zero();
-    kspace_tensor_hi.zero();
+    const int num_kz = kspace_padded_size_[2] / 2 + 1;
+    const int num_ky = kspace_padded_size_[1];
 
     const double fft_normalization_factor = 1.0 / jams::product(kspace_size_);
     const double v = pow(globals::lattice->parameter(), 3);
@@ -417,18 +387,51 @@ CudaDipoleFFTHamiltonian::generate_kspace_dipole_tensor(const int pos_i, const i
 
                 generated_positions.push_back(r_ij);
 
-                // xx
-                rspace_tensor(0, nx, ny, nz) =  w0 * (3 * r_ij[0] * r_ij[0] - r_abs_sq) / r_pow_5_2;
-                // xy
-                rspace_tensor(1, nx, ny, nz) =  w0 * (3 * r_ij[0] * r_ij[1]) / r_pow_5_2;
-                // xz
-                rspace_tensor(2, nx, ny, nz) =  w0 * (3 * r_ij[0] * r_ij[2]) / r_pow_5_2;
-                // yy
-                rspace_tensor(3, nx, ny, nz) =  w0 * (3 * r_ij[1] * r_ij[1] - r_abs_sq) / r_pow_5_2;
-                // yz
-                rspace_tensor(4, nx, ny, nz) =  w0 * (3 * r_ij[1] * r_ij[2]) / r_pow_5_2;
-                // zz
-                rspace_tensor(5, nx, ny, nz) =  w0 * (3 * r_ij[2] * r_ij[2] - r_abs_sq) / r_pow_5_2;
+                const double tensor_xx = w0 * (3 * r_ij[0] * r_ij[0] - r_abs_sq) / r_pow_5_2;
+                const double tensor_xy = w0 * (3 * r_ij[0] * r_ij[1]) / r_pow_5_2;
+                const double tensor_xz = w0 * (3 * r_ij[0] * r_ij[2]) / r_pow_5_2;
+                const double tensor_yy = w0 * (3 * r_ij[1] * r_ij[1] - r_abs_sq) / r_pow_5_2;
+                const double tensor_yz = w0 * (3 * r_ij[1] * r_ij[2]) / r_pow_5_2;
+                const double tensor_zz = w0 * (3 * r_ij[2] * r_ij[2] - r_abs_sq) / r_pow_5_2;
+
+                const jams::ComplexHi phase_step_x = std::polar(1.0, -kTwoPi * static_cast<double>(nx) / static_cast<double>(kspace_padded_size_[0]));
+                const jams::ComplexHi phase_step_y = std::polar(1.0, -kTwoPi * static_cast<double>(ny) / static_cast<double>(kspace_padded_size_[1]));
+                const jams::ComplexHi phase_step_z = std::polar(1.0, -kTwoPi * static_cast<double>(nz) / static_cast<double>(kspace_padded_size_[2]));
+
+                jams::ComplexHi phase_x = {1.0, 0.0};
+                for (int h = 0; h < kspace_padded_size_[0]; ++h) {
+                  jams::ComplexHi phase_y = phase_x;
+                  for (int k = 0; k < kspace_padded_size_[1]; ++k) {
+                    jams::ComplexHi phase = phase_y;
+                    for (int l = 0; l < num_kz; ++l) {
+                      const int k_idx = (h * num_ky + k) * num_kz + l;
+                      const jams::ComplexHi k_xx = tensor_xx * phase;
+                      const jams::ComplexHi k_xy = tensor_xy * phase;
+                      const jams::ComplexHi k_xz = tensor_xz * phase;
+                      const jams::ComplexHi k_yy = tensor_yy * phase;
+                      const jams::ComplexHi k_yz = tensor_yz * phase;
+                      const jams::ComplexHi k_zz = tensor_zz * phase;
+#if DO_MIXED_PRECISION
+                      kspace_tensors_(pair, 0, k_idx) += make_cuComplex(static_cast<float>(k_xx.real()), static_cast<float>(k_xx.imag()));
+                      kspace_tensors_(pair, 1, k_idx) += make_cuComplex(static_cast<float>(k_xy.real()), static_cast<float>(k_xy.imag()));
+                      kspace_tensors_(pair, 2, k_idx) += make_cuComplex(static_cast<float>(k_xz.real()), static_cast<float>(k_xz.imag()));
+                      kspace_tensors_(pair, 3, k_idx) += make_cuComplex(static_cast<float>(k_yy.real()), static_cast<float>(k_yy.imag()));
+                      kspace_tensors_(pair, 4, k_idx) += make_cuComplex(static_cast<float>(k_yz.real()), static_cast<float>(k_yz.imag()));
+                      kspace_tensors_(pair, 5, k_idx) += make_cuComplex(static_cast<float>(k_zz.real()), static_cast<float>(k_zz.imag()));
+#else
+                      kspace_tensors_(pair, 0, k_idx) += make_cuDoubleComplex(k_xx.real(), k_xx.imag());
+                      kspace_tensors_(pair, 1, k_idx) += make_cuDoubleComplex(k_xy.real(), k_xy.imag());
+                      kspace_tensors_(pair, 2, k_idx) += make_cuDoubleComplex(k_xz.real(), k_xz.imag());
+                      kspace_tensors_(pair, 3, k_idx) += make_cuDoubleComplex(k_yy.real(), k_yy.imag());
+                      kspace_tensors_(pair, 4, k_idx) += make_cuDoubleComplex(k_yz.real(), k_yz.imag());
+                      kspace_tensors_(pair, 5, k_idx) += make_cuDoubleComplex(k_zz.real(), k_zz.imag());
+#endif
+                      phase *= phase_step_z;
+                    }
+                    phase_y *= phase_step_y;
+                  }
+                  phase_x *= phase_step_x;
+                }
             }
         }
     }
@@ -441,51 +444,4 @@ CudaDipoleFFTHamiltonian::generate_kspace_dipole_tensor(const int pos_i, const i
         debugfile << r << "\n";
       }
     }
-
-  int rank           = 3;
-  int istride        = 1;
-  int ostride        = 1;
-  int idist          = kspace_padded_size_[0]*kspace_padded_size_[1]*kspace_padded_size_[2];         // Nx*Ny*Nz
-  int odist          = kspace_padded_size_[0]*kspace_padded_size_[1]*(kspace_padded_size_[2]/2 + 1); // Nx*Ny*(Nz/2+1)
-  int num_transforms = 6;
-  int *inembed       = nullptr;
-  int *outembed      = nullptr;
-  int transform_size[3] = {kspace_padded_size_[0], kspace_padded_size_[1], kspace_padded_size_[2]};
-
-  fftw_plan fft_dipole_tensor_rspace_to_kspace =
-      fftw_plan_many_dft_r2c(
-          rank,
-          transform_size,
-          num_transforms,
-          rspace_tensor.data(),
-          inembed,
-          istride,
-          idist,
-          FFTW_COMPLEX_CAST(kspace_tensor_hi.data()),
-          outembed,
-          ostride,
-          odist,
-          FFTW_ESTIMATE | FFTW_PRESERVE_INPUT);
-
-    fftw_execute(fft_dipole_tensor_rspace_to_kspace);
-    fftw_destroy_plan(fft_dipole_tensor_rspace_to_kspace);
-
-  jams::MultiArray<jams::Complex, 4> kspace_tensor_lo(
-    6,
-    kspace_padded_size_[0],
-    kspace_padded_size_[1],
-    kspace_padded_size_[2]/2 + 1);
-
-    for (auto i = 0; i < kspace_tensor_hi.size(0); ++i) {
-      for (auto j = 0; j < kspace_tensor_hi.size(1); ++j) {
-        for (auto k = 0; k < kspace_tensor_hi.size(2); ++k) {
-          for (auto l = 0; l < kspace_tensor_hi.size(3); ++l) {
-            kspace_tensor_lo(i, j, k, l) = kspace_tensor_hi(i, j, k, l);
-          }
-        }
-      }
-    }
-
-    return kspace_tensor_lo;
 }
-

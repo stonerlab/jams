@@ -30,7 +30,7 @@ class CudaDipoleFFTHamiltonian : public Hamiltonian {
         bool check_radius_   = true;
         bool check_symmetry_ = true;
 
-        jams::MultiArray<jams::Complex, 4> generate_kspace_dipole_tensor(const int pos_i, const int pos_j, std::vector<Vec3> &generated_positions);
+        void generate_kspace_dipole_tensor(const int pos_i, const int pos_j, const int pair, std::vector<Vec3> &generated_positions);
 
         jams::Real                          r_cutoff_;
         jams::Real                          distance_tolerance_;
