@@ -6,17 +6,20 @@
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
 
+#include <algorithm>
 #include <memory>
 
 class InteractionNeartreeTest : public ::testing::Test {
 protected:
-    using Position = std::pair<Vec3, int>;
+    using CoordType = double;
+    using NearTree = jams::InteractionNearTree<CoordType>;
+    using Position = typename NearTree::NearTreeDataType;
 
-    InteractionNeartreeTest() {};
+    InteractionNeartreeTest() = default;
 
     ~InteractionNeartreeTest() = default;
 
-    void SetUp(const Vec3& a, const Vec3& b, const Vec3& c, const Vec3b& pbc, const int& supercell_size, const double& r_cutoff, const double& epsilon) {
+    void init_test(const Vec3& a, const Vec3& b, const Vec3& c, const Vec3b& pbc, const int& supercell_size, const double& r_cutoff, const double& epsilon) {
 
       a_ = a; b_ = b; c_ = c;
       pbc_ = pbc;
@@ -33,7 +36,7 @@ protected:
       ASSERT_FALSE(pbc[1] && r_cutoff_ > jams::maths::parallelepiped_height(supercell_size_*c, supercell_size_*a, supercell_size_*b));
       ASSERT_FALSE(pbc[2] && r_cutoff_ > jams::maths::parallelepiped_height(supercell_size_*a, supercell_size_*b, supercell_size_*c));
 
-      near_tree_ = std::make_unique<jams::InteractionNearTree>(supercell_size*a, supercell_size*b, supercell_size*c, pbc, r_cutoff, epsilon);
+      near_tree_ = std::make_unique<NearTree>(supercell_size*a, supercell_size*b, supercell_size*c, pbc, r_cutoff, epsilon);
 
       std::vector<Vec3> sites;
       int count = 0;
@@ -91,7 +94,7 @@ protected:
     double r_cutoff_;
     double epsilon_;
 
-    std::unique_ptr<jams::InteractionNearTree> near_tree_;
+    std::unique_ptr<NearTree> near_tree_;
     std::vector<Position> positions_;
 
 };
@@ -113,7 +116,7 @@ TEST_F(InteractionNeartreeTest, neighbours_no_pbc_simple) {
   double r_cutoff = 2.0;
   const double epsilon = 1e-5;
 
-  SetUp(a, b, c, pbc, superlattice_size, r_cutoff, epsilon);
+  init_test(a, b, c, pbc, superlattice_size, r_cutoff, epsilon);
 
   bruteforce_comparison_test();
 }
@@ -129,7 +132,7 @@ TEST_F(InteractionNeartreeTest, neighbours_pbc_simple) {
   double r_cutoff = 2.0;
   const double epsilon = 1e-5;
 
-  SetUp(a, b, c, pbc, superlattice_size, r_cutoff, epsilon);
+  init_test(a, b, c, pbc, superlattice_size, r_cutoff, epsilon);
 
   bruteforce_comparison_test();
 }
@@ -145,7 +148,7 @@ TEST_F(InteractionNeartreeTest, neighbours_no_pbc_complicated) {
   double r_cutoff = 2.0;
   const double epsilon = 1e-5;
 
-  SetUp(a, b, c, pbc, superlattice_size, r_cutoff, epsilon);
+  init_test(a, b, c, pbc, superlattice_size, r_cutoff, epsilon);
 
   bruteforce_comparison_test();
 }
@@ -161,7 +164,7 @@ TEST_F(InteractionNeartreeTest, neighbours_pbc_complicated) {
   double r_cutoff = 2.0;
   const double epsilon = 1e-5;
 
-  SetUp(a, b, c, pbc, superlattice_size, r_cutoff, epsilon);
+  init_test(a, b, c, pbc, superlattice_size, r_cutoff, epsilon);
 
   bruteforce_comparison_test();
 }
