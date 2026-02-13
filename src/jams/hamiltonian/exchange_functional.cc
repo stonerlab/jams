@@ -1,11 +1,92 @@
 #include <functional>
 #include <fstream>
+#include <map>
+#include <stdexcept>
 #include "jams/helpers/output.h"
 #include "jams/hamiltonian/exchange_functional.h"
 #include "jams/core/lattice.h"
 #include "jams/core/globals.h"
+#include "jams/helpers/maths.h"
 
 #include <jams/lattice/interaction_neartree.h>
+
+namespace {
+int expected_parameter_count(const std::string& functional_name) {
+  if (functional_name == "rkky") {
+    return 3;
+  }
+  if (functional_name == "exponential") {
+    return 3;
+  }
+  if (functional_name == "gaussian") {
+    return 3;
+  }
+  if (functional_name == "gaussian_multi") {
+    return 9;
+  }
+  if (functional_name == "kaneyoshi") {
+    return 3;
+  }
+  if (functional_name == "c3z") {
+    return 14;
+  }
+  if (functional_name == "step") {
+    return 2;
+  }
+  return -1;
+}
+
+void validate_functional_params(const std::string& functional_name, const std::vector<double>& params) {
+  const auto expected = expected_parameter_count(functional_name);
+  if (expected < 0) {
+    throw std::runtime_error("unknown exchange functional: " + functional_name);
+  }
+
+  if (params.size() != static_cast<size_t>(expected)) {
+    throw std::runtime_error(
+        "exchange functional '" + functional_name + "' expects "
+        + std::to_string(expected) + " parameters, got "
+        + std::to_string(params.size()));
+  }
+
+  const auto require_non_zero = [&](const size_t index, const std::string& name) {
+    if (approximately_zero(params[index], jams::defaults::lattice_tolerance)) {
+      throw std::runtime_error(
+          "exchange functional '" + functional_name + "' requires non-zero parameter '" + name + "'");
+    }
+  };
+
+  const auto require_positive = [&](const size_t index, const std::string& name) {
+    if (!definately_greater_than(params[index], 0.0, jams::defaults::lattice_tolerance)) {
+      throw std::runtime_error(
+          "exchange functional '" + functional_name + "' requires positive parameter '" + name + "'");
+    }
+  };
+
+  if (functional_name == "rkky") {
+    require_non_zero(2, "k_F");
+  }
+  if (functional_name == "exponential") {
+    require_non_zero(2, "sigma");
+  }
+  if (functional_name == "gaussian") {
+    require_non_zero(2, "sigma");
+  }
+  if (functional_name == "gaussian_multi") {
+    require_non_zero(2, "sigma0");
+    require_non_zero(5, "sigma1");
+    require_non_zero(8, "sigma2");
+  }
+  if (functional_name == "kaneyoshi") {
+    require_non_zero(2, "sigma");
+  }
+  if (functional_name == "c3z") {
+    require_positive(10, "l0");
+    require_positive(11, "l1s");
+    require_positive(12, "l1c");
+  }
+}
+} // namespace
 
 
 ExchangeFunctionalHamiltonian::ExchangeFunctionalHamiltonian(const libconfig::Setting &settings,
@@ -14,13 +95,33 @@ ExchangeFunctionalHamiltonian::ExchangeFunctionalHamiltonian(const libconfig::Se
 
   std::map<std::pair<std::string, std::string>, std::pair<double, ExchangeFunctionalType>> exchange_functional_map;
 
+  if (!settings.exists("interactions")) {
+    throw jams::ConfigException(settings, "no 'interactions' setting in ExchangeFunctional hamiltonian");
+  }
+
 
   double max_cutoff_radius = 0.0;
   for (auto n = 0; n < settings["interactions"].getLength(); ++n) {
+    if (settings["interactions"][n].getLength() < 4) {
+      throw jams::ConfigException(settings["interactions"][n], "interaction requires at least 4 elements");
+    }
+
     auto type_i = std::string(settings["interactions"][n][0]);
     auto type_j = std::string(settings["interactions"][n][1]);
     auto functional_name = std::string(settings["interactions"][n][2]);
     auto r_cutoff = input_distance_unit_conversion_ * double(settings["interactions"][n][3]);
+
+    if (!globals::lattice->material_exists(type_i)) {
+      throw jams::ConfigException(settings["interactions"][n][0], "material ", type_i, " does not exist in config");
+    }
+
+    if (!globals::lattice->material_exists(type_j)) {
+      throw jams::ConfigException(settings["interactions"][n][1], "material ", type_j, " does not exist in config");
+    }
+
+    if (definately_less_than(r_cutoff, 0.0, jams::defaults::lattice_tolerance)) {
+      throw jams::ConfigException(settings["interactions"][n][3], "cutoff radius cannot be negative");
+    }
 
     // Check that this pair (in either order) has not been specified before
     const auto key_ij = std::make_pair(type_i, type_j);
@@ -51,13 +152,20 @@ ExchangeFunctionalHamiltonian::ExchangeFunctionalHamiltonian(const libconfig::Se
     for (auto k = 4; k < settings["interactions"][n].getLength(); ++k) {
       if (settings["interactions"][n][k].getType() == libconfig::Setting::TypeList || settings["interactions"][n][k].getType() == libconfig::Setting::TypeArray) {
         for (auto l = 0; l < settings["interactions"][n][k].getLength(); ++l) {
+          if (!settings["interactions"][n][k][l].isNumber()) {
+            throw jams::ConfigException(settings["interactions"][n][k][l], "functional parameter must be numeric");
+          }
           params.push_back(settings["interactions"][n][k][l]);
         }
       } else {
+        if (!settings["interactions"][n][k].isNumber()) {
+          throw jams::ConfigException(settings["interactions"][n][k], "functional parameter must be numeric");
+        }
         params.push_back(settings["interactions"][n][k]);
       }
     }
 
+    validate_functional_params(functional_name, params);
     auto exchange_functional = functional_from_params(functional_name, params);
 
     // Now safe to insert
@@ -159,17 +267,29 @@ double ExchangeFunctionalHamiltonian::functional_step(Vec3 rij, double J0, doubl
 }
 
 double ExchangeFunctionalHamiltonian::functional_exp(Vec3 rij, double J0, double r0, double sigma){
+  if (approximately_zero(sigma, jams::defaults::lattice_tolerance)) {
+    throw std::runtime_error("exchange functional exponential is singular for sigma = 0");
+  }
   double r = norm(rij);
   return J0 * exp(-(r - r0) / sigma);
 }
 
 double ExchangeFunctionalHamiltonian::functional_rkky(Vec3 rij, double J0, double r0, double k_F) {
+  if (approximately_zero(k_F, jams::defaults::lattice_tolerance)) {
+    throw std::runtime_error("exchange functional rkky is singular for k_F = 0");
+  }
   double r = norm(rij);
   double kr = 2 * k_F * (r - r0);
+  if (approximately_zero(kr, jams::defaults::lattice_tolerance)) {
+    throw std::runtime_error("exchange functional rkky is singular for k_F*(r-r0) = 0");
+  }
   return - J0 * (kr * cos(kr) - sin(kr)) / pow4(kr);
 }
 
 double ExchangeFunctionalHamiltonian::functional_gaussian(Vec3 rij, double J0, double r0, double sigma){
+  if (approximately_zero(sigma, jams::defaults::lattice_tolerance)) {
+    throw std::runtime_error("exchange functional gaussian is singular for sigma = 0");
+  }
   double r = norm(rij);
   return J0 * exp(-pow2(r - r0)/(2 * pow2(sigma)));
 }
@@ -179,6 +299,9 @@ double ExchangeFunctionalHamiltonian::functional_gaussian_multi(Vec3 rij, double
 }
 
 double ExchangeFunctionalHamiltonian::functional_kaneyoshi(Vec3 rij, double J0, double r0, double sigma){
+  if (approximately_zero(sigma, jams::defaults::lattice_tolerance)) {
+    throw std::runtime_error("exchange functional kaneyoshi is singular for sigma = 0");
+  }
   double r = norm(rij);
   return J0 * pow2(r - r0) * exp(-pow2(r - r0) / (2 * pow2(sigma)));
 }
@@ -198,6 +321,16 @@ double ExchangeFunctionalHamiltonian::functional_c3z(Vec3 rij,
 
   double r = norm(rij);
   Vec3 r_para{rij[0], rij[1], 0.0};
+
+  if (!definately_greater_than(l0, 0.0, jams::defaults::lattice_tolerance)) {
+    throw std::runtime_error("exchange functional c3z requires l0 > 0");
+  }
+  if (!definately_greater_than(l1s, 0.0, jams::defaults::lattice_tolerance)) {
+    throw std::runtime_error("exchange functional c3z requires l1s > 0");
+  }
+  if (!definately_greater_than(l1c, 0.0, jams::defaults::lattice_tolerance)) {
+    throw std::runtime_error("exchange functional c3z requires l1c > 0");
+  }
 
   double term_0 = J0 * exp(-std::abs(r - d0)/l0);
 
@@ -321,4 +454,3 @@ ExchangeFunctionalHamiltonian::output_exchange_functional(
     }
   }
 }
-
