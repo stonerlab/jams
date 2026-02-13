@@ -49,13 +49,13 @@ CudaDipoleBruteforceHamiltonian::CudaDipoleBruteforceHamiltonian(const libconfig
 
       super_unit_cell_inv = inverse(super_unit_cell);
 
-    float r_cutoff_float = static_cast<float>(r_cutoff_);
+    const jams::Real r_cutoff_device = static_cast<jams::Real>(r_cutoff_);
 
-    CHECK_CUDA_STATUS(cudaMemcpyToSymbol(dev_dipole_prefactor,    &dipole_prefactor_,       sizeof(&dipole_prefactor_)));
-    CHECK_CUDA_STATUS(cudaMemcpyToSymbol(dev_r_cutoff,           &r_cutoff_float,       sizeof(&r_cutoff_float)));
-    CHECK_CUDA_STATUS(cudaMemcpyToSymbol(dev_super_cell_pbc,      &super_cell_pbc[0],      3 * sizeof(&super_cell_pbc[0])));
-    CHECK_CUDA_STATUS(cudaMemcpyToSymbol(dev_super_unit_cell,     &super_unit_cell[0][0],     9 * sizeof(&super_unit_cell[0][0])));
-    CHECK_CUDA_STATUS(cudaMemcpyToSymbol(dev_super_unit_cell_inv, &super_unit_cell_inv[0][0], 9 * sizeof(&super_unit_cell_inv[0][0])));
+    CHECK_CUDA_STATUS(cudaMemcpyToSymbol(dev_dipole_prefactor, &dipole_prefactor_, sizeof(dipole_prefactor_)));
+    CHECK_CUDA_STATUS(cudaMemcpyToSymbol(dev_r_cutoff, &r_cutoff_device, sizeof(r_cutoff_device)));
+    CHECK_CUDA_STATUS(cudaMemcpyToSymbol(dev_super_cell_pbc, super_cell_pbc, sizeof(super_cell_pbc)));
+    CHECK_CUDA_STATUS(cudaMemcpyToSymbol(dev_super_unit_cell, super_unit_cell.data(), sizeof(super_unit_cell)));
+    CHECK_CUDA_STATUS(cudaMemcpyToSymbol(dev_super_unit_cell_inv, super_unit_cell_inv.data(), sizeof(super_unit_cell_inv)));
 
     mus_float_.resize(globals::num_spins);
     for (auto i = 0; i < globals::num_spins; ++i) {

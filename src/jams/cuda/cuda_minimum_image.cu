@@ -54,8 +54,8 @@ void jams::cuda_minimum_image(const Vec3R &a, const Vec3R &b, const Vec3R &c, co
   if (a != a_cached || b != b_cached || c != c_cached || pbc_cached != pbc) {
     auto w = matrix_from_cols(a, b, c);
     auto w_inv = inverse(w);
-    cudaMemcpyToSymbol(kMatrix, w.data(), 9 * sizeof(&w[0][0]));
-    cudaMemcpyToSymbol(kMatrixInv, w_inv.data(), 9 * sizeof(&w_inv[0][0]));
+    cudaMemcpyToSymbol(kMatrix, w.data(), sizeof(w));
+    cudaMemcpyToSymbol(kMatrixInv, w_inv.data(), sizeof(w_inv));
     cudaMemcpyToSymbol(kPbc, pbc.data(), 3 * sizeof(bool));
   }
 
