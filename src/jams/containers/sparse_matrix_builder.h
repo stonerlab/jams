@@ -120,9 +120,9 @@ namespace jams {
                     return false;
                 });
 
-      row_ = apply_permutation(row_, permutation);
-      col_ = apply_permutation(col_, permutation);
-      val_ = apply_permutation(val_, permutation);
+      apply_permutation_in_place(row_, permutation);
+      apply_permutation_in_place(col_, permutation);
+      apply_permutation_in_place(val_, permutation);
 
       assert(row_.size() == col_.size());
       assert(row_.size() == val_.size());
@@ -140,14 +140,35 @@ namespace jams {
       }
       assert(row_.size() == col_.size());
       assert(row_.size() == val_.size());
-      for (auto m = 1; m < row_.size(); ++m) {
-        if (row_[m] == row_[m - 1] && col_[m] == col_[m - 1]) {
-          val_[m - 1] += val_[m];
-          val_.erase(val_.begin() + m);
-          row_.erase(row_.begin() + m);
-          col_.erase(col_.begin() + m);
+
+      if (row_.empty()) {
+        is_merged_ = true;
+        return;
+      }
+
+      // Compact duplicate (row, col) entries in-place using a write cursor.
+      std::size_t write = 0;
+      for (std::size_t read = 1; read < row_.size(); ++read) {
+        if (row_[read] == row_[write] && col_[read] == col_[write]) {
+          val_[write] += val_[read];
+          continue;
+        }
+        ++write;
+        if (write != read) {
+          row_[write] = row_[read];
+          col_[write] = col_[read];
+          val_[write] = val_[read];
         }
       }
+
+      const std::size_t compact_nnz = write + 1;
+      if (compact_nnz != row_.size()) {
+        // std::vector resize preserves prefix elements.
+        row_.resize(compact_nnz);
+        col_.resize(compact_nnz);
+        val_.resize(compact_nnz);
+      }
+
       assert(row_.size() == col_.size());
       assert(row_.size() == val_.size());
 
