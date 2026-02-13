@@ -41,9 +41,9 @@ void MagnonDensityMonitor::update(Solver& solver)
 void MagnonDensityMonitor::output_magnon_density()
 {
     std::ofstream ofs(jams::output::full_path_filename("magnon_density.tsv"));
-    ofs << jams::fmt::decimal << "f_THz";
-    ofs << jams::fmt::decimal << "E_meV";
-    ofs << jams::fmt::decimal << "magnon_density_meV^-1_m^-3";
+    ofs << jams::fmt::decimal << " f_THz";
+    ofs << jams::fmt::decimal << " E_meV";
+    ofs << jams::fmt::decimal << " magnon_density_meV^-1_m^-3";
     ofs << std::endl;
 
     const int time_points = periodogram_length();
