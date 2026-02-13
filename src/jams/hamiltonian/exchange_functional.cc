@@ -95,10 +95,27 @@ ExchangeFunctionalHamiltonian::ExchangeFunctionalHamiltonian(const libconfig::Se
 
   std::map<std::pair<std::string, std::string>, std::pair<double, ExchangeFunctionalType>> exchange_functional_map;
 
+  if (settings.exists("symmetry_check"))
+  {
+    std::string symmetry_check = lowercase(settings["symmetry_check"]);
+    if (symmetry_check == "none")
+    {
+      symmetry_check_ = jams::SparseMatrixSymmetryCheck::None;
+    } else if (symmetry_check == "symmetric")
+    {
+      symmetry_check_ = jams::SparseMatrixSymmetryCheck::Symmetric;
+    } else if (symmetry_check == "force_symmetric")
+    {
+      symmetry_check_ = jams::SparseMatrixSymmetryCheck::ForceSymmetric;
+    } else
+    {
+      throw std::runtime_error("invalid value for symmetry_check in ExchangeFunctionalHamiltonian");
+    }
+  }
+
   if (!settings.exists("interactions")) {
     throw jams::ConfigException(settings, "no 'interactions' setting in ExchangeFunctional hamiltonian");
   }
-
 
   double max_cutoff_radius = 0.0;
   for (auto n = 0; n < settings["interactions"].getLength(); ++n) {
@@ -123,16 +140,13 @@ ExchangeFunctionalHamiltonian::ExchangeFunctionalHamiltonian(const libconfig::Se
       throw jams::ConfigException(settings["interactions"][n][3], "cutoff radius cannot be negative");
     }
 
-    // Check that this pair (in either order) has not been specified before
     const auto key_ij = std::make_pair(type_i, type_j);
-    const auto key_ji = std::make_pair(type_j, type_i);
 
-    if (exchange_functional_map.find(key_ij) != exchange_functional_map.end() ||
-        exchange_functional_map.find(key_ji) != exchange_functional_map.end())
+    if (exchange_functional_map.find(key_ij) != exchange_functional_map.end() )
     {
       throw std::runtime_error(
           "Interaction between types \"" + type_i + "\" and \"" + type_j +
-          "\" is defined more than once (order does not matter).");
+          "\" is defined more than once.");
     }
 
     if (r_cutoff > globals::lattice->max_interaction_radius())
@@ -171,9 +185,9 @@ ExchangeFunctionalHamiltonian::ExchangeFunctionalHamiltonian(const libconfig::Se
     // Now safe to insert
     exchange_functional_map[key_ij] = {r_cutoff, exchange_functional};
 
-    if (type_i != type_j) {
-      exchange_functional_map[key_ji] = {r_cutoff, exchange_functional};
-    }
+    // if (type_i != type_j) {
+    //   exchange_functional_map[key_ji] = {r_cutoff, exchange_functional};
+    // }
   }
 
   auto output_functionals = jams::config_optional<bool>(settings, "output_functionals", false);
@@ -194,9 +208,9 @@ ExchangeFunctionalHamiltonian::ExchangeFunctionalHamiltonian(const libconfig::Se
                                      max_cutoff_radius, jams::defaults::lattice_tolerance);
 
   auto cartesian_positions = globals::lattice->lattice_site_positions_cart();
-  neartree.insert_sites(globals::lattice->lattice_site_positions_cart());
+  neartree.insert_sites(cartesian_positions);
 
-  auto counter = 0;
+  std::size_t counter = 0;
   std::vector<int> seen_stamp(globals::num_spins, -1);
 
   for (auto i = 0; i < globals::num_spins; ++i) {
@@ -204,10 +218,9 @@ ExchangeFunctionalHamiltonian::ExchangeFunctionalHamiltonian(const libconfig::Se
 
     auto r_i = cartesian_positions[i];
     const auto nbrs = neartree.neighbours(r_i, max_cutoff_radius);
-
     for (const auto& [r_j, j] : nbrs) {
       // Only process ij, ji is inserted at the same time. Also disallow self interaction.
-      if (j <= i) {
+      if (j == i) {
         continue;
       }
 
@@ -218,10 +231,6 @@ ExchangeFunctionalHamiltonian::ExchangeFunctionalHamiltonian(const libconfig::Se
       Key k{type_i, type_j};
 
       auto it = exchange_functional_map.find(k);
-      if (it == exchange_functional_map.end()) {
-        // optionally try symmetric lookup
-        it = exchange_functional_map.find(Key{type_j, type_i});
-      }
       if (it == exchange_functional_map.end()) {
         continue;
       }
@@ -236,15 +245,9 @@ ExchangeFunctionalHamiltonian::ExchangeFunctionalHamiltonian(const libconfig::Se
         }
         seen_stamp[j] = i;
 
-        // We insert ij and ji at the same time because tiny floating point differences of
-        // functional(rij) vs functional(rji) can lead to the sparse matrix being a tiny bit non-symmetric.
-        // This probably makes no difference to results, but means that our symmetry check for the matrix
-        // will fail because we don't do floating point equality checks, but check that values for ij and ji
-        // are identical.
         auto Jij = functional(r_ij);
         this->insert_interaction_scalar(i, j, Jij);
-        this->insert_interaction_scalar(j, i, Jij);
-        counter+=2;
+        counter++;
       }
     }
   }
@@ -254,7 +257,7 @@ ExchangeFunctionalHamiltonian::ExchangeFunctionalHamiltonian(const libconfig::Se
   std::cout << "  total interactions " << jams::fmt::integer << counter << "\n";
   std::cout << "  average interactions per spin " << jams::fmt::decimal << counter / double(globals::num_spins) << "\n";
 
-  finalize(jams::SparseMatrixSymmetryCheck::Symmetric);
+  finalize(symmetry_check_);
 }
 
 
