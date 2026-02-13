@@ -10,10 +10,9 @@ The exchange function :math:`J_{a,b}(\mathbf{r}_{ij})` is specified between mate
 Neighbours with the given material types will be given the exchange value calculate from :math:`J_{a,b}(\mathbf{r}_{ij})`.
 
 .. note::
-    Specified interactions are assumed to be reciprocal between
-    materials, so  if :math:`A` and :math:`B` are materials only one of
-    :math:`J_{AB}(\mathbf{r}_{ij})` and :math:`J_{BA}(\mathbf{r}_{ij})` should be specified. Moreover
-    only one functional can be specified per material or material pair.
+    Specified interactions are NOT assumed to be reciprocal between
+    materials, so  if :math:`A` and :math:`B` are materials both
+    :math:`J_{AB}(\mathbf{r}_{ij})` and :math:`J_{BA}(\mathbf{r}_{ij})` should be specified.
 
 Functionals
 ###########
@@ -131,7 +130,8 @@ Three fold rotationally symmetric function in the x-y plane. See `arXiv:2206.052
 
     interactions = (
         // type_i, type_j, functional, r_cutoff, qs1, qc1, J0, J1s, J1c, d0, l0, l1s, l1c, r*
-        ("A", "B", "c3z", 10.0, [0.7, 0.0, 0.0], [1.73, 1.0, 0.0], -0.1, -0.5, 0.1, 6.7, 0.1, 0.3, 0.6, 7.3),
+        ("A", "B", "c3z", 10.0, [ 0.7, 0.0, 0.0], [1.73, 1.0, 0.0], -0.1, -0.5, 0.1, 6.7, 0.1, 0.3, 0.6, 7.3),
+        ("B", "A", "c3z", 10.0, [-0.7, 0.0, 0.0], [1.73, 1.0, 0.0], -0.1, -0.5, 0.1, 6.7, 0.1, 0.3, 0.6, 7.3),
     );
 
 .. note::
@@ -158,6 +158,23 @@ Settings
 .. describe:: output_functionals (optional | bool | false)
 
     Output functionals to text files with columns of radius_nm and exchange_meV.
+
+.. describe:: symmetry_check (optional | string | symmetric)
+
+   Symmetry check to apply to the exchange matrix. Valid options are:
+
+   - ``"none"``
+     Perform no symmetry check.
+
+   - ``"symmetric"``
+     Verify that :math:`J_{ij} = J_{ji}` for all entries.
+     An error is raised if the matrix is not exactly symmetric.
+
+   - ``"force_symmetric"``
+     Enforce symmetry by replacing each pair with
+     :math:`J_{ij} = J_{ji} = \tfrac{1}{2}(J_{ij} + J_{ji})`.
+     This is useful if the symmetry test fails due to small floating-point
+     differences.
 
 
 Example

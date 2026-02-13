@@ -1,7 +1,14 @@
 #ifndef JAMS_CONTAINERS_SPARSE_MATRIX_BUILDER_H
 #define JAMS_CONTAINERS_SPARSE_MATRIX_BUILDER_H
 
+#include <algorithm>
+#include <cassert>
+#include <cstddef>
 #include <iostream>
+#include <limits>
+#include <numeric>
+#include <stdexcept>
+#include <vector>
 
 #include "jams/containers/sparse_matrix.h"
 
@@ -10,7 +17,8 @@ namespace jams {
     enum class SparseMatrixSymmetryCheck {
         None,
         Symmetric,
-        StructurallySymmetric
+        StructurallySymmetric,
+        ForceSymmetric
     };
 
     template<typename T>
@@ -33,6 +41,7 @@ namespace jams {
 
         bool is_structurally_symmetric();
         bool is_symmetric();
+        void symmetrise();
 
         SparseMatrix<T> build();
 
@@ -331,9 +340,10 @@ namespace jams {
         auto col_ji_begin = col_.cbegin() + (row_ji_begin - row_.cbegin());
         auto col_ji_end = col_.cbegin() + (row_ji_end - row_.cbegin());
 
-        auto ji_pos = std::find(col_ji_begin, col_ji_end, i);
+        // rande is
+        auto ji_pos = std::lower_bound(col_ji_begin, col_ji_end, i);
 
-        if (ji_pos == col_ji_end) {
+        if (ji_pos == col_ji_end || *ji_pos != i) {
           // The 'i' in ji is missing in the transposed matrix
           return false;
         }
@@ -348,6 +358,70 @@ namespace jams {
 
       }
       return true;
+    }
+
+    template <typename T>
+    void SparseMatrix<T>::Builder::symmetrise()
+    {
+      this->sort();
+      this->merge();
+
+      std::vector<value_type> new_val;
+      std::vector<index_type> new_row;
+      std::vector<index_type> new_col;
+
+      for (auto n = 0; n < row_.size(); ++n) {
+        auto i = row_[n];
+        auto j = col_[n];
+        auto ij_val = val_[n];
+
+        // look for the first position of 'j' within the rows
+        auto row_ji_begin = std::lower_bound(row_.cbegin(), row_.cend(), j);
+
+        if (row_ji_begin == row_.cend() || (*row_ji_begin) != j) {
+          // The 'j' in ji is missing in the transposed matrix
+          new_row.push_back(j);
+          new_col.push_back(i);
+          new_val.push_back(ij_val);
+          continue;
+        }
+
+        // look for the last position of 'j' within the rows
+        auto row_ji_end = std::upper_bound(row_ji_begin, row_.cend(), j);
+
+        auto col_ji_begin = col_.cbegin() + (row_ji_begin - row_.cbegin());
+        auto col_ji_end = col_.cbegin() + (row_ji_end - row_.cbegin());
+
+        // Column block is already sorted, so we can use std::lower_bound rather than std::find
+        auto ji_pos = std::lower_bound(col_ji_begin, col_ji_end, i);
+
+        if (ji_pos == col_ji_end || *ji_pos != i) {
+          // The 'i' in ji is missing in the transposed matrix
+          new_row.push_back(j);
+          new_col.push_back(i);
+          new_val.push_back(ij_val);
+          continue;
+        }
+
+        const auto ji_idx = static_cast<std::size_t>(std::distance(col_.cbegin(), ji_pos));
+
+        const auto ji_val = val_[ji_idx];
+        if (ji_val != ij_val) {
+          const auto sym_val = value_type(0.5) * (ij_val + ji_val);
+          // the values for ij and ji do not match so the matrix is not symmetric
+          val_[n] = sym_val;
+          val_[ji_idx] = sym_val;
+        }
+
+      }
+
+      row_.insert(row_.end(), new_row.begin(), new_row.end());
+      col_.insert(col_.end(), new_col.begin(), new_col.end());
+      val_.insert(val_.end(), new_val.begin(), new_val.end());
+
+      is_sorted_ = false;
+      is_merged_ = false;
+
     }
 };
 

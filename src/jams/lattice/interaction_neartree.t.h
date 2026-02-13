@@ -7,6 +7,7 @@
 #include <gmock/gmock.h>
 
 #include <memory>
+#include <stdexcept>
 
 class InteractionNeartreeTest : public ::testing::Test {
 protected:
@@ -164,6 +165,51 @@ TEST_F(InteractionNeartreeTest, neighbours_pbc_complicated) {
   SetUp(a, b, c, pbc, superlattice_size, r_cutoff, epsilon);
 
   bruteforce_comparison_test();
+}
+
+TEST(InteractionNeartreeStandaloneTest, insert_sites_replaces_existing_sites) {
+  const Vec3 a = {1.0, 0.0, 0.0};
+  const Vec3 b = {0.0, 1.0, 0.0};
+  const Vec3 c = {0.0, 0.0, 1.0};
+  const Vec3b pbc = {false, false, false};
+  const double r_cutoff = 1.0;
+  const double epsilon = 1e-9;
+
+  jams::InteractionNearTree near_tree(a, b, c, pbc, r_cutoff, epsilon);
+
+  near_tree.insert_sites({Vec3{0.0, 0.0, 0.0}});
+  near_tree.insert_sites({Vec3{0.0, 0.0, 0.0}});
+
+  EXPECT_EQ(near_tree.num_neighbours(Vec3{0.0, 0.0, 0.0}, 0.1), 0);
+}
+
+TEST_F(InteractionNeartreeTest, num_neighbours_non_site_is_not_negative) {
+  Vec3 a = {1.0, 0.0, 0.0};
+  Vec3 b = {0.0, 1.0, 0.0};
+  Vec3 c = {0.0, 0.0, 1.0};
+  Vec3b pbc = {false, false, false};
+  int superlattice_size = 5;
+  double r_cutoff = 2.0;
+  const double epsilon = 1e-5;
+
+  SetUp(a, b, c, pbc, superlattice_size, r_cutoff, epsilon);
+
+  EXPECT_EQ(near_tree_->num_neighbours(Vec3{-100.0, -100.0, -100.0}, 0.1), 0);
+}
+
+TEST(InteractionNeartreeStandaloneTest, shell_validates_width_and_bounds) {
+  const Vec3 a = {1.0, 0.0, 0.0};
+  const Vec3 b = {0.0, 1.0, 0.0};
+  const Vec3 c = {0.0, 0.0, 1.0};
+  const Vec3b pbc = {true, true, true};
+  const double r_cutoff = 1.0;
+  const double epsilon = 1e-9;
+
+  jams::InteractionNearTree near_tree(a, b, c, pbc, r_cutoff, epsilon);
+  near_tree.insert_sites({Vec3{0.0, 0.0, 0.0}});
+
+  EXPECT_THROW(near_tree.shell(Vec3{0.0, 0.0, 0.0}, 0.5, 0.0), std::invalid_argument);
+  EXPECT_THROW(near_tree.shell(Vec3{0.0, 0.0, 0.0}, 0.95, 0.2), std::invalid_argument);
 }
 
 

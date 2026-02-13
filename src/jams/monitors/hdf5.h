@@ -29,7 +29,9 @@ class Hdf5Monitor : public Monitor {
     void write_spin_h5_file(const std::string &h5_file_name);
 
   bool         write_ds_dt_ = false;
-  bool         compression_enabled_ = true;
+  bool         write_fields_ = false;
+  bool         write_energies_ = false;
+  bool         compression_enabled_ = false;
   Slice        slice_;
   FILE*        xdmf_file_;
 };

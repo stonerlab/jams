@@ -3,7 +3,8 @@
 
 #include <vector>
 #include <array>
-#include <cassert>
+#include <algorithm>
+#include <stdexcept>
 
 jams::InteractionNearTree::InteractionNearTree(const Vec3&a, const Vec3& b, const Vec3& c, const Vec3b& pbc, const double& r_cutoff, const double& epsilon) :
   r_cutoff_(r_cutoff),
@@ -22,17 +23,37 @@ jams::InteractionNearTree::InteractionNearTree(const Vec3&a, const Vec3& b, cons
 
 std::vector<jams::InteractionNearTree::NearTreeDataType>
 jams::InteractionNearTree::neighbours(const Vec3 &r, const double &radius) const {
-  assert(radius <= r_cutoff_);
+  if (definately_less_than(radius, 0.0, epsilon_) || definately_greater_than(radius, r_cutoff_, epsilon_)) {
+    throw std::invalid_argument("InteractionNearTree::neighbours radius must be in [0, r_cutoff]");
+  }
   return neartree_.find_in_annulus(epsilon_, radius, {r, 0}, epsilon_);
 }
 
 std::vector<jams::InteractionNearTree::NearTreeDataType>
 jams::InteractionNearTree::shell(const Vec3 &r, const double &radius, const double& width) const {
-  assert(radius <= r_cutoff_);
+  if (!definately_greater_than(width, 0.0, epsilon_)) {
+    throw std::invalid_argument("InteractionNearTree::shell width must be > 0");
+  }
+
+  const auto inner_radius = radius - 0.5 * width;
+  const auto outer_radius = radius + 0.5 * width;
+  if (definately_less_than(inner_radius, 0.0, epsilon_) || definately_greater_than(outer_radius, r_cutoff_, epsilon_)) {
+    throw std::invalid_argument("InteractionNearTree::shell annulus must lie within [0, r_cutoff]");
+  }
+
   return neartree_.find_in_annulus(radius - 0.5 * width, radius + 0.5 * width, {r, 0}, epsilon_);
 }
 
 void jams::InteractionNearTree::insert_sites(const std::vector<Vec3>& sites) {
+  // Replace existing contents so repeated calls do not duplicate positions or
+  // reuse stale indices.
+  NearTreeType empty_tree(
+      [](const NearTreeDataType& a, const NearTreeDataType& b)->double {
+        return norm(a.first - b.first);
+      });
+  using std::swap;
+  swap(neartree_, empty_tree);
+
 // There are 6 surface normals for a parallelepiped but the parallel nature means each pair of opposite
   // surfaces has the same normal with opposite sign, so we only need calculate
   // 3 normals.
@@ -98,6 +119,18 @@ void jams::InteractionNearTree::insert_sites(const std::vector<Vec3>& sites) {
 }
 
 int jams::InteractionNearTree::num_neighbours(const Vec3 &r, const double &radius) const {
-  return neartree_.num_neighbours_in_radius(radius, {r, 0}, epsilon_) - 1;
-}
+  if (definately_less_than(radius, 0.0, epsilon_) || definately_greater_than(radius, r_cutoff_, epsilon_)) {
+    throw std::invalid_argument("InteractionNearTree::num_neighbours radius must be in [0, r_cutoff]");
+  }
 
+  const auto count = neartree_.num_neighbours_in_radius(radius, {r, 0}, epsilon_);
+  const auto coincident = neartree_.find_in_radius(epsilon_, {r, 0}, epsilon_);
+  const bool has_self = std::any_of(
+      coincident.begin(),
+      coincident.end(),
+      [&](const NearTreeDataType& site) {
+        return !definately_greater_than(norm(site.first - r), epsilon_, epsilon_);
+      });
+
+  return count - (has_self ? 1 : 0);
+}

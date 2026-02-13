@@ -28,7 +28,8 @@ namespace jams {
                             const double& r_cutoff, const double& epsilon);
 
         // Insert a vector of site positions. The index will be numbered from
-        // zero to sites.size() - 1
+        // zero to sites.size() - 1.
+        // Calling this method replaces any previously inserted sites.
         void insert_sites(const std::vector<Vec3>& sites);
 
         // Returns the number of sites inside the neartree.

@@ -29,6 +29,8 @@ public:
 private:
     using ExchangeFunctionalType = std::function<double(Vec3)>;
 
+    jams::SparseMatrixSymmetryCheck symmetry_check_ = jams::SparseMatrixSymmetryCheck::Symmetric;
+
     ExchangeFunctionalType functional_from_params(const std::string& name, const std::vector<double>& params);
 
     void output_exchange_functional(std::ostream &os, const ExchangeFunctionalType &functional, double r_cutoff);
