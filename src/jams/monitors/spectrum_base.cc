@@ -62,6 +62,7 @@ SpectrumBaseMonitor::SpectrumBaseMonitor(
   resize_channel_storage_();
 
   std::vector<Vec3> r_frac;
+  r_frac.reserve(num_basis_atoms());
   for (auto a = 0; a < num_basis_atoms(); ++a)
   {
     r_frac.push_back(globals::lattice->basis_site_atom(a).position_frac);
@@ -121,7 +122,9 @@ void SpectrumBaseMonitor::resize_channel_storage_()
 
 void SpectrumBaseMonitor::append_full_k_grid(Vec3i kspace_size)
 {
-  std::vector<jams::HKLIndex> hkl_path;
+  const std::size_t initial_size = k_points_.size();
+  const std::size_t added_count_estimate = static_cast<std::size_t>(jams::product(kspace_size));
+  k_points_.reserve(initial_size + added_count_estimate);
 
   for (auto l = 0; l < kspace_size[0]; ++l)
   {
@@ -132,18 +135,17 @@ void SpectrumBaseMonitor::append_full_k_grid(Vec3i kspace_size)
         Vec3i coordinate = {l, m, n};
         Vec3 hkl = jams::hadamard_product(coordinate, 1.0 / jams::to_double(kspace_size));
         Vec3 xyz = globals::lattice->get_unitcell().inv_fractional_to_cartesian(hkl);
-        hkl_path.push_back(jams::HKLIndex{hkl, xyz, fftw_r2c_index(coordinate, kspace_size)});
+        k_points_.push_back(jams::HKLIndex{hkl, xyz, fftw_r2c_index(coordinate, kspace_size)});
       }
     }
   }
-
-  k_points_.insert(end(k_points_), begin(hkl_path), end(hkl_path));
 
   if (k_segment_offsets_.empty())
   {
     k_segment_offsets_.push_back(0);
   }
-  k_segment_offsets_.push_back(k_segment_offsets_.back() + static_cast<int>(hkl_path.size()));
+  const std::size_t added_count = k_points_.size() - initial_size;
+  k_segment_offsets_.push_back(k_segment_offsets_.back() + static_cast<int>(added_count));
 }
 
 void SpectrumBaseMonitor::append_k_path_segment(libconfig::Setting& settings)
@@ -172,14 +174,31 @@ void SpectrumBaseMonitor::append_k_path_segment(libconfig::Setting& settings)
     }
   }
 
-  auto new_path = make_hkl_path(hkl_path_nodes, globals::lattice->kspace_size());
-  k_points_.insert(end(k_points_), begin(new_path), end(new_path));
+  const auto kspace_size = globals::lattice->kspace_size();
+  std::size_t expected_new_points = 0;
+  for (std::size_t i = 1; i < hkl_path_nodes.size(); ++i)
+  {
+    const Vec3i start = jams::to_int(jams::hadamard_product(hkl_path_nodes[i - 1], kspace_size));
+    const Vec3i end = jams::to_int(jams::hadamard_product(hkl_path_nodes[i], kspace_size));
+    const Vec3i displacement = jams::absolute(end - start);
+    expected_new_points += static_cast<std::size_t>(
+        std::max({displacement[0], displacement[1], displacement[2]})) + 1;
+  }
+  if (hkl_path_nodes.size() > 2)
+  {
+    expected_new_points -= static_cast<std::size_t>(hkl_path_nodes.size() - 2);
+  }
+
+  const std::size_t initial_size = k_points_.size();
+  k_points_.reserve(initial_size + expected_new_points);
+  make_hkl_path(hkl_path_nodes, kspace_size, k_points_);
 
   if (k_segment_offsets_.empty())
   {
     k_segment_offsets_.push_back(0);
   }
-  k_segment_offsets_.push_back(k_segment_offsets_.back() + static_cast<int>(new_path.size()));
+  const std::size_t added_count = k_points_.size() - initial_size;
+  k_segment_offsets_.push_back(k_segment_offsets_.back() + static_cast<int>(added_count));
 }
 
 void SpectrumBaseMonitor::configure_k_list(libconfig::Setting& settings)
@@ -239,10 +258,19 @@ void SpectrumBaseMonitor::configure_periodogram(libconfig::Setting &settings)
   }
 }
 
-std::vector<jams::HKLIndex> SpectrumBaseMonitor::make_hkl_path(const std::vector<Vec3> &hkl_nodes,
-                                                                           const Vec3i &kspace_size)
+void SpectrumBaseMonitor::make_hkl_path(const std::vector<Vec3> &hkl_nodes,
+                                        const Vec3i &kspace_size,
+                                        std::vector<jams::HKLIndex>& hkl_path)
 {
-  std::vector<jams::HKLIndex> hkl_path;
+  const std::size_t initial_size = hkl_path.size();
+  const auto push_unique = [&](const jams::HKLIndex& point)
+  {
+    if (hkl_path.size() > initial_size && hkl_path.back() == point)
+    {
+      return;
+    }
+    hkl_path.push_back(point);
+  };
 
   for (auto n = 0; n < static_cast<int>(hkl_nodes.size()) - 1; ++n)
   {
@@ -263,7 +291,7 @@ std::vector<jams::HKLIndex> SpectrumBaseMonitor::make_hkl_path(const std::vector
       {
         Vec3 hkl = jams::hadamard_product(start, 1.0 / jams::to_double(kspace_size));
         Vec3 xyz = globals::lattice->get_unitcell().inv_fractional_to_cartesian(hkl);
-        hkl_path.push_back(jams::HKLIndex{hkl, xyz, fftw_r2c_index(start, kspace_size)});
+        push_unique(jams::HKLIndex{hkl, xyz, fftw_r2c_index(start, kspace_size)});
 
         start[0] += step[0];
         if (p1 >= 0)
@@ -288,7 +316,7 @@ std::vector<jams::HKLIndex> SpectrumBaseMonitor::make_hkl_path(const std::vector
       {
         Vec3 hkl = jams::hadamard_product(start, 1.0 / jams::to_double(kspace_size));
         Vec3 xyz = globals::lattice->get_unitcell().inv_fractional_to_cartesian(hkl);
-        hkl_path.push_back(jams::HKLIndex{hkl, xyz, fftw_r2c_index(start, kspace_size)});
+        push_unique(jams::HKLIndex{hkl, xyz, fftw_r2c_index(start, kspace_size)});
 
         start[1] += step[1];
         if (p1 >= 0)
@@ -313,7 +341,7 @@ std::vector<jams::HKLIndex> SpectrumBaseMonitor::make_hkl_path(const std::vector
       {
         Vec3 hkl = jams::hadamard_product(start, 1.0 / jams::to_double(kspace_size));
         Vec3 xyz = globals::lattice->get_unitcell().inv_fractional_to_cartesian(hkl);
-        hkl_path.push_back(jams::HKLIndex{hkl, xyz, fftw_r2c_index(start, kspace_size)});
+        push_unique(jams::HKLIndex{hkl, xyz, fftw_r2c_index(start, kspace_size)});
 
         start[2] += step[2];
         if (p1 >= 0)
@@ -333,11 +361,8 @@ std::vector<jams::HKLIndex> SpectrumBaseMonitor::make_hkl_path(const std::vector
 
     Vec3 hkl = jams::hadamard_product(end, 1.0 / jams::to_double(kspace_size));
     Vec3 xyz = globals::lattice->get_unitcell().inv_fractional_to_cartesian(hkl);
-    hkl_path.push_back(jams::HKLIndex{hkl, xyz, fftw_r2c_index(end, kspace_size)});
+    push_unique(jams::HKLIndex{hkl, xyz, fftw_r2c_index(end, kspace_size)});
   }
-
-  hkl_path.erase(unique(hkl_path.begin(), hkl_path.end()), hkl_path.end());
-  return hkl_path;
 }
 
 const SpectrumBaseMonitor::CmplxMappedSlice& SpectrumBaseMonitor::compute_frequency_spectrum_at_k(

@@ -206,8 +206,10 @@ protected:
   /// @return Reference to internal buffer containing S(k,ω) for this k-point.
   const CmplxMappedSlice& compute_frequency_spectrum_at_k(int kpoint_index);
 
-  static std::vector<jams::HKLIndex> make_hkl_path(
-      const std::vector<Vec3> &hkl_nodes, const Vec3i &kspace_size);
+  static void make_hkl_path(
+      const std::vector<Vec3> &hkl_nodes,
+      const Vec3i &kspace_size,
+      std::vector<jams::HKLIndex>& hkl_path);
 
   /// @brief Append one time sample of S(k) for all k-points on the configured path.
   ///
