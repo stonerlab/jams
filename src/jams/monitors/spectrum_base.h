@@ -256,11 +256,12 @@ private:
   /// @brief Generate the window function for a width of num_time_samples.
   ///
   /// @details FFT window is normalised to unit RMS power so that windowing does not change overall power.
-  static jams::MultiArray<double,1> generate_normalised_window_(int num_time_samples);
+  static void generate_normalised_window_(jams::MultiArray<double,1>& window, int num_time_samples);
 
   /// @brief Generate unit cell phase factors phi_a(k) = exp(-2 pi i r_a.k) where a is a position in the unit cell basis
   /// and k is a k point.
-  static jams::MultiArray<jams::ComplexHi, 2> generate_phase_factors_(
+  static void generate_phase_factors_(
+      jams::MultiArray<jams::ComplexHi, 2>& phase_factors,
       const std::vector<Vec3>& r_frac,
       const std::vector<jams::HKLIndex>& kpoints);
 

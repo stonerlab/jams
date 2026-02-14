@@ -37,8 +37,17 @@ SpectrumBaseMonitor::SpectrumBaseMonitor(
     const libconfig::Setting &settings,
     KSamplingMode k_sampling_mode) : Monitor(settings)
 {
+  const auto kspace_size = globals::lattice->kspace_size();
+  num_basis_atoms_ = globals::lattice->num_basis_sites();
+
   keep_negative_frequencies_ = jams::config_optional<bool>(settings, "keep_negative_frequencies", keep_negative_frequencies_);
 
+  if (settings.exists("compute_periodogram"))
+  {
+    configure_periodogram(settings["compute_periodogram"]);
+  }
+
+  std::cout << "  creating k-point list" << std::endl;
   if (k_sampling_mode == KSamplingMode::FullGrid)
   {
     append_full_k_grid(globals::lattice->kspace_size());
@@ -48,26 +57,21 @@ SpectrumBaseMonitor::SpectrumBaseMonitor(
     configure_k_list(settings["hkl_path"]);
   }
 
-  if (settings.exists("compute_periodogram"))
+  std::cout << "  generating basis phase factors" << std::endl;
+  std::vector<Vec3> r_frac(num_basis_atoms());
+  for (auto a = 0; a < num_basis_atoms(); ++a)
   {
-    configure_periodogram(settings["compute_periodogram"]);
+    r_frac[a] = globals::lattice->basis_site_atom(a).position_frac;
   }
+  generate_phase_factors_(basis_phase_factors_, r_frac, k_points_);
 
-  const auto kspace_size = globals::lattice->kspace_size();
-  num_basis_atoms_ = globals::lattice->num_basis_sites();
+  std::cout << "  allocating sk_grid buffer" << std::endl;
 
   zero(sk_grid_.resize(
       kspace_size[0], kspace_size[1], kspace_size[2] / 2 + 1, num_basis_atoms_));
 
+  std::cout << "  allocating sk_time_series buffer" << std::endl;
   resize_channel_storage_();
-
-  std::vector<Vec3> r_frac;
-  r_frac.reserve(num_basis_atoms());
-  for (auto a = 0; a < num_basis_atoms(); ++a)
-  {
-    r_frac.push_back(globals::lattice->basis_site_atom(a).position_frac);
-  }
-  basis_phase_factors_ = generate_phase_factors_(r_frac, k_points_);
 }
 
 SpectrumBaseMonitor::~SpectrumBaseMonitor()
@@ -116,7 +120,7 @@ void SpectrumBaseMonitor::resize_channel_storage_()
 
   if (periodogram_window_.size() != T)
   {
-    periodogram_window_ = generate_normalised_window_(T);
+    generate_normalised_window_(periodogram_window_, T);
   }
 }
 
@@ -374,7 +378,7 @@ const SpectrumBaseMonitor::CmplxMappedSlice& SpectrumBaseMonitor::compute_freque
 
   if (periodogram_window_.size() != num_time_samples)
   {
-    periodogram_window_ = generate_normalised_window_(num_time_samples);
+    generate_normalised_window_(periodogram_window_, num_time_samples);
   }
 
   if (!sk_time_fft_plan_
@@ -628,7 +632,7 @@ jams::MultiArray<Vec3, 1> SpectrumBaseMonitor::compute_mean_basis_mag_directions
 {
   if (periodogram_window_.empty())
   {
-    periodogram_window_ = generate_normalised_window_(periodogram_length());
+    generate_normalised_window_(periodogram_window_, periodogram_length());
   }
 
   jams::MultiArray<Vec3, 1> mean_directions(num_basis_atoms());
@@ -755,9 +759,12 @@ Vec3cx SpectrumBaseMonitor::read_cartesian_spin_(const int basis_index,
   };
 }
 
-jams::MultiArray<double, 1> SpectrumBaseMonitor::generate_normalised_window_(int num_time_samples)
+void SpectrumBaseMonitor::generate_normalised_window_(jams::MultiArray<double, 1>& window, int num_time_samples)
 {
-  jams::MultiArray<double, 1> window(num_time_samples);
+  if (window.size() != num_time_samples)
+  {
+    window.resize(num_time_samples);
+  }
 
   double w2sum = 0.0;
   for (int i = 0; i < num_time_samples; ++i)
@@ -774,26 +781,27 @@ jams::MultiArray<double, 1> SpectrumBaseMonitor::generate_normalised_window_(int
   {
     window(i) *= inv_rms;
   }
-
-  return window;
 }
 
-jams::MultiArray<jams::ComplexHi, 2> SpectrumBaseMonitor::generate_phase_factors_(
+void SpectrumBaseMonitor::generate_phase_factors_(
+    jams::MultiArray<jams::ComplexHi, 2>& phase_factors,
     const std::vector<Vec3>& r_frac,
     const std::vector<jams::HKLIndex>& kpoints)
 {
-  jams::MultiArray<jams::ComplexHi, 2> phase_factors(r_frac.size(), kpoints.size());
+  if (phase_factors.size(0) != r_frac.size() || phase_factors.size(1) != kpoints.size())
+  {
+    phase_factors.resize(r_frac.size(), kpoints.size());
+  }
 
   for (auto a = 0; a < r_frac.size(); ++a)
   {
-    const auto r = r_frac[a];
+    const auto& r = r_frac[a];
     for (auto k = 0; k < kpoints.size(); ++k)
     {
-      const auto q = kpoints[k].hkl;
+      const auto& q = kpoints[k].hkl;
       phase_factors(a, k) = exp(-kImagTwoPi * jams::dot(q, r));
     }
   }
-  return phase_factors;
 }
 
 void SpectrumBaseMonitor::store_sk_snapshot(const jams::MultiArray<double, 2> &data)
