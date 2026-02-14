@@ -113,9 +113,6 @@ void SpectrumBaseMonitor::resize_channel_storage_()
   }
   zero(sk_time_series_.resize(A, T, K, stored_channel_count_));
 
-  const int F = keep_negative_frequencies_ ? T : (T / 2 + 1);
-  zero(skw_buffer_.resize(A, F, K, C));
-
   if (periodogram_window_.size() != T)
   {
     periodogram_window_ = generate_normalised_window_(T);
@@ -512,6 +509,8 @@ void SpectrumBaseMonitor::advance_periodogram_window()
   periodogram_window_count_++;
 }
 
+
+// TODO: Remove this an refactor NeutronSpectrum to stream over k
 const SpectrumBaseMonitor::CmplxMappedSpectrum& SpectrumBaseMonitor::finalise_periodogram_spectrum()
 {
   const int num_sites = num_basis_atoms();
