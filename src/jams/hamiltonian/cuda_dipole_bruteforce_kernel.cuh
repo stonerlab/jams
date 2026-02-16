@@ -62,20 +62,23 @@ inline void CalculateDisplacementVector(const jams::Real r_i_cartesian[3],
 __device__ 
 inline void CalculateFieldElement(const jams::Real s_j[3], const jams::Real r_ij[3],
     const jams::Real prefactor, const jams::Real r_norm_squared, jams::Real h[3]) {
-  const float d_r_norm = rsqrtf(r_norm_squared);
-  const float s_j_dot_rhat = dot(s_j, r_ij);
-  const float w0 = prefactor * d_r_norm * d_r_norm * d_r_norm * d_r_norm * d_r_norm;
+  const jams::Real d_r_norm = rsqrt(r_norm_squared);
+  const jams::Real s_j_dot_rhat = dot(s_j, r_ij);
+  const jams::Real w0 = prefactor * d_r_norm * d_r_norm * d_r_norm * d_r_norm * d_r_norm;
 
   #pragma unroll
   for (unsigned int n = 0; n < 3; ++n) {
-    h[n] = w0 * (3.0f * r_ij[n] * s_j_dot_rhat  - r_norm_squared * s_j[n]);
+    h[n] = w0 * (static_cast<jams::Real>(3.0) * r_ij[n] * s_j_dot_rhat - r_norm_squared * s_j[n]);
   }
 }
 
 template <typename T>
 __device__
 inline bool cuda_definately_greater_than(const T& a, const T& b, const T& epsilon) {
-  return (a - b) > (max(abs(a), abs(b)) * epsilon);
+  const T abs_a = (a < static_cast<T>(0)) ? -a : a;
+  const T abs_b = (b < static_cast<T>(0)) ? -b : b;
+  const T max_abs = (abs_a > abs_b) ? abs_a : abs_b;
+  return (a - b) > (max_abs * epsilon);
 }
 
 __global__ void dipole_bruteforce_kernel
@@ -219,39 +222,39 @@ void DipoleBruteforceKernel(
             const int j3 = (block_size * block_idx + t3);
             const int j4 = (block_size * block_idx + t4);
 
-            float r_ij1[3];
+            jams::Real r_ij1[3];
             CalculateDisplacementVector(r_i, r_j[t1], r_ij1);
-            const float r_norm_squared1 = norm_squared(r_ij1);
+            const jams::Real r_norm_squared1 = norm_squared(r_ij1);
 
-            float r_ij2[3];
+            jams::Real r_ij2[3];
             CalculateDisplacementVector(r_i, r_j[t2], r_ij2);
-            const float r_norm_squared2 = norm_squared(r_ij2);
+            const jams::Real r_norm_squared2 = norm_squared(r_ij2);
 
-            float r_ij3[3];
+            jams::Real r_ij3[3];
             CalculateDisplacementVector(r_i, r_j[t3], r_ij3);
-            const float r_norm_squared3 = norm_squared(r_ij3);
+            const jams::Real r_norm_squared3 = norm_squared(r_ij3);
 
-            float r_ij4[3];
+            jams::Real r_ij4[3];
             CalculateDisplacementVector(r_i, r_j[t4], r_ij4);
-            const float r_norm_squared4 = norm_squared(r_ij4);
+            const jams::Real r_norm_squared4 = norm_squared(r_ij4);
 
-            float h1[3] = {0.0, 0.0, 0.0};
-            if ( (i < num_spins) && !cuda_definately_greater_than(r_norm_squared1, r_cutoff_sq, 1e-4f) && (i != j1) && (j1 < num_spins) ) {
+            jams::Real h1[3] = {0.0, 0.0, 0.0};
+            if ((i < num_spins) && !cuda_definately_greater_than(r_norm_squared1, r_cutoff_sq, static_cast<jams::Real>(1e-4)) && (i != j1) && (j1 < num_spins)) {
               CalculateFieldElement(s_j[t1], r_ij1, mus[t1], r_norm_squared1, h1);
             }
 
-            float h2[3] = {0.0, 0.0, 0.0};
-            if ( (i < num_spins) && !cuda_definately_greater_than(r_norm_squared2, r_cutoff_sq, 1e-4f) && (i != j2) && (j2 < num_spins) ) {
+            jams::Real h2[3] = {0.0, 0.0, 0.0};
+            if ((i < num_spins) && !cuda_definately_greater_than(r_norm_squared2, r_cutoff_sq, static_cast<jams::Real>(1e-4)) && (i != j2) && (j2 < num_spins)) {
               CalculateFieldElement(s_j[t2], r_ij2, mus[t2], r_norm_squared2, h2);
             }
 
-            float h3[3] = {0.0, 0.0, 0.0};
-            if ( (i < num_spins) && !cuda_definately_greater_than(r_norm_squared3, r_cutoff_sq, 1e-4f) && (i != j3) && (j3 < num_spins) ) {
+            jams::Real h3[3] = {0.0, 0.0, 0.0};
+            if ((i < num_spins) && !cuda_definately_greater_than(r_norm_squared3, r_cutoff_sq, static_cast<jams::Real>(1e-4)) && (i != j3) && (j3 < num_spins)) {
               CalculateFieldElement(s_j[t3], r_ij3, mus[t3], r_norm_squared3, h3);
             }
 
-            float h4[3] = {0.0, 0.0, 0.0};
-            if ( (i < num_spins) && !cuda_definately_greater_than(r_norm_squared4, r_cutoff_sq, 1e-4f) && (i != j4) && (j4 < num_spins) ) {
+            jams::Real h4[3] = {0.0, 0.0, 0.0};
+            if ((i < num_spins) && !cuda_definately_greater_than(r_norm_squared4, r_cutoff_sq, static_cast<jams::Real>(1e-4)) && (i != j4) && (j4 < num_spins)) {
               CalculateFieldElement(s_j[t4], r_ij4, mus[t4], r_norm_squared4, h4);
             }
 
@@ -325,13 +328,13 @@ __global__ void dipole_bruteforce_sharemem_kernel
     __syncthreads();
 
     for (unsigned int t = 0; t < block_size; ++t) {
-      float h_tmp[3] = {0.0, 0.0, 0.0};
+      jams::Real h_tmp[3] = {0.0, 0.0, 0.0};
       unsigned int j = t + block_size * b;
 
       CalculateDisplacementVector(ri, rj[t], r_ij);
       r_norm_squared = norm_squared(r_ij);
 
-      if (cuda_definately_greater_than(r_norm_squared, r_cutoff_sq, 1e-4f)) continue;
+      if (cuda_definately_greater_than(r_norm_squared, r_cutoff_sq, static_cast<jams::Real>(1e-4))) continue;
 
       if (i != j && j < num_spins && i < num_spins) {
         CalculateFieldElement(sj[t], r_ij, mus[t], r_norm_squared, h_tmp);
