@@ -3,6 +3,7 @@
 //
 
 #include <cassert>
+#include <filesystem>
 #include <iostream>
 
 #if HAS_CUDA
@@ -18,6 +19,21 @@ namespace jams {
     Jams &instance() {
       static Jams jams_instance;
       return jams_instance;
+    }
+
+    void Jams::set_temp_directory_path(std::filesystem::path path) {
+      if (path.empty()) {
+        throw std::runtime_error("Temporary directory path cannot be empty");
+      }
+
+      std::error_code ec;
+      std::filesystem::create_directories(path, ec);
+      if (ec) {
+        throw std::runtime_error(
+            "Unable to create temporary directory '" + path.string() + "': " + ec.message());
+      }
+
+      jams::instance().temp_directory_path_ = std::move(path);
     }
 
 

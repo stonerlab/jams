@@ -31,6 +31,24 @@ namespace jams {
         return;
       }
 
+      if (flag.rfind("--temp-directory=", 0) == 0) {
+        std::string temp_directory = flag.substr(flag.find('=') + 1);
+        if (temp_directory.empty()) {
+          throw std::runtime_error("Missing value for --temp-directory");
+        }
+        program_args.temp_directory_path = temp_directory;
+        return;
+      }
+
+      if (flag.rfind("--temp-dir=", 0) == 0) {
+        std::string temp_directory = flag.substr(flag.find('=') + 1);
+        if (temp_directory.empty()) {
+          throw std::runtime_error("Missing value for --temp-dir");
+        }
+        program_args.temp_directory_path = temp_directory;
+        return;
+      }
+
       throw std::runtime_error("Unknown flag \'" + flag + "\'");
     }
 
@@ -74,6 +92,15 @@ namespace jams {
             throw std::runtime_error("Missing value for --config");
           }
           add_config_input(config_value, true, program_args);
+          continue;
+        }
+
+        if (arg == "--temp-directory" || arg == "--temp-dir") {
+          if (n + 1 >= argc || arg_is_flag(trim(argv[n + 1]))) {
+            throw std::runtime_error("Missing value for " + arg);
+          }
+          ++n;
+          program_args.temp_directory_path = trim(argv[n]);
           continue;
         }
 

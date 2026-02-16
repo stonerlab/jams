@@ -5,6 +5,7 @@
 #ifndef JAMS_COMMON_H
 #define JAMS_COMMON_H
 
+#include <filesystem>
 #include <sstream>
 #include <pcg_random.hpp>
 #include <jams/interface/randutils.h>
@@ -46,6 +47,9 @@ namespace jams {
           jams::system::make_path(path);
         }
 
+        inline static const std::filesystem::path& temp_directory_path() { return instance().temp_directory_path_; }
+        static void set_temp_directory_path(std::filesystem::path path);
+
         inline static RandomGeneratorType& random_generator() { return instance().random_generator_; }
 
         inline static std::string random_generator_internal_state() {
@@ -73,6 +77,7 @@ namespace jams {
         RandomGeneratorType random_generator_{randutils::auto_seed_128{}.base()};
 
         std::string output_path_ = ".";
+        std::filesystem::path temp_directory_path_ = std::filesystem::temp_directory_path();
 
         #if HAS_CUDA
         CudaStream cuda_master_stream_;

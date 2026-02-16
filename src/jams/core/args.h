@@ -5,6 +5,7 @@
 #ifndef JAMS_ARGS_H
 #define JAMS_ARGS_H
 
+#include <filesystem>
 #include <string>
 #include <vector>
 
@@ -19,6 +20,7 @@ namespace jams {
         bool        version_only      = false;
         bool        setup_only        = false;
         std::string output_path = ".";
+        std::filesystem::path temp_directory_path = std::filesystem::temp_directory_path();
         std::string simulation_name = "";
 
         // a vector of filenames or patch strings to assemble to config

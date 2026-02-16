@@ -16,6 +16,7 @@
 #include <stdexcept>
 #include <string>
 #include <type_traits>
+#include <utility>
 
 #include <fcntl.h>
 #include <sys/mman.h>
@@ -36,12 +37,19 @@ public:
 
   static_assert(std::is_trivially_copyable<T>::value, "RingStorage<T,N> requires trivially copyable T");
 
-  explicit RingStorage(const size_type ring_axis = 0)
-      : ring_axis_(ring_axis)
+  explicit RingStorage(
+      const size_type ring_axis = 0,
+      std::filesystem::path temp_directory_path = std::filesystem::temp_directory_path())
+      : ring_axis_(ring_axis),
+        temp_directory_path_(std::move(temp_directory_path))
   {
     if (ring_axis_ >= N)
     {
       throw std::runtime_error("RingStorage ring_axis out of range");
+    }
+    if (temp_directory_path_.empty())
+    {
+      temp_directory_path_ = std::filesystem::temp_directory_path();
     }
   }
 
@@ -118,6 +126,11 @@ public:
     return mapped_path_;
   }
 
+  [[nodiscard]] const std::filesystem::path& temp_directory_path() const
+  {
+    return temp_directory_path_;
+  }
+
   void advance_ring_window(const size_type overlap)
   {
     if (shape_[ring_axis_] == 0)
@@ -151,7 +164,125 @@ public:
     return at_(idx);
   }
 
+  /// @brief Iterate contiguous physical-memory segments for a logical tail block.
+  ///
+  /// @tparam M Number of trailing dimensions in the tail block.
+  /// @param prefix Fixed logical indices for the first (N - M) dimensions.
+  /// @param fn Callback receiving `(value_type* ptr, size_type logical_offset, size_type count)`.
+  template<std::size_t M, typename Fn>
+  void for_each_tail_block(const std::array<size_type, N - M>& prefix, Fn&& fn)
+  {
+    enumerate_tail_blocks_<M>(prefix, [&](const shape_type& mapped_start, const size_type logical_offset, const size_type count)
+    {
+      auto* ptr = using_file_backed_
+          ? (mapped_data_ + flat_index_(mapped_start))
+          : (&in_memory_(mapped_start));
+      fn(ptr, logical_offset, count);
+    });
+  }
+
+  /// @brief Iterate contiguous physical-memory segments for a logical tail block (const view).
+  ///
+  /// @tparam M Number of trailing dimensions in the tail block.
+  /// @param prefix Fixed logical indices for the first (N - M) dimensions.
+  /// @param fn Callback receiving `(const value_type* ptr, size_type logical_offset, size_type count)`.
+  template<std::size_t M, typename Fn>
+  void for_each_tail_block(const std::array<size_type, N - M>& prefix, Fn&& fn) const
+  {
+    enumerate_tail_blocks_<M>(prefix, [&](const shape_type& mapped_start, const size_type logical_offset, const size_type count)
+    {
+      const auto* ptr = using_file_backed_
+          ? (mapped_data_ + flat_index_(mapped_start))
+          : (&in_memory_(mapped_start));
+      fn(ptr, logical_offset, count);
+    });
+  }
+
 private:
+  size_type product_dims_(const size_type begin, const size_type end) const
+  {
+    size_type p = 1;
+    for (size_type d = begin; d < end; ++d)
+    {
+      p *= shape_[d];
+    }
+    return p;
+  }
+
+  template<std::size_t M, typename EmitFn>
+  void enumerate_tail_blocks_(const std::array<size_type, N - M>& prefix, EmitFn&& emit) const
+  {
+    static_assert(M > 0, "M must be greater than zero");
+    static_assert(M <= N, "M must be less than or equal to N");
+
+    constexpr size_type prefix_rank = N - M;
+    shape_type mapped_prefix{};
+
+    for (size_type d = 0; d < prefix_rank; ++d)
+    {
+      if (prefix[d] >= shape_[d])
+      {
+        throw std::runtime_error("RingStorage tail block prefix index out of range");
+      }
+      mapped_prefix[d] = (d == ring_axis_) ? map_ring_index_(prefix[d]) : prefix[d];
+    }
+
+    for (size_type d = prefix_rank; d < N; ++d)
+    {
+      mapped_prefix[d] = 0;
+    }
+
+    const size_type tail_elements = product_dims_(prefix_rank, N);
+    if (tail_elements == 0)
+    {
+      return;
+    }
+
+    // Ring dimension is fixed by the prefix, so the full tail is physically contiguous.
+    if (ring_axis_ < prefix_rank)
+    {
+      emit(mapped_prefix, 0, tail_elements);
+      return;
+    }
+
+    // Ring dimension lies inside the tail. Split tail into contiguous segments as needed.
+    const size_type ring_dim = ring_axis_;
+    const size_type inner_block = product_dims_(ring_dim + 1, N);
+    const size_type ring_extent = shape_[ring_dim];
+    const size_type outer_group_count = product_dims_(prefix_rank, ring_dim);
+    const size_type ring_start = map_ring_index_(0);
+
+    for (size_type outer_linear = 0; outer_linear < outer_group_count; ++outer_linear)
+    {
+      shape_type mapped_start = mapped_prefix;
+
+      size_type rem = outer_linear;
+      for (size_type d = ring_dim; d-- > prefix_rank;)
+      {
+        const size_type extent = shape_[d];
+        mapped_start[d] = rem % extent;
+        rem /= extent;
+      }
+
+      const size_type outer_offset = outer_linear * ring_extent * inner_block;
+
+      if (ring_start == 0)
+      {
+        mapped_start[ring_dim] = 0;
+        emit(mapped_start, outer_offset, ring_extent * inner_block);
+        continue;
+      }
+
+      mapped_start[ring_dim] = ring_start;
+      const size_type first_count = (ring_extent - ring_start) * inner_block;
+      emit(mapped_start, outer_offset, first_count);
+
+      mapped_start[ring_dim] = 0;
+      const size_type second_count = ring_start * inner_block;
+      emit(mapped_start, outer_offset + first_count, second_count);
+    }
+  }
+
   size_type map_ring_index_(const size_type logical_index) const
   {
     assert(logical_index < shape_[ring_axis_]);
@@ -204,8 +335,15 @@ private:
   {
     release_file_backed_();
 
+    std::error_code ec;
+    std::filesystem::create_directories(temp_directory_path_, ec);
+    if (ec)
+    {
+      throw std::runtime_error("Failed to create RingStorage temp directory: " + ec.message());
+    }
+
     const std::filesystem::path file_template =
-        std::filesystem::temp_directory_path() / "jams_ring_storage_XXXXXX";
+        temp_directory_path_ / "jams_ring_storage_XXXXXX";
     std::string file_path = file_template.string();
     file_path.push_back('\0');
 
@@ -271,6 +409,7 @@ private:
   shape_type shape_ = {0};
   size_type ring_offset_ = 0;
   bool using_file_backed_ = false;
+  std::filesystem::path temp_directory_path_;
 
   jams::MultiArray<value_type, N> in_memory_;
 

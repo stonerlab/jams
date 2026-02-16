@@ -228,6 +228,7 @@ std::string choose_simulation_name(const jams::ProgramArgs &program_args) {
         if (!program_args.output_path.empty()) {
           jams::instance().set_output_dir(program_args.output_path);
         }
+        jams::instance().set_temp_directory_path(program_args.temp_directory_path);
 
         jams::Simulation simulation;
 
