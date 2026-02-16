@@ -14,6 +14,8 @@
 
 #include <array>
 #include <complex>
+#include <memory>
+#include <string>
 
 namespace jams {
 
@@ -103,7 +105,6 @@ struct ChannelTransform
 
   using CmplxMappedField = jams::MultiArray<jams::ComplexHi, 4>;     // (site, time, k, channel)
   using CmplxStored = std::complex<float>;
-  using CmplxStoredField = jams::MultiArray<CmplxStored, 4>;          // (site, time, k, channel), compact storage
   using CmplxMappedSpectrum = jams::MultiArray<jams::ComplexHi, 4>;  // (site, freq, k, channel)
   using CmplxMappedSlice = jams::MultiArray<jams::ComplexHi, 3>;     // (site, freq, channel)
 
@@ -239,9 +240,16 @@ protected:
   /// @brief S(k, t) time series where only k along kpath are stored
   /// @details Layout: sk_time_series_(basis_index, periodogram_index, kpath_index, channel)
   jams::MultiArray<jams::ComplexHi, 2> basis_phase_factors_;
-  CmplxStoredField sk_time_series_;
 
 private:
+  class SkTimeSeriesStorage;
+  enum class SkTimeSeriesBackendPolicy
+  {
+    Auto,
+    Memory,
+    File
+  };
+
   void store_sublattice_magnetisation_(const jams::MultiArray<double, 2> &spin_state);
   jams::MultiArray<Vec3, 1> compute_mean_basis_mag_directions_();
 
@@ -251,7 +259,9 @@ private:
                                       const jams::MultiArray<Mat3, 1>* rotations) const;
   Vec3cx read_cartesian_spin_(int basis_index, int time_index, int k_index) const;
   bool needs_local_frame_mapping_() const;
+  void ensure_channel_storage_initialised_();
   void resize_channel_storage_();
+  bool use_file_backed_sk_time_series_() const;
 
   /// @brief Generate the window function for a width of num_time_samples.
   ///
@@ -278,6 +288,10 @@ private:
   jams::MultiArray<Vec3, 2> basis_mag_time_series_;
 
   int stored_channel_count_ = 0;
+  bool sk_time_series_storage_initialised_ = false;
+  SkTimeSeriesBackendPolicy sk_time_series_backend_policy_ = SkTimeSeriesBackendPolicy::Auto;
+  bool full_brillouin_zone_appended_ = false;
+  std::unique_ptr<SkTimeSeriesStorage> sk_time_series_;
 
   /// @brief Output memory for the mapped spectrum
   CmplxMappedSpectrum skw_buffer_;

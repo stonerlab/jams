@@ -9,10 +9,236 @@
 #include "jams/monitors/spectrum_base.h"
 
 #include <algorithm>
+#include <cerrno>
 #include <cmath>
+#include <cstring>
+#include <filesystem>
 #include <iostream>
+#include <limits>
 #include <stdexcept>
 #include <vector>
+#include <fcntl.h>
+#include <sys/mman.h>
+#include <unistd.h>
+
+class SpectrumBaseMonitor::SkTimeSeriesStorage {
+public:
+  ~SkTimeSeriesStorage()
+  {
+    release_file_backed_();
+  }
+
+  void resize(std::size_t basis_count,
+              std::size_t time_count,
+              std::size_t k_count,
+              std::size_t channel_count,
+              bool use_file_backed)
+  {
+    dims_ = {basis_count, time_count, k_count, channel_count};
+    logical_time_offset_ = 0;
+
+    const std::size_t bytes = required_bytes();
+    const bool should_use_file_backed = use_file_backed && bytes > 0;
+
+    if (should_use_file_backed)
+    {
+      in_memory_.clear();
+      allocate_file_backed_(bytes);
+      std::memset(mapped_data_, 0, mapped_bytes_);
+      using_file_backed_ = true;
+      return;
+    }
+
+    release_file_backed_();
+    using_file_backed_ = false;
+    in_memory_.resize(basis_count, time_count, k_count, channel_count);
+    in_memory_.zero();
+  }
+
+  std::size_t size(const std::size_t dim) const
+  {
+    assert(dim < 4);
+    return dims_[dim];
+  }
+
+  std::size_t required_bytes() const
+  {
+    const auto checked_mul = [](std::size_t a, std::size_t b) -> std::size_t
+    {
+      if (a != 0 && b > std::numeric_limits<std::size_t>::max() / a)
+      {
+        throw std::runtime_error("sk_time_series size overflow");
+      }
+      return a * b;
+    };
+
+    const std::size_t elements =
+        checked_mul(checked_mul(checked_mul(dims_[0], dims_[1]), dims_[2]), dims_[3]);
+    return checked_mul(elements, sizeof(CmplxStored));
+  }
+
+  bool using_file_backed_ring_buffer() const
+  {
+    return using_file_backed_;
+  }
+
+  const std::string& file_path() const
+  {
+    return mapped_path_;
+  }
+
+  void advance_time_window(const std::size_t overlap)
+  {
+    if (!using_file_backed_ || dims_[1] == 0)
+    {
+      return;
+    }
+
+    assert(overlap < dims_[1]);
+    logical_time_offset_ = (logical_time_offset_ + (dims_[1] - overlap)) % dims_[1];
+  }
+
+  CmplxStored& operator()(const std::size_t basis,
+                          const std::size_t time,
+                          const std::size_t k,
+                          const std::size_t channel)
+  {
+    const std::size_t index = flat_index_(basis, time, k, channel);
+    if (using_file_backed_)
+    {
+      return mapped_data_[index];
+    }
+    return in_memory_(basis, time, k, channel);
+  }
+
+  const CmplxStored& operator()(const std::size_t basis,
+                                const std::size_t time,
+                                const std::size_t k,
+                                const std::size_t channel) const
+  {
+    const std::size_t index = flat_index_(basis, time, k, channel);
+    if (using_file_backed_)
+    {
+      return mapped_data_[index];
+    }
+    return in_memory_(basis, time, k, channel);
+  }
+
+  CmplxStored* row_ptr(const std::size_t basis, const std::size_t time)
+  {
+    if (using_file_backed_)
+    {
+      return mapped_data_ + flat_index_(basis, time, 0, 0);
+    }
+    return &in_memory_(basis, time, 0, 0);
+  }
+
+private:
+  std::size_t mapped_time_(const std::size_t logical_time) const
+  {
+    assert(logical_time < dims_[1]);
+    if (!using_file_backed_)
+    {
+      return logical_time;
+    }
+    return (logical_time_offset_ + logical_time) % dims_[1];
+  }
+
+  std::size_t flat_index_(const std::size_t basis,
+                          const std::size_t time,
+                          const std::size_t k,
+                          const std::size_t channel) const
+  {
+    assert(basis < dims_[0]);
+    assert(time < dims_[1]);
+    assert(k < dims_[2]);
+    assert(channel < dims_[3]);
+
+    const std::size_t mapped_time = mapped_time_(time);
+    return (((basis * dims_[1] + mapped_time) * dims_[2] + k) * dims_[3] + channel);
+  }
+
+  void allocate_file_backed_(const std::size_t bytes)
+  {
+    release_file_backed_();
+
+    const std::filesystem::path temp_file_template =
+        std::filesystem::temp_directory_path() / "jams_sk_time_series_XXXXXX";
+    std::string temp_file = temp_file_template.string();
+    temp_file.push_back('\0');
+
+    mapped_fd_ = mkstemp(temp_file.data());
+    if (mapped_fd_ == -1)
+    {
+      throw std::runtime_error("Failed to create temporary file for sk_time_series ring buffer");
+    }
+
+    mapped_path_ = std::string(temp_file.c_str());
+
+    if (ftruncate(mapped_fd_, static_cast<off_t>(bytes)) != 0)
+    {
+      const auto saved_errno = errno;
+      close(mapped_fd_);
+      mapped_fd_ = -1;
+      std::error_code ec;
+      std::filesystem::remove(mapped_path_, ec);
+      mapped_path_.clear();
+      throw std::runtime_error("Failed to resize sk_time_series ring buffer file: "
+                               + std::string(std::strerror(saved_errno)));
+    }
+
+    void* mapped_ptr = mmap(nullptr, bytes, PROT_READ | PROT_WRITE, MAP_SHARED, mapped_fd_, 0);
+    if (mapped_ptr == MAP_FAILED)
+    {
+      const auto saved_errno = errno;
+      close(mapped_fd_);
+      mapped_fd_ = -1;
+      std::error_code ec;
+      std::filesystem::remove(mapped_path_, ec);
+      mapped_path_.clear();
+      throw std::runtime_error("Failed to map sk_time_series ring buffer file: "
+                               + std::string(std::strerror(saved_errno)));
+    }
+
+    mapped_data_ = static_cast<CmplxStored*>(mapped_ptr);
+    mapped_bytes_ = bytes;
+  }
+
+  void release_file_backed_()
+  {
+    if (mapped_data_)
+    {
+      munmap(mapped_data_, mapped_bytes_);
+      mapped_data_ = nullptr;
+    }
+
+    mapped_bytes_ = 0;
+
+    if (mapped_fd_ != -1)
+    {
+      close(mapped_fd_);
+      mapped_fd_ = -1;
+    }
+
+    if (!mapped_path_.empty())
+    {
+      std::error_code ec;
+      std::filesystem::remove(mapped_path_, ec);
+      mapped_path_.clear();
+    }
+  }
+
+  std::array<std::size_t, 4> dims_ = {0, 0, 0, 0};
+  std::size_t logical_time_offset_ = 0;
+  bool using_file_backed_ = false;
+
+  jams::MultiArray<CmplxStored, 4> in_memory_;
+
+  CmplxStored* mapped_data_ = nullptr;
+  std::size_t mapped_bytes_ = 0;
+  int mapped_fd_ = -1;
+  std::string mapped_path_;
+};
 
 SpectrumBaseMonitor::ChannelTransform SpectrumBaseMonitor::cartesian_channel_map()
 {
@@ -37,10 +263,33 @@ SpectrumBaseMonitor::SpectrumBaseMonitor(
     const libconfig::Setting &settings,
     KSamplingMode k_sampling_mode) : Monitor(settings)
 {
+  sk_time_series_ = std::make_unique<SkTimeSeriesStorage>();
+
   const auto kspace_size = globals::lattice->kspace_size();
   num_basis_atoms_ = globals::lattice->num_basis_sites();
 
   keep_negative_frequencies_ = jams::config_optional<bool>(settings, "keep_negative_frequencies", keep_negative_frequencies_);
+  const auto backend_setting = jams::config_optional<std::string>(
+      settings,
+      "storage",
+      std::string("auto"));
+  const auto backend_setting_lc = lowercase(backend_setting);
+  if (backend_setting_lc == "auto")
+  {
+    sk_time_series_backend_policy_ = SkTimeSeriesBackendPolicy::Auto;
+  }
+  else if (backend_setting_lc == "memory" || backend_setting_lc == "in_memory")
+  {
+    sk_time_series_backend_policy_ = SkTimeSeriesBackendPolicy::Memory;
+  }
+  else if (backend_setting_lc == "file" || backend_setting_lc == "file_backed")
+  {
+    sk_time_series_backend_policy_ = SkTimeSeriesBackendPolicy::File;
+  }
+  else
+  {
+    throw std::runtime_error("storage must be one of: auto, memory, file");
+  }
 
   if (settings.exists("compute_periodogram"))
   {
@@ -70,8 +319,7 @@ SpectrumBaseMonitor::SpectrumBaseMonitor(
   zero(sk_grid_.resize(
       kspace_size[0], kspace_size[1], kspace_size[2] / 2 + 1, num_basis_atoms_));
 
-  std::cout << "  allocating sk_time_series buffer" << std::endl;
-  resize_channel_storage_();
+  std::cout << "  deferring sk_time_series buffer allocation" << std::endl;
 }
 
 SpectrumBaseMonitor::~SpectrumBaseMonitor()
@@ -87,7 +335,10 @@ void SpectrumBaseMonitor::set_channel_map(const ChannelTransform& channel_map)
   }
 
   channel_transform_ = channel_map;
-  resize_channel_storage_();
+  if (sk_time_series_storage_initialised_)
+  {
+    resize_channel_storage_();
+  }
 
   if (sk_time_fft_plan_)
   {
@@ -99,6 +350,28 @@ void SpectrumBaseMonitor::set_channel_map(const ChannelTransform& channel_map)
 bool SpectrumBaseMonitor::needs_local_frame_mapping_() const
 {
   return channel_transform_.use_local_frame;
+}
+
+bool SpectrumBaseMonitor::use_file_backed_sk_time_series_() const
+{
+  switch (sk_time_series_backend_policy_)
+  {
+    case SkTimeSeriesBackendPolicy::Auto:
+      return full_brillouin_zone_appended_;
+    case SkTimeSeriesBackendPolicy::Memory:
+      return false;
+    case SkTimeSeriesBackendPolicy::File:
+      return true;
+  }
+  throw std::runtime_error("Invalid sk_time_series backend policy");
+}
+
+void SpectrumBaseMonitor::ensure_channel_storage_initialised_()
+{
+  if (!sk_time_series_storage_initialised_)
+  {
+    resize_channel_storage_();
+  }
 }
 
 void SpectrumBaseMonitor::resize_channel_storage_()
@@ -116,7 +389,25 @@ void SpectrumBaseMonitor::resize_channel_storage_()
   {
     stored_channel_count_ = C;
   }
-  zero(sk_time_series_.resize(A, T, K, stored_channel_count_));
+  sk_time_series_->resize(
+      static_cast<std::size_t>(A),
+      static_cast<std::size_t>(T),
+      static_cast<std::size_t>(K),
+      static_cast<std::size_t>(stored_channel_count_),
+      use_file_backed_sk_time_series_());
+  sk_time_series_storage_initialised_ = true;
+
+  const double sk_time_series_size_mib =
+      static_cast<double>(sk_time_series_->required_bytes()) / (1024.0 * 1024.0);
+  std::cout << "    sk_time_series size (MiB) " << sk_time_series_size_mib << std::endl;
+  if (sk_time_series_->using_file_backed_ring_buffer())
+  {
+    std::cout << "    sk_time_series backend file-backed ring buffer " << sk_time_series_->file_path() << std::endl;
+  }
+  else
+  {
+    std::cout << "    sk_time_series backend in-memory" << std::endl;
+  }
 
   if (periodogram_window_.size() != T)
   {
@@ -126,6 +417,8 @@ void SpectrumBaseMonitor::resize_channel_storage_()
 
 void SpectrumBaseMonitor::append_full_k_grid(Vec3i kspace_size)
 {
+  full_brillouin_zone_appended_ = true;
+
   const std::size_t initial_size = k_points_.size();
   const std::size_t added_count_estimate = static_cast<std::size_t>(jams::product(kspace_size));
   k_points_.reserve(initial_size + added_count_estimate);
@@ -442,7 +735,7 @@ const SpectrumBaseMonitor::CmplxMappedSlice& SpectrumBaseMonitor::compute_freque
       {
         for (auto c = 0; c < channels; ++c)
         {
-          const auto s = sk_time_series_(a, t, kpoint_index, c);
+          const auto s = (*sk_time_series_)(a, t, kpoint_index, c);
           frequency_scratch_(a, t, c) = jams::ComplexHi{s.real(), s.imag()};
         }
       }
@@ -491,22 +784,29 @@ void SpectrumBaseMonitor::advance_periodogram_window()
   const std::size_t overlap = static_cast<std::size_t>(periodogram_overlap());
 
   // Keep only the overlap tail of S(k,t) as the head of the next window.
-  const std::size_t num_basis = sk_time_series_.size(0);
-  const std::size_t num_time = sk_time_series_.size(1);
-  const std::size_t num_k = sk_time_series_.size(2);
-  const std::size_t num_channels = sk_time_series_.size(3);
+  const std::size_t num_basis = sk_time_series_->size(0);
+  const std::size_t num_time = sk_time_series_->size(1);
+  const std::size_t num_k = sk_time_series_->size(2);
+  const std::size_t num_channels = sk_time_series_->size(3);
 
   assert(overlap < num_time);
 
-  const std::size_t source_time0 = num_time - overlap;
-  const std::size_t contiguous_row_size = num_k * num_channels;
-  for (std::size_t basis = 0; basis < num_basis; ++basis)
+  if (sk_time_series_->using_file_backed_ring_buffer())
   {
-    for (std::size_t t = 0; t < overlap; ++t)
+    sk_time_series_->advance_time_window(overlap);
+  }
+  else
+  {
+    const std::size_t source_time0 = num_time - overlap;
+    const std::size_t contiguous_row_size = num_k * num_channels;
+    for (std::size_t basis = 0; basis < num_basis; ++basis)
     {
-      auto* dst = &sk_time_series_(basis, t, 0, 0);
-      const auto* src = &sk_time_series_(basis, source_time0 + t, 0, 0);
-      std::copy_n(src, contiguous_row_size, dst);
+      for (std::size_t t = 0; t < overlap; ++t)
+      {
+        auto* dst = sk_time_series_->row_ptr(basis, t);
+        const auto* src = sk_time_series_->row_ptr(basis, source_time0 + t);
+        std::copy_n(src, contiguous_row_size, dst);
+      }
     }
   }
 
@@ -597,16 +897,16 @@ void SpectrumBaseMonitor::append_sk_sample_for_k_list(const jams::MultiArray<Vec
 
       if (needs_local_frame_mapping_())
       {
-        sk_time_series_(a, i, k, 0) = CmplxStored{static_cast<float>(spin_xyz[0].real()), static_cast<float>(spin_xyz[0].imag())};
-        sk_time_series_(a, i, k, 1) = CmplxStored{static_cast<float>(spin_xyz[1].real()), static_cast<float>(spin_xyz[1].imag())};
-        sk_time_series_(a, i, k, 2) = CmplxStored{static_cast<float>(spin_xyz[2].real()), static_cast<float>(spin_xyz[2].imag())};
+        (*sk_time_series_)(a, i, k, 0) = CmplxStored{static_cast<float>(spin_xyz[0].real()), static_cast<float>(spin_xyz[0].imag())};
+        (*sk_time_series_)(a, i, k, 1) = CmplxStored{static_cast<float>(spin_xyz[1].real()), static_cast<float>(spin_xyz[1].imag())};
+        (*sk_time_series_)(a, i, k, 2) = CmplxStored{static_cast<float>(spin_xyz[2].real()), static_cast<float>(spin_xyz[2].imag())};
       }
       else
       {
         for (auto c = 0; c < num_channels(); ++c)
         {
           const auto value = map_spin_component_(a, c, spin_xyz, nullptr);
-          sk_time_series_(a, i, k, c) = CmplxStored{static_cast<float>(value.real()), static_cast<float>(value.imag())};
+          (*sk_time_series_)(a, i, k, c) = CmplxStored{static_cast<float>(value.real()), static_cast<float>(value.imag())};
         }
       }
     }
@@ -749,9 +1049,9 @@ Vec3cx SpectrumBaseMonitor::read_cartesian_spin_(const int basis_index,
                                                  const int k_index) const
 {
   assert(stored_channel_count_ >= 3);
-  const auto sx = sk_time_series_(basis_index, time_index, k_index, 0);
-  const auto sy = sk_time_series_(basis_index, time_index, k_index, 1);
-  const auto sz = sk_time_series_(basis_index, time_index, k_index, 2);
+  const auto sx = (*sk_time_series_)(basis_index, time_index, k_index, 0);
+  const auto sy = (*sk_time_series_)(basis_index, time_index, k_index, 1);
+  const auto sz = (*sk_time_series_)(basis_index, time_index, k_index, 2);
   return Vec3cx{
       jams::ComplexHi{sx.real(), sx.imag()},
       jams::ComplexHi{sy.real(), sy.imag()},
@@ -806,6 +1106,8 @@ void SpectrumBaseMonitor::generate_phase_factors_(
 
 void SpectrumBaseMonitor::store_sk_snapshot(const jams::MultiArray<double, 2> &data)
 {
+  ensure_channel_storage_initialised_();
+
   fft_supercell_vector_field_to_kspace(
       data,
       sk_grid_,
