@@ -4,6 +4,7 @@
 #include <climits>
 #include <string>
 #include <algorithm>
+#include <stdexcept>
 
 #include "version.h"
 
@@ -52,14 +53,17 @@ Hdf5Monitor::Hdf5Monitor(const libconfig::Setting &settings)
 }
 
 Hdf5Monitor::~Hdf5Monitor() {
-  // always write final in double precision
-    write_spin_h5_file(jams::output::full_path_filename("final.h5"));
-    update_xdmf_file(jams::output::full_path_filename("final.h5"), globals::solver->time());
-
+  // Avoid touching global solver state here: monitors are destroyed after
+  // hamiltonians during solver teardown.
+  if (xdmf_file_ != nullptr) {
     fclose(xdmf_file_);
+    xdmf_file_ = nullptr;
+  }
 }
 
-
+void Hdf5Monitor::post_process() {
+  write_final_output();
+}
 
 void Hdf5Monitor::update(Solver& solver) {
   if (solver.iteration()%output_step_freq_ == 0) {
@@ -70,6 +74,21 @@ void Hdf5Monitor::update(Solver& solver) {
     write_spin_h5_file(h5_file_name);
     update_xdmf_file(h5_file_name, solver.time());
   }
+}
+
+void Hdf5Monitor::write_final_output() {
+  if (final_output_written_) {
+    return;
+  }
+
+  if (globals::solver == nullptr) {
+    throw std::runtime_error("Hdf5Monitor cannot write final output: solver is null");
+  }
+
+  const auto h5_file_name = jams::output::full_path_filename("final.h5");
+  write_spin_h5_file(h5_file_name);
+  update_xdmf_file(h5_file_name, globals::solver->time());
+  final_output_written_ = true;
 }
 
 void Hdf5Monitor::write_spin_h5_file(const std::string &h5_file_name) {
@@ -180,6 +199,9 @@ void Hdf5Monitor::write_lattice_h5_file(const std::string &h5_file_name) {
 void Hdf5Monitor::open_new_xdmf_file(const std::string &xdmf_file_name) {
   // create xdmf_file_
   xdmf_file_ = fopen(xdmf_file_name.c_str(), "w");
+  if (xdmf_file_ == nullptr) {
+    throw std::runtime_error("failed to open XDMF output file: " + xdmf_file_name);
+  }
 
                fputs("<?xml version=\"1.0\"?>\n", xdmf_file_);
                fputs("<!DOCTYPE Xdmf SYSTEM \"https://gitlab.kitware.com/xdmf/xdmf/raw/master/Xdmf.dtd\"[]>\n", xdmf_file_);
@@ -197,6 +219,10 @@ void Hdf5Monitor::open_new_xdmf_file(const std::string &xdmf_file_name) {
 //---------------------------------------------------------------------
 
 void Hdf5Monitor::update_xdmf_file(const std::string &h5_file_name, const double time) {
+  if (xdmf_file_ == nullptr) {
+    throw std::runtime_error("cannot update XDMF file: file handle is null");
+  }
+
   unsigned      data_dimension  = 0;
   unsigned int float_precision = 8;
 
@@ -207,7 +233,9 @@ void Hdf5Monitor::update_xdmf_file(const std::string &h5_file_name, const double
   }
 
                // rewind the closing tags of the XML  (Grid, Domain, Xdmf)
-               fseek(xdmf_file_, -31, SEEK_CUR);
+               if (fseek(xdmf_file_, -31, SEEK_CUR) != 0) {
+                 throw std::runtime_error("failed to seek XDMF file while appending a new timestep");
+               }
 
   fprintf(xdmf_file_, "      <Grid Name=\"Lattice\" GridType=\"Uniform\">\n");
   fprintf(xdmf_file_, "        <Time Value=\"%f\" />\n", time);
