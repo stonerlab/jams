@@ -6,30 +6,30 @@
 #define JAMS_SPECTRUM_BASE_H
 
 #include <jams/containers/multiarray.h>
+#include <jams/containers/ring_storage.h>
 #include <jams/core/globals.h>
 #include <jams/core/monitor.h>
 #include <jams/core/solver.h>
-#include <jams/interface/fft.h>
 #include <jams/helpers/defaults.h>
+#include <jams/interface/fft.h>
 
 #include <array>
 #include <complex>
-#include <memory>
-#include <string>
 
 namespace jams {
 
-    /// @brief Struct to store information about kpoints
-    struct HKLIndex {
-        Vec<double, 3> hkl; ///< reciprocal lattice point in fractional units
-        Vec<double, 3> xyz; ///< reciprocal lattice point in cartesian units
-        FFTWHermitianIndex<3> index; ///< FFTW 3D array index and conjugation
-    };
+/// @brief Struct to store information about kpoints.
+struct HKLIndex {
+  Vec<double, 3> hkl;                ///< reciprocal lattice point in fractional units
+  Vec<double, 3> xyz;                ///< reciprocal lattice point in cartesian units
+  FFTWHermitianIndex<3> index;       ///< FFTW 3D array index and conjugation
+};
 
-    inline bool operator==(const HKLIndex &a, const HKLIndex &b) {
-      return jams::approximately_equal(a.hkl, b.hkl, jams::defaults::lattice_tolerance);
-    }
+inline bool operator==(const HKLIndex& a, const HKLIndex& b)
+{
+  return jams::approximately_equal(a.hkl, b.hkl, jams::defaults::lattice_tolerance);
 }
+} // namespace jams
 
 class SpectrumBaseMonitor : public Monitor {
 public:
@@ -48,68 +48,70 @@ public:
     FullGrid
   };
 
-/// @brief Defines the mapping from Cartesian spin components to output spectral channels.
-///
-/// This structure specifies how spin components are transformed and combined before
-/// Fourier transforming the time series. It allows construction of arbitrary channel
-/// combinations (e.g. Cartesian components, circular components S⁺/S⁻, or custom
-/// linear combinations).
-///
-/// The mapping is applied to the spin vector (optionally rotated into the local
-/// sublattice frame and scaled by spin length) using a linear transformation:
-///
-/// \f[
-/// C_i = \sum_{j \in \{x,y,z\}} M_{ij}\,S_j
-/// \f]
-///
-/// where \f$M\f$ is the complex coefficient matrix given by @ref coeffs and
-/// \f$C_i\f$ are the resulting output channels.
-///
-/// Typical uses include:
-/// - Cartesian mapping: identity matrix → (Sx, Sy, Sz)
-/// - Circular mapping: rows for S⁺, S⁻, Sz
-/// - Single-channel mapping: e.g. S⁺ only for magnon density
-struct ChannelTransform
-{
-  /// Number of output channels produced by the mapping.
+  /// @brief Defines the mapping from Cartesian spin components to output spectral channels.
   ///
-  /// Must be in the range [1, 3]. Only the first @ref output_channels rows of
-  /// @ref coeffs are used.
-  int output_channels = 3;
+  /// This structure specifies how spin components are transformed and combined before
+  /// Fourier transforming the time series. It allows construction of arbitrary channel
+  /// combinations (e.g. Cartesian components, circular components S⁺/S⁻, or custom
+  /// linear combinations).
+  ///
+  /// The mapping is applied to the spin vector (optionally rotated into the local
+  /// sublattice frame and scaled by spin length) using a linear transformation:
+  ///
+  /// \f[
+  /// C_i = \sum_{j \in \{x,y,z\}} M_{ij}\,S_j
+  /// \f]
+  ///
+  /// where \f$M\f$ is the complex coefficient matrix given by @ref coeffs and
+  /// \f$C_i\f$ are the resulting output channels.
+  ///
+  /// Typical uses include:
+  /// - Cartesian mapping: identity matrix → (Sx, Sy, Sz)
+  /// - Circular mapping: rows for S⁺, S⁻, Sz
+  /// - Single-channel mapping: e.g. S⁺ only for magnon density
+  struct ChannelTransform
+  {
+    /// Number of output channels produced by the mapping.
+    ///
+    /// Must be in the range [1, 3]. Only the first @ref output_channels rows of
+    /// @ref coeffs are used.
+    int output_channels = 3;
 
-  /// Complex coefficient matrix defining the linear mapping from (Sx,Sy,Sz)
-  /// to output channels.
-  ///
-  /// Each row corresponds to one output channel. For example:
-  /// - Identity → Cartesian channels
-  /// - Circular combinations → S⁺, S⁻
-  Mat3cx weights = kIdentityMat3cx;
+    /// Complex coefficient matrix defining the linear mapping from (Sx,Sy,Sz)
+    /// to output channels.
+    ///
+    /// Each row corresponds to one output channel. For example:
+    /// - Identity → Cartesian channels
+    /// - Circular combinations → S⁺, S⁻
+    Mat3cx weights = kIdentityMat3cx;
 
-  /// If true, spins are first rotated into a local basis reference frame
-  /// before applying the channel mapping.
-  ///
-  /// The local z-axis is taken along the time-averaged sublattice magnetisation
-  /// direction within the current periodogram window. This is typically required
-  /// for non-collinear systems or for constructing transverse spin components.
-  bool use_local_frame = false;
+    /// If true, spins are first rotated into a local basis reference frame
+    /// before applying the channel mapping.
+    ///
+    /// The local z-axis is taken along the time-averaged sublattice magnetisation
+    /// direction within the current periodogram window. This is typically required
+    /// for non-collinear systems or for constructing transverse spin components.
+    bool use_local_frame = false;
 
-  /// If true, spin components are scaled by the physical spin length before
-  /// applying the channel mapping.
-  ///
-  /// This converts unit spins into physical spin units using
-  /// \f$S = \mu/g\f$, where \f$\mu\f$ is the magnetic moment associated with
-  /// the site. Required when constructing physically meaningful quantities
-  /// such as magnon occupation.
-  bool scale_to_physical_spin = false;
-};
+    /// If true, spin components are scaled by the physical spin length before
+    /// applying the channel mapping.
+    ///
+    /// This converts unit spins into physical spin units using
+    /// \f$S = \mu/g\f$, where \f$\mu\f$ is the magnetic moment associated with
+    /// the site. Required when constructing physically meaningful quantities
+    /// such as magnon occupation.
+    bool scale_to_physical_spin = false;
+  };
 
   using CmplxMappedField = jams::MultiArray<jams::ComplexHi, 4>;     // (site, time, k, channel)
   using CmplxStored = std::complex<float>;
+  using CmplxStoredRingStorage = jams::RingStorage<CmplxStored, 4>;
   using CmplxMappedSpectrum = jams::MultiArray<jams::ComplexHi, 4>;  // (site, freq, k, channel)
   using CmplxMappedSlice = jams::MultiArray<jams::ComplexHi, 3>;     // (site, freq, channel)
 
   explicit SpectrumBaseMonitor(
-    const libconfig::Setting &settings, KSamplingMode k_sampling_mode = KSamplingMode::FromSettings);
+      const libconfig::Setting& settings,
+      KSamplingMode k_sampling_mode = KSamplingMode::FromSettings);
 
   ~SpectrumBaseMonitor() override;
 
@@ -118,7 +120,6 @@ struct ChannelTransform
 
   static ChannelTransform cartesian_channel_map();
   static ChannelTransform raise_lower_channel_map();
-
 
   /// @brief The number of atoms in the unit cell basis
   int num_basis_atoms() const { return num_basis_atoms_; }
@@ -208,8 +209,8 @@ protected:
   const CmplxMappedSlice& compute_frequency_spectrum_at_k(int kpoint_index);
 
   static void make_hkl_path(
-      const std::vector<Vec3> &hkl_nodes,
-      const Vec3i &kspace_size,
+      const std::vector<Vec3>& hkl_nodes,
+      const Vec3i& kspace_size,
       std::vector<jams::HKLIndex>& hkl_path);
 
   /// @brief Append one time sample of S(k) for all k-points on the configured path.
@@ -225,8 +226,9 @@ protected:
   ///
   /// @param sk_sample Full k-space field for the current time step (FFT output).
   /// @param k_list List of k-points to extract (path or full grid) including r2c indices.
-  void append_sk_sample_for_k_list(const jams::MultiArray<Vec3cx,4>& sk_sample,
-                                 const std::vector<jams::HKLIndex>& k_list);
+  void append_sk_sample_for_k_list(
+      const jams::MultiArray<Vec3cx, 4>& sk_sample,
+      const std::vector<jams::HKLIndex>& k_list);
 
   jams::MultiArray<Mat3, 1> generate_sublattice_rotations_();
 
@@ -235,14 +237,13 @@ protected:
 
   /// @brief S(k) per basis site from the fourier transform of a single time
   /// @details Layout: sk_grid_(kx, ky, kz, basis_index)
-  jams::MultiArray<Vec3cx,4> sk_grid_;
+  jams::MultiArray<Vec3cx, 4> sk_grid_;
 
   /// @brief S(k, t) time series where only k along kpath are stored
   /// @details Layout: sk_time_series_(basis_index, periodogram_index, kpath_index, channel)
   jams::MultiArray<jams::ComplexHi, 2> basis_phase_factors_;
 
 private:
-  class SkTimeSeriesStorage;
   enum class SkTimeSeriesBackendPolicy
   {
     Auto,
@@ -250,7 +251,14 @@ private:
     File
   };
 
-  void store_sublattice_magnetisation_(const jams::MultiArray<double, 2> &spin_state);
+  // Initialisation helpers.
+  void configure_storage_backend_policy_(const libconfig::Setting& settings);
+  void initialise_k_points_(const libconfig::Setting& settings, KSamplingMode k_sampling_mode);
+  void initialise_basis_phase_factors_();
+  void log_channel_storage_info_() const;
+
+  // Time-series and mapping helpers.
+  void store_sublattice_magnetisation_(const jams::MultiArray<double, 2>& spin_state);
   jams::MultiArray<Vec3, 1> compute_mean_basis_mag_directions_();
 
   jams::ComplexHi map_spin_component_(int basis_index,
@@ -266,7 +274,7 @@ private:
   /// @brief Generate the window function for a width of num_time_samples.
   ///
   /// @details FFT window is normalised to unit RMS power so that windowing does not change overall power.
-  static void generate_normalised_window_(jams::MultiArray<double,1>& window, int num_time_samples);
+  static void generate_normalised_window_(jams::MultiArray<double, 1>& window, int num_time_samples);
 
   /// @brief Generate unit cell phase factors phi_a(k) = exp(-2 pi i r_a.k) where a is a position in the unit cell basis
   /// and k is a k point.
@@ -289,16 +297,17 @@ private:
 
   int stored_channel_count_ = 0;
   bool sk_time_series_storage_initialised_ = false;
+  // Parsed from `sk_time_series_backend` (or legacy `storage`).
   SkTimeSeriesBackendPolicy sk_time_series_backend_policy_ = SkTimeSeriesBackendPolicy::Auto;
   bool full_brillouin_zone_appended_ = false;
-  std::unique_ptr<SkTimeSeriesStorage> sk_time_series_;
+  CmplxStoredRingStorage sk_time_series_{1}; // Ring over periodogram time axis.
 
   /// @brief Output memory for the mapped spectrum
   CmplxMappedSpectrum skw_buffer_;
 
   /// @brief Buffer for FFT S(k,t...) -> S(k,w) for a single k index
   fftw_plan sk_time_fft_plan_ = nullptr;
-  jams::MultiArray<double,1> periodogram_window_;
+  jams::MultiArray<double, 1> periodogram_window_;
   CmplxMappedSlice frequency_scratch_;
 };
 
