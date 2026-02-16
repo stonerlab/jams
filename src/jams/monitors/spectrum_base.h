@@ -10,26 +10,11 @@
 #include <jams/core/globals.h>
 #include <jams/core/monitor.h>
 #include <jams/core/solver.h>
-#include <jams/helpers/defaults.h>
 #include <jams/interface/fft.h>
+#include <jams/monitors/hkl_index.h>
 
 #include <array>
 #include <complex>
-
-namespace jams {
-
-/// @brief Struct to store information about kpoints.
-struct HKLIndex {
-  Vec<double, 3> hkl;                ///< reciprocal lattice point in fractional units
-  Vec<double, 3> xyz;                ///< reciprocal lattice point in cartesian units
-  FFTWHermitianIndex<3> index;       ///< FFTW 3D array index and conjugation
-};
-
-inline bool operator==(const HKLIndex& a, const HKLIndex& b)
-{
-  return jams::approximately_equal(a.hkl, b.hkl, jams::defaults::lattice_tolerance);
-}
-} // namespace jams
 
 class SpectrumBaseMonitor : public Monitor {
 public:
@@ -182,9 +167,6 @@ protected:
   /// @brief Advance to the next periodogram window, preserving the configured overlap.
   void advance_periodogram_window();
 
-  void append_full_k_grid(Vec3i kspace_size);
-  void append_k_path_segment(libconfig::Setting& settings);
-  void configure_k_list(libconfig::Setting& settings);
   void configure_periodogram(libconfig::Setting& settings);
 
   bool periodogram_window_complete() const;
@@ -207,11 +189,6 @@ protected:
   /// @param kpoint_index Index of the k-point in the stored k-space path.
   /// @return Reference to internal buffer containing S(k,ω) for this k-point.
   const CmplxMappedSlice& compute_frequency_spectrum_at_k(int kpoint_index);
-
-  static void make_hkl_path(
-      const std::vector<Vec3>& hkl_nodes,
-      const Vec3i& kspace_size,
-      std::vector<jams::HKLIndex>& hkl_path);
 
   /// @brief Append one time sample of S(k) for all k-points on the configured path.
   ///
@@ -240,7 +217,7 @@ protected:
   jams::MultiArray<Vec3cx, 4> sk_grid_;
 
   /// @brief S(k, t) time series where only k along kpath are stored
-  /// @details Layout: sk_time_series_(basis_index, periodogram_index, kpath_index, channel)
+  /// @details Layout: sk_time_series_(periodogram_index, basis_index, kpath_index, channel)
   jams::MultiArray<jams::ComplexHi, 2> basis_phase_factors_;
 
 private:
@@ -300,7 +277,7 @@ private:
   // Parsed from `sk_time_series_backend` (or legacy `storage`).
   SkTimeSeriesBackendPolicy sk_time_series_backend_policy_ = SkTimeSeriesBackendPolicy::Auto;
   bool full_brillouin_zone_appended_ = false;
-  CmplxStoredRingStorage sk_time_series_{1}; // Ring over periodogram time axis.
+  CmplxStoredRingStorage sk_time_series_; // Ring over periodogram time axis.
 
   /// @brief Output memory for the mapped spectrum
   CmplxMappedSpectrum skw_buffer_;

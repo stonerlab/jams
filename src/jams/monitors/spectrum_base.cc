@@ -4,10 +4,12 @@
 
 #include "jams/monitors/spectrum_base.h"
 
+#include "jams/common.h"
 #include "jams/core/globals.h"
 #include "jams/core/lattice.h"
 #include "jams/core/solver.h"
 #include "jams/interface/fft.h"
+#include "jams/monitors/kpoint_path_builder.h"
 
 #include <algorithm>
 #include <cmath>
@@ -79,14 +81,19 @@ void SpectrumBaseMonitor::initialise_k_points_(
     const libconfig::Setting& settings,
     const KSamplingMode k_sampling_mode)
 {
+  KPointPathBuilder builder(*globals::lattice);
+  const auto kspace_size = globals::lattice->kspace_size();
+
   std::cout << "  creating k-point list" << std::endl;
   if (k_sampling_mode == KSamplingMode::FullGrid)
   {
-    append_full_k_grid(globals::lattice->kspace_size());
+    builder.append_full_k_grid(k_points_, k_segment_offsets_, kspace_size);
+    full_brillouin_zone_appended_ = true;
   }
   else
   {
-    configure_k_list(settings["hkl_path"]);
+    full_brillouin_zone_appended_ = builder.configure_k_list(
+        k_points_, k_segment_offsets_, settings["hkl_path"], kspace_size);
   }
 }
 
@@ -104,7 +111,8 @@ void SpectrumBaseMonitor::initialise_basis_phase_factors_()
 SpectrumBaseMonitor::SpectrumBaseMonitor(
     const libconfig::Setting& settings,
     const KSamplingMode k_sampling_mode)
-    : Monitor(settings)
+    : Monitor(settings),
+      sk_time_series_(0, jams::instance().temp_directory_path())
 {
   const auto kspace_size = globals::lattice->kspace_size();
   num_basis_atoms_ = globals::lattice->num_basis_sites();
@@ -219,8 +227,8 @@ void SpectrumBaseMonitor::resize_channel_storage_()
     stored_channel_count_ = C;
   }
   sk_time_series_.resize(
-      {static_cast<std::size_t>(A),
-       static_cast<std::size_t>(T),
+      {static_cast<std::size_t>(T),
+       static_cast<std::size_t>(A),
        static_cast<std::size_t>(K),
        static_cast<std::size_t>(stored_channel_count_)},
       use_file_backed_sk_time_series_());
@@ -236,125 +244,6 @@ void SpectrumBaseMonitor::resize_channel_storage_()
 // ---------------------------------------------------------------------------
 // k-path configuration
 // ---------------------------------------------------------------------------
-void SpectrumBaseMonitor::append_full_k_grid(Vec3i kspace_size)
-{
-  full_brillouin_zone_appended_ = true;
-
-  const std::size_t initial_size = k_points_.size();
-  const std::size_t added_count_estimate = static_cast<std::size_t>(jams::product(kspace_size));
-  k_points_.reserve(initial_size + added_count_estimate);
-
-  for (auto l = 0; l < kspace_size[0]; ++l)
-  {
-    for (auto m = 0; m < kspace_size[1]; ++m)
-    {
-      for (auto n = 0; n < kspace_size[2]; ++n)
-      {
-        Vec3i coordinate = {l, m, n};
-        Vec3 hkl = jams::hadamard_product(coordinate, 1.0 / jams::to_double(kspace_size));
-        Vec3 xyz = globals::lattice->get_unitcell().inv_fractional_to_cartesian(hkl);
-        k_points_.push_back(jams::HKLIndex{hkl, xyz, fftw_r2c_index(coordinate, kspace_size)});
-      }
-    }
-  }
-
-  if (k_segment_offsets_.empty())
-  {
-    k_segment_offsets_.push_back(0);
-  }
-  const std::size_t added_count = k_points_.size() - initial_size;
-  k_segment_offsets_.push_back(k_segment_offsets_.back() + static_cast<int>(added_count));
-}
-
-void SpectrumBaseMonitor::append_k_path_segment(libconfig::Setting& settings)
-{
-  if (!settings.isList())
-  {
-    throw std::runtime_error("SpectrumBaseMonitor::configure_continuous_kpath failed because settings is not a List");
-  }
-
-  std::vector<Vec3> hkl_path_nodes(settings.getLength());
-  for (auto i = 0; i < settings.getLength(); ++i)
-  {
-    if (!settings[i].isArray())
-    {
-      throw std::runtime_error("SpectrumBaseMonitor::configure_continuous_kpath failed hkl node is not an Array");
-    }
-
-    hkl_path_nodes[i] = Vec3{settings[i][0], settings[i][1], settings[i][2]};
-  }
-
-  for (auto i = 1; i < hkl_path_nodes.size(); ++i)
-  {
-    if (hkl_path_nodes[i] == hkl_path_nodes[i - 1])
-    {
-      throw std::runtime_error("Two consecutive hkl_nodes cannot be the same");
-    }
-  }
-
-  const auto kspace_size = globals::lattice->kspace_size();
-  std::size_t expected_new_points = 0;
-  for (std::size_t i = 1; i < hkl_path_nodes.size(); ++i)
-  {
-    const Vec3i start = jams::to_int(jams::hadamard_product(hkl_path_nodes[i - 1], kspace_size));
-    const Vec3i end = jams::to_int(jams::hadamard_product(hkl_path_nodes[i], kspace_size));
-    const Vec3i displacement = jams::absolute(end - start);
-    expected_new_points += static_cast<std::size_t>(
-        std::max({displacement[0], displacement[1], displacement[2]})) + 1;
-  }
-  if (hkl_path_nodes.size() > 2)
-  {
-    expected_new_points -= static_cast<std::size_t>(hkl_path_nodes.size() - 2);
-  }
-
-  const std::size_t initial_size = k_points_.size();
-  k_points_.reserve(initial_size + expected_new_points);
-  make_hkl_path(hkl_path_nodes, kspace_size, k_points_);
-
-  if (k_segment_offsets_.empty())
-  {
-    k_segment_offsets_.push_back(0);
-  }
-  const std::size_t added_count = k_points_.size() - initial_size;
-  k_segment_offsets_.push_back(k_segment_offsets_.back() + static_cast<int>(added_count));
-}
-
-void SpectrumBaseMonitor::configure_k_list(libconfig::Setting& settings)
-{
-  if (settings.isString() && std::string(settings.c_str()) == "full")
-  {
-    append_full_k_grid(globals::lattice->kspace_size());
-    return;
-  }
-
-  if (settings[0].isArray())
-  {
-    append_k_path_segment(settings);
-    return;
-  }
-
-  if (settings[0].isList())
-  {
-    for (auto n = 0; n < settings.getLength(); ++n)
-    {
-      if (settings[n].isArray())
-      {
-        append_k_path_segment(settings[n]);
-        continue;
-      }
-      if (settings[n].isString() && std::string(settings[n].c_str()) == "full")
-      {
-        append_full_k_grid(globals::lattice->kspace_size());
-        continue;
-      }
-      throw std::runtime_error("SpectrumBaseMonitor::configure_k_list failed because a nodes is not an Array or String");
-    }
-    return;
-  }
-
-  throw std::runtime_error("SpectrumBaseMonitor::configure_k_list failed because settings is not an Array, List or String");
-}
-
 void SpectrumBaseMonitor::configure_periodogram(libconfig::Setting &settings)
 {
   periodogram_props_.length = jams::config_required<int>(settings, "length");
@@ -373,113 +262,6 @@ void SpectrumBaseMonitor::configure_periodogram(libconfig::Setting &settings)
   if (periodogram_props_.overlap >= periodogram_props_.length)
   {
     throw std::runtime_error("Periodogram overlap must be less than periodogram length");
-  }
-}
-
-void SpectrumBaseMonitor::make_hkl_path(const std::vector<Vec3> &hkl_nodes,
-                                        const Vec3i &kspace_size,
-                                        std::vector<jams::HKLIndex>& hkl_path)
-{
-  const std::size_t initial_size = hkl_path.size();
-  const auto push_unique = [&](const jams::HKLIndex& point)
-  {
-    if (hkl_path.size() > initial_size && hkl_path.back() == point)
-    {
-      return;
-    }
-    hkl_path.push_back(point);
-  };
-
-  for (auto n = 0; n < static_cast<int>(hkl_nodes.size()) - 1; ++n)
-  {
-    Vec3i start = jams::to_int(jams::hadamard_product(hkl_nodes[n], kspace_size));
-    Vec3i end = jams::to_int(jams::hadamard_product(hkl_nodes[n + 1], kspace_size));
-    Vec3i displacement = jams::absolute(end - start);
-
-    Vec3i step = {
-        (end[0] > start[0]) ? 1 : ((end[0] < start[0]) ? -1 : 0),
-        (end[1] > start[1]) ? 1 : ((end[1] < start[1]) ? -1 : 0),
-        (end[2] > start[2]) ? 1 : ((end[2] < start[2]) ? -1 : 0)};
-
-    if (displacement[0] >= displacement[1] && displacement[0] >= displacement[2])
-    {
-      int p1 = 2 * displacement[1] - displacement[0];
-      int p2 = 2 * displacement[2] - displacement[0];
-      while (start[0] != end[0])
-      {
-        Vec3 hkl = jams::hadamard_product(start, 1.0 / jams::to_double(kspace_size));
-        Vec3 xyz = globals::lattice->get_unitcell().inv_fractional_to_cartesian(hkl);
-        push_unique(jams::HKLIndex{hkl, xyz, fftw_r2c_index(start, kspace_size)});
-
-        start[0] += step[0];
-        if (p1 >= 0)
-        {
-          start[1] += step[1];
-          p1 -= 2 * displacement[0];
-        }
-        if (p2 >= 0)
-        {
-          start[2] += step[2];
-          p2 -= 2 * displacement[0];
-        }
-        p1 += 2 * displacement[1];
-        p2 += 2 * displacement[2];
-      }
-    }
-    else if (displacement[1] >= displacement[0] && displacement[1] >= displacement[2])
-    {
-      int p1 = 2 * displacement[0] - displacement[1];
-      int p2 = 2 * displacement[2] - displacement[1];
-      while (start[1] != end[1])
-      {
-        Vec3 hkl = jams::hadamard_product(start, 1.0 / jams::to_double(kspace_size));
-        Vec3 xyz = globals::lattice->get_unitcell().inv_fractional_to_cartesian(hkl);
-        push_unique(jams::HKLIndex{hkl, xyz, fftw_r2c_index(start, kspace_size)});
-
-        start[1] += step[1];
-        if (p1 >= 0)
-        {
-          start[0] += step[0];
-          p1 -= 2 * displacement[1];
-        }
-        if (p2 >= 0)
-        {
-          start[2] += step[2];
-          p2 -= 2 * displacement[1];
-        }
-        p1 += 2 * displacement[0];
-        p2 += 2 * displacement[2];
-      }
-    }
-    else
-    {
-      int p1 = 2 * displacement[0] - displacement[2];
-      int p2 = 2 * displacement[1] - displacement[2];
-      while (start[2] != end[2])
-      {
-        Vec3 hkl = jams::hadamard_product(start, 1.0 / jams::to_double(kspace_size));
-        Vec3 xyz = globals::lattice->get_unitcell().inv_fractional_to_cartesian(hkl);
-        push_unique(jams::HKLIndex{hkl, xyz, fftw_r2c_index(start, kspace_size)});
-
-        start[2] += step[2];
-        if (p1 >= 0)
-        {
-          start[1] += step[1];
-          p1 -= 2 * displacement[2];
-        }
-        if (p2 >= 0)
-        {
-          start[0] += step[0];
-          p2 -= 2 * displacement[2];
-        }
-        p1 += 2 * displacement[1];
-        p2 += 2 * displacement[0];
-      }
-    }
-
-    Vec3 hkl = jams::hadamard_product(end, 1.0 / jams::to_double(kspace_size));
-    Vec3 xyz = globals::lattice->get_unitcell().inv_fractional_to_cartesian(hkl);
-    push_unique(jams::HKLIndex{hkl, xyz, fftw_r2c_index(end, kspace_size)});
   }
 }
 
@@ -559,7 +341,7 @@ const SpectrumBaseMonitor::CmplxMappedSlice& SpectrumBaseMonitor::compute_freque
       {
         for (auto c = 0; c < channels; ++c)
         {
-          const auto s = sk_time_series_(a, t, kpoint_index, c);
+          const auto s = sk_time_series_(t, a, kpoint_index, c);
           frequency_scratch_(a, t, c) = jams::ComplexHi{s.real(), s.imag()};
         }
       }
@@ -608,7 +390,7 @@ void SpectrumBaseMonitor::advance_periodogram_window()
   const std::size_t overlap = static_cast<std::size_t>(periodogram_overlap());
 
   // Keep only the overlap tail of S(k,t) as the head of the next window.
-  const std::size_t num_time = sk_time_series_.size(1);
+  const std::size_t num_time = sk_time_series_.size(0);
 
   assert(overlap < num_time);
   sk_time_series_.advance_ring_window(overlap);
@@ -680,13 +462,21 @@ const SpectrumBaseMonitor::CmplxMappedSpectrum& SpectrumBaseMonitor::finalise_pe
 void SpectrumBaseMonitor::append_sk_sample_for_k_list(const jams::MultiArray<Vec3cx,4> &sk_sample,
                                                     const std::vector<jams::HKLIndex> &k_list)
 {
+  const auto time_index = static_cast<std::size_t>(periodogram_sample_index_);
+  const auto num_basis = static_cast<std::size_t>(sk_sample.size(3));
+  const auto num_k = k_list.size();
+  const auto stored_channels = static_cast<std::size_t>(stored_channel_count_);
+  const bool use_local_frame = needs_local_frame_mapping_();
+  std::vector<CmplxStored> tail_buffer(num_basis * num_k * stored_channels);
+
   for (auto a = 0; a < sk_sample.size(3); ++a)
   {
     for (auto k = 0; k < k_list.size(); ++k)
     {
       const auto [offset, is_conjugate] = k_list[k].index;
-      const auto i = periodogram_sample_index_;
       const auto idx = offset;
+      const auto base =
+          (static_cast<std::size_t>(a) * num_k + static_cast<std::size_t>(k)) * stored_channels;
 
       Vec3cx spin_xyz;
       if (is_conjugate)
@@ -698,22 +488,30 @@ void SpectrumBaseMonitor::append_sk_sample_for_k_list(const jams::MultiArray<Vec
         spin_xyz = basis_phase_factors_(a, k) * sk_sample(idx[0], idx[1], idx[2], a);
       }
 
-      if (needs_local_frame_mapping_())
+      if (use_local_frame)
       {
-        sk_time_series_(a, i, k, 0) = CmplxStored{static_cast<float>(spin_xyz[0].real()), static_cast<float>(spin_xyz[0].imag())};
-        sk_time_series_(a, i, k, 1) = CmplxStored{static_cast<float>(spin_xyz[1].real()), static_cast<float>(spin_xyz[1].imag())};
-        sk_time_series_(a, i, k, 2) = CmplxStored{static_cast<float>(spin_xyz[2].real()), static_cast<float>(spin_xyz[2].imag())};
+        tail_buffer[base + 0] = CmplxStored{static_cast<float>(spin_xyz[0].real()), static_cast<float>(spin_xyz[0].imag())};
+        tail_buffer[base + 1] = CmplxStored{static_cast<float>(spin_xyz[1].real()), static_cast<float>(spin_xyz[1].imag())};
+        tail_buffer[base + 2] = CmplxStored{static_cast<float>(spin_xyz[2].real()), static_cast<float>(spin_xyz[2].imag())};
       }
       else
       {
-        for (auto c = 0; c < num_channels(); ++c)
+        for (std::size_t c = 0; c < stored_channels; ++c)
         {
-          const auto value = map_spin_component_(a, c, spin_xyz, nullptr);
-          sk_time_series_(a, i, k, c) = CmplxStored{static_cast<float>(value.real()), static_cast<float>(value.imag())};
+          const auto value = map_spin_component_(a, static_cast<int>(c), spin_xyz, nullptr);
+          tail_buffer[base + c] = CmplxStored{static_cast<float>(value.real()), static_cast<float>(value.imag())};
         }
       }
     }
   }
+
+  const std::array<std::size_t, 1> prefix{time_index};
+  sk_time_series_.for_each_tail_block<3>(
+      prefix,
+      [&](CmplxStored* destination, const std::size_t logical_offset, const std::size_t count)
+      {
+        std::copy_n(tail_buffer.data() + logical_offset, count, destination);
+      });
 }
 
 // ---------------------------------------------------------------------------
@@ -855,9 +653,9 @@ Vec3cx SpectrumBaseMonitor::read_cartesian_spin_(const int basis_index,
                                                  const int k_index) const
 {
   assert(stored_channel_count_ >= 3);
-  const auto sx = sk_time_series_(basis_index, time_index, k_index, 0);
-  const auto sy = sk_time_series_(basis_index, time_index, k_index, 1);
-  const auto sz = sk_time_series_(basis_index, time_index, k_index, 2);
+  const auto sx = sk_time_series_(time_index, basis_index, k_index, 0);
+  const auto sy = sk_time_series_(time_index, basis_index, k_index, 1);
+  const auto sz = sk_time_series_(time_index, basis_index, k_index, 2);
   return Vec3cx{
       jams::ComplexHi{sx.real(), sx.imag()},
       jams::ComplexHi{sy.real(), sy.imag()},
