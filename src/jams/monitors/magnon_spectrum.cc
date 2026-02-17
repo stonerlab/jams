@@ -92,6 +92,13 @@ void MagnonSpectrumMonitor::output_total_magnon_spectrum()
             const auto freq_index = (f <= time_points / 2) ? static_cast<int>(f)
                                                            : static_cast<int>(f) - static_cast<int>(time_points);
             const auto freq_thz = static_cast<double>(freq_index) * frequency_resolution_thz();
+            double wfreq = 1.0;
+            if (!keep_negative_frequencies())
+            {
+                const bool is_dc = (f == 0);
+                const bool is_nyquist = ((time_points % 2) == 0) && (f == (time_points / 2));
+                wfreq = (is_dc || is_nyquist) ? 1.0 : 2.0;
+            }
             double total_distance = 0.0;
             for (auto k = path_begin; k < path_end; ++k)
             {
@@ -101,9 +108,9 @@ void MagnonSpectrumMonitor::output_total_magnon_spectrum()
                 ofs << jams::fmt::decimal << k_points_[k].xyz;
                 ofs << jams::fmt::decimal << freq_thz; // THz
                 ofs << jams::fmt::decimal << freq_thz * 4.135668; // meV
-                ofs << jams::fmt::sci << prefactor * cumulative_magnon_spectrum_(f, k)[0];
-                ofs << jams::fmt::sci << prefactor * cumulative_magnon_spectrum_(f, k)[1];
-                ofs << jams::fmt::sci << prefactor * cumulative_magnon_spectrum_(f, k)[2];
+                ofs << jams::fmt::sci << prefactor * wfreq * cumulative_magnon_spectrum_(f, k)[0];
+                ofs << jams::fmt::sci << prefactor * wfreq * cumulative_magnon_spectrum_(f, k)[1];
+                ofs << jams::fmt::sci << prefactor * wfreq * cumulative_magnon_spectrum_(f, k)[2];
 
                 if (k + 1 < path_end) {
                     total_distance += jams::norm(k_points_[k].xyz - k_points_[k + 1].xyz);
