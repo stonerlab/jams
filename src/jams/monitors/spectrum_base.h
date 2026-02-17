@@ -221,6 +221,12 @@ protected:
   jams::MultiArray<jams::ComplexHi, 2> basis_phase_factors_;
 
 private:
+  enum class TemporalEstimator
+  {
+    Welch,
+    Multitaper
+  };
+
   enum class SkTimeSeriesBackendPolicy
   {
     Auto,
@@ -247,11 +253,17 @@ private:
   void ensure_channel_storage_initialised_();
   void resize_channel_storage_();
   bool use_file_backed_sk_time_series_() const;
+  void configure_temporal_estimator_(libconfig::Setting& settings);
 
   /// @brief Generate the window function for a width of num_time_samples.
   ///
   /// @details FFT window is normalised to unit RMS power so that windowing does not change overall power.
   static void generate_normalised_window_(jams::MultiArray<double, 1>& window, int num_time_samples);
+  static void generate_normalised_dpss_tapers_(
+      jams::MultiArray<double, 2>& tapers,
+      int num_tapers,
+      int num_time_samples,
+      double time_bandwidth);
 
   /// @brief Generate unit cell phase factors phi_a(k) = exp(-2 pi i r_a.k) where a is a position in the unit cell basis
   /// and k is a k point.
@@ -274,6 +286,9 @@ private:
 
   int stored_channel_count_ = 0;
   bool sk_time_series_storage_initialised_ = false;
+  TemporalEstimator temporal_estimator_ = TemporalEstimator::Welch;
+  int multitaper_count_ = 4;
+  double multitaper_time_bandwidth_ = 2.5;
   // Parsed from `sk_time_series_backend` (or legacy `storage`).
   SkTimeSeriesBackendPolicy sk_time_series_backend_policy_ = SkTimeSeriesBackendPolicy::Auto;
   bool full_brillouin_zone_appended_ = false;
@@ -285,7 +300,11 @@ private:
   /// @brief Buffer for FFT S(k,t...) -> S(k,w) for a single k index
   fftw_plan sk_time_fft_plan_ = nullptr;
   jams::MultiArray<double, 1> periodogram_window_;
+  jams::MultiArray<double, 2> multitaper_windows_;
   CmplxMappedSlice frequency_scratch_;
+  CmplxMappedSlice frequency_accum_;
+  CmplxMappedSlice frequency_taper_sum_;
+  jams::MultiArray<double, 3> frequency_taper_power_sum_;
 };
 
 #endif //JAMS_SPECTRUM_BASE_H
