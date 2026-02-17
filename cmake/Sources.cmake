@@ -46,6 +46,7 @@ set(JAMS_SOURCES_CXX
         initializer/init_triple_q.cc
         interface/config.cc
         interface/fft.cc
+        interface/lapack_tridiagonal.cc
         interface/system.cc
         metadynamics/collective_variable_factory.cc
         metadynamics/metadynamics_potential.cc

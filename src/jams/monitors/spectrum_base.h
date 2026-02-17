@@ -288,7 +288,8 @@ private:
   bool sk_time_series_storage_initialised_ = false;
   TemporalEstimator temporal_estimator_ = TemporalEstimator::Welch;
   int multitaper_count_ = 4;
-  double multitaper_time_bandwidth_ = 2.5;
+  // User-facing DPSS time-bandwidth product NW (dimensionless).
+  double multitaper_bandwidth_ = 2.5;
   // Parsed from `sk_time_series_backend` (or legacy `storage`).
   SkTimeSeriesBackendPolicy sk_time_series_backend_policy_ = SkTimeSeriesBackendPolicy::Auto;
   bool full_brillouin_zone_appended_ = false;

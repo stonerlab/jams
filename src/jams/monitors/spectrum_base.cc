@@ -9,12 +9,12 @@
 #include "jams/core/lattice.h"
 #include "jams/core/solver.h"
 #include "jams/interface/fft.h"
+#include "jams/interface/lapack_tridiagonal.h"
 #include "jams/monitors/kpoint_path_builder.h"
 
 #include <algorithm>
 #include <cmath>
 #include <iostream>
-#include <numeric>
 #include <string>
 #include <stdexcept>
 #include <vector>
@@ -160,6 +160,8 @@ void SpectrumBaseMonitor::set_channel_map(const ChannelTransform& channel_map)
   {
     resize_channel_storage_();
   }
+  periodogram_sample_index_ = 0;
+  periodogram_window_count_ = 1;
 
   if (sk_time_fft_plan_)
   {
@@ -255,7 +257,7 @@ void SpectrumBaseMonitor::resize_channel_storage_()
   {
     if (multitaper_windows_.size(0) != multitaper_count_ || multitaper_windows_.size(1) != T)
     {
-      generate_normalised_dpss_tapers_(multitaper_windows_, multitaper_count_, T, multitaper_time_bandwidth_);
+      generate_normalised_dpss_tapers_(multitaper_windows_, multitaper_count_, T, multitaper_bandwidth_);
     }
   }
 }
@@ -278,8 +280,41 @@ void SpectrumBaseMonitor::configure_temporal_estimator_(libconfig::Setting& sett
   {
     temporal_estimator_ = TemporalEstimator::Multitaper;
     multitaper_count_ = jams::config_optional<int>(settings, "multitaper_tapers", multitaper_count_);
-    multitaper_time_bandwidth_ = jams::config_optional<double>(
-        settings, "multitaper_time_bandwidth", multitaper_time_bandwidth_);
+
+    if (settings.exists("multitaper_bandwidth_thz"))
+    {
+      throw std::runtime_error(
+          "multitaper_bandwidth_thz has been removed; use dimensionless multitaper_bandwidth");
+    }
+
+    const bool has_bandwidth = settings.exists("multitaper_bandwidth");
+    const bool has_time_bandwidth = settings.exists("multitaper_time_bandwidth");
+    if (has_bandwidth && has_time_bandwidth)
+    {
+      throw std::runtime_error(
+          "Specify only one of multitaper_bandwidth or multitaper_time_bandwidth");
+    }
+
+    if (has_time_bandwidth)
+    {
+      // Backwards-compatible alias for older input files.
+      multitaper_bandwidth_ = jams::config_required<double>(settings, "multitaper_time_bandwidth");
+    }
+    else
+    {
+      multitaper_bandwidth_ = jams::config_optional<double>(settings, "multitaper_bandwidth", multitaper_bandwidth_);
+    }
+
+    if (multitaper_bandwidth_ <= 0.0)
+    {
+      throw std::runtime_error("multitaper_bandwidth must be greater than zero");
+    }
+    if (multitaper_bandwidth_ >= static_cast<double>(periodogram_props_.length) / 2.0)
+    {
+      throw std::runtime_error(
+          "multitaper bandwidth is too large for the configured periodogram length");
+    }
+
     if (multitaper_count_ <= 0)
     {
       throw std::runtime_error("multitaper_tapers must be greater than zero");
@@ -288,18 +323,14 @@ void SpectrumBaseMonitor::configure_temporal_estimator_(libconfig::Setting& sett
     {
       throw std::runtime_error("multitaper_tapers must be less than or equal to periodogram length");
     }
-    if (multitaper_time_bandwidth_ <= 0.0)
-    {
-      throw std::runtime_error("multitaper_time_bandwidth must be greater than zero");
-    }
-    const int max_reasonable_tapers = static_cast<int>(std::floor(2.0 * multitaper_time_bandwidth_ - 1.0));
+    const int max_reasonable_tapers = static_cast<int>(std::floor(2.0 * multitaper_bandwidth_ - 1.0));
     if (max_reasonable_tapers < 1)
     {
-      throw std::runtime_error("multitaper_time_bandwidth is too small for multitaper_tapers");
+      throw std::runtime_error("multitaper_bandwidth is too small for multitaper_tapers");
     }
     if (multitaper_count_ > max_reasonable_tapers)
     {
-      throw std::runtime_error("multitaper_tapers must satisfy multitaper_tapers <= floor(2 * multitaper_time_bandwidth - 1)");
+      throw std::runtime_error("multitaper_tapers must satisfy multitaper_tapers <= floor(2 * multitaper_bandwidth - 1)");
     }
     return;
   }
@@ -350,7 +381,7 @@ const SpectrumBaseMonitor::CmplxMappedSlice& SpectrumBaseMonitor::compute_freque
           || multitaper_windows_.size(1) != num_time_samples))
   {
     generate_normalised_dpss_tapers_(
-        multitaper_windows_, multitaper_count_, num_time_samples, multitaper_time_bandwidth_);
+        multitaper_windows_, multitaper_count_, num_time_samples, multitaper_bandwidth_);
   }
 
   if (!sk_time_fft_plan_
@@ -414,7 +445,6 @@ const SpectrumBaseMonitor::CmplxMappedSlice& SpectrumBaseMonitor::compute_freque
   {
     frequency_taper_power_sum_.resize(num_sites, num_time_samples, channels);
   }
-
   const auto rotations = use_local_frame
       ? generate_sublattice_rotations_()
       : jams::MultiArray<Mat3, 1>{};
@@ -483,22 +513,8 @@ const SpectrumBaseMonitor::CmplxMappedSlice& SpectrumBaseMonitor::compute_freque
     return frequency_scratch_;
   }
 
-  // Multitaper: average tapered power spectra. We keep a deterministic phase
-  // reference so existing complex-spectrum interfaces remain usable.
-  for (auto a = 0; a < num_sites; ++a)
-  {
-    for (auto t = 0; t < num_time_samples; ++t)
-    {
-      for (auto c = 0; c < channels; ++c)
-      {
-        frequency_taper_sum_(a, t, c) = periodogram_window_(t) * frequency_accum_(a, t, c);
-      }
-    }
-
-    auto* ptr = FFTW_COMPLEX_CAST(&frequency_taper_sum_(a, 0, 0));
-    fftw_execute_dft(sk_time_fft_plan_, ptr, ptr);
-  }
-
+  // Multitaper: average tapered complex spectra and preserve mean power.
+  zero(frequency_taper_sum_);
   zero(frequency_taper_power_sum_);
   const double inv_tapers = 1.0 / static_cast<double>(multitaper_count_);
 
@@ -521,7 +537,8 @@ const SpectrumBaseMonitor::CmplxMappedSlice& SpectrumBaseMonitor::compute_freque
       {
         for (auto c = 0; c < channels; ++c)
         {
-          frequency_taper_power_sum_(a, t, c) += std::norm(frequency_scratch_(a, t, c));
+          frequency_taper_sum_(a, t, c) += inv_tapers * frequency_scratch_(a, t, c);
+          frequency_taper_power_sum_(a, t, c) += inv_tapers * std::norm(frequency_scratch_(a, t, c));
         }
       }
     }
@@ -534,18 +551,16 @@ const SpectrumBaseMonitor::CmplxMappedSlice& SpectrumBaseMonitor::compute_freque
     {
       for (auto c = 0; c < channels; ++c)
       {
-        const double mean_power = inv_tapers * frequency_taper_power_sum_(a, t, c);
-        const double amplitude = std::sqrt(std::max(0.0, mean_power));
-
-        const auto ref = frequency_taper_sum_(a, t, c);
-        const double ref_abs = std::abs(ref);
-        if (ref_abs > kPhaseEpsilon)
+        const auto mean_complex = frequency_taper_sum_(a, t, c);
+        const double mean_power = std::max(0.0, frequency_taper_power_sum_(a, t, c));
+        const double mean_abs = std::abs(mean_complex);
+        if (mean_abs > kPhaseEpsilon)
         {
-          frequency_scratch_(a, t, c) = (amplitude / ref_abs) * ref;
+          frequency_scratch_(a, t, c) = (std::sqrt(mean_power) / mean_abs) * mean_complex;
         }
         else
         {
-          frequency_scratch_(a, t, c) = jams::ComplexHi{amplitude, 0.0};
+          frequency_scratch_(a, t, c) = jams::ComplexHi{0.0, 0.0};
         }
       }
     }
@@ -896,11 +911,10 @@ void SpectrumBaseMonitor::generate_normalised_dpss_tapers_(
   const int N = num_time_samples;
   const int K = num_tapers;
   const double W = time_bandwidth / static_cast<double>(N);
-  const double pi = std::acos(-1.0);
-  const double cos_2piW = std::cos(2.0 * pi * W);
+  const double cos_2piW = std::cos(kTwoPi * W);
 
-  std::vector<double> diag(N, 0.0);
-  std::vector<double> off(N > 1 ? N - 1 : 0, 0.0);
+  std::vector<double> diag(static_cast<std::size_t>(N), 0.0);
+  std::vector<double> off(static_cast<std::size_t>(std::max(1, N - 1)), 0.0);
   for (int n = 0; n < N; ++n)
   {
     const double x = 0.5 * static_cast<double>(N - 1 - 2 * n);
@@ -908,271 +922,24 @@ void SpectrumBaseMonitor::generate_normalised_dpss_tapers_(
   }
   for (int n = 0; n < N - 1; ++n)
   {
-    const double m = static_cast<double>(n + 1);
+    const auto m = static_cast<double>(n + 1);
     off[n] = 0.5 * m * static_cast<double>(N - (n + 1));
   }
 
-  auto apply_tridiagonal = [&](const double* x, double* y)
-  {
-    for (int n = 0; n < N; ++n)
-    {
-      double v = diag[n] * x[n];
-      if (n > 0)
-      {
-        v += off[n - 1] * x[n - 1];
-      }
-      if (n < N - 1)
-      {
-        v += off[n] * x[n + 1];
-      }
-      y[n] = v;
-    }
-  };
-
-  auto l2_norm = [&](const double* x)
-  {
-    double s = 0.0;
-    for (int n = 0; n < N; ++n)
-    {
-      s += x[n] * x[n];
-    }
-    return std::sqrt(s);
-  };
-
-  auto orthonormalize_columns = [&](std::vector<double>& mat)
-  {
-    // Modified Gram-Schmidt on column-major blocks stored as [n * K + k].
-    std::vector<double> col(N, 0.0);
-    for (int k = 0; k < K; ++k)
-    {
-      for (int n = 0; n < N; ++n)
-      {
-        col[n] = mat[n * K + k];
-      }
-
-      for (int j = 0; j < k; ++j)
-      {
-        double dot = 0.0;
-        for (int n = 0; n < N; ++n)
-        {
-          dot += col[n] * mat[n * K + j];
-        }
-        for (int n = 0; n < N; ++n)
-        {
-          col[n] -= dot * mat[n * K + j];
-        }
-      }
-
-      double nrm = l2_norm(col.data());
-      if (nrm <= 0.0)
-      {
-        // deterministic fallback basis vector
-        std::fill(col.begin(), col.end(), 0.0);
-        col[k % N] = 1.0;
-        for (int j = 0; j < k; ++j)
-        {
-          double dot = 0.0;
-          for (int n = 0; n < N; ++n)
-          {
-            dot += col[n] * mat[n * K + j];
-          }
-          for (int n = 0; n < N; ++n)
-          {
-            col[n] -= dot * mat[n * K + j];
-          }
-        }
-        nrm = l2_norm(col.data());
-      }
-      if (nrm <= 0.0)
-      {
-        throw std::runtime_error("DPSS orthonormalisation failed");
-      }
-
-      const double inv = 1.0 / nrm;
-      for (int n = 0; n < N; ++n)
-      {
-        mat[n * K + k] = col[n] * inv;
-      }
-    }
-  };
-
-  auto jacobi_eigendecompose = [](std::vector<double>& A, std::vector<double>& V, const int M)
-  {
-    V.assign(M * M, 0.0);
-    for (int i = 0; i < M; ++i)
-    {
-      V[i * M + i] = 1.0;
-    }
-
-    const int max_sweeps = 64;
-    for (int sweep = 0; sweep < max_sweeps; ++sweep)
-    {
-      double off_norm = 0.0;
-      for (int p = 0; p < M; ++p)
-      {
-        for (int q = p + 1; q < M; ++q)
-        {
-          off_norm += std::abs(A[p * M + q]);
-        }
-      }
-      if (off_norm < 1e-12)
-      {
-        break;
-      }
-
-      for (int p = 0; p < M - 1; ++p)
-      {
-        for (int q = p + 1; q < M; ++q)
-        {
-          const double apq = A[p * M + q];
-          if (std::abs(apq) < 1e-14)
-          {
-            continue;
-          }
-
-          const double app = A[p * M + p];
-          const double aqq = A[q * M + q];
-          const double tau = (aqq - app) / (2.0 * apq);
-          const double t = (tau >= 0.0 ? 1.0 : -1.0)
-                           / (std::abs(tau) + std::sqrt(1.0 + tau * tau));
-          const double c = 1.0 / std::sqrt(1.0 + t * t);
-          const double s = t * c;
-
-          for (int r = 0; r < M; ++r)
-          {
-            const double arp = A[r * M + p];
-            const double arq = A[r * M + q];
-            A[r * M + p] = c * arp - s * arq;
-            A[r * M + q] = s * arp + c * arq;
-          }
-          for (int r = 0; r < M; ++r)
-          {
-            const double apr = A[p * M + r];
-            const double aqr = A[q * M + r];
-            A[p * M + r] = c * apr - s * aqr;
-            A[q * M + r] = s * apr + c * aqr;
-          }
-
-          A[p * M + q] = 0.0;
-          A[q * M + p] = 0.0;
-
-          for (int r = 0; r < M; ++r)
-          {
-            const double vrp = V[r * M + p];
-            const double vrq = V[r * M + q];
-            V[r * M + p] = c * vrp - s * vrq;
-            V[r * M + q] = s * vrp + c * vrq;
-          }
-        }
-      }
-    }
-  };
-
-  std::vector<double> basis_vectors(N * K, 0.0);
-  std::vector<double> Z(N * K, 0.0);
-  for (int k = 0; k < K; ++k)
-  {
-    for (int n = 0; n < N; ++n)
-    {
-      basis_vectors[n * K + k] = std::sin(pi * static_cast<double>((k + 1) * (n + 1))
-                                          / static_cast<double>(N + 1));
-    }
-  }
-  orthonormalize_columns(basis_vectors);
-
-  const int num_iters = 64;
-  std::vector<double> x_col(N, 0.0);
-  std::vector<double> y_col(N, 0.0);
-  for (int iter = 0; iter < num_iters; ++iter)
-  {
-    for (int k = 0; k < K; ++k)
-    {
-      for (int n = 0; n < N; ++n)
-      {
-        x_col[n] = basis_vectors[n * K + k];
-      }
-      apply_tridiagonal(x_col.data(), y_col.data());
-      for (int n = 0; n < N; ++n)
-      {
-        Z[n * K + k] = y_col[n];
-      }
-    }
-    orthonormalize_columns(Z);
-    basis_vectors.swap(Z);
-  }
-
-  // Rayleigh-Ritz: diagonalise the projected KxK matrix to stabilise basis.
-  std::vector<double> T(K * K, 0.0);
-  for (int i = 0; i < K; ++i)
-  {
-      for (int n = 0; n < N; ++n)
-      {
-        x_col[n] = basis_vectors[n * K + i];
-      }
-      apply_tridiagonal(x_col.data(), y_col.data());
-      for (int j = 0; j < K; ++j)
-      {
-        double dot = 0.0;
-        for (int n = 0; n < N; ++n)
-        {
-          dot += basis_vectors[n * K + j] * y_col[n];
-        }
-        T[j * K + i] = dot;
-      }
-  }
-
-  std::vector<double> V;
-  jacobi_eigendecompose(T, V, K);
-
-  std::vector<double> Y(N * K, 0.0);
-  for (int n = 0; n < N; ++n)
-  {
-    for (int j = 0; j < K; ++j)
-    {
-      double v = 0.0;
-      for (int i = 0; i < K; ++i)
-      {
-        v += basis_vectors[n * K + i] * V[i * K + j];
-      }
-      Y[n * K + j] = v;
-    }
-  }
-  basis_vectors.swap(Y);
-  orthonormalize_columns(basis_vectors);
-
-  std::vector<double> lambda(K, 0.0);
-  for (int k = 0; k < K; ++k)
-  {
-    for (int n = 0; n < N; ++n)
-    {
-      x_col[n] = basis_vectors[n * K + k];
-    }
-    apply_tridiagonal(x_col.data(), y_col.data());
-    double rayleigh = 0.0;
-    for (int n = 0; n < N; ++n)
-    {
-      rayleigh += basis_vectors[n * K + k] * y_col[n];
-    }
-    lambda[k] = rayleigh;
-  }
-
-  std::vector<int> order(K);
-  std::iota(order.begin(), order.end(), 0);
-  std::sort(order.begin(), order.end(), [&](const int a, const int b)
-  {
-    return lambda[a] > lambda[b];
-  });
+  std::vector<double> eigenvectors;
+  jams::solve_symmetric_tridiagonal_top_eigenvectors(diag, off, eigenvectors, N, K);
 
   const double rms_scale = std::sqrt(static_cast<double>(N)); // unit RMS as used for Welch window
   for (int out_k = 0; out_k < K; ++out_k)
   {
-    const int src_k = order[out_k];
+    // Selected eigenpairs are returned in ascending order; pick descending.
+    const int src_k = K - 1 - out_k;
 
     // Deterministic sign convention for reproducibility.
     double sign = 1.0;
     for (int n = 0; n < N; ++n)
     {
-      const double v = basis_vectors[n * K + src_k];
+      const double v = eigenvectors[static_cast<std::size_t>(n) + static_cast<std::size_t>(src_k) * static_cast<std::size_t>(N)];
       if (std::abs(v) > 1e-14)
       {
         sign = (v >= 0.0) ? 1.0 : -1.0;
@@ -1182,7 +949,8 @@ void SpectrumBaseMonitor::generate_normalised_dpss_tapers_(
 
     for (int n = 0; n < N; ++n)
     {
-      tapers(out_k, n) = sign * rms_scale * basis_vectors[n * K + src_k];
+      const double v = eigenvectors[static_cast<std::size_t>(n) + static_cast<std::size_t>(src_k) * static_cast<std::size_t>(N)];
+      tapers(out_k, n) = sign * rms_scale * v;
     }
   }
 }
@@ -1244,7 +1012,7 @@ void SpectrumBaseMonitor::print_info() const
   {
     std::cout << "  temporal estimator multitaper\n";
     std::cout << "  multitaper tapers " << multitaper_count_ << "\n";
-    std::cout << "  multitaper time-bandwidth " << multitaper_time_bandwidth_ << "\n";
+    std::cout << "  multitaper bandwidth (NW) " << multitaper_bandwidth_ << "\n";
   }
   std::cout << "\n";
 }
