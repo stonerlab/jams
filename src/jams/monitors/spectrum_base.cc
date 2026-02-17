@@ -279,7 +279,6 @@ void SpectrumBaseMonitor::configure_temporal_estimator_(libconfig::Setting& sett
   if (estimator == "multitaper")
   {
     temporal_estimator_ = TemporalEstimator::Multitaper;
-    multitaper_count_ = jams::config_optional<int>(settings, "multitaper_tapers", multitaper_count_);
 
     if (settings.exists("multitaper_bandwidth_thz"))
     {
@@ -315,6 +314,21 @@ void SpectrumBaseMonitor::configure_temporal_estimator_(libconfig::Setting& sett
           "multitaper bandwidth is too large for the configured periodogram length");
     }
 
+    const int max_reasonable_tapers = static_cast<int>(std::floor(2.0 * multitaper_bandwidth_ - 1.0));
+    if (max_reasonable_tapers < 1)
+    {
+      throw std::runtime_error("multitaper_bandwidth is too small for multitaper_tapers");
+    }
+
+    if (settings.exists("multitaper_tapers"))
+    {
+      multitaper_count_ = jams::config_required<int>(settings, "multitaper_tapers");
+    }
+    else
+    {
+      multitaper_count_ = max_reasonable_tapers;
+    }
+
     if (multitaper_count_ <= 0)
     {
       throw std::runtime_error("multitaper_tapers must be greater than zero");
@@ -322,11 +336,6 @@ void SpectrumBaseMonitor::configure_temporal_estimator_(libconfig::Setting& sett
     if (multitaper_count_ > periodogram_props_.length)
     {
       throw std::runtime_error("multitaper_tapers must be less than or equal to periodogram length");
-    }
-    const int max_reasonable_tapers = static_cast<int>(std::floor(2.0 * multitaper_bandwidth_ - 1.0));
-    if (max_reasonable_tapers < 1)
-    {
-      throw std::runtime_error("multitaper_bandwidth is too small for multitaper_tapers");
     }
     if (multitaper_count_ > max_reasonable_tapers)
     {
