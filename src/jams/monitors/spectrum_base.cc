@@ -255,9 +255,16 @@ void SpectrumBaseMonitor::resize_channel_storage_()
 
   if (temporal_estimator_ == TemporalEstimator::Multitaper)
   {
-    if (multitaper_windows_.size(0) != multitaper_count_ || multitaper_windows_.size(1) != T)
+    if (multitaper_windows_.size(0) != multitaper_count_
+        || multitaper_windows_.size(1) != T
+        || multitaper_weights_.size() != static_cast<std::size_t>(multitaper_count_))
     {
-      generate_normalised_dpss_tapers_(multitaper_windows_, multitaper_count_, T, multitaper_bandwidth_);
+      generate_normalised_dpss_tapers_(
+          multitaper_windows_,
+          multitaper_weights_,
+          multitaper_count_,
+          T,
+          multitaper_bandwidth_);
     }
   }
 }
@@ -267,7 +274,7 @@ void SpectrumBaseMonitor::resize_channel_storage_()
 // ---------------------------------------------------------------------------
 void SpectrumBaseMonitor::configure_temporal_estimator_(libconfig::Setting& settings)
 {
-  std::string estimator = jams::config_optional<std::string>(settings, "estimator", "welch");
+  std::string estimator = jams::config_optional<std::string>(settings, "estimator", "multitaper");
   estimator = lowercase(estimator);
 
   if (estimator == "welch")
@@ -387,10 +394,15 @@ const SpectrumBaseMonitor::CmplxMappedSlice& SpectrumBaseMonitor::compute_freque
   }
   if (temporal_estimator_ == TemporalEstimator::Multitaper
       && (multitaper_windows_.size(0) != multitaper_count_
-          || multitaper_windows_.size(1) != num_time_samples))
+          || multitaper_windows_.size(1) != num_time_samples
+          || multitaper_weights_.size() != static_cast<std::size_t>(multitaper_count_)))
   {
     generate_normalised_dpss_tapers_(
-        multitaper_windows_, multitaper_count_, num_time_samples, multitaper_bandwidth_);
+        multitaper_windows_,
+        multitaper_weights_,
+        multitaper_count_,
+        num_time_samples,
+        multitaper_bandwidth_);
   }
 
   if (!sk_time_fft_plan_
@@ -525,10 +537,10 @@ const SpectrumBaseMonitor::CmplxMappedSlice& SpectrumBaseMonitor::compute_freque
   // Multitaper: average tapered complex spectra and preserve mean power.
   zero(frequency_taper_sum_);
   zero(frequency_taper_power_sum_);
-  const double inv_tapers = 1.0 / static_cast<double>(multitaper_count_);
 
   for (auto taper = 0; taper < multitaper_count_; ++taper)
   {
+    const double taper_weight = multitaper_weights_(taper);
     for (auto a = 0; a < num_sites; ++a)
     {
       for (auto t = 0; t < num_time_samples; ++t)
@@ -546,8 +558,8 @@ const SpectrumBaseMonitor::CmplxMappedSlice& SpectrumBaseMonitor::compute_freque
       {
         for (auto c = 0; c < channels; ++c)
         {
-          frequency_taper_sum_(a, t, c) += inv_tapers * frequency_scratch_(a, t, c);
-          frequency_taper_power_sum_(a, t, c) += inv_tapers * std::norm(frequency_scratch_(a, t, c));
+          frequency_taper_sum_(a, t, c) += taper_weight * frequency_scratch_(a, t, c);
+          frequency_taper_power_sum_(a, t, c) += taper_weight * std::norm(frequency_scratch_(a, t, c));
         }
       }
     }
@@ -887,6 +899,7 @@ void SpectrumBaseMonitor::generate_normalised_window_(jams::MultiArray<double, 1
 
 void SpectrumBaseMonitor::generate_normalised_dpss_tapers_(
     jams::MultiArray<double, 2>& tapers,
+    jams::MultiArray<double, 1>& taper_weights,
     const int num_tapers,
     const int num_time_samples,
     const double time_bandwidth)
@@ -916,6 +929,10 @@ void SpectrumBaseMonitor::generate_normalised_dpss_tapers_(
   {
     tapers.resize(num_tapers, num_time_samples);
   }
+  if (taper_weights.size() != static_cast<std::size_t>(num_tapers))
+  {
+    taper_weights.resize(num_tapers);
+  }
 
   const int N = num_time_samples;
   const int K = num_tapers;
@@ -936,7 +953,34 @@ void SpectrumBaseMonitor::generate_normalised_dpss_tapers_(
   }
 
   std::vector<double> eigenvectors;
-  jams::solve_symmetric_tridiagonal_top_eigenvectors(diag, off, eigenvectors, N, K);
+  std::vector<double> eigenvalues;
+  jams::solve_symmetric_tridiagonal_top_eigenvectors(diag, off, eigenvectors, eigenvalues, N, K);
+
+  std::vector<double> ordered_eigenvalues(static_cast<std::size_t>(K), 0.0);
+  double eigenvalue_sum = 0.0;
+  for (int out_k = 0; out_k < K; ++out_k)
+  {
+    const int src_k = K - 1 - out_k;
+    const double lambda = std::max(0.0, eigenvalues[static_cast<std::size_t>(src_k)]);
+    ordered_eigenvalues[static_cast<std::size_t>(out_k)] = lambda;
+    eigenvalue_sum += lambda;
+  }
+  if (eigenvalue_sum > 0.0)
+  {
+    const double inv_sum = 1.0 / eigenvalue_sum;
+    for (int out_k = 0; out_k < K; ++out_k)
+    {
+      taper_weights(out_k) = ordered_eigenvalues[static_cast<std::size_t>(out_k)] * inv_sum;
+    }
+  }
+  else
+  {
+    const double uniform_weight = 1.0 / static_cast<double>(K);
+    for (int out_k = 0; out_k < K; ++out_k)
+    {
+      taper_weights(out_k) = uniform_weight;
+    }
+  }
 
   const double rms_scale = std::sqrt(static_cast<double>(N)); // unit RMS as used for Welch window
   for (int out_k = 0; out_k < K; ++out_k)
@@ -1008,8 +1052,8 @@ void SpectrumBaseMonitor::print_info() const
 {
   std::cout << "\n";
   std::cout << "  number of samples " << periodogram_length() << "\n";
-  std::cout << "  sampling time (s) " << sample_time_interval() << "\n";
-  std::cout << "  acquisition time (s) " << sample_time_interval() * periodogram_length() << "\n";
+  std::cout << "  sampling time (ps) " << sample_time_interval() << "\n";
+  std::cout << "  acquisition time (ps) " << sample_time_interval() * periodogram_length() << "\n";
   std::cout << "  frequency resolution (THz) " << frequency_resolution_thz() << "\n";
   std::cout << "  maximum frequency (THz) " << max_frequency_thz() << "\n";
   std::cout << "  channels " << num_channels() << "\n";

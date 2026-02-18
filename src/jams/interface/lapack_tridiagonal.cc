@@ -38,6 +38,7 @@ void dstevr_(const char* jobz,
 void jams::solve_symmetric_tridiagonal_top_eigenvectors(std::vector<double>& diag,
                                                          std::vector<double>& off,
                                                          std::vector<double>& eigenvectors,
+                                                         std::vector<double>& eigenvalues,
                                                          const int n,
                                                          const int k)
 {
@@ -49,6 +50,7 @@ void jams::solve_symmetric_tridiagonal_top_eigenvectors(std::vector<double>& dia
   if (n == 1)
   {
     eigenvectors.assign(1, 1.0);
+    eigenvalues.assign(1, diag[0]);
     return;
   }
 
@@ -63,6 +65,7 @@ void jams::solve_symmetric_tridiagonal_top_eigenvectors(std::vector<double>& dia
   int m = 0;
   int info = 0;
   std::vector<double> w(static_cast<std::size_t>(k), 0.0);
+  eigenvalues.resize(static_cast<std::size_t>(k));
   eigenvectors.assign(static_cast<std::size_t>(n) * static_cast<std::size_t>(k), 0.0);
   std::vector<int> isuppz(static_cast<std::size_t>(2 * std::max(1, k)), 0);
 
@@ -128,4 +131,6 @@ void jams::solve_symmetric_tridiagonal_top_eigenvectors(std::vector<double>& dia
   {
     throw std::runtime_error("LAPACK dstevr failed");
   }
+
+  std::copy(w.begin(), w.end(), eigenvalues.begin());
 }

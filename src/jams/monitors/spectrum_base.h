@@ -261,6 +261,7 @@ private:
   static void generate_normalised_window_(jams::MultiArray<double, 1>& window, int num_time_samples);
   static void generate_normalised_dpss_tapers_(
       jams::MultiArray<double, 2>& tapers,
+      jams::MultiArray<double, 1>& taper_weights,
       int num_tapers,
       int num_time_samples,
       double time_bandwidth);
@@ -302,6 +303,7 @@ private:
   fftw_plan sk_time_fft_plan_ = nullptr;
   jams::MultiArray<double, 1> periodogram_window_;
   jams::MultiArray<double, 2> multitaper_windows_;
+  jams::MultiArray<double, 1> multitaper_weights_;
   CmplxMappedSlice frequency_scratch_;
   CmplxMappedSlice frequency_accum_;
   CmplxMappedSlice frequency_taper_sum_;

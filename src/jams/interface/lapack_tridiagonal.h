@@ -14,6 +14,7 @@ namespace jams {
 void solve_symmetric_tridiagonal_top_eigenvectors(std::vector<double>& diag,
                                                   std::vector<double>& off,
                                                   std::vector<double>& eigenvectors,
+                                                  std::vector<double>& eigenvalues,
                                                   int n,
                                                   int k);
 
