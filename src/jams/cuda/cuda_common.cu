@@ -65,13 +65,28 @@ const char* cufftGetStatusString(cufftResult_t status) {
     case CUFFT_SETUP_FAILED:              return "CUFFT_SETUP_FAILED";
     case CUFFT_INVALID_SIZE:              return "CUFFT_INVALID_SIZE";
     case CUFFT_UNALIGNED_DATA:            return "CUFFT_UNALIGNED_DATA";
+#ifdef CUFFT_INCOMPLETE_PARAMETER_LIST
     case CUFFT_INCOMPLETE_PARAMETER_LIST: return "CUFFT_INCOMPLETE_PARAMETER_LIST";
+#endif
     case CUFFT_INVALID_DEVICE:            return "CUFFT_INVALID_DEVICE";
+#ifdef CUFFT_PARSE_ERROR
     case CUFFT_PARSE_ERROR:               return "CUFFT_PARSE_ERROR";
+#endif
     case CUFFT_NO_WORKSPACE:              return "CUFFT_NO_WORKSPACE";
     case CUFFT_NOT_IMPLEMENTED:           return "CUFFT_NOT_IMPLEMENTED";
+#ifdef CUFFT_LICENSE_ERROR
     case CUFFT_LICENSE_ERROR:             return "CUFFT_LICENSE_ERROR";
+#endif
     case CUFFT_NOT_SUPPORTED:             return "CUFFT_NOT_SUPPORTED";
+#ifdef CUFFT_MISSING_DEPENDENCY
+    case CUFFT_MISSING_DEPENDENCY:        return "CUFFT_MISSING_DEPENDENCY";
+#endif
+#ifdef CUFFT_NVRTC_FAILURE
+    case CUFFT_NVRTC_FAILURE:             return "CUFFT_NVRTC_FAILURE";
+#endif
+#ifdef CUFFT_NVJITLINK_FAILURE
+    case CUFFT_NVJITLINK_FAILURE:         return "CUFFT_NVJITLINK_FAILURE";
+#endif
   }
   return "CUFFT_STATUS_UNKNOWN_ERROR";
 }
