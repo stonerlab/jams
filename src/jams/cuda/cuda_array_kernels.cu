@@ -1,4 +1,5 @@
 #include "jams/cuda/cuda_common.h"
+#include "jams/cuda/cuda_functional.h"
 #include <thrust/device_ptr.h>
 #include <thrust/reduce.h>
 #include <thrust/system/cuda/execution_policy.h>
@@ -465,9 +466,9 @@ void cuda_array_dot_product(
 
 
 float cuda_reduce_array(const float* dev_ptr, const size_t size, cudaStream_t stream) {
-    return thrust::reduce(thrust::cuda::par.on(stream), thrust::device_ptr<const float>(dev_ptr), thrust::device_ptr<const float>(dev_ptr) + size, float(0), thrust::plus<float>());
+    return thrust::reduce(thrust::cuda::par.on(stream), thrust::device_ptr<const float>(dev_ptr), thrust::device_ptr<const float>(dev_ptr) + size, float(0), jams::cuda_compat::plus<float>());
 }
 
 double cuda_reduce_array(const double* dev_ptr, const size_t size, cudaStream_t stream) {
-    return thrust::reduce(thrust::cuda::par.on(stream), thrust::device_ptr<const double>(dev_ptr), thrust::device_ptr<const double>(dev_ptr) + size, double(0), thrust::plus<double>());
+    return thrust::reduce(thrust::cuda::par.on(stream), thrust::device_ptr<const double>(dev_ptr), thrust::device_ptr<const double>(dev_ptr) + size, double(0), jams::cuda_compat::plus<double>());
 }

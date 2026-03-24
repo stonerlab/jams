@@ -1,4 +1,5 @@
 #include <jams/cuda/cuda_array_reduction.h>
+#include <jams/cuda/cuda_functional.h>
 #include <thrust/device_ptr.h>
 #include <thrust/reduce.h>
 #include <thrust/system/cuda/execution_policy.h>
@@ -524,11 +525,11 @@ template std::array<double,3> jams::vector_field_indexed_scale_and_reduce_cuda<d
 
 
 float jams::scalar_field_reduce_cuda(const jams::MultiArray<float, 1> &x, cudaStream_t stream) {
-  return thrust::reduce(thrust::cuda::par.on(stream), thrust::device_ptr<const float>(x.device_data()), thrust::device_ptr<const float>(x.device_data() + x.elements()), float(0), thrust::plus<float>());
+  return thrust::reduce(thrust::cuda::par.on(stream), thrust::device_ptr<const float>(x.device_data()), thrust::device_ptr<const float>(x.device_data() + x.elements()), float(0), jams::cuda_compat::plus<float>());
 }
 
 double jams::scalar_field_reduce_cuda(const jams::MultiArray<double, 1> &x, cudaStream_t stream) {
-  return thrust::reduce(thrust::cuda::par.on(stream), thrust::device_ptr<const double>(x.device_data()), thrust::device_ptr<const double>(x.device_data() + x.elements()), double(0), thrust::plus<double>());
+  return thrust::reduce(thrust::cuda::par.on(stream), thrust::device_ptr<const double>(x.device_data()), thrust::device_ptr<const double>(x.device_data() + x.elements()), double(0), jams::cuda_compat::plus<double>());
 }
 
 
