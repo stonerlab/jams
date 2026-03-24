@@ -260,7 +260,7 @@ void cuda_array_float_to_double(
 }
 
 template<typename T>
-__global__ void cuda_array_sum_across(
+__global__ void cuda_array_sum_across_kernel(
     unsigned int num_input_arrays,
     unsigned int num_elements,
     T** inputs,
@@ -277,8 +277,35 @@ __global__ void cuda_array_sum_across(
     }
 }
 
-template __global__ void cuda_array_sum_across<float>(unsigned int, unsigned int, float**, float*);
-template __global__ void cuda_array_sum_across<double>(unsigned int, unsigned int, double**, double*);
+void cuda_array_sum_across(
+    unsigned int num_input_arrays,
+    unsigned int num_elements,
+    float** inputs,
+    float* out,
+    cudaStream_t stream)
+{
+    const unsigned int block_size = 256;
+    const unsigned int grid_size = (num_elements + block_size - 1) / block_size;
+
+    cuda_array_sum_across_kernel<<<grid_size, block_size, 0, stream>>>(
+        num_input_arrays, num_elements, inputs, out);
+    DEBUG_CHECK_CUDA_ASYNC_STATUS
+}
+
+void cuda_array_sum_across(
+    unsigned int num_input_arrays,
+    unsigned int num_elements,
+    double** inputs,
+    double* out,
+    cudaStream_t stream)
+{
+    const unsigned int block_size = 256;
+    const unsigned int grid_size = (num_elements + block_size - 1) / block_size;
+
+    cuda_array_sum_across_kernel<<<grid_size, block_size, 0, stream>>>(
+        num_input_arrays, num_elements, inputs, out);
+    DEBUG_CHECK_CUDA_ASYNC_STATUS
+}
 
 __global__ void cuda_array_dot_product_kernel(
     unsigned int n,

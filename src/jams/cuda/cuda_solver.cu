@@ -43,9 +43,10 @@ void CudaSolver::compute_fields() {
                jams::instance().cuda_master_stream().get());
   }
 
-  int block_size = 256;
-  int grid_size = (num_elements + block_size - 1) / block_size;
-  cuda_array_sum_across<<<grid_size, block_size, 0, jams::instance().cuda_master_stream().get()>>>(num_input_arrays, num_elements, dev_field_ptrs_, globals::h.device_data());
-
+  cuda_array_sum_across(
+      num_input_arrays,
+      num_elements,
+      dev_field_ptrs_,
+      globals::h.device_data(),
+      jams::instance().cuda_master_stream().get());
 }
-

@@ -86,13 +86,21 @@ void cuda_array_dot_product(
 	cudaStream_t stream
 	);
 
-template<typename T>
-__global__ void cuda_array_sum_across(
-	unsigned int num_input_arrays,
-	unsigned int num_elements,
-	T** inputs,
-	T* out
-	);
+void cuda_array_sum_across(
+    unsigned int num_input_arrays,
+    unsigned int num_elements,
+    float** inputs,
+    float* out,
+    cudaStream_t stream
+    );
+
+void cuda_array_sum_across(
+    unsigned int num_input_arrays,
+    unsigned int num_elements,
+    double** inputs,
+    double* out,
+    cudaStream_t stream
+    );
 
 float cuda_reduce_array(const float* dev_ptr, const size_t size, cudaStream_t stream = nullptr);
 
