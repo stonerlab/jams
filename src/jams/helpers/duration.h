@@ -46,6 +46,28 @@ inline std::string duration_string(std::chrono::milliseconds time)
   return o.str();
 }
 
+inline std::string human_readable_duration(double seconds)
+{
+  using namespace std::chrono;
+  std::ostringstream o;
+  const auto rounded = duration_cast<milliseconds>(duration<double>(seconds) + milliseconds(5));
+  const auto total_seconds = duration_cast<std::chrono::seconds>(rounded);
+  const auto hours_part = duration_cast<hours>(total_seconds);
+  const auto minutes_part = duration_cast<minutes>(total_seconds - hours_part);
+  const auto seconds_part = duration_cast<std::chrono::seconds>(total_seconds - hours_part - minutes_part);
+  const auto fractional_part = duration_cast<milliseconds>(rounded - total_seconds).count() / 10;
+
+  o << std::setw(2) << std::setfill('0') << hours_part.count()
+    << ":"
+    << std::setw(2) << std::setfill('0') << minutes_part.count()
+    << ":"
+    << std::setw(2) << std::setfill('0') << seconds_part.count()
+    << "."
+    << std::setw(2) << std::setfill('0') << fractional_part;
+
+  return o.str();
+}
+
 template <class T1, class T2>
 inline std::string duration_string(T1 start_time, T2 end_time) {
   using namespace std::chrono;

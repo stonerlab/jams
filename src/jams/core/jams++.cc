@@ -897,7 +897,7 @@ std::string choose_simulation_name(const jams::ProgramArgs &program_args) {
             }
           }
           std::cout << "\n\n";
-          std::cout << "runtime " << timer.elapsed_time() << " seconds" << std::endl;
+          std::cout << "runtime " << human_readable_duration(timer.elapsed_time()) << std::endl;
 
           std::cout << "finish  " << get_date_string(std::chrono::system_clock::now()) << "\n\n";
         }
@@ -911,7 +911,7 @@ std::string choose_simulation_name(const jams::ProgramArgs &program_args) {
           for (const auto& m : globals::solver->monitors()) {
             m->post_process();
           }
-          std::cout << "runtime " << timer.elapsed_time() << " seconds" << std::endl;
+          std::cout << "runtime " << human_readable_duration(timer.elapsed_time()) << std::endl;
           std::cout << "finish  " << get_date_string(std::chrono::system_clock::now()) << "\n\n";
         }
 
