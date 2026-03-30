@@ -1,0 +1,63 @@
+{
+  "title": "JAMS: Atomistic spin dynamics simulator for magnetic materials",
+  "description": "JAMS (Joe’s Awesome Magnetic Simulator) is a high-performance software package for atomistic spin dynamics simulations of magnetic materials. It implements numerical integration of the Landau–Lifshitz–Gilbert (LLG) equation with support for stochastic thermal fields, enabling the study of magnetisation dynamics, spin waves, and thermally activated processes.\n\nKey features include:\n- Atomistic Heisenberg spin models with exchange, anisotropy, dipole and external field interactions\n- Multiple numerical integrators for deterministic and stochastic dynamics\n- GPU acceleration for large-scale simulations\n- Flexible configuration via text-based input files\n- Tools for computing spectra and dynamical correlation functions\n\nJAMS is designed for research in spintronics, ultrafast magnetism, and computational condensed matter physics.\n\nSource code and documentation:\nhttps://github.com/stonerlab/jams\nThis work has been supported by This work was supported by JSPS KAKENHI Grant Number 20H01863, Royal Society University Research Fellowship URF\\R1\\180333, ESPRC New Investigator Award EP/V037935/1, Doctoral Training Programme EP/R513258/1.",
+
+  "creators": [
+    {
+      "orcid": "0000-0003-4843-5516",
+      "affiliation": "School of Physics and Astronomy, University of Leeds, Leeds, LS2 9JT, United Kingdom",
+      "name": "Barker, Joseph"
+    }
+  ],
+
+  "contributors": [
+    {
+      "orcid": "0000-0003-4026-2817",
+      "affiliation": "Institute for Materials Research, Tohoku University, Sendai, 980-8577, Japan",
+      "name": "Kameda, Mai",
+      "type": "Researcher"
+    },
+    {
+      "orcid": "0000-0002-4658-6559",
+      "affiliation": "School of Physics and Astronomy, University of Leeds, Leeds, LS2 9JT, United Kingdom",
+      "name": "Stansill, Sean",
+      "type": "Researcher"
+    },
+    {
+      "orcid": "0009-0007-1174-5883",
+      "affiliation": "School of Physics and Astronomy, University of Leeds, Leeds, LS2 9JT, United Kingdom",
+      "name": "Charalampidis, Ioannis",
+      "type": "Researcher"
+    }
+  ],
+  "code_repository": "https://github.com/stonerlab/jams",
+  "programming_languages": ["C++", "CUDA"],
+  "upload_type": "software",
+  "access_right": "open",
+  "license": "MIT",
+
+  "keywords": [
+    "spin dynamics",
+    "atomistic simulation",
+    "magnetism",
+    "spintronics",
+    "LLG",
+    "Heisenberg model",
+    "GPU computing"
+  ],
+
+  "grants": [
+    {
+      "id": "10.13039/501100001691::17K14102"
+    },
+    {
+      "id": "10.13039/501100000288::URF\\R1\\180333"
+    },
+    {
+      "id": "10.13039/100014013::EP/V037935/1"
+    },
+    {
+      "id": "10.13039/100014013::EP/R513258/1"
+    }
+  ]
+}
