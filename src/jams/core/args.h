@@ -6,6 +6,7 @@
 #define JAMS_ARGS_H
 
 #include <filesystem>
+#include <iosfwd>
 #include <string>
 #include <vector>
 
@@ -17,6 +18,7 @@ namespace jams {
     };
 
     struct ProgramArgs {
+        bool        help_only         = false;
         bool        version_only      = false;
         bool        setup_only        = false;
         std::string output_path = ".";
@@ -29,6 +31,7 @@ namespace jams {
     };
 
     ProgramArgs parse_args(int argc, char **argv);
+    void print_usage(std::ostream& os);
 }
 
 #endif //JAMS_ARGS_H

@@ -2,10 +2,26 @@
 // Created by Joseph Barker on 2019-11-12.
 //
 #include <string>
+#include <ostream>
 #include "jams/core/args.h"
 #include "jams/helpers/utils.h"
 
 namespace jams {
+    void print_usage(std::ostream& os) {
+      os
+          << "Usage: jams <config.cfg> [more-configs.cfg ...] [options]\n"
+          << "\n"
+          << "Options:\n"
+          << "  --help                 Show this help\n"
+          << "  --version              Print the JAMS version and exit\n"
+          << "  --setup-only           Initialise the simulation without running it\n"
+          << "  --output=<path>        Write outputs to the given directory\n"
+          << "  --name=<name>          Override the simulation name prefix\n"
+          << "  --spins=<path>         Override lattice.spins with a spin-state file\n"
+          << "  --temp-directory=<dir> Use the given temporary directory\n"
+          << "  --config <libconfig>   Treat the following text as a config string\n";
+    }
+
     bool arg_is_flag(const std::string& arg) {
       return arg.rfind("--", 0) == 0;
     }
@@ -21,6 +37,11 @@ namespace jams {
     }
 
     void process_flag(const std::string& flag, ProgramArgs& program_args) {
+      if (flag == "--help") {
+        program_args.help_only = true;
+        return;
+      }
+
       if (flag == "--version") {
         program_args.version_only = true;
         return;

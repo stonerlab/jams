@@ -77,6 +77,12 @@ JAMS runs from an input configuration file
 	./jams input.cfg
 ```
 
+To see the available command line flags:
+
+```shell
+  ./jams --help
+```
+
 Settings in the configuration file can also be overwritten or added by include a patch string at the end of the command
 line arguments. For example:
 

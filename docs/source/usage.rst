@@ -79,6 +79,10 @@ The details of the syntax and further requirements for each one is given elsewhe
 Command line flags
 ------------------
 
+.. describe:: --help
+
+    Prints a short usage summary and the available command line flags.
+
 .. describe:: --setup-only
 
     Runs JAMS but quits before the solving starts. i.e. performs the full system initialisation only. This is useful for
