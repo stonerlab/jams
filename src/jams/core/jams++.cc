@@ -493,6 +493,12 @@ namespace jams {
               true});
         }
 
+        if (program_args.random_seed_is_set) {
+          config_inputs.push_back({
+              "sim.seed = " + std::to_string(program_args.random_seed) + ";",
+              true});
+        }
+
         return config_inputs;
       }
     }

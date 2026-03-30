@@ -3,6 +3,7 @@
 //
 #include <string>
 #include <ostream>
+#include <stdexcept>
 #include "jams/core/args.h"
 #include "jams/helpers/utils.h"
 
@@ -17,6 +18,7 @@ namespace jams {
           << "  --setup-only           Initialise the simulation without running it\n"
           << "  --output=<path>        Write outputs to the given directory\n"
           << "  --name=<name>          Override the simulation name prefix\n"
+          << "  --seed=<n>             Override sim.seed with an integer value\n"
           << "  --spins=<path>         Override lattice.spins with a spin-state file\n"
           << "  --temp-directory=<dir> Use the given temporary directory\n"
           << "  --config <libconfig>   Treat the following text as a config string\n";
@@ -34,6 +36,30 @@ namespace jams {
         throw std::runtime_error("Missing value for " + flag_name);
       }
       program_args.initial_spin_filename = value;
+    }
+
+    void set_random_seed(
+        const std::string& value,
+        const std::string& flag_name,
+        ProgramArgs& program_args) {
+      if (value.empty()) {
+        throw std::runtime_error("Missing value for " + flag_name);
+      }
+
+      size_t chars_consumed = 0;
+      unsigned long parsed_value = 0;
+      try {
+        parsed_value = std::stoul(value, &chars_consumed);
+      } catch (const std::exception&) {
+        throw std::runtime_error("Invalid value for " + flag_name + ": " + value);
+      }
+
+      if (chars_consumed != value.size()) {
+        throw std::runtime_error("Invalid value for " + flag_name + ": " + value);
+      }
+
+      program_args.random_seed = parsed_value;
+      program_args.random_seed_is_set = true;
     }
 
     void process_flag(const std::string& flag, ProgramArgs& program_args) {
@@ -59,6 +85,11 @@ namespace jams {
 
       if (flag.rfind("--name=", 0) == 0) {
         program_args.simulation_name = flag.substr(flag.find('=') + 1);
+        return;
+      }
+
+      if (flag.rfind("--seed=", 0) == 0) {
+        set_random_seed(flag.substr(flag.find('=') + 1), "--seed", program_args);
         return;
       }
 
@@ -146,6 +177,15 @@ namespace jams {
           }
           ++n;
           set_initial_spin_filename(trim(argv[n]), "--spins", program_args);
+          continue;
+        }
+
+        if (arg == "--seed") {
+          if (n + 1 >= argc || arg_is_flag(trim(argv[n + 1]))) {
+            throw std::runtime_error("Missing value for --seed");
+          }
+          ++n;
+          set_random_seed(trim(argv[n]), "--seed", program_args);
           continue;
         }
 

@@ -122,6 +122,12 @@ To load an initial spin state from a file without writing a patch string, use:
 This sets `lattice.spins` from the command line and overrides any existing
 value in the input configuration.
 
+To force a reproducible simulation seed from the command line, use:
+
+```shell
+  ./jams input.cfg --seed 12345
+```
+
 This provides a simple way to write batch scripts to loop over parameters or chain together multiple simulations with
 different steps.
 

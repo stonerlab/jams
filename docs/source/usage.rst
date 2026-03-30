@@ -99,6 +99,12 @@ Command line flags
     Sets the simulation name which is prefixed to output files written by JAMS. If this is not set the config file name
     is used.
 
+.. describe:: --seed=<n>
+
+    Sets :code:`sim.seed` to the given integer value. This is equivalent to
+    :code:`--config 'sim.seed = n;'`, but it is easier to use in scripts and
+    batch jobs.
+
 .. describe:: --spins=<path>
 
     Sets :code:`lattice.spins` to the given filename. This is equivalent to
