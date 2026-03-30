@@ -27,6 +27,7 @@ namespace jams {
         std::string initial_spin_filename = "";
         bool        random_seed_is_set = false;
         unsigned long random_seed = 0;
+        bool        verbose_output = false;
 
         // a vector of filenames or patch strings to assemble to config
         std::vector<ConfigInput> config_inputs;

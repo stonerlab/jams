@@ -128,6 +128,12 @@ To force a reproducible simulation seed from the command line, use:
   ./jams input.cfg --seed 12345
 ```
 
+To enable the verbose simulation output without editing the config:
+
+```shell
+  ./jams input.cfg --verbose
+```
+
 This provides a simple way to write batch scripts to loop over parameters or chain together multiple simulations with
 different steps.
 

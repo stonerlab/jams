@@ -19,6 +19,7 @@ namespace jams {
           << "  --output=<path>        Write outputs to the given directory\n"
           << "  --name=<name>          Override the simulation name prefix\n"
           << "  --seed=<n>             Override sim.seed with an integer value\n"
+          << "  --verbose              Override sim.verbose to true\n"
           << "  --spins=<path>         Override lattice.spins with a spin-state file\n"
           << "  --temp-directory=<dir> Use the given temporary directory\n"
           << "  --config <libconfig>   Treat the following text as a config string\n";
@@ -75,6 +76,11 @@ namespace jams {
 
       if (flag == "--setup-only") {
         program_args.setup_only = true;
+        return;
+      }
+
+      if (flag == "--verbose") {
+        program_args.verbose_output = true;
         return;
       }
 

@@ -499,6 +499,10 @@ namespace jams {
               true});
         }
 
+        if (program_args.verbose_output) {
+          config_inputs.push_back({"sim.verbose = true;", true});
+        }
+
         return config_inputs;
       }
     }

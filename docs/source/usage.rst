@@ -105,6 +105,11 @@ Command line flags
     :code:`--config 'sim.seed = n;'`, but it is easier to use in scripts and
     batch jobs.
 
+.. describe:: --verbose
+
+    Sets :code:`sim.verbose = true` from the command line so that setup and run
+    output include the verbose diagnostics already supported by the config.
+
 .. describe:: --spins=<path>
 
     Sets :code:`lattice.spins` to the given filename. This is equivalent to
