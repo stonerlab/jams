@@ -20,6 +20,11 @@ int main(int argc, char **argv) {
       return EXIT_SUCCESS;
     }
 
+    if (program_args.validate_config_only) {
+      jams::validate_config(program_args);
+      return EXIT_SUCCESS;
+    }
+
     jams::initialize_simulation(program_args);
     if (!program_args.setup_only) {
       jams::run_simulation();

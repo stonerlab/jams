@@ -83,6 +83,13 @@ To see the available command line flags:
   ./jams --help
 ```
 
+To check that a configuration parses and contains the required top-level
+sections without doing the full simulation setup:
+
+```shell
+  ./jams input.cfg --validate-config
+```
+
 Settings in the configuration file can also be overwritten or added by include a patch string at the end of the command
 line arguments. For example:
 

@@ -505,6 +505,15 @@ namespace jams {
 
         return config_inputs;
       }
+
+      void validate_required_config_sections(const libconfig::Config& config) {
+        config.lookup("solver");
+        config.lookup("unitcell");
+        config.lookup("lattice");
+        config.lookup("materials");
+        config.lookup("hamiltonians");
+        config.lookup("physics");
+      }
     }
 
     void new_global_classes() {
@@ -684,6 +693,45 @@ std::string choose_simulation_name(const jams::ProgramArgs &program_args) {
       }
       }
       return name;
+    }
+
+    void validate_config(const jams::ProgramArgs &program_args) {
+      try {
+        std::cout << "\nJAMS++ " << semantic_version(jams::build::description) << std::endl;
+        std::cout << jams::section("build info") << std::endl;
+        std::cout << jams::build_info();
+        std::cout << jams::section("run info") << std::endl;
+        std::cout << jams::run_info();
+
+        if (!program_args.output_path.empty()) {
+          jams::instance().set_output_dir(program_args.output_path);
+        }
+        jams::instance().set_temp_directory_path(program_args.temp_directory_path);
+        ::globals::simulation_name = choose_simulation_name(program_args);
+
+        initialize_config(config_inputs_with_cli_overrides(program_args));
+        validate_required_config_sections(*::globals::config);
+
+        std::cout << "\nconfig validation ok\n";
+      }
+      catch (const libconfig::SettingTypeException &stex) {
+        jams::die("CONFIG ERROR", stex.getPath(), ": setting type error");
+      }
+      catch (const libconfig::SettingNotFoundException &nfex) {
+        jams::die("CONFIG ERROR", nfex.getPath(), ": required setting not found");
+      }
+      catch (const jams::runtime_error &e) {
+        jams::die("RUNTIME ERROR", e.what());
+      }
+      catch (const std::runtime_error &e) {
+        jams::die("CONFIG ERROR", e.what());
+      }
+      catch (const std::exception &e) {
+        jams::die("ERROR", e.what());
+      }
+      catch (...) {
+        jams::die("UNKNOWN ERROR");
+      }
     }
 
     void initialize_simulation(const jams::ProgramArgs &program_args) {

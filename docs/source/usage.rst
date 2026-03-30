@@ -83,6 +83,12 @@ Command line flags
 
     Prints a short usage summary and the available command line flags.
 
+.. describe:: --validate-config
+
+    Parses and merges the input configuration, writes the merged config file,
+    validates the required top-level sections, and exits without constructing
+    the lattice or solver.
+
 .. describe:: --setup-only
 
     Runs JAMS but quits before the solving starts. i.e. performs the full system initialisation only. This is useful for

@@ -15,6 +15,7 @@ namespace jams {
           << "Options:\n"
           << "  --help                 Show this help\n"
           << "  --version              Print the JAMS version and exit\n"
+          << "  --validate-config      Parse and validate the config, then exit\n"
           << "  --setup-only           Initialise the simulation without running it\n"
           << "  --output=<path>        Write outputs to the given directory\n"
           << "  --name=<name>          Override the simulation name prefix\n"
@@ -71,6 +72,11 @@ namespace jams {
 
       if (flag == "--version") {
         program_args.version_only = true;
+        return;
+      }
+
+      if (flag == "--validate-config") {
+        program_args.validate_config_only = true;
         return;
       }
 

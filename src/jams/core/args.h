@@ -20,6 +20,7 @@ namespace jams {
     struct ProgramArgs {
         bool        help_only         = false;
         bool        version_only      = false;
+        bool        validate_config_only = false;
         bool        setup_only        = false;
         std::string output_path = ".";
         std::filesystem::path temp_directory_path = std::filesystem::temp_directory_path();
@@ -35,6 +36,7 @@ namespace jams {
 
     ProgramArgs parse_args(int argc, char **argv);
     void print_usage(std::ostream& os);
+    void validate_config(const jams::ProgramArgs& program_args);
 }
 
 #endif //JAMS_ARGS_H

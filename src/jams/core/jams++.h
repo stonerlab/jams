@@ -18,6 +18,7 @@ namespace jams {
     };
 
     void initialize_simulation(const jams::ProgramArgs& program_args);
+    void validate_config(const jams::ProgramArgs& program_args);
     void run_simulation();
     void cleanup_simulation();
     void global_initializer(const libconfig::Setting &settings);
