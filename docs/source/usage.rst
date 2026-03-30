@@ -95,6 +95,12 @@ Command line flags
     Sets the simulation name which is prefixed to output files written by JAMS. If this is not set the config file name
     is used.
 
+.. describe:: --spins=<path>
+
+    Sets :code:`lattice.spins` to the given filename. This is equivalent to
+    :code:`--config 'lattice.spins = "path";'`, but behaves like the other
+    dedicated flags and overrides any existing :code:`lattice.spins` setting.
+
 .. describe:: --config <libconfig>
 
     Treats the following text (up to the next flag) as a libconfig string rather than a filename.

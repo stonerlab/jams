@@ -22,6 +22,7 @@ namespace jams {
         std::string output_path = ".";
         std::filesystem::path temp_directory_path = std::filesystem::temp_directory_path();
         std::string simulation_name = "";
+        std::string initial_spin_filename = "";
 
         // a vector of filenames or patch strings to assemble to config
         std::vector<ConfigInput> config_inputs;

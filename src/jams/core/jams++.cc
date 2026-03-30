@@ -474,6 +474,27 @@ namespace jams {
 
         return true;
       }
+
+      std::string libconfig_string_literal(const std::string& value) {
+        auto escaped = find_and_replace(value, "\\", "\\\\");
+        escaped = find_and_replace(escaped, "\"", "\\\"");
+        return "\"" + escaped + "\"";
+      }
+
+      std::vector<ConfigInput> config_inputs_with_cli_overrides(
+          const ProgramArgs& program_args) {
+        auto config_inputs = program_args.config_inputs;
+
+        if (!program_args.initial_spin_filename.empty()) {
+          config_inputs.push_back({
+              "lattice.spins = "
+                  + libconfig_string_literal(program_args.initial_spin_filename)
+                  + ";",
+              true});
+        }
+
+        return config_inputs;
+      }
     }
 
     void new_global_classes() {
@@ -681,7 +702,7 @@ std::string choose_simulation_name(const jams::ProgramArgs &program_args) {
 
         ::globals::simulation_name = choose_simulation_name(program_args);
 
-        initialize_config(program_args.config_inputs);
+        initialize_config(config_inputs_with_cli_overrides(program_args));
 
         jams::new_global_classes();
 

@@ -107,6 +107,15 @@ element:
 You can combine multiple assignments in one `--config` string, or repeat
 `--config` multiple times; JAMS applies them in command-line order.
 
+To load an initial spin state from a file without writing a patch string, use:
+
+```shell
+  ./jams input.cfg --spins initial-spins.h5
+```
+
+This sets `lattice.spins` from the command line and overrides any existing
+value in the input configuration.
+
 This provides a simple way to write batch scripts to loop over parameters or chain together multiple simulations with
 different steps.
 

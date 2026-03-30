@@ -10,6 +10,16 @@ namespace jams {
       return arg.rfind("--", 0) == 0;
     }
 
+    void set_initial_spin_filename(
+        const std::string& value,
+        const std::string& flag_name,
+        ProgramArgs& program_args) {
+      if (value.empty()) {
+        throw std::runtime_error("Missing value for " + flag_name);
+      }
+      program_args.initial_spin_filename = value;
+    }
+
     void process_flag(const std::string& flag, ProgramArgs& program_args) {
       if (flag == "--version") {
         program_args.version_only = true;
@@ -28,6 +38,11 @@ namespace jams {
 
       if (flag.rfind("--name=", 0) == 0) {
         program_args.simulation_name = flag.substr(flag.find('=') + 1);
+        return;
+      }
+
+      if (flag.rfind("--spins=", 0) == 0) {
+        set_initial_spin_filename(flag.substr(flag.find('=') + 1), "--spins", program_args);
         return;
       }
 
@@ -101,6 +116,15 @@ namespace jams {
           }
           ++n;
           program_args.temp_directory_path = trim(argv[n]);
+          continue;
+        }
+
+        if (arg == "--spins") {
+          if (n + 1 >= argc || arg_is_flag(trim(argv[n + 1]))) {
+            throw std::runtime_error("Missing value for --spins");
+          }
+          ++n;
+          set_initial_spin_filename(trim(argv[n]), "--spins", program_args);
           continue;
         }
 
