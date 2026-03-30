@@ -116,6 +116,11 @@ Command line flags
     Sets :code:`sim.verbose = true` from the command line so that setup and run
     output include the verbose diagnostics already supported by the config.
 
+.. describe:: --write-config=<path>
+
+    Writes the merged configuration to the given file instead of the default
+    :code:`<simulation_name>_combined.cfg` path in the output directory.
+
 .. describe:: --spins=<path>
 
     Sets :code:`lattice.spins` to the given filename. This is equivalent to

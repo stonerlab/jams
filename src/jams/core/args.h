@@ -29,6 +29,7 @@ namespace jams {
         bool        random_seed_is_set = false;
         unsigned long random_seed = 0;
         bool        verbose_output = false;
+        std::string merged_config_output_path = "";
 
         // a vector of filenames or patch strings to assemble to config
         std::vector<ConfigInput> config_inputs;

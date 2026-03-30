@@ -6,6 +6,7 @@
 #include <fstream>
 #include <memory>
 #include <cctype>
+#include <filesystem>
 #include <jams/common.h>
 
 #if HAS_OMP
@@ -514,6 +515,13 @@ namespace jams {
         config.lookup("hamiltonians");
         config.lookup("physics");
       }
+
+      std::string merged_config_filename(const ProgramArgs& program_args) {
+        if (!program_args.merged_config_output_path.empty()) {
+          return program_args.merged_config_output_path;
+        }
+        return jams::output::full_path_filename("combined.cfg");
+      }
     }
 
     void new_global_classes() {
@@ -659,6 +667,7 @@ std::string run_info() {
 
     void initialize_config(
         const std::vector<ConfigInput>& config_inputs,
+        const std::string& merged_config_output_path = "",
         const int config_options = jams::defaults::config_options) {
 
       ::globals::config = std::make_unique<libconfig::Config>();
@@ -673,7 +682,13 @@ std::string run_info() {
 
       jams::parse_config_strings(config_inputs, ::globals::config);
 
-      std::string filename = jams::output::full_path_filename("combined.cfg");
+      std::string filename = merged_config_output_path.empty()
+          ? jams::output::full_path_filename("combined.cfg")
+          : merged_config_output_path;
+      const auto parent_path = std::filesystem::path(filename).parent_path();
+      if (!parent_path.empty()) {
+        jams::system::make_path(parent_path.string());
+      }
       write_config(filename, ::globals::config);
     }
 
@@ -709,7 +724,9 @@ std::string choose_simulation_name(const jams::ProgramArgs &program_args) {
         jams::instance().set_temp_directory_path(program_args.temp_directory_path);
         ::globals::simulation_name = choose_simulation_name(program_args);
 
-        initialize_config(config_inputs_with_cli_overrides(program_args));
+        initialize_config(
+            config_inputs_with_cli_overrides(program_args),
+            merged_config_filename(program_args));
         validate_required_config_sections(*::globals::config);
 
         std::cout << "\nconfig validation ok\n";
@@ -760,7 +777,9 @@ std::string choose_simulation_name(const jams::ProgramArgs &program_args) {
 
         ::globals::simulation_name = choose_simulation_name(program_args);
 
-        initialize_config(config_inputs_with_cli_overrides(program_args));
+        initialize_config(
+            config_inputs_with_cli_overrides(program_args),
+            merged_config_filename(program_args));
 
         jams::new_global_classes();
 

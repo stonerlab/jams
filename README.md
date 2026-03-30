@@ -141,6 +141,12 @@ To enable the verbose simulation output without editing the config:
   ./jams input.cfg --verbose
 ```
 
+To write the merged configuration to an explicit location:
+
+```shell
+  ./jams input.cfg --write-config final-config.cfg
+```
+
 This provides a simple way to write batch scripts to loop over parameters or chain together multiple simulations with
 different steps.
 

@@ -21,6 +21,7 @@ namespace jams {
           << "  --name=<name>          Override the simulation name prefix\n"
           << "  --seed=<n>             Override sim.seed with an integer value\n"
           << "  --verbose              Override sim.verbose to true\n"
+          << "  --write-config=<path>  Write the merged config to an explicit file\n"
           << "  --spins=<path>         Override lattice.spins with a spin-state file\n"
           << "  --temp-directory=<dir> Use the given temporary directory\n"
           << "  --config <libconfig>   Treat the following text as a config string\n";
@@ -64,6 +65,16 @@ namespace jams {
       program_args.random_seed_is_set = true;
     }
 
+    void set_merged_config_output_path(
+        const std::string& value,
+        const std::string& flag_name,
+        ProgramArgs& program_args) {
+      if (value.empty()) {
+        throw std::runtime_error("Missing value for " + flag_name);
+      }
+      program_args.merged_config_output_path = value;
+    }
+
     void process_flag(const std::string& flag, ProgramArgs& program_args) {
       if (flag == "--help") {
         program_args.help_only = true;
@@ -102,6 +113,11 @@ namespace jams {
 
       if (flag.rfind("--seed=", 0) == 0) {
         set_random_seed(flag.substr(flag.find('=') + 1), "--seed", program_args);
+        return;
+      }
+
+      if (flag.rfind("--write-config=", 0) == 0) {
+        set_merged_config_output_path(flag.substr(flag.find('=') + 1), "--write-config", program_args);
         return;
       }
 
@@ -198,6 +214,15 @@ namespace jams {
           }
           ++n;
           set_random_seed(trim(argv[n]), "--seed", program_args);
+          continue;
+        }
+
+        if (arg == "--write-config") {
+          if (n + 1 >= argc || arg_is_flag(trim(argv[n + 1]))) {
+            throw std::runtime_error("Missing value for --write-config");
+          }
+          ++n;
+          set_merged_config_output_path(trim(argv[n]), "--write-config", program_args);
           continue;
         }
 
