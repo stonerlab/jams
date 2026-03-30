@@ -5,6 +5,7 @@
 
 #include <fstream>
 #include <memory>
+#include <cctype>
 #include <jams/common.h>
 
 #if HAS_OMP
@@ -31,6 +32,449 @@
 #include <jams/initializer/init_dispatcher.h>
 
 namespace jams {
+
+    namespace {
+      enum class PathTokenKind {
+        Name,
+        Index,
+        Append,
+      };
+
+      struct PathToken {
+        PathTokenKind kind;
+        std::string name;
+        int index = -1;
+      };
+
+      struct PathAssignmentParseState {
+        int brace_depth = 0;
+        int bracket_depth = 0;
+        int paren_depth = 0;
+        bool in_string = false;
+        bool escaped = false;
+      };
+
+      bool is_top_level(const PathAssignmentParseState& state) {
+        return !state.in_string
+            && state.brace_depth == 0
+            && state.bracket_depth == 0
+            && state.paren_depth == 0;
+      }
+
+      void update_parse_state(char c, PathAssignmentParseState& state) {
+        if (state.in_string) {
+          if (state.escaped) {
+            state.escaped = false;
+            return;
+          }
+          if (c == '\\') {
+            state.escaped = true;
+            return;
+          }
+          if (c == '"') {
+            state.in_string = false;
+          }
+          return;
+        }
+
+        switch (c) {
+          case '"':
+            state.in_string = true;
+            return;
+          case '{':
+            ++state.brace_depth;
+            return;
+          case '}':
+            --state.brace_depth;
+            return;
+          case '[':
+            ++state.bracket_depth;
+            return;
+          case ']':
+            --state.bracket_depth;
+            return;
+          case '(':
+            ++state.paren_depth;
+            return;
+          case ')':
+            --state.paren_depth;
+            return;
+          default:
+            return;
+        }
+      }
+
+      std::vector<std::string> split_top_level_statements(const std::string& input) {
+        std::vector<std::string> statements;
+        std::string current;
+        PathAssignmentParseState state;
+
+        for (const char c : input) {
+          if (c == ';' && is_top_level(state)) {
+            if (!trim(current).empty()) {
+              statements.push_back(trim(current));
+            }
+            current.clear();
+            continue;
+          }
+
+          current += c;
+          update_parse_state(c, state);
+        }
+
+        if (!trim(current).empty()) {
+          statements.push_back(trim(current));
+        }
+
+        return statements;
+      }
+
+      size_t find_top_level_assignment(const std::string& statement) {
+        PathAssignmentParseState state;
+
+        for (size_t i = 0; i < statement.size(); ++i) {
+          const char c = statement[i];
+          if (c == '=' && is_top_level(state)) {
+            return i;
+          }
+          update_parse_state(c, state);
+        }
+
+        return std::string::npos;
+      }
+
+      bool assign_scalar_setting(libconfig::Setting& destination, const libconfig::Setting& source) {
+        if (source.getType() == libconfig::Setting::Type::TypeInt) {
+          destination = static_cast<int>(source);
+          destination.setFormat(source.getFormat());
+          return true;
+        }
+
+        if (source.getType() == libconfig::Setting::Type::TypeInt64) {
+          destination = static_cast<int64_t>(source);
+          destination.setFormat(source.getFormat());
+          return true;
+        }
+
+        if (source.getType() == libconfig::Setting::Type::TypeFloat) {
+          destination = static_cast<double>(source);
+          return true;
+        }
+
+        if (source.getType() == libconfig::Setting::Type::TypeString) {
+          destination = source.c_str();
+          return true;
+        }
+
+        if (source.getType() == libconfig::Setting::Type::TypeBoolean) {
+          destination = static_cast<bool>(source);
+          return true;
+        }
+
+        return false;
+      }
+
+      bool copy_setting_value(libconfig::Setting& destination, const libconfig::Setting& source) {
+        if (source.isGroup()) {
+          for (auto i = 0; i < source.getLength(); ++i) {
+            auto& child = destination.add(source[i].getName(), source[i].getType());
+            if (!copy_setting_value(child, source[i])) {
+              return false;
+            }
+          }
+          return true;
+        }
+
+        if (source.isList() || source.isArray()) {
+          for (auto i = 0; i < source.getLength(); ++i) {
+            auto& child = destination.add(source[i].getType());
+            if (!copy_setting_value(child, source[i])) {
+              return false;
+            }
+          }
+          return true;
+        }
+
+        return assign_scalar_setting(destination, source);
+      }
+
+      bool assign_named_value(libconfig::Setting& parent, const std::string& name, const libconfig::Setting& value) {
+        if (value.isGroup() || value.isList()) {
+          if (parent.exists(name)) {
+            auto& existing = parent.lookup(name);
+            if (existing.getType() == value.getType()) {
+              overwrite_config_settings(existing, value);
+              return true;
+            }
+            parent.remove(name);
+          }
+
+          auto& created = parent.add(name, value.getType());
+          return copy_setting_value(created, value);
+        }
+
+        if (parent.exists(name)) {
+          parent.remove(name);
+        }
+
+        auto& created = parent.add(name, value.getType());
+        return copy_setting_value(created, value);
+      }
+
+      bool assign_indexed_value(libconfig::Setting& parent, const int index, const libconfig::Setting& value) {
+        if (parent.getLength() <= index) {
+          return false;
+        }
+
+        auto& existing = parent[index];
+
+        if (value.isGroup() || value.isList()) {
+          if (existing.getType() != value.getType()) {
+            return false;
+          }
+          overwrite_config_settings(existing, value);
+          return true;
+        }
+
+        if (existing.getType() != value.getType()) {
+          return false;
+        }
+
+        return assign_scalar_setting(existing, value);
+      }
+
+      bool append_list_value(libconfig::Setting& parent, const libconfig::Setting& value) {
+        auto& created = parent.add(value.getType());
+        return copy_setting_value(created, value);
+      }
+
+      libconfig::Setting::Type container_setting_type(const PathTokenKind token_kind) {
+        if (token_kind == PathTokenKind::Name) {
+          return libconfig::Setting::Type::TypeGroup;
+        }
+        return libconfig::Setting::Type::TypeList;
+      }
+
+      bool ensure_named_container(libconfig::Setting& parent,
+                                  const std::string& name,
+                                  const PathTokenKind next_token_kind,
+                                  libconfig::Setting*& child) {
+        const auto expected_type = container_setting_type(next_token_kind);
+        if (!parent.exists(name)) {
+          child = &parent.add(name, expected_type);
+          return true;
+        }
+
+        child = &parent.lookup(name);
+        if (next_token_kind == PathTokenKind::Name) {
+          return child->isGroup();
+        }
+        if (next_token_kind == PathTokenKind::Append) {
+          return child->isList();
+        }
+        return child->isList() || child->isArray();
+      }
+
+      bool ensure_indexed_container(libconfig::Setting& parent,
+                                    const int index,
+                                    const PathTokenKind next_token_kind,
+                                    libconfig::Setting*& child) {
+        if (parent.getLength() <= index) {
+          return false;
+        }
+
+        child = &parent[index];
+        if (next_token_kind == PathTokenKind::Name) {
+          return child->isGroup();
+        }
+        if (next_token_kind == PathTokenKind::Append) {
+          return child->isList();
+        }
+        return child->isList() || child->isArray();
+      }
+
+      bool parse_setting_path(const std::string& lhs, std::vector<PathToken>& tokens) {
+        const auto path = trim(lhs);
+        if (path.empty()) {
+          return false;
+        }
+
+        auto i = size_t{0};
+        const auto skip_whitespace = [&]() {
+          while (i < path.size() && std::isspace(static_cast<unsigned char>(path[i]))) {
+            ++i;
+          }
+        };
+
+        const auto parse_name = [&](std::string& name) {
+          skip_whitespace();
+          if (i >= path.size()) {
+            return false;
+          }
+
+          const auto start = i;
+          if (!(std::isalpha(static_cast<unsigned char>(path[i])) || path[i] == '_')) {
+            return false;
+          }
+
+          ++i;
+          while (i < path.size()) {
+            const auto ch = static_cast<unsigned char>(path[i]);
+            if (!(std::isalnum(ch) || ch == '_')) {
+              break;
+            }
+            ++i;
+          }
+
+          name = path.substr(start, i - start);
+          return true;
+        };
+
+        std::string root_name;
+        if (!parse_name(root_name)) {
+          return false;
+        }
+        tokens.push_back({PathTokenKind::Name, root_name, -1});
+
+        while (i < path.size()) {
+          skip_whitespace();
+          if (i >= path.size()) {
+            break;
+          }
+
+          if (path[i] == '.') {
+            ++i;
+            std::string name;
+            if (!parse_name(name)) {
+              return false;
+            }
+            tokens.push_back({PathTokenKind::Name, name, -1});
+            continue;
+          }
+
+          if (path[i] == '[') {
+            ++i;
+            skip_whitespace();
+
+            if (i < path.size() && path[i] == ']') {
+              ++i;
+              tokens.push_back({PathTokenKind::Append, "", -1});
+              continue;
+            }
+
+            const auto index_start = i;
+            while (i < path.size() && std::isdigit(static_cast<unsigned char>(path[i]))) {
+              ++i;
+            }
+            if (index_start == i) {
+              return false;
+            }
+
+            const auto index = std::stoi(path.substr(index_start, i - index_start));
+            skip_whitespace();
+            if (i >= path.size() || path[i] != ']') {
+              return false;
+            }
+            ++i;
+            tokens.push_back({PathTokenKind::Index, "", index});
+            continue;
+          }
+
+          return false;
+        }
+
+        return tokens.size() > 1;
+      }
+
+      bool apply_path_assignment(libconfig::Setting& current,
+                                 const std::vector<PathToken>& tokens,
+                                 const size_t token_index,
+                                 const libconfig::Setting& value) {
+        const auto& token = tokens[token_index];
+        const auto is_last = (token_index + 1 == tokens.size());
+
+        if (token.kind == PathTokenKind::Name) {
+          if (!current.isGroup()) {
+            return false;
+          }
+
+          if (is_last) {
+            return assign_named_value(current, token.name, value);
+          }
+
+          libconfig::Setting* child = nullptr;
+          if (!ensure_named_container(current, token.name, tokens[token_index + 1].kind, child)) {
+            return false;
+          }
+
+          return apply_path_assignment(*child, tokens, token_index + 1, value);
+        }
+
+        if (token.kind == PathTokenKind::Index) {
+          if (!current.isList() && !current.isArray()) {
+            return false;
+          }
+
+          if (is_last) {
+            return assign_indexed_value(current, token.index, value);
+          }
+
+          libconfig::Setting* child = nullptr;
+          if (!ensure_indexed_container(current, token.index, tokens[token_index + 1].kind, child)) {
+            return false;
+          }
+
+          return apply_path_assignment(*child, tokens, token_index + 1, value);
+        }
+
+        if (!current.isList() || !is_last) {
+          return false;
+        }
+
+        return append_list_value(current, value);
+      }
+
+      bool try_apply_path_assignment_string(const std::string& input, libconfig::Setting& target_root) {
+        const auto statements = split_top_level_statements(input);
+        if (statements.empty()) {
+          return false;
+        }
+
+        for (const auto& statement : statements) {
+          const auto assignment_pos = find_top_level_assignment(statement);
+          if (assignment_pos == std::string::npos) {
+            return false;
+          }
+
+          const auto lhs = trim(statement.substr(0, assignment_pos));
+          const auto rhs = trim(statement.substr(assignment_pos + 1));
+
+          std::vector<PathToken> tokens;
+          if (!parse_setting_path(lhs, tokens) || rhs.empty()) {
+            return false;
+          }
+
+          for (auto i = size_t{0}; i + 1 < tokens.size(); ++i) {
+            if (tokens[i].kind == PathTokenKind::Append) {
+              throw std::runtime_error("Config path append must assign a whole list element:\n  '" + statement + "'");
+            }
+          }
+
+          libconfig::Config value;
+          try {
+            value.readString(("value = " + rhs + ";").c_str());
+          } catch (const libconfig::ParseException&) {
+            return false;
+          }
+
+          if (!apply_path_assignment(target_root, tokens, 0, value.lookup("value"))) {
+            throw std::runtime_error("Invalid config path assignment:\n  '" + statement + "'");
+          }
+        }
+
+        return true;
+      }
+    }
 
     void new_global_classes() {
       globals::lattice = new Lattice();
@@ -71,6 +515,9 @@ namespace jams {
             patch.readString(s.c_str());
           }
           catch (const libconfig::ParseException &pex) {
+            if (try_apply_path_assignment_string(s, combined_config->getRoot())) {
+              continue;
+            }
             std::stringstream ss;
             if (input.force_string) {
               ss << "Error parsing config string:\n";

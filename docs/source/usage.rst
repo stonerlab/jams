@@ -31,6 +31,31 @@ scripts to loop over parameters or chain together multiple simulations with diff
 files can be chained together so that simulations can be composed, for example the definition of the unit cell might
 be contained in one file and the choice of solve may be in another file.
 
+For simple nested scalar overrides you can also use a dotted setting path:
+
+.. code-block:: none
+
+  ./jams input.cfg --config physics.temperature = 100.0;
+
+Indexed paths are also supported for list settings such as Hamiltonians:
+
+.. code-block:: none
+
+  ./jams input.cfg --config 'hamiltonians[1].field = [0.0, 0.0, 2.0];'
+
+To append a brand new Hamiltonian or monitor, use an empty index and assign the
+whole element in one go:
+
+.. code-block:: none
+
+  ./jams input.cfg --config 'hamiltonians[] = { module = "applied-field"; field = [0.0, 0.0, 2.0]; };'
+  ./jams input.cfg --config 'monitors[] = { module = "energy"; output_steps = 10; };'
+
+Explicit indices modify existing entries only. Empty indices append new ones.
+You can include multiple assignments in a single :code:`--config` string, or
+repeat :code:`--config` multiple times; inputs are applied in command-line
+order.
+
 A combined configuration file will be written with the suffix :code:`_combined.cfg`, which contains the final
 configuration after all configuration files and strings have been merged and represents the simulation configuration
 which was actually used.

@@ -84,6 +84,29 @@ line arguments. For example:
   ./jams input.cfg 'physics : {temperature = 100.0;};'
 ```
 
+For simple nested overrides, dotted paths are also supported:
+
+```shell
+  ./jams input.cfg --config 'physics.temperature = 100.0;'
+```
+
+You can also target entries inside list settings by index:
+
+```shell
+  ./jams input.cfg --config 'hamiltonians[1].field = [0.0, 0.0, 2.0];'
+```
+
+To append a new Hamiltonian or monitor, use an empty index and assign the full
+element:
+
+```shell
+  ./jams input.cfg --config 'hamiltonians[] = { module = "applied-field"; field = [0.0, 0.0, 2.0]; };'
+  ./jams input.cfg --config 'monitors[] = { module = "energy"; output_steps = 10; };'
+```
+
+You can combine multiple assignments in one `--config` string, or repeat
+`--config` multiple times; JAMS applies them in command-line order.
+
 This provides a simple way to write batch scripts to loop over parameters or chain together multiple simulations with
 different steps.
 
