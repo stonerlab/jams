@@ -15,9 +15,70 @@
 #include <algorithm>
 #include <cmath>
 #include <iostream>
+#include <mutex>
 #include <string>
+#include <thread>
 #include <stdexcept>
 #include <vector>
+
+#ifdef HAS_OMP
+#include <omp.h>
+#endif
+
+namespace {
+
+int default_fftw_thread_count()
+{
+#ifdef HAS_OMP
+  return std::max(1, omp_get_max_threads());
+#else
+  const auto hw_threads = std::thread::hardware_concurrency();
+  return hw_threads > 0 ? static_cast<int>(hw_threads) : 1;
+#endif
+}
+
+#if JAMS_HAS_FFTW_THREADS
+std::mutex& fftw_threads_mutex()
+{
+  static std::mutex mutex;
+  return mutex;
+}
+
+int& fftw_threads_refcount()
+{
+  static int refcount = 0;
+  return refcount;
+}
+
+bool retain_fftw_thread_support()
+{
+  std::lock_guard<std::mutex> guard(fftw_threads_mutex());
+  auto& refcount = fftw_threads_refcount();
+  if (refcount == 0 && fftw_init_threads() == 0)
+  {
+    return false;
+  }
+  ++refcount;
+  return true;
+}
+
+void release_fftw_thread_support()
+{
+  std::lock_guard<std::mutex> guard(fftw_threads_mutex());
+  auto& refcount = fftw_threads_refcount();
+  if (refcount <= 0)
+  {
+    return;
+  }
+  --refcount;
+  if (refcount == 0)
+  {
+    fftw_cleanup_threads();
+  }
+}
+#endif
+
+}  // namespace
 
 // ---------------------------------------------------------------------------
 // Channel maps
@@ -129,6 +190,7 @@ SpectrumBaseMonitor::SpectrumBaseMonitor(
     configure_periodogram(settings["compute_periodogram"]);
   }
 
+  configure_fftw_threads_(settings);
   initialise_k_points_(settings, k_sampling_mode);
   initialise_basis_phase_factors_();
 
@@ -146,6 +208,12 @@ SpectrumBaseMonitor::SpectrumBaseMonitor(
 SpectrumBaseMonitor::~SpectrumBaseMonitor()
 {
   fftw_destroy_plan(sk_time_fft_plan_);
+#if JAMS_HAS_FFTW_THREADS
+  if (fftw_threads_enabled_)
+  {
+    release_fftw_thread_support();
+  }
+#endif
 }
 
 void SpectrumBaseMonitor::set_channel_map(const ChannelTransform& channel_map)
@@ -354,6 +422,35 @@ void SpectrumBaseMonitor::configure_temporal_estimator_(libconfig::Setting& sett
   throw std::runtime_error("compute_periodogram.estimator must be either 'welch' or 'multitaper'");
 }
 
+void SpectrumBaseMonitor::configure_fftw_threads_(const libconfig::Setting& settings)
+{
+  fftw_thread_count_ = jams::config_optional<int>(settings, "fftw_threads", default_fftw_thread_count());
+  if (fftw_thread_count_ < 1)
+  {
+    throw std::runtime_error("fftw_threads must be greater than or equal to 1");
+  }
+
+#if JAMS_HAS_FFTW_THREADS
+  fftw_threads_enabled_ = retain_fftw_thread_support();
+  if (!fftw_threads_enabled_)
+  {
+    if (fftw_thread_count_ > 1)
+    {
+      std::cout << "  fftw thread initialisation failed, using single-threaded FFTW" << std::endl;
+    }
+    fftw_thread_count_ = 1;
+  }
+#else
+  if (fftw_thread_count_ > 1)
+  {
+    std::cout << "  fftw thread support unavailable, using single-threaded FFTW" << std::endl;
+  }
+  fftw_thread_count_ = 1;
+#endif
+
+  std::cout << "  fftw FFT threads " << fftw_thread_count_ << std::endl;
+}
+
 void SpectrumBaseMonitor::configure_periodogram(libconfig::Setting &settings)
 {
   periodogram_props_.length = jams::config_required<int>(settings, "length");
@@ -427,6 +524,13 @@ const SpectrumBaseMonitor::CmplxMappedSlice& SpectrumBaseMonitor::compute_freque
 
     auto* dummy = FFTW_COMPLEX_CAST(&frequency_scratch_(0, 0, 0));
 
+#if JAMS_HAS_FFTW_THREADS
+    if (fftw_threads_enabled_)
+    {
+      std::lock_guard<std::mutex> guard(fftw_threads_mutex());
+      fftw_plan_with_nthreads(fftw_thread_count_);
+    }
+#endif
     sk_time_fft_plan_ = fftw_plan_many_dft(
         1,
         n,
@@ -1038,7 +1142,8 @@ void SpectrumBaseMonitor::store_sk_snapshot(const jams::MultiArray<double, 2> &d
       sk_grid_,
       globals::lattice->size(),
       globals::lattice->kspace_size(),
-      globals::lattice->num_basis_sites());
+      globals::lattice->num_basis_sites(),
+      fftw_thread_count_);
 
   if (needs_local_frame_mapping_())
   {

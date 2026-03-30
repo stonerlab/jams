@@ -254,6 +254,7 @@ private:
   void resize_channel_storage_();
   bool use_file_backed_sk_time_series_() const;
   void configure_temporal_estimator_(libconfig::Setting& settings);
+  void configure_fftw_threads_(const libconfig::Setting& settings);
 
   /// @brief Generate the window function for a width of num_time_samples.
   ///
@@ -301,6 +302,8 @@ private:
 
   /// @brief Buffer for FFT S(k,t...) -> S(k,w) for a single k index
   fftw_plan sk_time_fft_plan_ = nullptr;
+  int fftw_thread_count_ = 1;
+  bool fftw_threads_enabled_ = false;
   jams::MultiArray<double, 1> periodogram_window_;
   jams::MultiArray<double, 2> multitaper_windows_;
   jams::MultiArray<double, 1> multitaper_weights_;

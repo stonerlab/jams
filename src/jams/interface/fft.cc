@@ -1,5 +1,7 @@
+#include <algorithm>
 #include <cmath>
 #include <cassert>
+#include <mutex>
 
 #include "jams/core/types.h"
 #include "jams/core/globals.h"
@@ -9,6 +11,24 @@
 
 using std::complex;
 using std::vector;
+
+namespace {
+
+#if JAMS_HAS_FFTW_THREADS
+std::mutex& fftw_planner_mutex()
+{
+  static std::mutex mutex;
+  return mutex;
+}
+
+bool fftw_threads_ready()
+{
+  static const bool ready = (fftw_init_threads() != 0);
+  return ready;
+}
+#endif
+
+}  // namespace
 
 double fft_window_default(const int n, const int n_total) {
   return fft_window_blackman_4(n, n_total);
@@ -152,7 +172,7 @@ jams::MultiArray<double, 5> fft_zero_pad_kspace(const jams::MultiArray<double, 2
   return padded_rspace_data;
 }
 
-void fft_supercell_vector_field_to_kspace(const jams::MultiArray<double, 2>& rspace_data, jams::MultiArray<Vec3cx,4>& kspace_data,  const Vec3i& kspace_size, const Vec3i& kspace_padded_size, const int & num_sites) {
+void fft_supercell_vector_field_to_kspace(const jams::MultiArray<double, 2>& rspace_data, jams::MultiArray<Vec3cx,4>& kspace_data,  const Vec3i& kspace_size, const Vec3i& kspace_padded_size, const int & num_sites, int fftw_threads) {
   assert(rspace_data.elements() == 3 * num_sites * jams::product(kspace_size));
 
   kspace_data.resize(kspace_padded_size[0], kspace_padded_size[1], kspace_padded_size[2]/2 + 1, num_sites);
@@ -166,11 +186,29 @@ void fft_supercell_vector_field_to_kspace(const jams::MultiArray<double, 2>& rsp
       int dist              = 1;
 
       // FFTW_PRESERVE_INPUT is not supported for r2c arrays but FFTW_ESTIMATE doe not overwrite
-      auto plan = fftw_plan_many_dft_r2c(
-          rank, transform_size, num_transforms,
-          const_cast<double*>(rspace_data_ptr), nembed, stride, dist,
-          jams::fftw::complex_cast(kspace_data.data()), nembed, stride, dist,
-          FFTW_ESTIMATE);
+      fftw_plan plan = nullptr;
+
+#if JAMS_HAS_FFTW_THREADS
+      const int plan_threads = std::max(fftw_threads, 1);
+      if (fftw_threads_ready())
+      {
+        std::lock_guard<std::mutex> guard(fftw_planner_mutex());
+        fftw_plan_with_nthreads(plan_threads);
+        plan = fftw_plan_many_dft_r2c(
+            rank, transform_size, num_transforms,
+            const_cast<double*>(rspace_data_ptr), nembed, stride, dist,
+            jams::fftw::complex_cast(kspace_data.data()), nembed, stride, dist,
+            FFTW_ESTIMATE);
+      }
+      else
+#endif
+      {
+        plan = fftw_plan_many_dft_r2c(
+            rank, transform_size, num_transforms,
+            const_cast<double*>(rspace_data_ptr), nembed, stride, dist,
+            jams::fftw::complex_cast(kspace_data.data()), nembed, stride, dist,
+            FFTW_ESTIMATE);
+      }
 
       assert(plan);
       fftw_execute(plan);

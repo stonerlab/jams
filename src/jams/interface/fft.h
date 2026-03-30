@@ -58,7 +58,7 @@ double fft_window_nuttall(const int n, const int n_total);
 fftw_plan fft_plan_rspace_to_kspace(std::complex<double> * rspace, std::complex<double> * kspace, const std::array<int,3>& kspace_size, const int & motif_size);
 void apply_kspace_phase_factors(jams::MultiArray<std::complex<double>, 5> &kspace);
 
-void fft_supercell_vector_field_to_kspace(const jams::MultiArray<double, 2>& rspace_data, jams::MultiArray<Vec3cx,4>& kspace_data, const Vec3i& kspace_size, const Vec3i& kspace_padded_size, const int & num_sites);
+void fft_supercell_vector_field_to_kspace(const jams::MultiArray<double, 2>& rspace_data, jams::MultiArray<Vec3cx,4>& kspace_data, const Vec3i& kspace_size, const Vec3i& kspace_padded_size, const int & num_sites, int fftw_threads = 1);
 void fft_supercell_scalar_field_to_kspace(const jams::MultiArray<double, 1>& rspace_data, jams::MultiArray<jams::ComplexHi,4>& kspace_data, const Vec3i& kspace_size, const int & num_sites);
 
 /// @brief Struct to store the N dimensional array index of an FFTW frequency and whether the value should
@@ -91,4 +91,3 @@ inline FFTWHermitianIndex<N> fftw_r2c_index(Vec<int, N> k, const Vec<int, N> &n)
 }
 
 #endif  // JAMS_MONITOR_FFT_H
-
