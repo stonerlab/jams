@@ -2,6 +2,8 @@
 // Created by Joe Barker on 2018/08/28.
 //
 
+#include <cerrno>
+#include <cstring>
 #include <iostream>
 #include <fstream>
 
@@ -14,13 +16,6 @@
 
 namespace jams {
     namespace output {
-        namespace {
-          std::ofstream& log_stream() {
-            static std::ofstream stream;
-            return stream;
-          }
-        }
-
         void desync_io() {
           std::cin.tie(nullptr);
           std::ios_base::sync_with_stdio(false);
@@ -36,19 +31,30 @@ namespace jams {
         }
 
         void redirect_standard_streams(const std::string& filename) {
-          auto& stream = log_stream();
-          if (stream.is_open()) {
-            stream.flush();
-            stream.close();
+          std::cout.flush();
+          std::cerr.flush();
+
+          const int log_fd = open(filename.c_str(), O_CREAT | O_WRONLY | O_TRUNC, 0666);
+          if (log_fd < 0) {
+            throw std::runtime_error(
+                "Failed to open log file: " + filename + ": " + std::strerror(errno));
           }
 
-          stream.open(filename, std::ios::out | std::ios::trunc);
-          if (!stream) {
-            throw std::runtime_error("Failed to open log file: " + filename);
+          if (dup2(log_fd, STDOUT_FILENO) < 0) {
+            const std::string error = std::strerror(errno);
+            close(log_fd);
+            throw std::runtime_error(
+                "Failed to redirect stdout to log file: " + filename + ": " + error);
           }
 
-          std::cout.rdbuf(stream.rdbuf());
-          std::cerr.rdbuf(stream.rdbuf());
+          if (dup2(log_fd, STDERR_FILENO) < 0) {
+            const std::string error = std::strerror(errno);
+            close(log_fd);
+            throw std::runtime_error(
+                "Failed to redirect stderr to log file: " + filename + ": " + error);
+          }
+
+          close(log_fd);
         }
 
         std::string output_path() {
@@ -111,4 +117,3 @@ namespace jams {
         }
     }
   }
-
