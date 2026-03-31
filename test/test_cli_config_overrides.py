@@ -84,6 +84,33 @@ class TestCliConfigOverrides(JamsIntegrationtest):
             stderr=subprocess.PIPE,
         )
 
+    def test_log_flag_redirects_stdout_to_file(self):
+        log_path = Path(self.artifact_dir) / "stdout.log"
+        result = self.run_jams_with_args([self.binary_path, "--help", f"--log={log_path}"])
+
+        self.assertEqual("", result.stdout)
+        self.assertEqual("", result.stderr)
+        self.assertTrue(log_path.exists(), f"Expected log file at {log_path}")
+
+        log_text = log_path.read_text()
+        self.assertIn("Usage: jams", log_text)
+        self.assertIn("--log=<path>", log_text)
+
+    def test_log_flag_redirects_stderr_to_file(self):
+        log_path = Path(self.artifact_dir) / "stderr.log"
+        result = self.run_jams_with_args_allow_failure(
+            [self.binary_path, f"--log={log_path}", "--unknown-flag"]
+        )
+
+        self.assertNotEqual(0, result.returncode)
+        self.assertEqual("", result.stdout)
+        self.assertEqual("", result.stderr)
+        self.assertTrue(log_path.exists(), f"Expected log file at {log_path}")
+
+        log_text = log_path.read_text()
+        self.assertIn("Unknown flag '--unknown-flag'", log_text)
+        self.assertIn("Usage: jams", log_text)
+
     def test_dotted_path_override_updates_nested_setting(self):
         cfg = make_minimal_cfg()
         args = [

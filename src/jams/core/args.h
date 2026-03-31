@@ -23,6 +23,7 @@ namespace jams {
         bool        validate_config_only = false;
         bool        setup_only        = false;
         std::string output_path = ".";
+        std::string log_output_path = "";
         std::filesystem::path temp_directory_path = std::filesystem::temp_directory_path();
         std::string simulation_name = "";
         std::string initial_spin_filename = "";
@@ -36,6 +37,7 @@ namespace jams {
     };
 
     ProgramArgs parse_args(int argc, char **argv);
+    std::string find_log_output_path_arg(int argc, char **argv);
     void print_usage(std::ostream& os);
     void validate_config(const jams::ProgramArgs& program_args);
 }

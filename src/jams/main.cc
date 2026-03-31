@@ -6,8 +6,13 @@
 #include "jams/helpers/output.h"
 
 int main(int argc, char **argv) {
-  jams::output::initialise();
   try {
+    const auto log_output_path = jams::find_log_output_path_arg(argc, argv);
+    if (!log_output_path.empty()) {
+      jams::output::redirect_standard_streams(log_output_path);
+    }
+
+    jams::output::initialise();
     auto program_args = jams::parse_args(argc, argv);
 
     if (program_args.help_only) {

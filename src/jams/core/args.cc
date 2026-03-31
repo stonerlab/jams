@@ -18,6 +18,7 @@ namespace jams {
           << "  --validate-config      Parse and validate the config, then exit\n"
           << "  --setup-only           Initialise the simulation without running it\n"
           << "  --output=<path>        Write outputs to the given directory\n"
+          << "  --log=<path>           Redirect stdout/stderr messages to the given file\n"
           << "  --name=<name>          Override the simulation name prefix\n"
           << "  --seed=<n>             Override sim.seed with an integer value\n"
           << "  --verbose              Override sim.verbose to true\n"
@@ -75,6 +76,16 @@ namespace jams {
       program_args.merged_config_output_path = value;
     }
 
+    void set_log_output_path(
+        const std::string& value,
+        const std::string& flag_name,
+        ProgramArgs& program_args) {
+      if (value.empty()) {
+        throw std::runtime_error("Missing value for " + flag_name);
+      }
+      program_args.log_output_path = value;
+    }
+
     void process_flag(const std::string& flag, ProgramArgs& program_args) {
       if (flag == "--help") {
         program_args.help_only = true;
@@ -103,6 +114,11 @@ namespace jams {
 
       if (flag.rfind("--output=", 0) == 0) {
         program_args.output_path = flag.substr(flag.find('=') + 1);
+        return;
+      }
+
+      if (flag.rfind("--log=", 0) == 0) {
+        set_log_output_path(flag.substr(flag.find('=') + 1), "--log", program_args);
         return;
       }
 
@@ -164,6 +180,29 @@ namespace jams {
       return combined;
     }
 
+    std::string find_log_output_path_arg(int argc, char **argv) {
+      ProgramArgs program_args;
+
+      for (int n = 1; n < argc; ++n) {
+        std::string arg = trim(argv[n]);
+
+        if (arg == "--log") {
+          if (n + 1 >= argc || arg_is_flag(trim(argv[n + 1]))) {
+            throw std::runtime_error("Missing value for --log");
+          }
+          ++n;
+          set_log_output_path(trim(argv[n]), "--log", program_args);
+          continue;
+        }
+
+        if (arg.rfind("--log=", 0) == 0) {
+          set_log_output_path(arg.substr(arg.find('=') + 1), "--log", program_args);
+        }
+      }
+
+      return program_args.log_output_path;
+    }
+
     ProgramArgs parse_args(int argc, char **argv) {
       if (argc == 1) throw std::runtime_error("No config specified");
 
@@ -196,6 +235,15 @@ namespace jams {
           }
           ++n;
           program_args.temp_directory_path = trim(argv[n]);
+          continue;
+        }
+
+        if (arg == "--log") {
+          if (n + 1 >= argc || arg_is_flag(trim(argv[n + 1]))) {
+            throw std::runtime_error("Missing value for --log");
+          }
+          ++n;
+          set_log_output_path(trim(argv[n]), "--log", program_args);
           continue;
         }
 

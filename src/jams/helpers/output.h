@@ -52,6 +52,7 @@ inline std::ostream &header(std::ostream &os) {
 
 namespace jams::output {
     void initialise();
+    void redirect_standard_streams(const std::string& filename);
 
     /// Open an output file with 'filename' in the full output path if not
     /// already open.

@@ -14,6 +14,13 @@
 
 namespace jams {
     namespace output {
+        namespace {
+          std::ofstream& log_stream() {
+            static std::ofstream stream;
+            return stream;
+          }
+        }
+
         void desync_io() {
           std::cin.tie(nullptr);
           std::ios_base::sync_with_stdio(false);
@@ -26,6 +33,22 @@ namespace jams {
         void initialise() {
           desync_io();
           set_default_cout_flags();
+        }
+
+        void redirect_standard_streams(const std::string& filename) {
+          auto& stream = log_stream();
+          if (stream.is_open()) {
+            stream.flush();
+            stream.close();
+          }
+
+          stream.open(filename, std::ios::out | std::ios::trunc);
+          if (!stream) {
+            throw std::runtime_error("Failed to open log file: " + filename);
+          }
+
+          std::cout.rdbuf(stream.rdbuf());
+          std::cerr.rdbuf(stream.rdbuf());
         }
 
         std::string output_path() {
@@ -88,5 +111,4 @@ namespace jams {
         }
     }
   }
-
 
