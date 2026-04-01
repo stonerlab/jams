@@ -111,6 +111,58 @@ class TestCliConfigOverrides(JamsIntegrationtest):
         self.assertIn("Unknown flag '--unknown-flag'", log_text)
         self.assertIn("Usage: jams", log_text)
 
+    def test_log_flag_accepts_space_separated_value(self):
+        log_path = Path(self.artifact_dir) / "stdout-space.log"
+        result = self.run_jams_with_args([self.binary_path, "--help", "--log", str(log_path)])
+
+        self.assertEqual("", result.stdout)
+        self.assertEqual("", result.stderr)
+        self.assertTrue(log_path.exists(), f"Expected log file at {log_path}")
+        self.assertIn("Usage: jams", log_path.read_text())
+
+    def test_name_and_output_flags_accept_space_separated_values(self):
+        cfg = make_minimal_cfg()
+        args = [
+            self.binary_path,
+            "--name",
+            "space-flags",
+            "--config",
+            cfg,
+            "--output",
+            self.temp_dir,
+            "--setup-only",
+        ]
+
+        self.run_jams_with_args(args)
+
+        combined_cfg = Path(self.temp_dir) / "space-flags_combined.cfg"
+        self.assertTrue(combined_cfg.exists(), f"Expected combined config at {combined_cfg}")
+
+    def test_seed_temp_directory_and_write_config_flags_accept_space_separated_values(self):
+        cfg = make_minimal_cfg()
+        temp_dir = Path(self.artifact_dir) / "temp"
+        temp_dir.mkdir(parents=True, exist_ok=True)
+        combined_cfg = Path(self.artifact_dir) / "merged.cfg"
+        args = [
+            self.binary_path,
+            "--name",
+            "jams",
+            "--config",
+            cfg,
+            "--seed",
+            "42",
+            "--temp-directory",
+            str(temp_dir),
+            "--write-config",
+            str(combined_cfg),
+            "--setup-only",
+        ]
+
+        self.run_jams_with_args(args)
+
+        self.assertTrue(combined_cfg.exists(), f"Expected combined config at {combined_cfg}")
+        self.assertIn("seed = 42;", combined_cfg.read_text())
+
     def test_dotted_path_override_updates_nested_setting(self):
         cfg = make_minimal_cfg()
         args = [

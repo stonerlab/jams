@@ -8,6 +8,41 @@
 #include "jams/helpers/utils.h"
 
 namespace jams {
+    bool arg_is_flag(const std::string& arg);
+
+    bool flag_matches(const std::string& arg, const std::string& flag_name) {
+      return arg == flag_name || arg.rfind(flag_name + "=", 0) == 0;
+    }
+
+    std::string flag_value_from_equals_form(const std::string& arg, const std::string& flag_name) {
+      return arg.substr(flag_name.size() + 1);
+    }
+
+    std::string consume_flag_value(
+        int argc,
+        char **argv,
+        int &index,
+        const std::string& arg,
+        const std::string& flag_name) {
+      if (arg == flag_name) {
+        if (index + 1 >= argc || arg_is_flag(trim(argv[index + 1]))) {
+          throw std::runtime_error("Missing value for " + flag_name);
+        }
+        ++index;
+        return trim(argv[index]);
+      }
+
+      if (arg.rfind(flag_name + "=", 0) == 0) {
+        auto value = flag_value_from_equals_form(arg, flag_name);
+        if (value.empty()) {
+          throw std::runtime_error("Missing value for " + flag_name);
+        }
+        return value;
+      }
+
+      return "";
+    }
+
     void print_usage(std::ostream& os) {
       os
           << "Usage: jams <config.cfg> [more-configs.cfg ...] [options]\n"
@@ -113,37 +148,45 @@ namespace jams {
       }
 
       if (flag.rfind("--output=", 0) == 0) {
-        program_args.output_path = flag.substr(flag.find('=') + 1);
+        auto value = flag_value_from_equals_form(flag, "--output");
+        if (value.empty()) {
+          throw std::runtime_error("Missing value for --output");
+        }
+        program_args.output_path = value;
         return;
       }
 
       if (flag.rfind("--log=", 0) == 0) {
-        set_log_output_path(flag.substr(flag.find('=') + 1), "--log", program_args);
+        set_log_output_path(flag_value_from_equals_form(flag, "--log"), "--log", program_args);
         return;
       }
 
       if (flag.rfind("--name=", 0) == 0) {
-        program_args.simulation_name = flag.substr(flag.find('=') + 1);
+        auto value = flag_value_from_equals_form(flag, "--name");
+        if (value.empty()) {
+          throw std::runtime_error("Missing value for --name");
+        }
+        program_args.simulation_name = value;
         return;
       }
 
       if (flag.rfind("--seed=", 0) == 0) {
-        set_random_seed(flag.substr(flag.find('=') + 1), "--seed", program_args);
+        set_random_seed(flag_value_from_equals_form(flag, "--seed"), "--seed", program_args);
         return;
       }
 
       if (flag.rfind("--write-config=", 0) == 0) {
-        set_merged_config_output_path(flag.substr(flag.find('=') + 1), "--write-config", program_args);
+        set_merged_config_output_path(flag_value_from_equals_form(flag, "--write-config"), "--write-config", program_args);
         return;
       }
 
       if (flag.rfind("--spins=", 0) == 0) {
-        set_initial_spin_filename(flag.substr(flag.find('=') + 1), "--spins", program_args);
+        set_initial_spin_filename(flag_value_from_equals_form(flag, "--spins"), "--spins", program_args);
         return;
       }
 
       if (flag.rfind("--temp-directory=", 0) == 0) {
-        std::string temp_directory = flag.substr(flag.find('=') + 1);
+        std::string temp_directory = flag_value_from_equals_form(flag, "--temp-directory");
         if (temp_directory.empty()) {
           throw std::runtime_error("Missing value for --temp-directory");
         }
@@ -152,7 +195,7 @@ namespace jams {
       }
 
       if (flag.rfind("--temp-dir=", 0) == 0) {
-        std::string temp_directory = flag.substr(flag.find('=') + 1);
+        std::string temp_directory = flag_value_from_equals_form(flag, "--temp-dir");
         if (temp_directory.empty()) {
           throw std::runtime_error("Missing value for --temp-dir");
         }
@@ -186,17 +229,8 @@ namespace jams {
       for (int n = 1; n < argc; ++n) {
         std::string arg = trim(argv[n]);
 
-        if (arg == "--log") {
-          if (n + 1 >= argc || arg_is_flag(trim(argv[n + 1]))) {
-            throw std::runtime_error("Missing value for --log");
-          }
-          ++n;
-          set_log_output_path(trim(argv[n]), "--log", program_args);
-          continue;
-        }
-
-        if (arg.rfind("--log=", 0) == 0) {
-          set_log_output_path(arg.substr(arg.find('=') + 1), "--log", program_args);
+        if (flag_matches(arg, "--log")) {
+          set_log_output_path(consume_flag_value(argc, argv, n, arg, "--log"), "--log", program_args);
         }
       }
 
@@ -210,67 +244,52 @@ namespace jams {
       for (int n = 1; n < argc; ++n) {
         std::string arg = trim(argv[n]);
 
-        if (arg == "--config") {
-          if (n + 1 >= argc || arg_is_flag(trim(argv[n + 1]))) {
-            throw std::runtime_error("Missing value for --config");
-          }
-          ++n;
-          std::string config_value = parse_config_value(argc, argv, n);
-          add_config_input(config_value, true, program_args);
-          continue;
-        }
-
-        if (arg.rfind("--config=", 0) == 0) {
-          std::string config_value = arg.substr(arg.find('=') + 1);
-          if (config_value.empty()) {
-            throw std::runtime_error("Missing value for --config");
+        if (flag_matches(arg, "--config")) {
+          std::string config_value = consume_flag_value(argc, argv, n, arg, "--config");
+          if (arg == "--config") {
+            config_value = parse_config_value(argc, argv, n);
           }
           add_config_input(config_value, true, program_args);
           continue;
         }
 
-        if (arg == "--temp-directory" || arg == "--temp-dir") {
-          if (n + 1 >= argc || arg_is_flag(trim(argv[n + 1]))) {
-            throw std::runtime_error("Missing value for " + arg);
-          }
-          ++n;
-          program_args.temp_directory_path = trim(argv[n]);
+        if (flag_matches(arg, "--temp-directory")) {
+          program_args.temp_directory_path = consume_flag_value(argc, argv, n, arg, "--temp-directory");
           continue;
         }
 
-        if (arg == "--log") {
-          if (n + 1 >= argc || arg_is_flag(trim(argv[n + 1]))) {
-            throw std::runtime_error("Missing value for --log");
-          }
-          ++n;
-          set_log_output_path(trim(argv[n]), "--log", program_args);
+        if (flag_matches(arg, "--temp-dir")) {
+          program_args.temp_directory_path = consume_flag_value(argc, argv, n, arg, "--temp-dir");
           continue;
         }
 
-        if (arg == "--spins") {
-          if (n + 1 >= argc || arg_is_flag(trim(argv[n + 1]))) {
-            throw std::runtime_error("Missing value for --spins");
-          }
-          ++n;
-          set_initial_spin_filename(trim(argv[n]), "--spins", program_args);
+        if (flag_matches(arg, "--log")) {
+          set_log_output_path(consume_flag_value(argc, argv, n, arg, "--log"), "--log", program_args);
           continue;
         }
 
-        if (arg == "--seed") {
-          if (n + 1 >= argc || arg_is_flag(trim(argv[n + 1]))) {
-            throw std::runtime_error("Missing value for --seed");
-          }
-          ++n;
-          set_random_seed(trim(argv[n]), "--seed", program_args);
+        if (flag_matches(arg, "--spins")) {
+          set_initial_spin_filename(consume_flag_value(argc, argv, n, arg, "--spins"), "--spins", program_args);
           continue;
         }
 
-        if (arg == "--write-config") {
-          if (n + 1 >= argc || arg_is_flag(trim(argv[n + 1]))) {
-            throw std::runtime_error("Missing value for --write-config");
-          }
-          ++n;
-          set_merged_config_output_path(trim(argv[n]), "--write-config", program_args);
+        if (flag_matches(arg, "--seed")) {
+          set_random_seed(consume_flag_value(argc, argv, n, arg, "--seed"), "--seed", program_args);
+          continue;
+        }
+
+        if (flag_matches(arg, "--write-config")) {
+          set_merged_config_output_path(consume_flag_value(argc, argv, n, arg, "--write-config"), "--write-config", program_args);
+          continue;
+        }
+
+        if (flag_matches(arg, "--output")) {
+          program_args.output_path = consume_flag_value(argc, argv, n, arg, "--output");
+          continue;
+        }
+
+        if (flag_matches(arg, "--name")) {
+          program_args.simulation_name = consume_flag_value(argc, argv, n, arg, "--name");
           continue;
         }
 
