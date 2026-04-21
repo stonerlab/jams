@@ -12,6 +12,7 @@
 #include "jams/test/containers/test_multiarray.h"
 #include "jams/test/hamiltonian/test_dipole.h"
 #include "jams/test/solvers/test_llg_deterministic_dynamics.h"
+#include "jams/test/thermostats/test_noise_generators.h"
 
 #ifdef HAS_CUDA
 #include <jams/cuda/cuda_array_reduction.t.h>
