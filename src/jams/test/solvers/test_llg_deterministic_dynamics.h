@@ -103,6 +103,378 @@ hamiltonians = (
   return cfg.str();
 }
 
+std::string deterministic_single_spin_descriptor_config(const std::string& backend,
+                                                        const std::string& integrator,
+                                                        const std::string& dynamics_body = "") {
+  std::ostringstream cfg;
+  cfg << std::scientific << std::setprecision(17);
+  cfg << R"(
+materials = (
+  {
+    name = "A";
+    moment = 1.0;
+    alpha = )" << kAlpha << R"(;
+    spin = [1.0, 0.0, 0.0];
+  }
+);
+
+unitcell = {
+  parameter = 3.0e-10;
+  symops = false;
+  basis = (
+    [1.0, 0.0, 0.0],
+    [0.0, 1.0, 0.0],
+    [0.0, 0.0, 1.0]
+  );
+  positions = (
+    ("A", [0.0, 0.0, 0.0])
+  );
+};
+
+lattice = {
+  size = [1, 1, 1];
+  periodic = [false, false, false];
+};
+
+solver = {
+  backend = ")" << backend << R"(";
+  integrator = ")" << integrator << R"(";
+  t_step = )" << (kTimeStepPs * 1e-12) << R"(;
+  t_max = )" << (kTotalTimePs * 1e-12) << R"(;
+};
+
+dynamics = {
+  equation = "llg";
+)" << dynamics_body << R"(
+};
+
+physics = {
+  temperature = 0.0;
+};
+
+hamiltonians = (
+  {
+    module = "applied-field";
+    field = [0.0, 0.0, )" << kFieldTesla << R"(];
+  }
+);
+)";
+  return cfg.str();
+}
+
+std::string generic_sot_single_spin_config() {
+  return deterministic_single_spin_descriptor_config(
+      "cpu",
+      "rk4",
+      R"(
+  terms = (
+    {
+      module = "sot";
+      spin_polarisation = [0.0, 1.0, 0.0];
+      spin_hall_angle = 0.2;
+      charge_current_density = 5.0e11;
+    }
+  );
+)");
+}
+
+std::string legacy_sot_single_spin_config() {
+  std::ostringstream cfg;
+  cfg << std::scientific << std::setprecision(17);
+  cfg << R"(
+materials = (
+  {
+    name = "A";
+    moment = 1.0;
+    alpha = )" << kAlpha << R"(;
+    spin = [1.0, 0.0, 0.0];
+  }
+);
+
+unitcell = {
+  parameter = 3.0e-10;
+  symops = false;
+  basis = (
+    [1.0, 0.0, 0.0],
+    [0.0, 1.0, 0.0],
+    [0.0, 0.0, 1.0]
+  );
+  positions = (
+    ("A", [0.0, 0.0, 0.0])
+  );
+};
+
+lattice = {
+  size = [1, 1, 1];
+  periodic = [false, false, false];
+};
+
+solver = {
+  module = "llg-sot-rk4-cpu";
+  t_step = )" << (kTimeStepPs * 1e-12) << R"(;
+  t_max = )" << (kTotalTimePs * 1e-12) << R"(;
+  spin_polarisation = [0.0, 1.0, 0.0];
+  spin_hall_angle = 0.2;
+  charge_current_density = 5.0e11;
+};
+
+physics = {
+  temperature = 0.0;
+};
+
+hamiltonians = (
+  {
+    module = "applied-field";
+    field = [0.0, 0.0, )" << kFieldTesla << R"(];
+  }
+);
+)";
+  return cfg.str();
+}
+
+std::string surface_selector_config() {
+  std::ostringstream cfg;
+  cfg << std::scientific << std::setprecision(17);
+  cfg << R"(
+materials = (
+  {
+    name = "A";
+    moment = 1.0;
+    alpha = )" << kAlpha << R"(;
+    spin = [1.0, 0.0, 0.0];
+  }
+);
+
+unitcell = {
+  parameter = 3.0e-10;
+  symops = false;
+  basis = (
+    [1.0, 0.0, 0.0],
+    [0.0, 1.0, 0.0],
+    [0.0, 0.0, 1.0]
+  );
+  positions = (
+    ("A", [0.0, 0.0, 0.0])
+  );
+};
+
+lattice = {
+  size = [1, 1, 3];
+  periodic = [true, true, false];
+};
+
+solver = {
+  backend = "cpu";
+  integrator = "rk4";
+  t_step = 5.0e-15;
+  t_max = 2.5e-14;
+};
+
+dynamics = {
+  equation = "llg";
+  terms = (
+    {
+      module = "stt";
+      coefficient = 2.0;
+      spin_polarisation = [0.0, 0.0, 1.0];
+      selector = {
+        surface_layers = 1;
+      };
+    }
+  );
+};
+
+physics = {
+  temperature = 0.0;
+};
+
+hamiltonians = (
+  {
+    module = "applied-field";
+    field = [0.0, 0.0, 0.0];
+  }
+);
+)";
+  return cfg.str();
+}
+
+std::string explicit_surface_site_config() {
+  std::ostringstream cfg;
+  cfg << std::scientific << std::setprecision(17);
+  cfg << R"(
+materials = (
+  {
+    name = "A";
+    moment = 1.0;
+    alpha = )" << kAlpha << R"(;
+    spin = [1.0, 0.0, 0.0];
+  }
+);
+
+unitcell = {
+  parameter = 3.0e-10;
+  symops = false;
+  basis = (
+    [1.0, 0.0, 0.0],
+    [0.0, 1.0, 0.0],
+    [0.0, 0.0, 1.0]
+  );
+  positions = (
+    ("A", [0.0, 0.0, 0.0])
+  );
+};
+
+lattice = {
+  size = [1, 1, 3];
+  periodic = [true, true, false];
+};
+
+solver = {
+  backend = "cpu";
+  integrator = "rk4";
+  t_step = 5.0e-15;
+  t_max = 2.5e-14;
+};
+
+dynamics = {
+  equation = "llg";
+  terms = (
+    {
+      module = "stt";
+      coefficient = 2.0;
+      spin_polarisation = [0.0, 0.0, 1.0];
+      selector = {
+        sites = [0, 2];
+      };
+    }
+  );
+};
+
+physics = {
+  temperature = 0.0;
+};
+
+hamiltonians = (
+  {
+    module = "applied-field";
+    field = [0.0, 0.0, 0.0];
+  }
+);
+)";
+  return cfg.str();
+}
+
+std::string gse_cpu_descriptor_config() {
+  return R"(
+materials = (
+  {
+    name = "A";
+    moment = 1.0;
+    alpha = 0.1;
+    spin = [1.0, 0.0, 0.0];
+  }
+);
+
+unitcell = {
+  parameter = 3.0e-10;
+  symops = false;
+  basis = (
+    [1.0, 0.0, 0.0],
+    [0.0, 1.0, 0.0],
+    [0.0, 0.0, 1.0]
+  );
+  positions = (
+    ("A", [0.0, 0.0, 0.0])
+  );
+};
+
+lattice = {
+  size = [1, 1, 1];
+  periodic = [false, false, false];
+};
+
+solver = {
+  backend = "cpu";
+  integrator = "rk4";
+  t_step = 1.0e-15;
+  t_max = 1.0e-15;
+};
+
+dynamics = {
+  equation = "gse";
+};
+
+physics = {
+  temperature = 0.0;
+};
+
+hamiltonians = (
+  {
+    module = "applied-field";
+    field = [0.0, 0.0, 0.0];
+  }
+);
+)";
+}
+
+std::string ll_lorentzian_cpu_descriptor_config() {
+  return R"(
+materials = (
+  {
+    name = "A";
+    moment = 1.0;
+    alpha = 0.1;
+    spin = [1.0, 0.0, 0.0];
+  }
+);
+
+unitcell = {
+  parameter = 3.0e-10;
+  symops = false;
+  basis = (
+    [1.0, 0.0, 0.0],
+    [0.0, 1.0, 0.0],
+    [0.0, 0.0, 1.0]
+  );
+  positions = (
+    ("A", [0.0, 0.0, 0.0])
+  );
+};
+
+lattice = {
+  size = [1, 1, 1];
+  periodic = [false, false, false];
+};
+
+solver = {
+  backend = "cpu";
+  integrator = "rk4";
+  t_step = 1.0e-15;
+  t_max = 1.0e-15;
+};
+
+dynamics = {
+  equation = "ll-lorentzian";
+};
+
+thermostat = {
+  lorentzian_gamma = 1.0;
+  lorentzian_omega0 = 1.0;
+};
+
+physics = {
+  temperature = 0.0;
+};
+
+hamiltonians = (
+  {
+    module = "applied-field";
+    field = [0.0, 0.0, 0.0];
+  }
+);
+)";
+}
+
 std::array<double, 3> analytic_single_spin_solution(const double time_ps,
                                                     const double gyro,
                                                     const double alpha,
@@ -141,6 +513,26 @@ void destroy_test_simulation() {
   globals::config.reset();
 }
 
+void setup_test_simulation(const std::string& config_text) {
+  destroy_test_simulation();
+  globals::config = std::make_unique<libconfig::Config>();
+  globals::config->readString(config_text);
+
+  globals::lattice = new Lattice();
+  globals::lattice->init_from_config(*globals::config);
+
+  globals::solver = Solver::create(globals::config->lookup("solver"));
+  globals::solver->register_physics_module(Physics::create(globals::config->lookup("physics")));
+
+  if (globals::config->exists("hamiltonians")) {
+    const auto& hamiltonian_settings = globals::config->lookup("hamiltonians");
+    for (auto i = 0; i < hamiltonian_settings.getLength(); ++i) {
+      globals::solver->register_hamiltonian(
+          Hamiltonian::create(hamiltonian_settings[i], globals::num_spins, globals::solver->is_cuda_solver()));
+    }
+  }
+}
+
 #if HAS_CUDA
 bool have_cuda_device() {
   int device_count = 0;
@@ -157,6 +549,25 @@ void synchronize_solver_state() {
 void synchronize_solver_state() {}
 #endif
 
+std::vector<std::array<double, 3>> run_config_to_completion(const std::string& config_text) {
+  setup_test_simulation(config_text);
+
+  for (int step = 1; step <= globals::solver->max_steps(); ++step) {
+    globals::solver->update_physics_module();
+    globals::solver->run();
+  }
+
+  synchronize_solver_state();
+
+  std::vector<std::array<double, 3>> spins(globals::num_spins);
+  for (auto i = 0; i < globals::num_spins; ++i) {
+    spins[i] = {globals::s(i, 0), globals::s(i, 1), globals::s(i, 2)};
+  }
+
+  destroy_test_simulation();
+  return spins;
+}
+
 class DeterministicSingleSpinLLGTest : public ::testing::TestWithParam<std::string> {
  protected:
   void SetUp() override {
@@ -168,20 +579,7 @@ class DeterministicSingleSpinLLGTest : public ::testing::TestWithParam<std::stri
     }
 #endif
 
-    globals::config = std::make_unique<libconfig::Config>();
-    globals::config->readString(deterministic_single_spin_config(GetParam()));
-
-    globals::lattice = new Lattice();
-    globals::lattice->init_from_config(*globals::config);
-
-    globals::solver = Solver::create(globals::config->lookup("solver"));
-    globals::solver->register_physics_module(Physics::create(globals::config->lookup("physics")));
-
-    const auto& hamiltonian_settings = globals::config->lookup("hamiltonians");
-    for (auto i = 0; i < hamiltonian_settings.getLength(); ++i) {
-      globals::solver->register_hamiltonian(
-          Hamiltonian::create(hamiltonian_settings[i], globals::num_spins, globals::solver->is_cuda_solver()));
-    }
+    setup_test_simulation(deterministic_single_spin_config(GetParam()));
   }
 
   void TearDown() override {
@@ -224,6 +622,11 @@ TEST_P(DeterministicSingleSpinLLGTest, FollowsAnalyticDampedTrajectory) {
 std::vector<std::string> deterministic_llg_solver_modules() {
   std::vector<std::string> solvers = {
       "llg-heun-cpu",
+      "llg-rk4-cpu",
+      "llg-rkmk2-cpu",
+      "llg-rkmk4-cpu",
+      "llg-simp-cpu",
+      "llg-dm-cpu",
   };
 
 #if HAS_CUDA
@@ -232,9 +635,49 @@ std::vector<std::string> deterministic_llg_solver_modules() {
   solvers.emplace_back("llg-rkmk2-gpu");
   solvers.emplace_back("llg-rkmk4-gpu");
   solvers.emplace_back("llg-simp-gpu");
+  solvers.emplace_back("llg-dm-gpu");
 #endif
 
   return solvers;
+}
+
+TEST(SolverDescriptorConfigTest, BackendIntegratorEquationConfigMatchesLegacyModule) {
+  const auto legacy_spin = run_config_to_completion(deterministic_single_spin_config("llg-rk4-cpu")).front();
+  const auto generic_spin = run_config_to_completion(
+      deterministic_single_spin_descriptor_config("cpu", "rk4")).front();
+
+  EXPECT_LT(angular_error_deg(legacy_spin, generic_spin), 1e-10);
+  EXPECT_LT(norm_error(generic_spin), kMaxNormError);
+}
+
+TEST(LLGDynamicsTermConfigTest, GenericSotTermMatchesLegacySotAlias) {
+  const auto legacy_spin = run_config_to_completion(legacy_sot_single_spin_config()).front();
+  const auto generic_spin = run_config_to_completion(generic_sot_single_spin_config()).front();
+
+  EXPECT_LT(angular_error_deg(legacy_spin, generic_spin), 1e-10);
+  EXPECT_LT(norm_error(generic_spin), kMaxNormError);
+}
+
+TEST(LLGDynamicsSelectorTest, SurfaceSelectorMatchesExplicitSurfaceSites) {
+  const auto surface_spins = run_config_to_completion(surface_selector_config());
+  const auto explicit_spins = run_config_to_completion(explicit_surface_site_config());
+
+  ASSERT_EQ(surface_spins.size(), explicit_spins.size());
+  for (std::size_t i = 0; i < surface_spins.size(); ++i) {
+    EXPECT_LT(angular_error_deg(surface_spins[i], explicit_spins[i]), 1e-10);
+    EXPECT_LT(norm_error(surface_spins[i]), kMaxNormError);
+  }
+}
+
+TEST(AdditionalCpuBackendsSmokeTest, GseAndLorentzianCpuBackendsRunOneStep) {
+  const auto gse_spin = run_config_to_completion(gse_cpu_descriptor_config()).front();
+  const auto lorentzian_spin = run_config_to_completion(ll_lorentzian_cpu_descriptor_config()).front();
+  const std::array<double, 3> expected = {1.0, 0.0, 0.0};
+
+  EXPECT_LT(angular_error_deg(gse_spin, expected), 1e-10);
+  EXPECT_LT(angular_error_deg(lorentzian_spin, expected), 1e-10);
+  EXPECT_LT(norm_error(gse_spin), kMaxNormError);
+  EXPECT_LT(norm_error(lorentzian_spin), kMaxNormError);
 }
 
 INSTANTIATE_TEST_SUITE_P(

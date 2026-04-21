@@ -27,6 +27,7 @@ private:
     jams::MultiArray<double, 2> k1_;
     jams::MultiArray<double, 2> k2_;
     jams::MultiArray<double, 2> k3_;
+    jams::MultiArray<double, 2> extra_torque_;
 };
 
 #endif

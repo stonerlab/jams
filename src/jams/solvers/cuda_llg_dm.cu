@@ -16,6 +16,8 @@
 #include "jams/core/globals.h"
 #include "jams/cuda/cuda_device_vector_ops.h"
 #include "jams/solvers/cuda_solver_functions.cuh"
+#include "jams/solvers/llg_spin_torque_terms.h"
+#include "jams/solvers/solver_descriptor.h"
 
 // -----------------------------------------------------------------------------
 // Kernel 1: compute ω_n, store it, and do predictor rotation S* = R(Δt ω_n) S_n
@@ -28,6 +30,7 @@ __global__ void cuda_llg_dm_kernel_predict
   const jams::Real * h_step_dev,        // field at time t_n for S_n
   const jams::Real * gyro_dev,
   const jams::Real * mus_dev,
+  const double * torque_dev,
   const jams::Real * alpha_dev,
   const unsigned dev_num_spins,
   const double dt
@@ -50,8 +53,14 @@ __global__ void cuda_llg_dm_kernel_predict
     s[n] = s_init_dev[base + n];
   }
 
+  double torque[3];
+  #pragma unroll
+  for (int n = 0; n < 3; ++n) {
+    torque[n] = torque_dev[base + n];
+  }
+
   double omega1[3];
-  omega_llg(s, h, gyro_dev[idx], alpha_dev[idx], omega1);
+  omega_llg(s, h, torque, gyro_dev[idx], alpha_dev[idx], mus_dev[idx], omega1);
 
   // store ω_n
   #pragma unroll
@@ -88,6 +97,7 @@ __global__ void cuda_llg_dm_kernel_correct
   const jams::Real * h_step_dev,        // field at time t_{n+1} (or t_n+Δt) for S*
   const jams::Real * gyro_dev,
   const jams::Real * mus_dev,
+  const double * torque_dev,
   const jams::Real * alpha_dev,
   const unsigned dev_num_spins,
   const double dt
@@ -110,8 +120,14 @@ __global__ void cuda_llg_dm_kernel_correct
     s_pred[n] = s_pred_dev[base + n];
   }
 
+  double torque[3];
+  #pragma unroll
+  for (int n = 0; n < 3; ++n) {
+    torque[n] = torque_dev[base + n];
+  }
+
   double omega2[3];
-  omega_llg(s_pred, h, gyro_dev[idx], alpha_dev[idx], omega2);
+  omega_llg(s_pred, h, torque, gyro_dev[idx], alpha_dev[idx], mus_dev[idx], omega2);
 
   double omega1[3];
   #pragma unroll
@@ -176,6 +192,8 @@ void CUDALLGDMSolver::initialize(const libconfig::Setting& settings)
   s_init_.resize(globals::num_spins, 3);
   s_pred_.resize(globals::num_spins, 3);
   omega1_.resize(globals::num_spins, 3);
+  extra_torque_ = jams::solvers::build_llg_spin_torque_field(
+      settings, jams::solvers::describe_solver_setting(settings, *globals::config)).torque;
 
   // initial snapshot (same as your RKMK2)
   for (auto i = 0; i < globals::num_spins; ++i) {
@@ -229,6 +247,7 @@ void CUDALLGDMSolver::run()
     globals::h.device_data(),
     globals::gyro.device_data(),
     globals::mus.device_data(),
+    extra_torque_.device_data(),
     globals::alpha.device_data(),
     globals::num_spins, step_size_);
   DEBUG_CHECK_CUDA_ASYNC_STATUS
@@ -256,6 +275,7 @@ void CUDALLGDMSolver::run()
     globals::h.device_data(),
     globals::gyro.device_data(),
     globals::mus.device_data(),
+    extra_torque_.device_data(),
     globals::alpha.device_data(),
     globals::num_spins, step_size_);
   DEBUG_CHECK_CUDA_ASYNC_STATUS

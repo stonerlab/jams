@@ -24,19 +24,12 @@ Optional settings
 Minimum number of Monte Carlo steps to solve (in case a monitor can stop
 the solver due to a convergence criterion).
 
-.. describe:: use_random_spin_order = true
+.. describe:: select_spins_by_random = true
 
 Toggle whether spins are selected randomly for trial moves or if the spins
 are selected in-order. On some systems/compilers the in-order selection
 has been seen to be 4x faster. Both methods should converge to the correct
 thermodynamic solution given enough steps.
-
-.. describe:: use_total_energy = false
-
-Toggle whether energy difference are calculated per spin or using the total
-energy. Setting `use_total_energy` to ``true`` will be much slower.
-This setting exists primarily to test that the Hamiltonians give the same result
-for the total energy and one spin energy calculations.
 
 .. describe:: output_write_steps = 1000
 
@@ -53,8 +46,8 @@ The total move fraction should add to 1 (JAMS will normalise anyway).
 The move to use for a given Monte Carlo step is chosen randomly but the same
 move is used for every trial move within one step.
 
-Statistics about how many moves were accepted of each type are printed to the
-terminal every `output_write_steps` steps.
+Statistics about how many moves were accepted of each type are written to
+``monte_carlo_stats.tsv`` every ``output_write_steps`` steps.
 
 .. describe:: move_fraction_uniform = 0.0
 
@@ -86,33 +79,3 @@ Fraction between 0 and 1 of trial moves reflect a spin.
 .. warning::
     This trial move is non-ergodic for Heisenberg spins and **must** be used
     in combination with other types of trial move.
-
-Preconditioners
-"""""""""""""""
-
-Preconditioners do some initial work before the main Monte Carlo loop to try
-and get to a reasonable starting configuration (close to a global energy
-minimum). This is a short thermalisation (500 Monte Carlo steps) followed
-by some algorithm.
-
-Currently where is only one preconditioner (*SystematicPreconditioner*) which
-does a quick search of angles for the total magnetisation to see which
-orientation gives the lowest energy.
-
-.. describe:: preconditioner_theta = 5.0
-
-.. describe:: preconditioner_phi = 5.0
-
-The :math:`\Delta\theta,\Delta\phi` to search for the minimum energy over.
-
-A data file :file:`seedname_mc_pre.tsv` will be written with the columns:
-
-1. theta (deg)
-2. phi (deg)
-3. energy (J)
-
-
-
-
-
-

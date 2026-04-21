@@ -25,6 +25,7 @@ private:
     CudaStream dev_stream_;
     jams::MultiArray<double, 2> s_init_;
     jams::MultiArray<double, 2> phi_;
+    jams::MultiArray<double, 2> extra_torque_;
 
 };
 

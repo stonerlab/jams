@@ -15,6 +15,7 @@ __global__ void cuda_llg_rk4_kernel
   double * k_dev,
   const jams::Real * h_dev,
   const jams::Real * noise_dev,
+  const double * torque_dev,
   const jams::Real * gyro_dev,
   const jams::Real * mus_dev,
   const jams::Real * alpha_dev,
@@ -35,6 +36,11 @@ __global__ void cuda_llg_rk4_kernel
       s[n] = s_dev[3*idx + n];
     }
 
+    double tau[3];
+    for (auto n = 0; n < 3; ++n) {
+      tau[n] = torque_dev[3*idx + n];
+    }
+
     double sxh[3] = {
         (s[1] * h[2] - s[2] * h[1]),
         (s[2] * h[0] - s[0] * h[2]),
@@ -47,9 +53,17 @@ __global__ void cuda_llg_rk4_kernel
         (s[0] * sxh[1] - s[1] * sxh[0])
     };
 
+    const double s_dot_tau = s[0] * tau[0] + s[1] * tau[1] + s[2] * tau[2];
+    const double s_dot_s = s[0] * s[0] + s[1] * s[1] + s[2] * s[2];
+    double sxsxtau[3] = {
+        s_dot_tau * s[0] - s_dot_s * tau[0],
+        s_dot_tau * s[1] - s_dot_s * tau[1],
+        s_dot_tau * s[2] - s_dot_s * tau[2]
+    };
+
     double rhs[3];
     for (auto n = 0; n < 3; ++n) {
-      rhs[n] = -gyro_dev[idx] * (sxh[n] + alpha_dev[idx] * sxsxh[n]);
+      rhs[n] = -gyro_dev[idx] * (sxh[n] + alpha_dev[idx] * sxsxh[n] + sxsxtau[n] / mus_dev[idx]);
     }
 
     for (auto n = 0; n < 3; ++n) {

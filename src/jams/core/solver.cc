@@ -20,6 +20,9 @@
 #include "jams/helpers/defaults.h"
 
 #include "jams/solvers/null_solver.h"
+#include "jams/solvers/cpu_gse_rk4.h"
+#include "jams/solvers/cpu_ll_lorentzian_rk4.h"
+#include "jams/solvers/cpu_llg_additional_solvers.h"
 #include "jams/solvers/cuda_llg_dm.h"
 #include "jams/solvers/cuda_gse_rk4.h"
 #include "jams/solvers/cuda_llg_heun.h"
@@ -34,15 +37,7 @@
 #include "jams/solvers/cpu_metadynamics_metropolis_solver.h"
 #include "jams/solvers/cuda_llg_rkmk2.h"
 #include "jams/solvers/cuda_llg_rkmk4.h"
-
-
-#define DEFINED_SOLVER(name, type, settings) \
-{ \
-if (lowercase(settings["module"]) == name) { \
-std::cout << name << " solver \n"; \
-return new type(settings); \
-} \
-}
+#include "jams/solvers/solver_descriptor.h"
 
 
 void Solver::compute_fields() {
@@ -76,26 +71,92 @@ void Solver::compute_fields() {
 
 
 Solver* Solver::create(const libconfig::Setting &settings) {
-  DEFINED_SOLVER("null", NullSolver, settings);
-  DEFINED_SOLVER("rotations-cpu", RotationSolver, settings);
-  DEFINED_SOLVER("llg-heun-cpu", HeunLLGSolver, settings);
-  DEFINED_SOLVER("monte-carlo-metropolis-cpu", MetropolisMCSolver, settings);
-  DEFINED_SOLVER("monte-carlo-constrained-cpu", ConstrainedMCSolver, settings);
-  DEFINED_SOLVER("monte-carlo-metadynamics-cpu", MetadynamicsMetropolisSolver, settings);
+  const auto descriptor = jams::solvers::describe_solver_setting(settings, *globals::config);
+  const auto canonical_name = jams::solvers::canonical_solver_name(descriptor);
+  std::cout << canonical_name << " solver\n";
 
+  using jams::solvers::Backend;
+  using jams::solvers::EquationKind;
+  using jams::solvers::IntegratorKind;
+
+  if (descriptor.backend == Backend::CPU) {
+    if (descriptor.integrator == IntegratorKind::Null) {
+      return new NullSolver(settings);
+    }
+    if (descriptor.integrator == IntegratorKind::Rotations) {
+      return new RotationSolver(settings);
+    }
+    if (descriptor.integrator == IntegratorKind::MonteCarloMetropolis) {
+      return new MetropolisMCSolver(settings);
+    }
+    if (descriptor.integrator == IntegratorKind::MonteCarloConstrained) {
+      return new ConstrainedMCSolver(settings);
+    }
+    if (descriptor.integrator == IntegratorKind::MonteCarloMetadynamics) {
+      return new MetadynamicsMetropolisSolver(settings);
+    }
+    if (descriptor.equation == EquationKind::LLG) {
+      if (descriptor.integrator == IntegratorKind::Heun) {
+        return new HeunLLGSolver(settings);
+      }
+      if (descriptor.integrator == IntegratorKind::RK4) {
+        return new CPULLGRK4Solver(settings);
+      }
+      if (descriptor.integrator == IntegratorKind::RKMK2) {
+        return new CPULLGRKMK2Solver(settings);
+      }
+      if (descriptor.integrator == IntegratorKind::RKMK4) {
+        return new CPULLGRKMK4Solver(settings);
+      }
+      if (descriptor.integrator == IntegratorKind::SemiImplicit) {
+        return new CPULLGSemiImplicitSolver(settings);
+      }
+      if (descriptor.integrator == IntegratorKind::DM) {
+        return new CPULLGDMSolver(settings);
+      }
+    }
+    if (descriptor.equation == EquationKind::GSE && descriptor.integrator == IntegratorKind::RK4) {
+      return new CPUGSERK4Solver(settings);
+    }
+    if (descriptor.equation == EquationKind::LLLorentzian && descriptor.integrator == IntegratorKind::RK4) {
+      return new CPULLLorentzianRK4Solver(settings);
+    }
+  }
+
+  if (descriptor.backend == Backend::GPU) {
 #if HAS_CUDA
-  DEFINED_SOLVER("gse-rk4-gpu", CUDAGSERK4Solver, settings);
-  DEFINED_SOLVER("llg-heun-gpu", CUDAHeunLLGSolver, settings);
-  DEFINED_SOLVER("llg-dm-gpu", CUDALLGDMSolver, settings);
-  DEFINED_SOLVER("llg-rk4-gpu", CUDALLGRK4Solver, settings);
-  DEFINED_SOLVER("ll-lorentzian-rk4-gpu", CUDALLLorentzianRK4Solver, settings);
-  DEFINED_SOLVER("llg-sot-rk4-gpu", CudaRK4LLGSOTSolver, settings);
-  DEFINED_SOLVER("llg-simp-gpu", CUDALLGSemiImplictSolver, settings);
-  DEFINED_SOLVER("llg-rkmk2-gpu", CUDALLGRKMK2Solver, settings);
-  DEFINED_SOLVER("llg-rkmk4-gpu", CUDALLGRKMK4Solver, settings);
+    if (descriptor.equation == EquationKind::LLG) {
+      if (descriptor.integrator == IntegratorKind::Heun) {
+        return new CUDAHeunLLGSolver(settings);
+      }
+      if (descriptor.integrator == IntegratorKind::RK4) {
+        return new CUDALLGRK4Solver(settings);
+      }
+      if (descriptor.integrator == IntegratorKind::RKMK2) {
+        return new CUDALLGRKMK2Solver(settings);
+      }
+      if (descriptor.integrator == IntegratorKind::RKMK4) {
+        return new CUDALLGRKMK4Solver(settings);
+      }
+      if (descriptor.integrator == IntegratorKind::SemiImplicit) {
+        return new CUDALLGSemiImplictSolver(settings);
+      }
+      if (descriptor.integrator == IntegratorKind::DM) {
+        return new CUDALLGDMSolver(settings);
+      }
+    }
+    if (descriptor.equation == EquationKind::GSE && descriptor.integrator == IntegratorKind::RK4) {
+      return new CUDAGSERK4Solver(settings);
+    }
+    if (descriptor.equation == EquationKind::LLLorentzian && descriptor.integrator == IntegratorKind::RK4) {
+      return new CUDALLLorentzianRK4Solver(settings);
+    }
+#else
+    throw std::runtime_error("CUDA solver requested but JAMS was built without CUDA support");
 #endif
+  }
 
-  throw std::runtime_error("unknown solver " + std::string(settings["module"].c_str()));
+  throw std::runtime_error("unsupported solver configuration " + canonical_name);
 }
 
 
@@ -163,5 +224,3 @@ Monitor::ConvergenceStatus Solver::convergence_status() {
 
   return Monitor::ConvergenceStatus::kConverged;
 }
-
-#undef DEFINED_SOLVER

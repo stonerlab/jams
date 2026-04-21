@@ -10,6 +10,9 @@
 #include "jams/core/globals.h"
 #include "jams/core/physics.h"
 #include "jams/helpers/random.h"
+#include "jams/solvers/llg_solver_utils.h"
+#include "jams/solvers/llg_spin_torque_terms.h"
+#include "jams/solvers/solver_descriptor.h"
 
 void HeunLLGSolver::initialize(const libconfig::Setting& settings) {
   // convert input in seconds to picoseconds for internal units
@@ -27,6 +30,8 @@ void HeunLLGSolver::initialize(const libconfig::Setting& settings) {
   s_old_.resize(globals::num_spins, 3);
   sigma_.resize(globals::num_spins);
   w_.resize(globals::num_spins, 3);
+  extra_torque_ = jams::solvers::build_llg_spin_torque_field(
+      settings, jams::solvers::describe_solver_setting(settings, *globals::config)).torque;
 
   bool use_gilbert_prefactor = jams::config_optional<bool>(settings, "gilbert_prefactor", false);
   std::cout << "    llg gilbert_prefactor " << use_gilbert_prefactor << "\n";
@@ -80,8 +85,9 @@ void HeunLLGSolver::run() {
   for (auto i = 0; i < globals::num_spins; ++i) {
     Vec3 spin = {globals::s(i,0), globals::s(i,1), globals::s(i,2)};
     Vec3 field = {globals::h(i,0), globals::h(i,1), globals::h(i,2)};
-
-    Vec3 rhs = -globals::gyro(i) * (jams::cross(spin, field) + globals::alpha(i) * jams::cross(spin, (jams::cross(spin, field))));
+    Vec3 extra_torque = {extra_torque_(i, 0), extra_torque_(i, 1), extra_torque_(i, 2)};
+    Vec3 rhs = jams::solvers::llg_rhs(
+        spin, field, globals::gyro(i), globals::alpha(i), extra_torque, globals::mus(i));
 
     for (auto j = 0; j < 3; ++j) {
       globals::ds_dt(i, j) = 0.5 * rhs[j];
@@ -119,7 +125,9 @@ void HeunLLGSolver::run() {
     Vec3 spin_old = {s_old_(i,0), s_old_(i,1), s_old_(i,2)};
 
     Vec3 field = {globals::h(i,0), globals::h(i,1), globals::h(i,2)};
-    Vec3 rhs = -globals::gyro(i) * (jams::cross(spin, field) + globals::alpha(i) * jams::cross(spin, (jams::cross(spin, field))));
+    Vec3 extra_torque = {extra_torque_(i, 0), extra_torque_(i, 1), extra_torque_(i, 2)};
+    Vec3 rhs = jams::solvers::llg_rhs(
+        spin, field, globals::gyro(i), globals::alpha(i), extra_torque, globals::mus(i));
 
     for (auto j = 0; j < 3; ++j) {
       globals::ds_dt(i, j) = globals::ds_dt(i, j) + 0.5 * rhs[j];

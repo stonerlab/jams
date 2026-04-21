@@ -23,6 +23,7 @@ private:
     jams::MultiArray<double, 2> s_init_;
     jams::MultiArray<double, 2> s_pred_;
     jams::MultiArray<double, 2> omega1_;   // store ω_n for averaging
+    jams::MultiArray<double, 2> extra_torque_;
 };
 
 #endif

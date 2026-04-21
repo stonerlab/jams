@@ -15,6 +15,8 @@
 #include "jams/core/physics.h"
 #include "jams/helpers/error.h"
 #include "jams/cuda/cuda_common.h"
+#include "jams/solvers/llg_spin_torque_terms.h"
+#include "jams/solvers/solver_descriptor.h"
 
 #include "cuda_llg_heun_kernel.cuh"
 #include "jams/common.h"
@@ -47,6 +49,9 @@ void CUDAHeunLLGSolver::initialize(const libconfig::Setting& settings)
       s_old_(i, j) = globals::s(i, j);
     }
   }
+
+  extra_torque_ = jams::solvers::build_llg_spin_torque_field(
+      settings, jams::solvers::describe_solver_setting(settings, *globals::config)).torque;
 }
 
 void CUDAHeunLLGSolver::run()
@@ -74,6 +79,7 @@ void CUDAHeunLLGSolver::run()
   cuda_heun_llg_kernelA<<<grid_size, block_size, 0, jams::instance().cuda_master_stream().get()>>>
     (globals::s.device_data(), globals::ds_dt.device_data(), s_old_.device_data(),
      globals::h.device_data(), thermostat_->device_data(),
+     extra_torque_.device_data(),
      globals::gyro.device_data(), globals::mus.device_data(), globals::alpha.device_data(),
        step_size_, globals::num_spins);
     DEBUG_CHECK_CUDA_ASYNC_STATUS
@@ -88,6 +94,7 @@ void CUDAHeunLLGSolver::run()
   cuda_heun_llg_kernelB<<<grid_size, block_size, 0, jams::instance().cuda_master_stream().get()>>>
     (globals::s.device_data(), globals::ds_dt.device_data(), s_old_.device_data(),
       globals::h.device_data(), thermostat_->device_data(),
+      extra_torque_.device_data(),
       globals::gyro.device_data(), globals::mus.device_data(), globals::alpha.device_data(),
       step_size_, globals::num_spins);
     DEBUG_CHECK_CUDA_ASYNC_STATUS
@@ -96,4 +103,3 @@ void CUDAHeunLLGSolver::run()
   iteration_++;
   time_ = iteration_ * step_size_;
 }
-

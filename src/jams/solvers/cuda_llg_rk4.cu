@@ -9,9 +9,17 @@
 #include "jams/core/thermostat.h"
 
 #include "jams/cuda/cuda_common.h"
+#include "jams/solvers/llg_spin_torque_terms.h"
+#include "jams/solvers/solver_descriptor.h"
 
 #include "cuda_llg_rk4_kernel.cuh"
 #include <jams/cuda/cuda_spin_ops.h>
+
+CUDALLGRK4Solver::CUDALLGRK4Solver(const libconfig::Setting &settings)
+    : CudaRK4BaseSolver(settings) {
+  extra_torque_ = jams::solvers::build_llg_spin_torque_field(
+      settings, jams::solvers::describe_solver_setting(settings, *globals::config)).torque;
+}
 
 
 void CUDALLGRK4Solver::function_kernel(jams::MultiArray<double, 2>& spins, jams::MultiArray<double, 2>& k) {
@@ -23,7 +31,7 @@ void CUDALLGRK4Solver::function_kernel(jams::MultiArray<double, 2>& spins, jams:
   // using default stream blocks all streams until complete to force synchronisation
   cuda_llg_rk4_kernel<<<grid_size, block_size>>>
       (spins.device_data(), k.device_data(),
-       globals::h.device_data(), thermostat_->device_data(),
+       globals::h.device_data(), thermostat_->device_data(), extra_torque_.device_data(),
        globals::gyro.device_data(), globals::mus.device_data(),
        globals::alpha.device_data(), globals::num_spins);
   DEBUG_CHECK_CUDA_ASYNC_STATUS

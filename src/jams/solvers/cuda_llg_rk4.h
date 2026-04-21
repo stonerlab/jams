@@ -11,15 +11,17 @@
 
 class CUDALLGRK4Solver : public CudaRK4BaseSolver {
   public:
-    inline explicit CUDALLGRK4Solver(const libconfig::Setting &settings) : CudaRK4BaseSolver(settings) {};
+    explicit CUDALLGRK4Solver(const libconfig::Setting &settings);
 
     std::string name() const override { return "llg-rk4-gpu"; }
 
     void function_kernel(jams::MultiArray<double, 2>& spins, jams::MultiArray<double, 2>& k) override;
     void post_step(jams::MultiArray<double, 2>& spins) override;
+
+  private:
+    jams::MultiArray<double, 2> extra_torque_;
 };
 
 #endif
 
 #endif // JAMS_SOLVER_CUDA_LLG_RK4_H
-

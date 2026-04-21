@@ -9,6 +9,8 @@
 #include "jams/core/globals.h"
 #include "jams/cuda/cuda_device_vector_ops.h"
 #include "jams/solvers/cuda_solver_functions.cuh"
+#include "jams/solvers/llg_spin_torque_terms.h"
+#include "jams/solvers/solver_descriptor.h"
 
 __global__ void cuda_llg_rkmk2_kernel_step_1
 (
@@ -18,6 +20,7 @@ __global__ void cuda_llg_rkmk2_kernel_step_1
   const jams::Real * h_step_dev,  // field at the same time as s_step
   const jams::Real * gyro_dev,
   const jams::Real * mus_dev,
+  const double * torque_dev,
   const jams::Real * alpha_dev,
   const unsigned dev_num_spins,
   const double dt
@@ -38,8 +41,13 @@ __global__ void cuda_llg_rkmk2_kernel_step_1
     s[n] = s_init_dev[base + n];
   }
 
+  double torque[3];
+  for (auto n = 0; n < 3; ++n) {
+    torque[n] = torque_dev[base + n];
+  }
+
   double omega[3];
-  omega_llg(s, h, gyro_dev[idx], alpha_dev[idx], omega);
+  omega_llg(s, h, torque, gyro_dev[idx], alpha_dev[idx], mus_dev[idx], omega);
 
   double phi[3];
   for (auto n = 0; n < 3; ++n) {
@@ -68,6 +76,7 @@ __global__ void cuda_llg_rkmk2_kernel_step_2
   const jams::Real * h_step_dev,  // field at the same time as s_step
   const jams::Real * gyro_dev,
   const jams::Real * mus_dev,
+  const double * torque_dev,
   const jams::Real * alpha_dev,
   const unsigned dev_num_spins,
   const double dt
@@ -88,8 +97,13 @@ __global__ void cuda_llg_rkmk2_kernel_step_2
     s[n] = s_step_dev[base + n];
   }
 
+  double torque[3];
+  for (auto n = 0; n < 3; ++n) {
+    torque[n] = torque_dev[base + n];
+  }
+
   double omega[3];
-  omega_llg(s, h, gyro_dev[idx], alpha_dev[idx], omega);
+  omega_llg(s, h, torque, gyro_dev[idx], alpha_dev[idx], mus_dev[idx], omega);
 
   double v2[3];
   for (auto n = 0; n < 3; ++n) {
@@ -144,6 +158,8 @@ void CUDALLGRKMK2Solver::initialize(const libconfig::Setting& settings)
 
   phi_.resize(globals::num_spins, 3);
   s_init_.resize(globals::num_spins, 3);
+  extra_torque_ = jams::solvers::build_llg_spin_torque_field(
+      settings, jams::solvers::describe_solver_setting(settings, *globals::config)).torque;
   for (auto i = 0; i < globals::num_spins; ++i) {
     for (auto j = 0; j < 3; ++j) {
       s_init_(i, j) = globals::s(i, j);
@@ -192,6 +208,7 @@ void CUDALLGRKMK2Solver::run()
     globals::h.device_data(),
     globals::gyro.device_data(),
     globals::mus.device_data(),
+    extra_torque_.device_data(),
     globals::alpha.device_data(),
     globals::num_spins, step_size_
     );
@@ -211,6 +228,7 @@ void CUDALLGRKMK2Solver::run()
     globals::h.device_data(),
     globals::gyro.device_data(),
     globals::mus.device_data(),
+    extra_torque_.device_data(),
     globals::alpha.device_data(),
     globals::num_spins, step_size_
     );

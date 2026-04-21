@@ -26,9 +26,9 @@ class CUDAHeunLLGSolver : public CudaSolver {
   private:
     CudaStream dev_stream_;
     jams::MultiArray<double, 2> s_old_;
+    jams::MultiArray<double, 2> extra_torque_;
 };
 
 #endif
 
 #endif // JAMS_SOLVER_CUDA_HEUNLLG_H
-

@@ -19,6 +19,19 @@ void omega_llg(const double s[3], const jams::Real h[3],
   result[2] = gyro * (h[2] + alpha * (s[0] * h[1] - s[1] * h[0]));
 }
 
+__device__ __forceinline__
+void omega_llg(const double s[3], const jams::Real h[3], const double torque[3],
+               const jams::Real gyro, const jams::Real alpha, const jams::Real mu,
+               double result[3])
+{
+  double sxt[3];
+  cross_product(s, torque, sxt);
+
+  result[0] = gyro * (h[0] + alpha * (s[1] * h[2] - s[2] * h[1]) + sxt[0] / mu);
+  result[1] = gyro * (h[1] + alpha * (s[2] * h[0] - s[0] * h[2]) + sxt[1] / mu);
+  result[2] = gyro * (h[2] + alpha * (s[0] * h[1] - s[1] * h[0]) + sxt[2] / mu);
+}
+
 
 __device__ __forceinline__
 double3 omega_llg(const double3& s, const jams::Real3& h,
@@ -28,6 +41,18 @@ double3 omega_llg(const double3& s, const jams::Real3& h,
     gyro * (alpha * (s.y * h.z - s.z * h.y) + h.x),
     gyro * (alpha * (s.z * h.x - s.x * h.z) + h.y),
     gyro * (alpha * (s.x * h.y - s.y * h.x) + h.z),
+  };
+}
+
+__device__ __forceinline__
+double3 omega_llg(const double3& s, const jams::Real3& h, const double3& torque,
+               const double gyro, const double alpha, const double mu)
+{
+  const double3 sxt = cross_product(s, torque);
+  return {
+    gyro * (alpha * (s.y * h.z - s.z * h.y) + h.x + sxt.x / mu),
+    gyro * (alpha * (s.z * h.x - s.x * h.z) + h.y + sxt.y / mu),
+    gyro * (alpha * (s.x * h.y - s.y * h.x) + h.z + sxt.z / mu),
   };
 }
 

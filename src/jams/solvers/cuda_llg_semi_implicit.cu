@@ -8,6 +8,8 @@
 #include "jams/core/globals.h"
 #include "jams/cuda/cuda_device_vector_ops.h"
 #include "jams/solvers/cuda_solver_functions.cuh"
+#include "jams/solvers/llg_spin_torque_terms.h"
+#include "jams/solvers/solver_descriptor.h"
 
 
 __global__ __maxnreg__(32)
@@ -16,8 +18,11 @@ void cuda_llg_semi_implicit_pred_kernel
   double * __restrict__ s_inout_dev, // in: S_n, out: (S_n + S'_n+1) / 2
   const jams::Real * __restrict__ h_dev,
   const jams::Real * __restrict__ gyro_dev,
+  const jams::Real * __restrict__ mus_dev,
+  const double * __restrict__ torque_dev,
   const jams::Real * __restrict__ alpha_dev,
-  const unsigned dev_num_spins
+  const unsigned dev_num_spins,
+  const double dt
 )
 {
   const unsigned int idx = blockIdx.x * blockDim.x + threadIdx.x;
@@ -26,9 +31,15 @@ void cuda_llg_semi_implicit_pred_kernel
   const unsigned int base = 3u * idx;
 
   jams::Real3 h = {
-    h_dev[base + 0],
-    h_dev[base + 1],
-    h_dev[base + 2]
+    h_dev[base + 0] / mus_dev[idx],
+    h_dev[base + 1] / mus_dev[idx],
+    h_dev[base + 2] / mus_dev[idx]
+  };
+
+  const double3 torque = {
+    torque_dev[base + 0],
+    torque_dev[base + 1],
+    torque_dev[base + 2]
   };
 
   const double3 s = {
@@ -37,7 +48,10 @@ void cuda_llg_semi_implicit_pred_kernel
     s_inout_dev[base + 2]
   };
 
-  double3 omega = omega_llg(s, h, gyro_dev[idx], alpha_dev[idx]);
+  double3 omega = omega_llg(s, h, torque, gyro_dev[idx], alpha_dev[idx], mus_dev[idx]);
+  omega.x *= dt;
+  omega.y *= dt;
+  omega.z *= dt;
 
   omega = project_to_tangent(omega, s);
 
@@ -60,8 +74,11 @@ __global__ void cuda_llg_semi_implicit_corr_kernel
   const double * __restrict__ s_init_dev, // S_n
   const jams::Real * __restrict__ h_dev,  // field at the same time as s_step
   const jams::Real * __restrict__ gyro_dev,
+  const jams::Real * __restrict__ mus_dev,
+  const double * __restrict__ torque_dev,
   const jams::Real * __restrict__ alpha_dev,
-  const unsigned dev_num_spins
+  const unsigned dev_num_spins,
+  const double dt
   )
 {
   const unsigned int idx = blockIdx.x * blockDim.x + threadIdx.x;
@@ -70,9 +87,15 @@ __global__ void cuda_llg_semi_implicit_corr_kernel
   const unsigned int base = 3u * idx;
 
   const jams::Real3 h = {
-    h_dev[base + 0],
-    h_dev[base + 1],
-    h_dev[base + 2]
+    h_dev[base + 0] / mus_dev[idx],
+    h_dev[base + 1] / mus_dev[idx],
+    h_dev[base + 2] / mus_dev[idx]
+  };
+
+  const double3 torque = {
+    torque_dev[base + 0],
+    torque_dev[base + 1],
+    torque_dev[base + 2]
   };
 
   const double3 s = {
@@ -81,7 +104,10 @@ __global__ void cuda_llg_semi_implicit_corr_kernel
     s_inout_dev[base + 2]
   };
 
-  double3 omega = omega_llg(s, h, gyro_dev[idx], alpha_dev[idx]);
+  double3 omega = omega_llg(s, h, torque, gyro_dev[idx], alpha_dev[idx], mus_dev[idx]);
+  omega.x *= dt;
+  omega.y *= dt;
+  omega.z *= dt;
 
   omega = project_to_tangent(omega, s);
 
@@ -120,12 +146,8 @@ void CUDALLGSemiImplictSolver::initialize(const libconfig::Setting& settings)
   std::cout << "  thermostat " << thermostat_name.c_str() << "\n";
 
   std::cout << "done\n";
-
-  dt_gyro_mu_.resize(globals::num_spins);
-  for (auto i = 0; i < globals::num_spins; ++i)
-  {
-    dt_gyro_mu_(i) = step_size_ * globals::gyro(i) / globals::mus(i);
-  }
+  extra_torque_ = jams::solvers::build_llg_spin_torque_field(
+      settings, jams::solvers::describe_solver_setting(settings, *globals::config)).torque;
 
   s_init_.resize(globals::num_spins, 3);
   for (auto i = 0; i < globals::num_spins; ++i) {
@@ -169,9 +191,12 @@ void CUDALLGSemiImplictSolver::run()
   cuda_llg_semi_implicit_pred_kernel<<<grid_size, block_size, 0, jams::instance().cuda_master_stream().get()>>>(
     globals::s.device_data(),
     globals::h.device_data(),
-    dt_gyro_mu_.device_data(),
+    globals::gyro.device_data(),
+    globals::mus.device_data(),
+    extra_torque_.device_data(),
     globals::alpha.device_data(),
-    globals::num_spins
+    globals::num_spins,
+    step_size_
     );
   DEBUG_CHECK_CUDA_ASYNC_STATUS
   record_spin_barrier_event();
@@ -184,9 +209,12 @@ void CUDALLGSemiImplictSolver::run()
   globals::s.device_data(),
   s_init_.device_data(),
     globals::h.device_data(),
-    dt_gyro_mu_.device_data(),
+    globals::gyro.device_data(),
+    globals::mus.device_data(),
+    extra_torque_.device_data(),
     globals::alpha.device_data(),
-    globals::num_spins
+    globals::num_spins,
+    step_size_
     );
   DEBUG_CHECK_CUDA_ASYNC_STATUS
 

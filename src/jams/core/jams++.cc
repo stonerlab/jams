@@ -29,6 +29,7 @@
 #include "jams/helpers/utils.h"
 #include "jams/helpers/timer.h"
 #include "jams/helpers/progress_bar.h"
+#include "jams/solvers/solver_descriptor.h"
 
 #include <jams/initializer/init_dispatcher.h>
 
@@ -589,8 +590,7 @@ namespace jams {
     }
 
     void set_mode() {
-      std::string solver_name = globals::config->lookup("solver.module");
-      if (contains(lowercase(solver_name), "gpu")) {
+      if (jams::solvers::solver_uses_gpu(*globals::config)) {
         jams::instance().set_mode(Mode::GPU);
         if (!jams::instance().has_gpu_device()) {
           throw std::runtime_error("No CUDA device available");

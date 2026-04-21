@@ -31,6 +31,7 @@ public:
     jams::MultiArray<double, 2> s_old_;
     jams::MultiArray<double, 1> sigma_;
     jams::MultiArray<double, 2> w_;
+    jams::MultiArray<double, 2> extra_torque_;
 
     pcg32_k1024 random_generator_ = pcg_extras::seed_seq_from<pcg32>(jams::instance().random_generator()());
 };

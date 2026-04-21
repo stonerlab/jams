@@ -13,6 +13,7 @@ __global__ void cuda_heun_llg_kernelA
   const double * s_old_dev,
   const jams::Real * h_dev,
   const jams::Real * noise_dev,
+  const double * torque_dev,
   const jams::Real * gyro_dev,
   const jams::Real * mus_dev,
   const jams::Real * alpha_dev,
@@ -22,6 +23,7 @@ __global__ void cuda_heun_llg_kernelA
 {
   __shared__ double s[85 * 3];
   __shared__ jams::Real h[85 * 3];
+  __shared__ double tau[85 * 3];
   double rhs;
 
   const unsigned int tx3 = 3 * threadIdx.x;
@@ -37,13 +39,16 @@ __global__ void cuda_heun_llg_kernelA
 
   if (idx < dev_num_spins && ty < 3) {
     h[p0] = ((h_dev[gxy] / mus_dev[idx]) + noise_dev[gxy]);
+    tau[p0] = torque_dev[gxy] / mus_dev[idx];
     s[p0] = s_dev[gxy];
 
     __syncthreads();
 
     rhs = - gyro_dev[idx] * ((s[p1] * h[p2] - s[p2] * h[p1])
         + alpha_dev[idx] * ( s[p1] * (s[p0] * h[p1] - s[p1] * h[p0])
-                           - s[p2] * (s[p2] * h[p0] - s[p0] * h[p2]) ));
+                           - s[p2] * (s[p2] * h[p0] - s[p0] * h[p2]) )
+        + ( s[p1] * (s[p0] * tau[p1] - s[p1] * tau[p0])
+          - s[p2] * (s[p2] * tau[p0] - s[p0] * tau[p2]) ));
 
     ds_dt_dev[gxy] = 0.5 * rhs;
 
@@ -62,6 +67,7 @@ __global__ void cuda_heun_llg_kernelB
   const double * s_old_dev,
   const jams::Real * h_dev,
   const jams::Real * noise_dev,
+  const double * torque_dev,
   const jams::Real * gyro_dev,
   const jams::Real * mus_dev,
   const jams::Real * alpha_dev,
@@ -71,6 +77,7 @@ __global__ void cuda_heun_llg_kernelB
 {
   __shared__ double s[85 * 3];
   __shared__ jams::Real h[85 * 3];
+  __shared__ double tau[85 * 3];
   double rhs;
 
   const unsigned int tx3 = 3*threadIdx.x;
@@ -86,13 +93,16 @@ __global__ void cuda_heun_llg_kernelB
 
   if (idx < dev_num_spins && ty < 3) {
     h[p0] = ((h_dev[gxy] / mus_dev[idx]) + noise_dev[gxy]);
+    tau[p0] = torque_dev[gxy] / mus_dev[idx];
     s[p0] = s_dev[gxy];
 
     __syncthreads();
 
     rhs = - gyro_dev[idx] * ((s[p1] * h[p2] - s[p2] * h[p1])
                              + alpha_dev[idx] * ( s[p1] * (s[p0] * h[p1] - s[p1] * h[p0])
-                                                  - s[p2] * (s[p2] * h[p0] - s[p0] * h[p2]) ));
+                                                  - s[p2] * (s[p2] * h[p0] - s[p0] * h[p2]) )
+                             + ( s[p1] * (s[p0] * tau[p1] - s[p1] * tau[p0])
+                               - s[p2] * (s[p2] * tau[p0] - s[p0] * tau[p2]) ));
 
 
     ds_dt_dev[gxy] = ds_dt_dev[gxy] + 0.5 * rhs;
