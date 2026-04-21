@@ -64,7 +64,6 @@ __global__ inline void cuda_thermostat_quantum_spde_zero_point_kernel
                 jams::Real *noise,
                 double *zeta,
                 const jams::Real *eta,
-                const jams::Real *sigma,
                 const jams::Real h,
                 const jams::Real T,
                 const jams::Real w_m,
@@ -110,7 +109,7 @@ __global__ inline void cuda_thermostat_quantum_spde_zero_point_kernel
       s0 += c[i] * (e[i] - z[i]);
     }
 
-    noise[x] += T * sigma[x] * static_cast<jams::Real>(s0);
+    noise[x] += T * static_cast<jams::Real>(s0);
   }
 }
 
@@ -123,7 +122,6 @@ __global__ void cuda_thermostat_quantum_spde_no_zero_kernel
                 double *zeta6,
                 double *zeta6p,
                 const jams::Real *eta,
-                const jams::Real *sigma,
                 const jams::Real h,
                 const jams::Real T,
                 const int N
@@ -168,7 +166,7 @@ __global__ void cuda_thermostat_quantum_spde_no_zero_kernel
 
     s1 += 0.3429 * z[0];
 
-    noise[x] = T * sigma[x] * static_cast<jams::Real>(s1);
+    noise[x] = T * static_cast<jams::Real>(s1);
   }
 }
 

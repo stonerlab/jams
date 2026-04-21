@@ -1,31 +1,25 @@
 // Copyright 2014 Joseph Barker. All rights reserved.
 
-#ifndef JAMS_CUDA_THERMOSTAT_CLASSICAL_H
-#define JAMS_CUDA_THERMOSTAT_CLASSICAL_H
+#ifndef JAMS_CUDA_WHITE_NOISE_GENERATOR_H
+#define JAMS_CUDA_WHITE_NOISE_GENERATOR_H
 
 #if HAS_CUDA
 
 #include <curand.h>
 
-#include "jams/core/thermostat.h"
+#include "jams/core/noise_generator.h"
 
-class CudaThermostatClassical : public Thermostat {
+class CudaWhiteNoiseGenerator : public NoiseGenerator {
  public:
-  CudaThermostatClassical(const jams::Real &temperature, const jams::Real &sigma, const jams::Real timestep, const int num_spins);
+  CudaWhiteNoiseGenerator(const jams::Real& temperature,
+                          const jams::Real timestep,
+                          int num_vectors);
 
-  void update();
-
-  const jams::Real* device_data() override { return noise_.device_data(); }
-
-
-  jams::Real field(int i, int j) {
-    return noise_(i, j);
-  }
-
+  void update() override;
 
  private:
-    cudaStream_t                dev_stream_ = nullptr;
+  jams::MultiArray<jams::Real, 1> padded_noise_;
 };
 
 #endif  // CUDA
-#endif  // JAMS_CUDA_THERMOSTAT_CLASSICAL_H
+#endif  // JAMS_CUDA_WHITE_NOISE_GENERATOR_H

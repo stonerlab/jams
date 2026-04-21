@@ -188,7 +188,6 @@ __global__ void stochastic_combination_cuda_kernel(
     jams::Real * noise,
     const double * v5_dev,
     const double * v6_dev,
-    const jams::Real *sigma,
     const jams::Real T,
     const unsigned size) {
 
@@ -197,7 +196,7 @@ __global__ void stochastic_combination_cuda_kernel(
   if (idx < size) {
     // The two magic numbers here are "c_5" and "c_6" in Table 1, Savin,
     // Phys. Rev. B 86, 064305 (2012) https://dx.doi.org/10.1103/physrevb.86.064305
-    noise[idx] = T * sigma[idx] * (1.8315 * v5_dev[idx] + 0.3429 * v6_dev[idx]);
+    noise[idx] = T * (1.8315 * v5_dev[idx] + 0.3429 * v6_dev[idx]);
   }
 }
 
