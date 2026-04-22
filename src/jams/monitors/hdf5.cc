@@ -60,14 +60,12 @@ Hdf5Monitor::~Hdf5Monitor() {
 
 
 void Hdf5Monitor::update(Solver& solver) {
-  if (solver.iteration()%output_step_freq_ == 0) {
-    int outcount = solver.iteration()/output_step_freq_;  // int divisible by modulo above
+  int outcount = solver.iteration()/output_step_freq_;
 
-    const std::string h5_file_name(jams::output::full_path_filename_series(".h5", outcount));
+  const std::string h5_file_name(jams::output::full_path_filename_series(".h5", outcount));
 
-    write_spin_h5_file(h5_file_name);
-    update_xdmf_file(h5_file_name, solver.time());
-  }
+  write_spin_h5_file(h5_file_name);
+  update_xdmf_file(h5_file_name, solver.time());
 }
 
 void Hdf5Monitor::write_spin_h5_file(const std::string &h5_file_name) {

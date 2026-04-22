@@ -82,82 +82,80 @@ VtuMonitor::VtuMonitor(const libconfig::Setting &settings)
 }
 
 void VtuMonitor::update(Solver& solver) {
-  if (solver.iteration()%output_step_freq_ == 0) {
-    int outcount = solver.iteration()/output_step_freq_;  // int divisible by modulo above
+  int outcount = solver.iteration()/output_step_freq_;
 
-    std::ofstream vtkfile(jams::output::full_path_filename_series(".vtu", outcount));
+  std::ofstream vtkfile(jams::output::full_path_filename_series(".vtu", outcount));
 
-    uint32_t header_bytesize, types_bytesize, points_bytesize, spins_bytesize, num_points;
+  uint32_t header_bytesize, types_bytesize, points_bytesize, spins_bytesize, num_points;
 
-    if (num_slice_points == 0) {
-        num_points = globals::num_spins;
-        header_bytesize = sizeof(uint32_t);
-        types_bytesize  = globals::num_spins*sizeof(int32_t);
-        points_bytesize = globals::num_spins3*sizeof(float);
-        spins_bytesize  = globals::num_spins3*sizeof(double);
-    } else {
-        num_points = num_slice_points;
-        header_bytesize = sizeof(uint32_t);
-        types_bytesize  = num_slice_points*sizeof(int32_t);
-        points_bytesize = 3*num_slice_points*sizeof(float);
-        spins_bytesize  = 3*num_slice_points*sizeof(double);
-        for (int i = 0; i < num_slice_points; ++i) {
-            for (int j = 0; j < 3; ++j) {
-                spins_binary_data(i,j) = state_.s(slice_spins[i],j);
-            }
-        }
-    }
-
-    vtkfile << "<?xml version=\"1.0\"?>" << "\n";
-    // header info
-    vtkfile << "<!--" << "\n";
-    vtkfile << "VTU file produced by JAMS++ (" << QUOTEME(GITCOMMIT) << ")\n";
-    vtkfile << "  configuration file: " << globals::simulation_name << "\n";
-    vtkfile << "  iteration: " << solver.iteration() << "\n";
-    vtkfile << "  time: " << solver.time() << "\n";
-    vtkfile << "  temperature: " << solver.physics()->temperature() << "\n";
-    vtkfile << "  applied field: (" << solver.physics()->applied_field(0) << ", " << solver.physics()->applied_field(1) << ", " << solver.physics()->applied_field(2) << ")\n";
-    vtkfile << "-->" << "\n";
-    vtkfile << "<VTKFile type=\"UnstructuredGrid\" version=\"1.0\"  header_type=\"UInt32\" byte_order=\"LittleEndian\">" << "\n";
-    vtkfile << "  <UnstructuredGrid>" << "\n";
-    vtkfile << "    <Piece NumberOfPoints=\""<< num_points <<"\"  NumberOfCells=\"1\">" << "\n";
-    vtkfile << "      <PointData Scalars=\"scalars\">" << "\n";
-    vtkfile << "        <DataArray type=\"Int32\" Name=\"type\" NumberOfComponents=\"1\" format=\"appended\" offset=\"" << 0 << "\" />" << "\n";
-    vtkfile << "        <DataArray type=\"Float64\" Name=\"spin\" NumberOfComponents=\"3\" format=\"appended\" RangeMin=\"-1.0\" RangeMax=\"1.0\" offset=\"" << header_bytesize + types_bytesize << "\" />" << "\n";
-    vtkfile << "      </PointData>" << "\n";
-    vtkfile << "      <CellData>" << "\n";
-    vtkfile << "      </CellData>" << "\n";
-    vtkfile << "      <Points>" << "\n";
-    vtkfile << "        <DataArray type=\"Float32\" NumberOfComponents=\"3\" format=\"appended\" offset=\"" << 2*header_bytesize + spins_bytesize + types_bytesize << "\" />" << "\n";
-    vtkfile << "      </Points>" << "\n";
-    vtkfile << "      <Cells>" << "\n";
-    vtkfile << "        <DataArray type=\"Int32\" Name=\"connectivity\" format=\"ascii\">" << "\n";
-    vtkfile << "          1" << "\n";
-    vtkfile << "        </DataArray>" << "\n";
-    vtkfile << "        <DataArray type=\"Int32\" Name=\"offsets\" format=\"ascii\">" << "\n";
-    vtkfile << "          1" << "\n";
-    vtkfile << "        </DataArray>" << "\n";
-    vtkfile << "        <DataArray type=\"UInt8\" Name=\"types\" format=\"ascii\">" << "\n";
-    vtkfile << "          1" << "\n";
-    vtkfile << "        </DataArray>" << "\n";
-    vtkfile << "      </Cells>" << "\n";
-    vtkfile << "    </Piece>" << "\n";
-    vtkfile << "  </UnstructuredGrid>" << "\n";
-    vtkfile << "<AppendedData encoding=\"raw\">" << "\n";
-    vtkfile << "_";
-
-    vtkfile.write(reinterpret_cast<char*>(&types_bytesize), header_bytesize);
-    vtkfile.write(reinterpret_cast<char*>(types_binary_data.data()), types_bytesize);
-    vtkfile.write(reinterpret_cast<char*>(&spins_bytesize), header_bytesize);
-    if (num_slice_points == 0) {
-        vtkfile.write(reinterpret_cast<const char*>(state_.s.data()), spins_bytesize);
-    } else {
-        vtkfile.write(reinterpret_cast<char*>(spins_binary_data.data()), spins_bytesize);
-    }
-    vtkfile.write(reinterpret_cast<char*>(&points_bytesize), header_bytesize);
-    vtkfile.write(reinterpret_cast<char*>(points_binary_data.data()), points_bytesize);
-    vtkfile << "\n</AppendedData>" << "\n";
-    vtkfile << "</VTKFile>" << "\n";
-    vtkfile.close();
+  if (num_slice_points == 0) {
+      num_points = globals::num_spins;
+      header_bytesize = sizeof(uint32_t);
+      types_bytesize  = globals::num_spins*sizeof(int32_t);
+      points_bytesize = globals::num_spins3*sizeof(float);
+      spins_bytesize  = globals::num_spins3*sizeof(double);
+  } else {
+      num_points = num_slice_points;
+      header_bytesize = sizeof(uint32_t);
+      types_bytesize  = num_slice_points*sizeof(int32_t);
+      points_bytesize = 3*num_slice_points*sizeof(float);
+      spins_bytesize  = 3*num_slice_points*sizeof(double);
+      for (int i = 0; i < num_slice_points; ++i) {
+          for (int j = 0; j < 3; ++j) {
+              spins_binary_data(i,j) = state_.s(slice_spins[i],j);
+          }
+      }
   }
+
+  vtkfile << "<?xml version=\"1.0\"?>" << "\n";
+  // header info
+  vtkfile << "<!--" << "\n";
+  vtkfile << "VTU file produced by JAMS++ (" << QUOTEME(GITCOMMIT) << ")\n";
+  vtkfile << "  configuration file: " << globals::simulation_name << "\n";
+  vtkfile << "  iteration: " << solver.iteration() << "\n";
+  vtkfile << "  time: " << solver.time() << "\n";
+  vtkfile << "  temperature: " << solver.physics()->temperature() << "\n";
+  vtkfile << "  applied field: (" << solver.physics()->applied_field(0) << ", " << solver.physics()->applied_field(1) << ", " << solver.physics()->applied_field(2) << ")\n";
+  vtkfile << "-->" << "\n";
+  vtkfile << "<VTKFile type=\"UnstructuredGrid\" version=\"1.0\"  header_type=\"UInt32\" byte_order=\"LittleEndian\">" << "\n";
+  vtkfile << "  <UnstructuredGrid>" << "\n";
+  vtkfile << "    <Piece NumberOfPoints=\""<< num_points <<"\"  NumberOfCells=\"1\">" << "\n";
+  vtkfile << "      <PointData Scalars=\"scalars\">" << "\n";
+  vtkfile << "        <DataArray type=\"Int32\" Name=\"type\" NumberOfComponents=\"1\" format=\"appended\" offset=\"" << 0 << "\" />" << "\n";
+  vtkfile << "        <DataArray type=\"Float64\" Name=\"spin\" NumberOfComponents=\"3\" format=\"appended\" RangeMin=\"-1.0\" RangeMax=\"1.0\" offset=\"" << header_bytesize + types_bytesize << "\" />" << "\n";
+  vtkfile << "      </PointData>" << "\n";
+  vtkfile << "      <CellData>" << "\n";
+  vtkfile << "      </CellData>" << "\n";
+  vtkfile << "      <Points>" << "\n";
+  vtkfile << "        <DataArray type=\"Float32\" NumberOfComponents=\"3\" format=\"appended\" offset=\"" << 2*header_bytesize + spins_bytesize + types_bytesize << "\" />" << "\n";
+  vtkfile << "      </Points>" << "\n";
+  vtkfile << "      <Cells>" << "\n";
+  vtkfile << "        <DataArray type=\"Int32\" Name=\"connectivity\" format=\"ascii\">" << "\n";
+  vtkfile << "          1" << "\n";
+  vtkfile << "        </DataArray>" << "\n";
+  vtkfile << "        <DataArray type=\"Int32\" Name=\"offsets\" format=\"ascii\">" << "\n";
+  vtkfile << "          1" << "\n";
+  vtkfile << "        </DataArray>" << "\n";
+  vtkfile << "        <DataArray type=\"UInt8\" Name=\"types\" format=\"ascii\">" << "\n";
+  vtkfile << "          1" << "\n";
+  vtkfile << "        </DataArray>" << "\n";
+  vtkfile << "      </Cells>" << "\n";
+  vtkfile << "    </Piece>" << "\n";
+  vtkfile << "  </UnstructuredGrid>" << "\n";
+  vtkfile << "<AppendedData encoding=\"raw\">" << "\n";
+  vtkfile << "_";
+
+  vtkfile.write(reinterpret_cast<char*>(&types_bytesize), header_bytesize);
+  vtkfile.write(reinterpret_cast<char*>(types_binary_data.data()), types_bytesize);
+  vtkfile.write(reinterpret_cast<char*>(&spins_bytesize), header_bytesize);
+  if (num_slice_points == 0) {
+      vtkfile.write(reinterpret_cast<const char*>(state_.s.data()), spins_bytesize);
+  } else {
+      vtkfile.write(reinterpret_cast<char*>(spins_binary_data.data()), spins_bytesize);
+  }
+  vtkfile.write(reinterpret_cast<char*>(&points_bytesize), header_bytesize);
+  vtkfile.write(reinterpret_cast<char*>(points_binary_data.data()), points_bytesize);
+  vtkfile << "\n</AppendedData>" << "\n";
+  vtkfile << "</VTKFile>" << "\n";
+  vtkfile.close();
 }
