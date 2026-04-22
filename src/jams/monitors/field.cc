@@ -21,11 +21,10 @@ FieldMonitor::FieldMonitor(const libconfig::Setting &settings)
 }
 
 void FieldMonitor::update(Solver& solver) {
+  ensure_monitor_fields(solver);
 
   std::vector<Vec3> total_field;
   for (auto &hamiltonian : solver.hamiltonians()) {
-    hamiltonian->calculate_fields(solver.time());
-
     Vec3 field = {0.0, 0.0, 0.0};
     for (auto i = 0; i < globals::num_spins; ++i) {
       field += Vec3{hamiltonian->field(i, 0), hamiltonian->field(i, 1), hamiltonian->field(i, 2)} / state_.mus(i);

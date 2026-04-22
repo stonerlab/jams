@@ -26,6 +26,8 @@ TorqueMonitor::TorqueMonitor(const libconfig::Setting &settings)
 }
 
 void TorqueMonitor::update(Solver& solver) {
+  ensure_monitor_fields(solver);
+
   tsv_file.width(12);
   tsv_file << std::scientific << solver.time() << "\t";
 
@@ -34,8 +36,6 @@ void TorqueMonitor::update(Solver& solver) {
   // and appended to a std::vector.
   std::vector<Vec3> torques;
   for (auto &hamiltonian : solver.hamiltonians()) {
-    hamiltonian->calculate_fields(solver.time());
-
     // Loop over all spins in the system and sum the torque for the current
     // Hamiltonian
     Vec3 torque = {0.0, 0.0, 0.0};

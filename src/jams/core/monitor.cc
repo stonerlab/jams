@@ -43,6 +43,8 @@
   } \
 }
 
+Monitor::MonitorFieldCache Monitor::field_cache_{};
+
 Monitor::Monitor(const libconfig::Setting &settings)
 : Base(settings),
   state_{globals::s, globals::h, globals::ds_dt, globals::positions,
@@ -64,7 +66,19 @@ Monitor::Monitor(const libconfig::Setting &settings)
      convergence_status_ = ConvergenceStatus::kNotConverged;
      std::cout << "    convergence tolerance" << convergence_tolerance_ << "\n";
      std::cout << "    t_burn" << convergence_burn_time_ << "\n";
-   }
+  }
+}
+
+void Monitor::ensure_monitor_fields(Solver& solver) const {
+  if (field_cache_.solver == &solver && field_cache_.iteration == solver.iteration()) {
+    return;
+  }
+
+  for (auto& hamiltonian : solver.hamiltonians()) {
+    hamiltonian->calculate_fields(solver.time());
+  }
+
+  field_cache_ = {&solver, solver.iteration()};
 }
 
 bool Monitor::is_updating(const int &iteration) {

@@ -116,6 +116,14 @@ protected:
         const jams::MultiArray<jams::Real, 1>& gyro;
     };
 
+    struct MonitorFieldCache {
+        const Solver* solver = nullptr;
+        int iteration = -1;
+    };
+
+    void ensure_monitor_fields(Solver& solver) const;
+
+    static MonitorFieldCache field_cache_;
     const MonitorStateView state_;
     int start_delay_steps_ = 0;
     int output_step_freq_;
