@@ -22,7 +22,7 @@ class CPUGSERK4Solver : public CPULLGSolverBase {
   void run() override {
     const double t0 = time_;
     s_old_ = globals::s;
-    generate_white_noise(step_size_);
+    update_thermostat();
 
     time_ = t0;
     compute_stage(k1_);
@@ -68,7 +68,7 @@ class CPUGSERK4Solver : public CPULLGSolverBase {
           globals::h(i, 1) / globals::mus(i),
           globals::h(i, 2) / globals::mus(i),
       };
-      const Vec3 noise = {noise_(i, 0), noise_(i, 1), noise_(i, 2)};
+      const auto noise = thermal_field(i);
       const auto spin_cross_field = jams::cross(current_spin, deterministic_field);
       const auto rhs = -globals::gyro(i) * (spin_cross_field - globals::alpha(i) * deterministic_field)
           + globals::gyro(i) * noise;

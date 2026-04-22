@@ -54,7 +54,7 @@ class CPULLLorentzianRK4Solver : public CPULLGSolverBase {
     s_old_ = globals::s;
     w_memory_old_ = w_memory_;
     v_memory_old_ = v_memory_;
-    generate_white_noise(step_size_);
+    update_thermostat();
 
     time_ = t0;
     compute_stage(s_k1_, w_k1_, v_k1_);
@@ -102,10 +102,11 @@ class CPULLLorentzianRK4Solver : public CPULLGSolverBase {
       const auto current_spin = spin(i);
       const Vec3 v = {v_memory_(i, 0), v_memory_(i, 1), v_memory_(i, 2)};
       const Vec3 w = {w_memory_(i, 0), w_memory_(i, 1), w_memory_(i, 2)};
+      const auto thermal = thermal_field(i);
       const Vec3 field = {
-          globals::h(i, 0) / globals::mus(i) + noise_(i, 0) + v[0],
-          globals::h(i, 1) / globals::mus(i) + noise_(i, 1) + v[1],
-          globals::h(i, 2) / globals::mus(i) + noise_(i, 2) + v[2],
+          globals::h(i, 0) / globals::mus(i) + thermal[0] + v[0],
+          globals::h(i, 1) / globals::mus(i) + thermal[1] + v[1],
+          globals::h(i, 2) / globals::mus(i) + thermal[2] + v[2],
       };
 
       const auto s_rhs = -globals::gyro(i) * jams::cross(current_spin, field);

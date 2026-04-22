@@ -2,16 +2,14 @@
 #define JAMS_SOLVERS_CPU_LLG_ADDITIONAL_SOLVERS_H
 
 #include <cmath>
-#include <random>
 #include <string>
 
 #include <libconfig.h++>
-#include <pcg_random.hpp>
 
 #include "jams/common.h"
 #include "jams/core/globals.h"
 #include "jams/core/solver.h"
-#include "jams/helpers/consts.h"
+#include "jams/helpers/defaults.h"
 #include "jams/helpers/maths.h"
 #include "jams/interface/config.h"
 #include "jams/solvers/llg_solver_utils.h"
@@ -20,7 +18,16 @@
 
 class CPULLGSolverBase : public Solver {
  protected:
-  void initialize_llg_solver(const libconfig::Setting& settings) {
+  void initialize_solver_thermostat(const libconfig::Setting& settings,
+                                    const double thermostat_timestep) {
+    const auto thermostat_name = jams::config_optional<std::string>(
+        settings, "thermostat", jams::defaults::solver_cpu_thermostat);
+    register_thermostat(Thermostat::create(thermostat_name, thermostat_timestep));
+    std::cout << "  thermostat " << thermostat_name << "\n";
+  }
+
+  void initialize_llg_solver(const libconfig::Setting& settings,
+                             const double thermostat_timestep_scale = 1.0) {
     step_size_ = jams::config_required<double>(settings, "t_step") / 1e-12;
     const auto t_max = jams::config_required<double>(settings, "t_max") / 1e-12;
     const auto t_min = jams::config_optional<double>(settings, "t_min", 0.0) / 1e-12;
@@ -31,39 +38,11 @@ class CPULLGSolverBase : public Solver {
     std::cout << "\ntimestep (ps) " << step_size_ << "\n";
     std::cout << "\nt_max (ps) " << t_max << " steps " << max_steps_ << "\n";
     std::cout << "\nt_min (ps) " << t_min << " steps " << min_steps_ << "\n";
+    initialize_solver_thermostat(settings, thermostat_timestep_scale * step_size_);
 
     const auto descriptor = jams::solvers::describe_solver_setting(settings, *globals::config);
     const auto torque_field = jams::solvers::build_llg_spin_torque_field(settings, descriptor);
     extra_torque_ = torque_field.torque;
-    thermal_prefactor_.resize(globals::num_spins);
-    noise_.resize(globals::num_spins, 3);
-    noise_.zero();
-
-    const bool use_gilbert_prefactor = jams::config_optional<bool>(settings, "gilbert_prefactor", false);
-    for (auto i = 0; i < globals::num_spins; ++i) {
-      double denominator = 1.0;
-      if (use_gilbert_prefactor) {
-        denominator = 1.0 + pow2(globals::alpha(i));
-      }
-      thermal_prefactor_(i) = std::sqrt(
-          (2.0 * kBoltzmannIU * globals::alpha(i)) / (globals::mus(i) * globals::gyro(i) * denominator));
-    }
-  }
-
-  void generate_white_noise(const double dt) {
-    if (physics_module_ == nullptr || physics_module_->temperature() <= 0.0) {
-      noise_.zero();
-      return;
-    }
-
-    const double scale = std::sqrt(physics_module_->temperature() / dt);
-    std::normal_distribution<double> normal_distribution;
-
-    for (auto i = 0; i < globals::num_spins; ++i) {
-      for (auto n = 0; n < 3; ++n) {
-        noise_(i, n) = normal_distribution(random_generator_) * thermal_prefactor_(i) * scale;
-      }
-    }
   }
 
   Vec3 spin(const int i) const {
@@ -80,11 +59,20 @@ class CPULLGSolverBase : public Solver {
     return {extra_torque_(i, 0), extra_torque_(i, 1), extra_torque_(i, 2)};
   }
 
-  Vec3 effective_field(const int i) const {
+  Vec3 thermal_field(const int i) const {
     return {
-        globals::h(i, 0) / globals::mus(i) + noise_(i, 0),
-        globals::h(i, 1) / globals::mus(i) + noise_(i, 1),
-        globals::h(i, 2) / globals::mus(i) + noise_(i, 2),
+        thermostat_->field(i, 0),
+        thermostat_->field(i, 1),
+        thermostat_->field(i, 2),
+    };
+  }
+
+  Vec3 effective_field(const int i) const {
+    const auto noise = thermal_field(i);
+    return {
+        globals::h(i, 0) / globals::mus(i) + noise[0],
+        globals::h(i, 1) / globals::mus(i) + noise[1],
+        globals::h(i, 2) / globals::mus(i) + noise[2],
     };
   }
 
@@ -109,31 +97,23 @@ class CPULLGSolverBase : public Solver {
   }
 
   void apply_noise_rodrigues(const double dt) {
-    if (physics_module_ == nullptr || physics_module_->temperature() <= 0.0) {
-      return;
-    }
-
-    generate_white_noise(dt);
+    update_thermostat();
     for (auto i = 0; i < globals::num_spins; ++i) {
       const auto current_spin = spin(i);
-      const Vec3 thermal_field = {noise_(i, 0), noise_(i, 1), noise_(i, 2)};
+      const auto thermal = thermal_field(i);
       const auto omega = jams::solvers::llg_omega(
-          current_spin, thermal_field, globals::gyro(i), globals::alpha(i));
+          current_spin, thermal, globals::gyro(i), globals::alpha(i));
       set_spin(i, jams::solvers::rodrigues_rotate(dt * omega, current_spin));
     }
   }
 
   void apply_noise_cayley(const double dt) {
-    if (physics_module_ == nullptr || physics_module_->temperature() <= 0.0) {
-      return;
-    }
-
-    generate_white_noise(dt);
+    update_thermostat();
     for (auto i = 0; i < globals::num_spins; ++i) {
       const auto current_spin = spin(i);
-      const Vec3 thermal_field = {noise_(i, 0), noise_(i, 1), noise_(i, 2)};
+      const auto thermal = thermal_field(i);
       const auto omega = jams::solvers::llg_omega(
-          current_spin, thermal_field, globals::gyro(i), globals::alpha(i));
+          current_spin, thermal, globals::gyro(i), globals::alpha(i));
       set_spin(i, jams::solvers::cayley_rotate(dt * omega, current_spin));
     }
   }
@@ -144,10 +124,7 @@ class CPULLGSolverBase : public Solver {
     }
   }
 
-  pcg32_k1024 random_generator_ = pcg_extras::seed_seq_from<pcg32>(jams::instance().random_generator()());
   jams::MultiArray<double, 2> extra_torque_;
-  jams::MultiArray<double, 2> noise_;
-  jams::MultiArray<double, 1> thermal_prefactor_;
 };
 
 class CPULLGRK4Solver : public CPULLGSolverBase {
@@ -169,7 +146,7 @@ class CPULLGRK4Solver : public CPULLGSolverBase {
   void run() override {
     const double t0 = time_;
     s_old_ = globals::s;
-    generate_white_noise(step_size_);
+    update_thermostat();
 
     time_ = t0;
     compute_stage(k1_);
@@ -242,7 +219,7 @@ class CPULLGRKMK2Solver : public CPULLGSolverBase {
   }
 
   void initialize(const libconfig::Setting& settings) override {
-    initialize_llg_solver(settings);
+    initialize_llg_solver(settings, 0.5);
     s_init_.resize(globals::num_spins, 3);
     phi_.resize(globals::num_spins, 3);
   }
@@ -300,7 +277,7 @@ class CPULLGRKMK4Solver : public CPULLGSolverBase {
   }
 
   void initialize(const libconfig::Setting& settings) override {
-    initialize_llg_solver(settings);
+    initialize_llg_solver(settings, 0.5);
     s_init_.resize(globals::num_spins, 3);
     k1_.resize(globals::num_spins, 3);
     k2_.resize(globals::num_spins, 3);
@@ -397,7 +374,7 @@ class CPULLGSemiImplicitSolver : public CPULLGSolverBase {
   }
 
   void initialize(const libconfig::Setting& settings) override {
-    initialize_llg_solver(settings);
+    initialize_llg_solver(settings, 0.5);
     s_init_.resize(globals::num_spins, 3);
   }
 
@@ -449,7 +426,7 @@ class CPULLGDMSolver : public CPULLGSolverBase {
   }
 
   void initialize(const libconfig::Setting& settings) override {
-    initialize_llg_solver(settings);
+    initialize_llg_solver(settings, 0.5);
     s_init_.resize(globals::num_spins, 3);
     s_pred_.resize(globals::num_spins, 3);
     omega1_.resize(globals::num_spins, 3);

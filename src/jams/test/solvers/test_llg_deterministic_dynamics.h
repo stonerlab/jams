@@ -475,6 +475,68 @@ hamiltonians = (
 )";
 }
 
+std::string stochastic_cpu_single_spin_config(const std::string& thermostat_name,
+                                              const std::string& thermostat_body = "") {
+  std::ostringstream cfg;
+  cfg << std::scientific << std::setprecision(17);
+  cfg << R"(
+materials = (
+  {
+    name = "A";
+    moment = 1.0;
+    alpha = )" << kAlpha << R"(;
+    spin = [1.0, 0.0, 0.0];
+  }
+);
+
+unitcell = {
+  parameter = 3.0e-10;
+  symops = false;
+  basis = (
+    [1.0, 0.0, 0.0],
+    [0.0, 1.0, 0.0],
+    [0.0, 0.0, 1.0]
+  );
+  positions = (
+    ("A", [0.0, 0.0, 0.0])
+  );
+};
+
+lattice = {
+  size = [1, 1, 1];
+  periodic = [false, false, false];
+};
+
+solver = {
+  backend = "cpu";
+  integrator = "heun";
+  thermostat = ")" << thermostat_name << R"(";
+  t_step = )" << (kTimeStepPs * 1e-12) << R"(;
+  t_max = )" << (kTimeStepPs * 1e-12) << R"(;
+};
+
+dynamics = {
+  equation = "llg";
+};
+
+physics = {
+  temperature = 300.0;
+};
+
+thermostat = {
+)" << thermostat_body << R"(
+};
+
+hamiltonians = (
+  {
+    module = "applied-field";
+    field = [0.0, 0.0, 0.0];
+  }
+);
+)";
+  return cfg.str();
+}
+
 std::array<double, 3> analytic_single_spin_solution(const double time_ps,
                                                     const double gyro,
                                                     const double alpha,
@@ -678,6 +740,28 @@ TEST(AdditionalCpuBackendsSmokeTest, GseAndLorentzianCpuBackendsRunOneStep) {
   EXPECT_LT(angular_error_deg(lorentzian_spin, expected), 1e-10);
   EXPECT_LT(norm_error(gse_spin), kMaxNormError);
   EXPECT_LT(norm_error(lorentzian_spin), kMaxNormError);
+}
+
+TEST(CpuThermostatIntegrationSmokeTest, QuantumSpdeAndGeneralFftRunWithCpuHeunSolver) {
+  jams::instance().random_generator().seed(0x1234ULL);
+  const auto quantum_spin = run_config_to_completion(
+      stochastic_cpu_single_spin_config("quantum-spde-cpu", "zero_point = false;")).front();
+
+  jams::instance().random_generator().seed(0x5678ULL);
+  const auto fft_spin = run_config_to_completion(
+      stochastic_cpu_single_spin_config(
+          "general-fft-cpu",
+          R"(
+  spectrum = "classical";
+  write_diagnostics = false;
+)")).front();
+
+  for (const auto spin : {quantum_spin, fft_spin}) {
+    EXPECT_TRUE(std::isfinite(spin[0]));
+    EXPECT_TRUE(std::isfinite(spin[1]));
+    EXPECT_TRUE(std::isfinite(spin[2]));
+    EXPECT_LT(norm_error(spin), kMaxNormError);
+  }
 }
 
 INSTANTIATE_TEST_SUITE_P(

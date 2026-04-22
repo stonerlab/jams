@@ -3,8 +3,6 @@
 
 #include <gtest/gtest.h>
 
-#if HAS_CUDA
-
 #include <algorithm>
 #include <cmath>
 #include <complex>
@@ -13,14 +11,19 @@
 #include <numeric>
 #include <vector>
 
-#include <curand.h>
-
 #include "jams/common.h"
 #include "jams/core/noise_generator.h"
 #include "jams/helpers/consts.h"
 #include "jams/interface/fft.h"
+#include "jams/thermostats/cpu_thermostat_general_fft.h"
+#include "jams/thermostats/cpu_thermostat_quantum_spde.h"
+
+#if HAS_CUDA
+#include <curand.h>
+
 #include "jams/thermostats/cuda_thermostat_general_fft.h"
 #include "jams/thermostats/cuda_thermostat_quantum_spde.h"
+#endif
 
 namespace {
 
@@ -39,12 +42,20 @@ constexpr double kQuantumPsdOmegaMax = 8.0;
 constexpr int kQuantumPsdBinCount = 10;
 constexpr int kQuantumInitialSampleVectors = 4096;
 
+#if HAS_CUDA
 bool have_noise_generator_cuda_device() {
   int device_count = 0;
   return cudaGetDeviceCount(&device_count) == cudaSuccess && device_count > 0;
 }
+#endif
 
-void initialise_noise_generator_test_rng(const uint64_t seed) {
+void initialise_cpu_noise_generator_test_rng(const uint64_t seed) {
+  jams::Jams::set_mode(jams::Mode::CPU);
+  jams::instance().random_generator().seed(seed);
+}
+
+#if HAS_CUDA
+void initialise_gpu_noise_generator_test_rng(const uint64_t seed) {
   jams::Jams::set_mode(jams::Mode::GPU);
   jams::instance().random_generator().seed(seed);
 
@@ -52,6 +63,7 @@ void initialise_noise_generator_test_rng(const uint64_t seed) {
       curandSetPseudoRandomGeneratorSeed(jams::instance().curand_generator(), seed),
       CURAND_STATUS_SUCCESS);
 }
+#endif
 
 struct SampleMoments {
   double mean = 0.0;
@@ -265,12 +277,118 @@ BinnedSpectrumComparison compare_binned_relative_error(
   return comparison;
 }
 
+TEST(CpuQuantumSpdeNoiseGeneratorTest, MarginalDistributionIsGaussian) {
+  initialise_cpu_noise_generator_test_rng(0x1234ULL);
+
+  CpuQuantumSpdeNoiseGeneratorConfig config;
+  config.zero_point = false;
+
+  CpuQuantumSpdeNoiseGenerator generator(
+      kNoiseTestTemperature, kNoiseTestTimeStepPs, 1, config);
+  const double expected_variance = generator.stationary_variance();
+  ASSERT_TRUE(std::isfinite(expected_variance));
+  ASSERT_GT(expected_variance, 0.0);
+
+  const auto moments = sample_noise_distribution(
+      generator,
+      kQuantumBurnInSteps,
+      kQuantumStride,
+      kNoiseSampleCount);
+
+  EXPECT_NEAR(moments.mean, 0.0, 0.08 * std::sqrt(moments.variance));
+  EXPECT_NEAR(moments.frac_within_one_sigma, 0.682689492137, 0.05);
+  EXPECT_NEAR(moments.frac_within_two_sigma, 0.954499736104, 0.03);
+}
+
+TEST(CpuQuantumSpdeNoiseGeneratorTest, FirstStepIsStationaryWithoutWarmup) {
+  initialise_cpu_noise_generator_test_rng(0x2345ULL);
+
+  CpuQuantumSpdeNoiseGeneratorConfig config;
+  config.zero_point = false;
+
+  CpuQuantumSpdeNoiseGenerator generator(
+      kNoiseTestTemperature, kNoiseTestTimeStepPs, kQuantumInitialSampleVectors, config);
+  const double expected_variance = generator.stationary_variance();
+
+  generator.update();
+
+  std::vector<double> samples;
+  samples.reserve(kQuantumInitialSampleVectors);
+  for (int i = 0; i < kQuantumInitialSampleVectors; ++i) {
+    samples.push_back(generator.field(i, 0));
+  }
+
+  const auto moments = compute_sample_moments(samples, std::sqrt(expected_variance));
+  EXPECT_NEAR(moments.mean, 0.0, 0.06 * std::sqrt(expected_variance));
+  EXPECT_NEAR(moments.variance, expected_variance, 0.10 * expected_variance);
+  EXPECT_NEAR(moments.frac_within_one_sigma, 0.682689492137, 0.04);
+  EXPECT_NEAR(moments.frac_within_two_sigma, 0.954499736104, 0.025);
+}
+
+TEST(CpuGeneralFftNoiseGeneratorTest, MarginalDistributionMatchesAnalyticGaussian) {
+  initialise_cpu_noise_generator_test_rng(0x5678ULL);
+
+  CpuGeneralFFTNoiseGeneratorConfig config;
+  config.spectrum = "classical";
+  config.write_diagnostics = false;
+
+  CpuGeneralFFTNoiseGenerator generator(
+      kNoiseTestTemperature, kNoiseTestTimeStepPs, 1, config);
+  const double expected_variance = generator.stationary_variance();
+  ASSERT_GT(generator.memory_depth(), 0);
+  ASSERT_TRUE(std::isfinite(expected_variance));
+  ASSERT_GT(expected_variance, 0.0);
+
+  const auto moments = sample_noise_distribution(
+      generator,
+      kGeneralFftBurnInSteps,
+      kGeneralFftStride,
+      kNoiseSampleCount,
+      std::sqrt(expected_variance));
+
+  EXPECT_NEAR(moments.mean, 0.0, 0.06 * std::sqrt(expected_variance));
+  EXPECT_NEAR(moments.variance, expected_variance, 0.12 * expected_variance);
+  EXPECT_NEAR(moments.frac_within_one_sigma, 0.682689492137, 0.06);
+  EXPECT_NEAR(moments.frac_within_two_sigma, 0.954499736104, 0.04);
+}
+
+TEST(CpuQuantumSpdeNoiseGeneratorTest, PowerSpectralDensityMatchesNoZeroTarget) {
+  initialise_cpu_noise_generator_test_rng(0x9abcULL);
+
+  CpuQuantumSpdeNoiseGeneratorConfig config;
+  config.zero_point = false;
+
+  CpuQuantumSpdeNoiseGenerator generator(
+      kNoiseTestTemperature, kNoiseTestTimeStepPs, 1, config);
+
+  const auto reduced_timestep =
+      kNoiseTestTimeStepPs * kBoltzmannIU * kNoiseTestTemperature / kHBarIU;
+  const auto samples = sample_noise_time_series(
+      generator,
+      kQuantumPsdBurnInSteps,
+      kQuantumPsdSegmentLength * kQuantumPsdSegments,
+      1.0 / kNoiseTestTemperature);
+  const auto psd = welch_power_spectrum(samples, reduced_timestep, kQuantumPsdSegmentLength);
+  const auto comparison = compare_binned_relative_error(
+      psd,
+      kQuantumPsdOmegaMin,
+      kQuantumPsdOmegaMax,
+      kQuantumPsdBinCount,
+      savin_no_zero_fit_psd);
+
+  ASSERT_GE(comparison.populated_bins, kQuantumPsdBinCount - 1);
+  EXPECT_LT(comparison.rms_relative_error, 0.18);
+  EXPECT_LT(comparison.max_relative_error, 0.35);
+}
+
+#if HAS_CUDA
+
 TEST(QuantumSpdeNoiseGeneratorTest, MarginalDistributionIsGaussian) {
   if (!have_noise_generator_cuda_device()) {
     GTEST_SKIP() << "CUDA device not available";
   }
 
-  initialise_noise_generator_test_rng(0x1234ULL);
+  initialise_gpu_noise_generator_test_rng(0x1234ULL);
 
   CudaQuantumSpdeNoiseGeneratorConfig config;
   config.zero_point = false;
@@ -297,7 +415,7 @@ TEST(QuantumSpdeNoiseGeneratorTest, FirstStepIsStationaryWithoutWarmup) {
     GTEST_SKIP() << "CUDA device not available";
   }
 
-  initialise_noise_generator_test_rng(0x2345ULL);
+  initialise_gpu_noise_generator_test_rng(0x2345ULL);
 
   CudaQuantumSpdeNoiseGeneratorConfig config;
   config.zero_point = false;
@@ -328,7 +446,7 @@ TEST(GeneralFftNoiseGeneratorTest, MarginalDistributionMatchesAnalyticGaussian) 
     GTEST_SKIP() << "CUDA device not available";
   }
 
-  initialise_noise_generator_test_rng(0x5678ULL);
+  initialise_gpu_noise_generator_test_rng(0x5678ULL);
 
   CudaGeneralFFTNoiseGeneratorConfig config;
   config.spectrum = "classical";
@@ -359,7 +477,7 @@ TEST(QuantumSpdeNoiseGeneratorTest, PowerSpectralDensityMatchesNoZeroTarget) {
     GTEST_SKIP() << "CUDA device not available";
   }
 
-  initialise_noise_generator_test_rng(0x9abcULL);
+  initialise_gpu_noise_generator_test_rng(0x9abcULL);
 
   CudaQuantumSpdeNoiseGeneratorConfig config;
   config.zero_point = false;
@@ -387,8 +505,8 @@ TEST(QuantumSpdeNoiseGeneratorTest, PowerSpectralDensityMatchesNoZeroTarget) {
   EXPECT_LT(comparison.max_relative_error, 0.35);
 }
 
-}  // namespace
+#endif
 
-#endif  // HAS_CUDA
+}  // namespace
 
 #endif  // JAMS_TEST_THERMOSTATS_TEST_NOISE_GENERATORS_H

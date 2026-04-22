@@ -15,6 +15,7 @@
 #include "jams/core/thermostat.h"
 
 #include "jams/core/base.h"
+#include "jams/common.h"
 #include "jams/helpers/utils.h"
 #include "jams/core/globals.h"
 #include "jams/helpers/defaults.h"
@@ -78,6 +79,9 @@ Solver* Solver::create(const libconfig::Setting &settings) {
   using jams::solvers::Backend;
   using jams::solvers::EquationKind;
   using jams::solvers::IntegratorKind;
+
+  jams::Jams::set_mode(
+      descriptor.backend == Backend::GPU ? jams::Mode::GPU : jams::Mode::CPU);
 
   if (descriptor.backend == Backend::CPU) {
     if (descriptor.integrator == IntegratorKind::Null) {
