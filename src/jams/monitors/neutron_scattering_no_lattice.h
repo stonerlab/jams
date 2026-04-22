@@ -13,11 +13,12 @@
 class NeutronScatteringNoLatticeMonitor : public Monitor {
 public:
     explicit NeutronScatteringNoLatticeMonitor(const libconfig::Setting &settings);
-    ~NeutronScatteringNoLatticeMonitor() override = default;
+    ~NeutronScatteringNoLatticeMonitor() override;
 
     void post_process() override {};
     void update(Solver& solver) override;
 private:
+    void initialise_fft_plans_();
 
     void configure_kspace_vectors(const libconfig::Setting& settings);
     void configure_polarizations(libconfig::Setting &setting);
@@ -42,9 +43,13 @@ private:
     jams::MultiArray<Vec3, 1> rspace_displacement_;
     jams::MultiArray<Vec3, 1> kspace_path_;
     jams::MultiArray<Vec3cx,2>  kspace_spins_timeseries_;
+    jams::MultiArray<Vec3cx,2>  kspace_spectrum_buffer_;
 
     jams::MultiArray<double,3> spin_timeseries_;
     jams::MultiArray<std::complex<double>,3> spin_frequencies_;
+
+    fftw_plan kspace_periodogram_fft_plan_ = nullptr;
+    fftw_plan spin_frequency_fft_plan_ = nullptr;
 
     jams::MultiArray<double, 2> neutron_form_factors_;
     std::vector<Vec3>           neutron_polarizations_;

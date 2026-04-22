@@ -39,12 +39,23 @@ CudaNeutronScatteringNoLatticeMonitor::CudaNeutronScatteringNoLatticeMonitor(con
 
   // NOTE: the memory layout here is DIFFERENT for the CPU version
   zero(spin_timeseries_.resize(periodogram_props_.length, globals::num_spins, 3));
+  zero(windowed_timeseries_.resize(periodogram_props_.length, globals::num_spins, 3));
   zero(spin_frequencies_.resize(periodogram_props_.length / 2 + 1, globals::num_spins, 3));
 
   zero(total_unpolarized_neutron_cross_section_.resize(
       kspace_path_.size(), periodogram_props_.length/2 + 1));
 //  zero(total_polarized_neutron_cross_sections_.resize(
 //      neutron_polarizations_.size(),periodogram_props_.length, kspace_path_.size()));
+
+  initialise_fft_plan_();
+}
+
+CudaNeutronScatteringNoLatticeMonitor::~CudaNeutronScatteringNoLatticeMonitor() {
+  if (spin_frequency_fft_plan_initialized_) {
+    const auto status = cufftDestroy(spin_frequency_fft_plan_);
+    assert(status == CUFFT_SUCCESS);
+    spin_frequency_fft_plan_initialized_ = false;
+  }
 }
 
 void CudaNeutronScatteringNoLatticeMonitor::configure_periodogram(libconfig::Setting &settings) {
@@ -70,23 +81,6 @@ void CudaNeutronScatteringNoLatticeMonitor::output_spectrum() {
 
   const int num_time_samples = periodogram_props_.length;
 
-  int rank = 1;
-  int transform_size[1] = {num_time_samples};
-  int num_transforms = globals::num_spins3;
-  int nembed[1] = {num_time_samples};
-  int stride = globals::num_spins3;
-  int dist = 1;
-
-  cufftHandle fft_plan;
-
-  CHECK_CUFFT_STATUS(
-      cufftCreate(&fft_plan));
-
-  CHECK_CUFFT_STATUS(
-      cufftPlanMany(&fft_plan, rank, transform_size, nembed,
-                        stride, dist, nembed, stride,
-                    dist, CUFFT_D2Z, num_transforms));
-
   jams::MultiArray<double, 2> spin_averages(globals::num_spins, 3);
   zero(spin_averages);
   for (auto i = 0; i < globals::num_spins; ++i) {
@@ -98,21 +92,24 @@ void CudaNeutronScatteringNoLatticeMonitor::output_spectrum() {
   }
   element_scale(spin_averages, 1.0/double(num_time_samples));
 
-  jams::MultiArray<double,3> windowed_timeseries = spin_timeseries_;
+  cudaMemcpy(windowed_timeseries_.device_data(),
+             spin_timeseries_.device_data(),
+             spin_timeseries_.bytes(),
+             cudaMemcpyDeviceToDevice);
+  DEBUG_CHECK_CUDA_ASYNC_STATUS;
 
   for (auto t = 0; t < num_time_samples; ++t) {
     for (auto i = 0; i < globals::num_spins; ++i) {
       for (auto j = 0; j < 3; ++j) {
-        windowed_timeseries(t, i, j) = fft_window_default(t, num_time_samples)*(windowed_timeseries(t, i, j) - spin_averages(i,j));
+        windowed_timeseries_(t, i, j) = fft_window_default(t, num_time_samples) * (windowed_timeseries_(t, i, j) - spin_averages(i,j));
       }
     }
   }
 
   CHECK_CUFFT_STATUS(
-    cufftExecD2Z(fft_plan, reinterpret_cast<cufftDoubleReal*>(windowed_timeseries.device_data()),  reinterpret_cast<cufftDoubleComplex*>(spin_frequencies_.device_data())));
-
-  CHECK_CUFFT_STATUS(
-      cufftDestroy(fft_plan));
+    cufftExecD2Z(spin_frequency_fft_plan_,
+                 reinterpret_cast<cufftDoubleReal*>(windowed_timeseries_.device_data()),
+                 reinterpret_cast<cufftDoubleComplex*>(spin_frequencies_.device_data())));
 
   std::ofstream debug(jams::output::full_path_filename("debug.tsv"));
   for (auto t = 0; t < num_time_samples / 2 + 1; ++t) {
@@ -239,4 +236,19 @@ void CudaNeutronScatteringNoLatticeMonitor::shift_periodogram_overlap() {
 
   // put the pointer to the overlap position
   periodogram_index_ = periodogram_props_.overlap;
+}
+
+void CudaNeutronScatteringNoLatticeMonitor::initialise_fft_plan_() {
+  int rank = 1;
+  int transform_size[1] = {periodogram_props_.length};
+  int num_transforms = globals::num_spins3;
+  int nembed[1] = {periodogram_props_.length};
+  int stride = globals::num_spins3;
+  int dist = 1;
+
+  CHECK_CUFFT_STATUS(cufftCreate(&spin_frequency_fft_plan_));
+  CHECK_CUFFT_STATUS(
+      cufftPlanMany(&spin_frequency_fft_plan_, rank, transform_size, nembed,
+                    stride, dist, nembed, stride, dist, CUFFT_D2Z, num_transforms));
+  spin_frequency_fft_plan_initialized_ = true;
 }

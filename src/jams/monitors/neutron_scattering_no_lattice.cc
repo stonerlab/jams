@@ -51,10 +51,24 @@ NeutronScatteringNoLatticeMonitor::NeutronScatteringNoLatticeMonitor(const libco
   zero(spin_frequencies_.resize(globals::num_spins, 3, periodogram_props_.length));
 
   zero(kspace_spins_timeseries_.resize(periodogram_props_.length, kspace_path_.size()));
+  zero(kspace_spectrum_buffer_.resize(periodogram_props_.length, kspace_path_.size()));
   zero(total_unpolarized_neutron_cross_section_.resize(
       periodogram_props_.length, kspace_path_.size()));
   zero(total_polarized_neutron_cross_sections_.resize(
       neutron_polarizations_.size(),periodogram_props_.length, kspace_path_.size()));
+
+  initialise_fft_plans_();
+}
+
+NeutronScatteringNoLatticeMonitor::~NeutronScatteringNoLatticeMonitor() {
+  if (kspace_periodogram_fft_plan_ != nullptr) {
+    fftw_destroy_plan(kspace_periodogram_fft_plan_);
+    kspace_periodogram_fft_plan_ = nullptr;
+  }
+  if (spin_frequency_fft_plan_ != nullptr) {
+    fftw_destroy_plan(spin_frequency_fft_plan_);
+    spin_frequency_fft_plan_ = nullptr;
+  }
 }
 
 void NeutronScatteringNoLatticeMonitor::update(Solver& solver) {
@@ -162,30 +176,16 @@ NeutronScatteringNoLatticeMonitor::calculate_polarized_cross_sections(const jams
 }
 
 jams::MultiArray<Vec3cx,2> NeutronScatteringNoLatticeMonitor::periodogram() {
-  jams::MultiArray<Vec3cx,2> spectrum(kspace_spins_timeseries_);
+  kspace_spectrum_buffer_ = kspace_spins_timeseries_;
 
-  const int num_time_samples  = spectrum.size(0);
-  const int num_kspace_samples = spectrum.size(1);
-
-  int rank = 1;
-  int transform_size[1] = {num_time_samples};
-  int num_transforms = num_kspace_samples * 3;
-  int nembed[1] = {num_time_samples};
-  int stride = num_kspace_samples * 3;
-  int dist = 1;
-
-  fftw_plan fft_plan = fftw_plan_many_dft(rank, transform_size, num_transforms,
-                                          FFTW_COMPLEX_CAST(spectrum.begin()), nembed, stride, dist,
-                                          FFTW_COMPLEX_CAST(spectrum.begin()), nembed, stride, dist,
-                                          FFTW_BACKWARD, FFTW_ESTIMATE);
-
-  assert(fft_plan);
+  const int num_time_samples  = kspace_spectrum_buffer_.size(0);
+  const int num_kspace_samples = kspace_spectrum_buffer_.size(1);
 
   jams::MultiArray<Vec3cx, 1> static_spectrum(num_kspace_samples);
   zero(static_spectrum);
   for (auto i = 0; i < num_time_samples; ++i) {
     for (auto j = 0; j < num_kspace_samples; ++j) {
-      static_spectrum(j) += spectrum(i, j);
+      static_spectrum(j) += kspace_spectrum_buffer_(i, j);
     }
   }
   element_scale(static_spectrum, 1.0/double(num_time_samples));
@@ -193,17 +193,17 @@ jams::MultiArray<Vec3cx,2> NeutronScatteringNoLatticeMonitor::periodogram() {
 
   for (auto i = 0; i < num_time_samples; ++i) {
     for (auto j = 0; j < num_kspace_samples; ++j) {
-      spectrum(i, j) = fft_window_default(i, num_time_samples) *
-          (spectrum(i, j) - static_spectrum(j));
+      kspace_spectrum_buffer_(i, j) = fft_window_default(i, num_time_samples) *
+          (kspace_spectrum_buffer_(i, j) - static_spectrum(j));
     }
   }
 
-  fftw_execute(fft_plan);
-  fftw_destroy_plan(fft_plan);
+  assert(kspace_periodogram_fft_plan_ != nullptr);
+  fftw_execute(kspace_periodogram_fft_plan_);
 
-  element_scale(spectrum, 1.0 / double(num_time_samples));
+  element_scale(kspace_spectrum_buffer_, 1.0 / double(num_time_samples));
 
-  return spectrum;
+  return kspace_spectrum_buffer_;
 }
 
 void NeutronScatteringNoLatticeMonitor::shift_periodogram_overlap() {
@@ -388,24 +388,6 @@ void NeutronScatteringNoLatticeMonitor::output_fixed_spectrum() {
 
   const int num_time_samples = periodogram_props_.length;
 
-  int rank = 1;
-  int transform_size[1] = {num_time_samples};
-  int num_transforms = globals::num_spins3;
-  int nembed[1] = {num_time_samples};
-  int stride = 1;
-  int dist = num_time_samples;
-
-  fftw_plan fft_plan = fftw_plan_many_dft(rank, transform_size, num_transforms,
-                                          FFTW_COMPLEX_CAST(
-                                              spin_frequencies_.data()),
-                                          nembed, stride, dist,
-                                          FFTW_COMPLEX_CAST(
-                                              spin_frequencies_.data()),
-                                          nembed, stride, dist,
-                                          FFTW_BACKWARD, FFTW_ESTIMATE);
-
-  assert(fft_plan);
-
   jams::MultiArray<double, 2> spin_averages(globals::num_spins, 3);
   zero(spin_averages);
   for (auto i = 0; i < globals::num_spins; ++i) {
@@ -428,8 +410,8 @@ void NeutronScatteringNoLatticeMonitor::output_fixed_spectrum() {
 
 
 
-
-  fftw_execute(fft_plan);
+  assert(spin_frequency_fft_plan_ != nullptr);
+  fftw_execute(spin_frequency_fft_plan_);
 
   std::ofstream debug(jams::output::full_path_filename("debug.tsv"));
   for (auto t = 0; t < num_time_samples; ++t) {
@@ -534,7 +516,37 @@ void NeutronScatteringNoLatticeMonitor::output_fixed_spectrum() {
   }
 
   ofs.close();
+}
 
-  fftw_destroy_plan(fft_plan);
+void NeutronScatteringNoLatticeMonitor::initialise_fft_plans_() {
+  const int num_time_samples = periodogram_props_.length;
 
+  int rank = 1;
+  int transform_size[1] = {num_time_samples};
+
+  int kspace_transforms = kspace_path_.size() * 3;
+  int kspace_nembed[1] = {num_time_samples};
+  int kspace_stride = kspace_path_.size() * 3;
+  int kspace_dist = 1;
+
+  kspace_periodogram_fft_plan_ = fftw_plan_many_dft(
+      rank, transform_size, kspace_transforms,
+      FFTW_COMPLEX_CAST(kspace_spectrum_buffer_.begin()), kspace_nembed, kspace_stride, kspace_dist,
+      FFTW_COMPLEX_CAST(kspace_spectrum_buffer_.begin()), kspace_nembed, kspace_stride, kspace_dist,
+      FFTW_BACKWARD, FFTW_ESTIMATE);
+
+  assert(kspace_periodogram_fft_plan_ != nullptr);
+
+  int spin_transforms = globals::num_spins3;
+  int spin_nembed[1] = {num_time_samples};
+  int spin_stride = 1;
+  int spin_dist = num_time_samples;
+
+  spin_frequency_fft_plan_ = fftw_plan_many_dft(
+      rank, transform_size, spin_transforms,
+      FFTW_COMPLEX_CAST(spin_frequencies_.data()), spin_nembed, spin_stride, spin_dist,
+      FFTW_COMPLEX_CAST(spin_frequencies_.data()), spin_nembed, spin_stride, spin_dist,
+      FFTW_BACKWARD, FFTW_ESTIMATE);
+
+  assert(spin_frequency_fft_plan_ != nullptr);
 }

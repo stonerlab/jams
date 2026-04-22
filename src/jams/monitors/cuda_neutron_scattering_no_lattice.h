@@ -10,15 +10,17 @@
 #include <vector>
 #include <complex>
 #include <jams/helpers/mixed_precision.h>
+#include <cufft.h>
 
 class CudaNeutronScatteringNoLatticeMonitor : public Monitor {
 public:
     explicit CudaNeutronScatteringNoLatticeMonitor(const libconfig::Setting &settings);
-    ~CudaNeutronScatteringNoLatticeMonitor() override = default;
+    ~CudaNeutronScatteringNoLatticeMonitor() override;
 
     void post_process() override {};
     void update(Solver& solver) override;
 private:
+    void initialise_fft_plan_();
 
     void configure_kspace_vectors(const libconfig::Setting& settings);
 //    void configure_polarizations(libconfig::Setting &setting);
@@ -34,6 +36,7 @@ private:
     bool do_rspace_windowing_ = true;
     jams::MultiArray<Vec3R, 1>   kspace_path_;
     jams::MultiArray<double,3> spin_timeseries_;
+    jams::MultiArray<double,3> windowed_timeseries_;
     jams::MultiArray<std::complex<double>,3> spin_frequencies_;
 
     jams::MultiArray<jams::Real, 2> neutron_form_factors_;
@@ -48,6 +51,8 @@ private:
     jams::Real kmax_ = 50.0;
     int num_k_ = 100;
     Vec3R kvector_ = {0.0, 0.0, 1.0};
+    cufftHandle spin_frequency_fft_plan_{};
+    bool spin_frequency_fft_plan_initialized_ = false;
 
 };
 
