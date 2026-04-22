@@ -32,6 +32,7 @@ public:
 
     void update(Solver& solver);
     void post_process() override {};
+    AccessMode access_mode() const override { return AccessMode::kDeviceOnly; }
 
     inline std::string name() const {return "cuda-thermal-current";}
 

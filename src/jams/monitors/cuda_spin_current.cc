@@ -9,6 +9,7 @@
 #include "jams/core/globals.h"
 #include "jams/core/interactions.h"
 #include "jams/core/lattice.h"
+#include "jams/cuda/cuda_solver.h"
 #include "jams/core/solver.h"
 #include "jams/cuda/cuda_common.h"
 #include "jams/helpers/consts.h"
@@ -68,6 +69,9 @@ CudaSpinCurrentMonitor::CudaSpinCurrentMonitor(const libconfig::Setting &setting
 }
 
 void CudaSpinCurrentMonitor::update(Solver& solver) {
+  auto& cuda_solver = static_cast<CudaSolver&>(solver);
+  cuda_solver.wait_on_spin_barrier_event(stream.get());
+
   Vec3 js_z = execute_cuda_spin_current_kernel(
           stream,
           globals::num_spins,

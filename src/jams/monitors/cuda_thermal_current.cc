@@ -13,6 +13,7 @@
 #include "jams/helpers/output.h"
 #include "jams/core/globals.h"
 #include "jams/interface/config.h"
+#include "jams/cuda/cuda_solver.h"
 #include "jams/core/solver.h"
 #include "jams/core/lattice.h"
 #include "jams/monitors/cuda_thermal_current.h"
@@ -52,6 +53,9 @@ CudaThermalCurrentMonitor::CudaThermalCurrentMonitor(const libconfig::Setting &s
 }
 
 void CudaThermalCurrentMonitor::update(Solver& solver) {
+  auto& cuda_solver = static_cast<CudaSolver&>(solver);
+  cuda_solver.wait_on_spin_barrier_event(stream.get());
+
   Vec3 js = execute_cuda_thermal_current_kernel(
           stream, state_.s, interaction_matrix_, thermal_current_rx_, thermal_current_ry_, thermal_current_rz_);
 

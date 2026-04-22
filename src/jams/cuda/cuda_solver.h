@@ -24,21 +24,35 @@ class CudaSolver : public Solver {
 
     void notify_monitors() override
     {
-        std::vector<Monitor*> due_monitors;
-        due_monitors.reserve(monitors_.size());
+        std::vector<Monitor*> host_due_monitors;
+        std::vector<Monitor*> device_due_monitors;
+        host_due_monitors.reserve(monitors_.size());
+        device_due_monitors.reserve(monitors_.size());
 
         for (auto& m : monitors_) {
             if (m->is_updating(iteration_)) {
-                due_monitors.push_back(m.get());
+                if (m->access_mode() == Monitor::AccessMode::kDeviceOnly) {
+                    device_due_monitors.push_back(m.get());
+                } else {
+                    host_due_monitors.push_back(m.get());
+                }
             }
         }
 
-        if (due_monitors.empty()) {
+        if (host_due_monitors.empty() && device_due_monitors.empty()) {
+            return;
+        }
+
+        for (auto* monitor : device_due_monitors) {
+            monitor->update(*this);
+        }
+
+        if (host_due_monitors.empty()) {
             return;
         }
 
         synchronize_on_spin_barrier_event();
-        for (auto* monitor : due_monitors) {
+        for (auto* monitor : host_due_monitors) {
             monitor->update(*this);
         }
     }

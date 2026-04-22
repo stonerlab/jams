@@ -77,6 +77,7 @@ public:
 
     void update(Solver& solver);
     void post_process() override {};
+    AccessMode access_mode() const override { return AccessMode::kDeviceOnly; }
 
 private:
     void write_spin_current_h5_file(const std::string &h5_file_name, const int iteration, const double time);

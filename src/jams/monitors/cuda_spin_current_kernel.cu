@@ -81,10 +81,9 @@ Vec3 execute_cuda_spin_current_kernel(
           dev_spin_current_rz_z);
   DEBUG_CHECK_CUDA_ASYNC_STATUS;
 
-  double j_rx_z = 0.5*cuda_reduce_array(dev_spin_current_rx_z, num_spins);
-  double j_ry_z = 0.5*cuda_reduce_array(dev_spin_current_ry_z, num_spins);
-  double j_rz_z = 0.5*cuda_reduce_array(dev_spin_current_rz_z, num_spins);
+  double j_rx_z = 0.5*cuda_reduce_array(dev_spin_current_rx_z, num_spins, stream.get());
+  double j_ry_z = 0.5*cuda_reduce_array(dev_spin_current_ry_z, num_spins, stream.get());
+  double j_rz_z = 0.5*cuda_reduce_array(dev_spin_current_rz_z, num_spins, stream.get());
   
   return {j_rx_z, j_ry_z, j_rz_z};
 }
-

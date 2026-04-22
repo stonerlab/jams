@@ -60,6 +60,11 @@ public:
         kNotConverged,
     };
 
+    enum class AccessMode {
+        kHostRead,
+        kDeviceOnly,
+    };
+
     ///
     /// Construct the monitor using any config values provided in `settings`.
     ///
@@ -85,6 +90,8 @@ public:
     /// on the series and outputs the final result.
     ///
     virtual void post_process() = 0;
+
+    virtual AccessMode access_mode() const { return AccessMode::kHostRead; }
 
     virtual ConvergenceStatus convergence_status() { return convergence_status_; };
 
