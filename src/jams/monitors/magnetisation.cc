@@ -29,10 +29,10 @@ void MagnetisationMonitor::update(Solver& solver) {
   values.push_back(solver.time());
 
   for (auto n = 0; n < group_spin_indices_.size(); ++n) {
-    Vec3 mag = jams::sum_spins_moments(globals::s, globals::mus, group_spin_indices_[n]);
+    Vec3 mag = jams::sum_spins_moments(state_.s, state_.mus, group_spin_indices_[n]);
     double normalising_factor = 1.0;
     if (normalize_magnetisation_) {
-      normalising_factor = 1.0 / jams::scalar_field_indexed_reduce(globals::mus, group_spin_indices_[n]);
+      normalising_factor = 1.0 / jams::scalar_field_indexed_reduce(state_.mus, group_spin_indices_[n]);
     } else {
       // internally we use meV T^-1 for mus so convert back to Bohr magneton
       normalising_factor = 1.0 / kBohrMagnetonIU;

@@ -28,7 +28,7 @@ void FieldMonitor::update(Solver& solver) {
 
     Vec3 field = {0.0, 0.0, 0.0};
     for (auto i = 0; i < globals::num_spins; ++i) {
-      field += Vec3{hamiltonian->field(i, 0), hamiltonian->field(i, 1), hamiltonian->field(i, 2)} / globals::mus(i);
+      field += Vec3{hamiltonian->field(i, 0), hamiltonian->field(i, 1), hamiltonian->field(i, 2)} / state_.mus(i);
     }
 
     total_field.push_back(field / static_cast<double>(globals::num_spins));

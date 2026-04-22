@@ -40,12 +40,12 @@ void SMRMonitor::update(Solver& solver) {
     // t -> y
     // n -> z
     int type = globals::lattice->lattice_site_material_id(i);
-    mtsq_para[type] +=  globals::s(i, 1) * globals::s(i, 1);
-    mtsq_perp[type] +=  globals::s(i, 0) * globals::s(i, 0);
-    mjmt_para[type] +=  globals::s(i, 0) * globals::s(i, 1);
-    mjmt_perp[type] += -globals::s(i, 0) * globals::s(i, 1);
+    mtsq_para[type] +=  state_.s(i, 1) * state_.s(i, 1);
+    mtsq_perp[type] +=  state_.s(i, 0) * state_.s(i, 0);
+    mjmt_para[type] +=  state_.s(i, 0) * state_.s(i, 1);
+    mjmt_perp[type] += -state_.s(i, 0) * state_.s(i, 1);
 
-    mn[type]   += globals::s(i, 2);
+    mn[type]   += state_.s(i, 2);
     material_count[type]++;
   }
 

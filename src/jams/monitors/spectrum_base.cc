@@ -953,7 +953,7 @@ jams::ComplexHi SpectrumBaseMonitor::map_spin_component_(
 
   if (channel_transform_.scale_to_physical_spin)
   {
-    const double mu = globals::mus(basis_index);
+    const double mu = state_.mus(basis_index);
     const double spin_length = mu / kElectronGFactor;
     s *= spin_length;
   }

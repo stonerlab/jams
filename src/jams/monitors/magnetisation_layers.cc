@@ -148,7 +148,7 @@ MagnetisationLayersMonitor::MagnetisationLayersMonitor(
       for (auto i = 0; i < z.second.size(); ++i) {
         auto spin_index = z.second[i];
         group_layer_spin_indicies_[group_idx][counter](i) = spin_index;
-        layer_saturation_moment(counter) += globals::mus(spin_index) / kBohrMagnetonIU;
+        layer_saturation_moment(counter) += state_.mus(spin_index) / kBohrMagnetonIU;
       }
 
       ++counter;
@@ -222,7 +222,7 @@ void MagnetisationLayersMonitor::update(Solver& solver) {
 
     // Loop over layers and calculate the magnetisation
     for (auto layer_index = 0; layer_index < group_num_layers_[group_idx]; ++layer_index) {
-      Vec3 mag = jams::sum_spins_moments(globals::s, globals::mus,
+      Vec3 mag = jams::sum_spins_moments(state_.s, state_.mus,
                                            group_layer_spin_indicies_[group_idx][layer_index]);
 
       // internally we use meV T^-1 for mus so convert back to Bohr magneton

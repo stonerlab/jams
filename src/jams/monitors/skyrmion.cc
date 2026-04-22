@@ -66,7 +66,7 @@ void SkyrmionMonitor::update(Solver& solver) {
 
       for (auto i = 0; i < globals::num_spins; ++i) {
         auto type = globals::lattice->lattice_site_material_id(i);
-        if (globals::s(i, 2)*type_norms[type] > threshold) {
+        if (state_.s(i, 2)*type_norms[type] > threshold) {
           x = globals::lattice->lattice_site_position_cart(i)[0] - r_com[type][0];
           x = x - nint(x / x_size) * x_size;  // min image convention
           y = globals::lattice->lattice_site_position_cart(i)[1] - r_com[type][1];
@@ -149,7 +149,7 @@ void SkyrmionMonitor::calc_center_of_mass(std::vector<Vec3 > &r_com, const doubl
 
   for (auto i = 0; i < globals::num_spins; ++i) {
     auto type = globals::lattice->lattice_site_material_id(i);
-    if (globals::s(i, 2)*type_norms[type] > threshold) {
+    if (state_.s(i, 2)*type_norms[type] > threshold) {
       tube_x_com[type] += tube_x[i];
       tube_y_com[type] += tube_y[i];
       r_count[type]++;
@@ -210,4 +210,3 @@ std::string SkyrmionMonitor::tsv_header() {
   ss << "\n";
   return ss.str();
 }
-

@@ -38,7 +38,7 @@ MagnonSpectrumMonitor::MagnonSpectrumMonitor(const libconfig::Setting& settings)
 void MagnonSpectrumMonitor::update(Solver& solver)
 {
 
-    store_sk_snapshot(globals::s);
+    store_sk_snapshot(state_.s);
 
     if (periodogram_window_complete())
     {

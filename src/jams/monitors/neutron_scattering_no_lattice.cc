@@ -93,9 +93,9 @@ void NeutronScatteringNoLatticeMonitor::configure_kspace_vectors(const libconfig
     kspace_path_(i) = kvector_ * i * (kmax_ / num_k_);
   }
 
-  rspace_displacement_.resize(globals::s.size(0));
+  rspace_displacement_.resize(state_.s.size(0));
   Vec3i lattice_dimensions = ::globals::lattice->size();
-  for (auto i = 0; i < globals::s.size(0); ++i) {
+  for (auto i = 0; i < state_.s.size(0); ++i) {
     // generalize so that we can impose open boundaries
     rspace_displacement_(i) = globals::lattice->displacement(
         {0.5 * lattice_dimensions[0], 0.5 * lattice_dimensions[1], 0.5 * lattice_dimensions[2]},
@@ -297,7 +297,7 @@ void NeutronScatteringNoLatticeMonitor::store_kspace_data_on_path() {
   fill(&kspace_spins_timeseries_(i,0), &kspace_spins_timeseries_(i,0) + kspace_path_.size(), Vec3cx{0.0});
 
   for (auto n = 0; n < globals::num_spins; ++n) {
-    Vec3 spin = {globals::s(n,0), globals::s(n,1), globals::s(n,2)};
+    Vec3 spin = {state_.s(n,0), state_.s(n,1), state_.s(n,2)};
 
     Vec3 r = rspace_displacement_(n);
 
@@ -377,7 +377,7 @@ void NeutronScatteringNoLatticeMonitor::store_spin_data() {
 
   for (auto i = 0; i < globals::num_spins; ++i) {
     for (auto j = 0; j < 3; ++j) {
-      spin_timeseries_(i,j,t) = globals::s(i,j);
+      spin_timeseries_(i,j,t) = state_.s(i,j);
     }
   }
 

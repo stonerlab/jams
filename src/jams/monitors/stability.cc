@@ -41,7 +41,7 @@ void StabilityMonitor::update(Solver& solver)
     double S_err_mean = 0.0;
     double S2_err_mean = 0.0;
     for (auto i = 0; i < globals::num_spins; ++i) {
-        const Vec3 s = {globals::s(i,0), globals::s(i, 1), globals::s(i,2)};
+        const Vec3 s = {state_.s(i,0), state_.s(i, 1), state_.s(i,2)};
         double S_err = jams::norm_squared(s) - 1;
         S_err_mean += S_err;
         S2_err_mean += S_err * S_err;

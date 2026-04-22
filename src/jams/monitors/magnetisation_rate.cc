@@ -34,7 +34,7 @@ void MagnetisationRateMonitor::update(Solver& solver) {
   for (auto i = 0; i < globals::num_spins; ++i) {
     const auto type = globals::lattice->lattice_site_material_id(i);
     for (auto j = 0; j < 3; ++j) {
-      dm_dt[type][j] += globals::ds_dt(i, j);
+      dm_dt[type][j] += state_.ds_dt(i, j);
     }
   }
 

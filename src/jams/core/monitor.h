@@ -41,6 +41,7 @@
 
 
 #include <jams/core/base.h>
+#include <jams/core/globals.h>
 
 namespace libconfig { class Setting; }
 
@@ -98,6 +99,17 @@ public:
     static Monitor *create(const libconfig::Setting &settings);
 
 protected:
+    struct MonitorStateView {
+        const jams::MultiArray<double, 2>& s;
+        const jams::MultiArray<jams::Real, 2>& h;
+        const jams::MultiArray<double, 2>& ds_dt;
+        const jams::MultiArray<jams::Real, 2>& positions;
+        const jams::MultiArray<jams::Real, 1>& alpha;
+        const jams::MultiArray<jams::Real, 1>& mus;
+        const jams::MultiArray<jams::Real, 1>& gyro;
+    };
+
+    const MonitorStateView state_;
     int start_delay_steps_ = 0;
     int output_step_freq_;
     ConvergenceStatus convergence_status_;

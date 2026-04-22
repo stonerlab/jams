@@ -41,7 +41,7 @@ void TorqueMonitor::update(Solver& solver) {
     Vec3 torque = {0.0, 0.0, 0.0};
     for (auto i = 0; i < globals::num_spins; ++i) {
       // Calculate the local torque on a lattice site (\vec{S} \times \vec{H})
-      const Vec3 spin = {globals::s(i,0), globals::s(i,1), globals::s(i,2)};
+      const Vec3 spin = {state_.s(i,0), state_.s(i,1), state_.s(i,2)};
       const Vec3 field = {hamiltonian->field(i, 0), hamiltonian->field(i, 1), hamiltonian->field(i, 2)};
 
       torque += jams::cross(spin, field);

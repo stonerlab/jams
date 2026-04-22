@@ -373,7 +373,7 @@ void SpectrumFourierMonitor::fft_space() {
   for (auto n = 0; n < globals::num_spins; ++n) {
     for (auto i = 0; i < 3; ++i) {
       for (auto j = 0; j < 3; ++j) {
-        transformed_spins(n, i) += std::complex<double>{spin_transformations[n][i][j] * globals::s(n, j), 0.0};
+        transformed_spins(n, i) += std::complex<double>{spin_transformations[n][i][j] * state_.s(n, j), 0.0};
       }
     }
   }

@@ -70,16 +70,16 @@ void UnitcellAverageMonitor::update(Solver& solver) {
   for (auto i = 0; i < globals::num_spins; ++i) {
     auto cell = globals::lattice->cell_containing_atom(i);
     for (auto j = 0; j < 3; ++j) {
-      cell_mag_(cell, j) += globals::mus(i)*globals::s(i,j) * moment_IU_factor;
+      cell_mag_(cell, j) += state_.mus(i)*state_.s(i,j) * moment_IU_factor;
     }
   }
 
   cell_neel_.zero();
   for (auto i = 0; i < globals::num_spins; ++i) {
     auto cell = globals::lattice->cell_containing_atom(i);
-    auto s_transformed = spin_transformations_[i] * Vec3{{globals::s(i,0), globals::s(i,1), globals::s(i,2)}};
+    auto s_transformed = spin_transformations_[i] * Vec3{{state_.s(i,0), state_.s(i,1), state_.s(i,2)}};
     for (auto j = 0; j < 3; ++j) {
-      cell_neel_(cell, j) += globals::mus(i)*s_transformed[j] * moment_IU_factor;
+      cell_neel_(cell, j) += state_.mus(i)*s_transformed[j] * moment_IU_factor;
     }
   }
 

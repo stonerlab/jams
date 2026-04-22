@@ -103,7 +103,7 @@ void VtuMonitor::update(Solver& solver) {
         spins_bytesize  = 3*num_slice_points*sizeof(double);
         for (int i = 0; i < num_slice_points; ++i) {
             for (int j = 0; j < 3; ++j) {
-                spins_binary_data(i,j) = globals::s(slice_spins[i],j);
+                spins_binary_data(i,j) = state_.s(slice_spins[i],j);
             }
         }
     }
@@ -150,7 +150,7 @@ void VtuMonitor::update(Solver& solver) {
     vtkfile.write(reinterpret_cast<char*>(types_binary_data.data()), types_bytesize);
     vtkfile.write(reinterpret_cast<char*>(&spins_bytesize), header_bytesize);
     if (num_slice_points == 0) {
-        vtkfile.write(reinterpret_cast<char*>(globals::s.data()), spins_bytesize);
+        vtkfile.write(reinterpret_cast<const char*>(state_.s.data()), spins_bytesize);
     } else {
         vtkfile.write(reinterpret_cast<char*>(spins_binary_data.data()), spins_bytesize);
     }

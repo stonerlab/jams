@@ -23,7 +23,7 @@ Monitor(settings){
 void SpinCorrelationMonitor::update(Solver& solver) {
   if (time_point_counter_ < num_samples_) {
     for (auto i = 0; i < globals::num_spins; ++i) {
-      sz_data_(i, time_point_counter_) = static_cast<float>(globals::s(i,2));
+      sz_data_(i, time_point_counter_) = static_cast<float>(state_.s(i,2));
     }
   }
 
@@ -113,4 +113,3 @@ void SpinCorrelationMonitor::post_process() {
     }
   }
 }
-

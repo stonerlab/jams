@@ -68,7 +68,7 @@ void XyzMonitor::update(Solver& solver) {
         xyz_state_file << std::setw(16) << globals::lattice->lattice_site_position_cart(n)[0] << std::setw(16) << globals::lattice->lattice_site_position_cart(
             n)[1] << std::setw(16) << globals::lattice->lattice_site_position_cart(
             n)[2];
-        xyz_state_file << std::setw(16) << globals::s(n,0) << std::setw(16) << globals::s(n,1) << std::setw(16) <<  globals::s(n, 2) << "\n";
+        xyz_state_file << std::setw(16) << state_.s(n,0) << std::setw(16) << state_.s(n,1) << std::setw(16) <<  state_.s(n, 2) << "\n";
       }
     } else {
       for (int n = 0; n < globals::num_spins; ++n) {
@@ -76,7 +76,7 @@ void XyzMonitor::update(Solver& solver) {
         xyz_state_file << std::setw(16) << globals::lattice->lattice_site_position_cart(n)[0] << std::setw(16) << globals::lattice->lattice_site_position_cart(
             n)[1] << std::setw(16) << globals::lattice->lattice_site_position_cart(
             n)[2];
-        xyz_state_file << std::setw(16) << globals::s(n,0) << std::setw(16) << globals::s(n,1) << std::setw(16) <<  globals::s(n, 2) << "\n";
+        xyz_state_file << std::setw(16) << state_.s(n,0) << std::setw(16) << state_.s(n,1) << std::setw(16) <<  state_.s(n, 2) << "\n";
       }
     }
     xyz_state_file.close();

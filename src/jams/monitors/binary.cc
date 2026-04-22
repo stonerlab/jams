@@ -29,6 +29,6 @@ void BinaryMonitor::update(Solver& solver) {
 
   // pointers must be reinterpreted as a char *
   bin_file.write(reinterpret_cast<char*>(&globals::num_spins), sizeof(int));
-  bin_file.write(reinterpret_cast<char*>(globals::s.data()), sizeof(double)*globals::num_spins);
+  bin_file.write(reinterpret_cast<const char*>(state_.s.data()), sizeof(double)*globals::num_spins);
   bin_file.close();
 }

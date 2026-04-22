@@ -45,6 +45,8 @@
 
 Monitor::Monitor(const libconfig::Setting &settings)
 : Base(settings),
+  state_{globals::s, globals::h, globals::ds_dt, globals::positions,
+         globals::alpha, globals::mus, globals::gyro},
   start_delay_steps_(jams::config_optional<int>(settings, "start_delay_steps", 0)),
   output_step_freq_(
           jams::config_optional<int>(settings, "output_steps", jams::defaults::monitor_output_steps)),

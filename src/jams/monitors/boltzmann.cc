@@ -26,8 +26,8 @@ void BoltzmannMonitor::update(Solver& solver) {
   }
   if (solver.iteration()%output_step_freq_ == 0) {
     for (int i = 0; i < globals::num_spins; ++i) {
-      double z = globals::s(i, 2);
-      double xy = std::hypot(globals::s(i, 0), globals::s(i, 1));
+      double z = state_.s(i, 2);
+      double xy = std::hypot(state_.s(i, 0), state_.s(i, 1));
       // Use atan2 rather than acos for accuracy around the poles and to avoid
       // any domain issues if spin is not well normalised
       int round = static_cast<int>(rad_to_deg(std::atan2(xy, z)) * 0.5);

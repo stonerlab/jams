@@ -42,7 +42,7 @@ void SpinPumpingMonitor::update(Solver& solver) {
   for (auto i = 0; i < globals::num_spins; ++i) {
     const auto type = globals::lattice->lattice_site_material_id(i);
 
-    Vec3 s_i = {globals::s(i,0), globals::s(i, 1), globals::s(i,2)};
+    Vec3 s_i = {state_.s(i,0), state_.s(i, 1), state_.s(i,2)};
     Vec3 s_old_i = {s_old_(i,0), s_old_(i, 1), s_old_(i,2)};
     Vec3 ds_dt_i = (s_i - s_old_i) * d_timestep;
 
@@ -88,7 +88,7 @@ std::string SpinPumpingMonitor::tsv_header() {
 
 bool SpinPumpingMonitor::is_updating(const int &iteration) {
   if ((iteration + 1) % output_step_freq_ == 0) {
-    s_old_ = globals::s;
+    s_old_ = state_.s;
   }
   if (iteration % output_step_freq_ == 0) {
     return true;

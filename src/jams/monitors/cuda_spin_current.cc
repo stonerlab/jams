@@ -71,9 +71,9 @@ void CudaSpinCurrentMonitor::update(Solver& solver) {
   Vec3 js_z = execute_cuda_spin_current_kernel(
           stream,
           globals::num_spins,
-          globals::s.device_data(),
-          globals::gyro.device_data(),
-          globals::mus.device_data(),
+          state_.s.device_data(),
+          state_.gyro.device_data(),
+          state_.mus.device_data(),
           reinterpret_cast<const double*>(interaction_matrix_.val_device_data()),
           interaction_matrix_.row_device_data(),
           interaction_matrix_.col_device_data(),
