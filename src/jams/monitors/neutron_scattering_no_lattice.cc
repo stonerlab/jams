@@ -413,13 +413,6 @@ void NeutronScatteringNoLatticeMonitor::output_fixed_spectrum() {
   assert(spin_frequency_fft_plan_ != nullptr);
   fftw_execute(spin_frequency_fft_plan_);
 
-  std::ofstream debug(jams::output::full_path_filename("debug.tsv"));
-  for (auto t = 0; t < num_time_samples; ++t) {
-    debug << t << " " << spin_frequencies_(0, 0, t).real() << " " << spin_frequencies_(0, 0, t).imag() << " " << spin_frequencies_(0, 1, t).real() << " " << spin_frequencies_(0, 1, t).imag() << std::endl;
-  }
-  debug.close();
-
-
   element_scale(spin_frequencies_, 1.0 / double(num_time_samples));
 
   // Do S(Q,w) = sum_i sum_j exp(-iQ.R_i) exp(iQ.R_j) conj(S_i^a(w)) S_j^b(w)
@@ -436,8 +429,6 @@ void NeutronScatteringNoLatticeMonitor::output_fixed_spectrum() {
 
   zero(sqw);
   for (auto i = 0; i < globals::num_spins; ++i) {
-    std::cout << i << std::endl;
-
     // i == j is a special case because conj(S_i^a(w)) S_j^b(w) == conj(S_j^a(w)) S_i^b(w)
     zero(sw_i);
     for (auto m = 0; m < 3; ++m) {

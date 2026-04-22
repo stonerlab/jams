@@ -111,13 +111,6 @@ void CudaNeutronScatteringNoLatticeMonitor::output_spectrum() {
                  reinterpret_cast<cufftDoubleReal*>(windowed_timeseries_.device_data()),
                  reinterpret_cast<cufftDoubleComplex*>(spin_frequencies_.device_data())));
 
-  std::ofstream debug(jams::output::full_path_filename("debug.tsv"));
-  for (auto t = 0; t < num_time_samples / 2 + 1; ++t) {
-    debug << t << " " << spin_frequencies_(t, 0, 0).real() << " " << spin_frequencies_(t, 0, 0).imag() << " " << spin_frequencies_(t, 0, 1).real() << " " << spin_frequencies_(t, 0, 1).imag() << std::endl;
-  }
-  debug.close();
-
-
   // Calculate conj(S_i^a(w)) S_j^b(w) for every i and store in a structure like Sw(i, w) (i.e. a frequency spectrum for every spin)
   jams::MultiArray<std::complex<double>,2> s_conv(globals::num_spins, num_time_samples / 2 + 1);
 

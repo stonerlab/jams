@@ -153,7 +153,6 @@ SpectrumGeneralMonitor::~SpectrumGeneralMonitor() {
   // generate spectrum looping over all i,j
   for (unsigned i = 0; i < globals::num_spins; ++i) {
     if (is_vacancy[i]) continue;
-    std::cout << duration_string(time_point_cast<milliseconds>(system_clock::now()) - start_time) << " " << i << std::endl;
     for (unsigned j = 0; j < globals::num_spins; ++j) {
       if (is_vacancy[j]) continue;
       for (unsigned n = 0; n < qvecs.size(); ++n) {
@@ -169,18 +168,6 @@ SpectrumGeneralMonitor::~SpectrumGeneralMonitor() {
         }
       }
     }
-
-    if (i%10 == 0) {
-      std::ofstream cfile(jams::output::full_path_filename("corr.tsv"));
-      for (unsigned q = 0; q < qvecs.size(); ++q) {
-        for (unsigned w = 0; w < padded_size_/2+1; ++w) {
-          cfile << qmax_ * (q / double(num_qpoints_-1)) << " " << 0.5*w * freq_delta_ << " " << -SQw(q, w).imag() / (i + 1)/ static_cast<double>(padded_size_) << "\n";
-        }
-      }
-      cfile.flush();
-      cfile.close();
-    }
-
   }
 
   auto end_time = time_point_cast<milliseconds>(system_clock::now());
