@@ -24,11 +24,22 @@ class CudaSolver : public Solver {
 
     void notify_monitors() override
     {
-        synchronize_on_spin_barrier_event();
+        std::vector<Monitor*> due_monitors;
+        due_monitors.reserve(monitors_.size());
+
         for (auto& m : monitors_) {
             if (m->is_updating(iteration_)) {
-                m->update(*this);
+                due_monitors.push_back(m.get());
             }
+        }
+
+        if (due_monitors.empty()) {
+            return;
+        }
+
+        synchronize_on_spin_barrier_event();
+        for (auto* monitor : due_monitors) {
+            monitor->update(*this);
         }
     }
 
