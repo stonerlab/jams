@@ -325,16 +325,10 @@ SyncedMemory<T> &SyncedMemory<T>::operator=(const SyncedMemory& rhs) &{
 
 template<class T>
 SyncedMemory<T> &SyncedMemory<T>::operator=(SyncedMemory &&rhs) & noexcept {
-  size_ = rhs.size_;
-  host_ptr_ = rhs.host_ptr_;
-  device_ptr_ = rhs.device_ptr_;
-  sync_status_ = rhs.sync_status_;
-  host_cuda_malloc_ = rhs.host_cuda_malloc_;
-  rhs.sync_status_ = SyncStatus::UNINITIALIZED;
-  rhs.size_ = 0;
-  rhs.host_ptr_ = nullptr;
-  rhs.device_ptr_ = nullptr;
-  rhs.host_cuda_malloc_ = false;
+  if (this != &rhs) {
+    SyncedMemory tmp(std::move(rhs));
+    swap(*this, tmp);
+  }
   return *this;
 }
 
