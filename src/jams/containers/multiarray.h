@@ -237,44 +237,44 @@ namespace jams {
           return data_.const_host_data()[detail::row_major_index(size_, v)];
         }
 
-        inline pointer data() noexcept {
+        inline pointer data() {
           return data_.mutable_host_data();
         }
 
-        inline const_pointer data() const noexcept {
+        inline const_pointer data() const {
           return data_.const_host_data();
         }
 
-        inline pointer device_data() noexcept {
+        inline pointer device_data() {
           return data_.mutable_device_data();
         }
 
-        inline const_pointer device_data() const noexcept {
+        inline const_pointer device_data() const {
           return data_.const_device_data();
         }
 
         // iterators
-        inline iterator begin() noexcept {
+        inline iterator begin() {
           return data_.mutable_host_data();
         }
 
-        inline const_iterator begin() const noexcept {
+        inline const_iterator begin() const {
           return data_.const_host_data();
         }
 
-        inline const_iterator cbegin() const noexcept {
+        inline const_iterator cbegin() const {
           return data_.const_host_data();
         }
 
-        inline iterator end() noexcept {
+        inline iterator end() {
           return data_.mutable_host_data() + data_.size();
         }
 
-        inline const_iterator end() const noexcept {
+        inline const_iterator end() const {
           return data_.const_host_data() + data_.size();
         }
 
-        inline const_iterator cend() const noexcept {
+        inline const_iterator cend() const {
           return data_.const_host_data() + data_.size();
         }
 
@@ -290,7 +290,7 @@ namespace jams {
           swap(this->data_, other.data_);
         }
 
-        inline void zero() noexcept {
+        inline void zero() {
           data_.zero();
         }
 
@@ -444,44 +444,44 @@ namespace jams {
           return data_.const_host_data()[std::get<0>(v)];
         }
 
-        inline pointer data() noexcept {
+        inline pointer data() {
           return data_.mutable_host_data();
         }
 
-        inline const_pointer data() const noexcept {
+        inline const_pointer data() const {
           return data_.const_host_data();
         }
 
-        inline pointer device_data() noexcept {
+        inline pointer device_data() {
           return data_.mutable_device_data();
         }
 
-        inline const_pointer device_data() const noexcept {
+        inline const_pointer device_data() const {
           return data_.const_device_data();
         }
 
         // iterators
-        inline iterator begin() noexcept {
+        inline iterator begin() {
           return data_.mutable_host_data();
         }
 
-        inline const_iterator begin() const noexcept {
+        inline const_iterator begin() const {
           return data_.const_host_data();
         }
 
-        inline const_iterator cbegin() const noexcept {
+        inline const_iterator cbegin() const {
           return data_.const_host_data();
         }
 
-        inline iterator end() noexcept {
+        inline iterator end() {
           return data_.mutable_host_data() + data_.size();
         }
 
-        inline const_iterator end() const noexcept {
+        inline const_iterator end() const {
           return data_.const_host_data() + data_.size();
         }
 
-        inline const_iterator cend() const noexcept {
+        inline const_iterator cend() const {
           return data_.const_host_data() + data_.size();
         }
 
@@ -497,7 +497,7 @@ namespace jams {
           swap(this->data_, other.data_);
         }
 
-        inline void zero() noexcept {
+        inline void zero() {
           data_.zero();
         }
 

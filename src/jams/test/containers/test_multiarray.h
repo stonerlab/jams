@@ -7,6 +7,7 @@
 
 #include <array>
 #include <complex>
+#include <utility>
 
 #include "jams/containers/multiarray.h"
 
@@ -89,6 +90,18 @@ TYPED_TEST(MultiArrayTest, ctor) {
   ASSERT_EQ(a3.size(0), 10);
   ASSERT_EQ(a3.size(1), 3);
   
+}
+
+TEST(MultiArrayNoexceptTest, AccessorsCanThrow) {
+  using Array1 = jams::MultiArray<int, 1>;
+  using Array2 = jams::MultiArray<int, 2>;
+
+  EXPECT_FALSE(noexcept(std::declval<Array1&>().data()));
+  EXPECT_FALSE(noexcept(std::declval<const Array1&>().data()));
+  EXPECT_FALSE(noexcept(std::declval<Array2&>().device_data()));
+  EXPECT_FALSE(noexcept(std::declval<const Array2&>().begin()));
+  EXPECT_FALSE(noexcept(std::declval<const Array2&>().end()));
+  EXPECT_FALSE(noexcept(std::declval<Array2&>().zero()));
 }
 
 #endif //JAMS_TEST_MULTIARRAY_H
