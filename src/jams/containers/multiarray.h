@@ -130,6 +130,26 @@ namespace jams {
           return arr_indices<N, N>::row_major(dims, idx);
         }
 
+        template<typename T, std::size_t N, std::size_t... Is>
+        constexpr bool indices_in_bounds_impl(const std::array<T, N> &dims,
+                                              const std::array<T, N> &idx,
+                                              indices<Is...>) {
+          return ((std::get<Is>(idx) < std::get<Is>(dims)) && ...);
+        }
+
+        template<typename T, std::size_t N>
+        constexpr bool indices_in_bounds(const std::array<T, N> &dims,
+                                         const std::array<T, N> &idx) {
+          return indices_in_bounds_impl(dims, idx, build_indices<N>());
+        }
+
+        template<std::size_t N, typename T, typename... Args>
+        constexpr bool indices_in_bounds(const std::array<T, N> &dims, const Args &... args) {
+          static_assert(sizeof...(args) == N,
+                        "number of indices does not match the MultiArray dimension");
+          return indices_in_bounds(dims, std::array<T, N>{{static_cast<T>(args)...}});
+        }
+
         template<typename T, typename... Args>
         constexpr T product(T v) {
           return v;
@@ -218,6 +238,7 @@ namespace jams {
         }
 
         [[nodiscard]] inline constexpr size_type size(const size_type n) const noexcept {
+          assert(n < Dim_);
           return size_[n];
         }
 
@@ -249,6 +270,7 @@ namespace jams {
           static_assert(sizeof...(args) == Dim_,
                         "number of MultiArray indicies does not match the MultiArray dimension");
           assert(!empty());
+          assert(detail::indices_in_bounds(size_, static_cast<size_type>(args)...));
           return data_.mutable_host_data()[detail::row_major_index(size_, static_cast<size_type>(args)...)];
         }
 
@@ -257,16 +279,19 @@ namespace jams {
           static_assert(sizeof...(args) == Dim_,
                         "number of MultiArray indicies does not match the MultiArray dimension");
           assert(!empty());
+          assert(detail::indices_in_bounds(size_, static_cast<size_type>(args)...));
           return data_.const_host_data()[detail::row_major_index(size_, static_cast<size_type>(args)...)];
         }
 
         inline reference operator()(const std::array<size_type, Dim_> &v) {
           assert(!empty());
+          assert(detail::indices_in_bounds(size_, v));
           return data_.mutable_host_data()[detail::row_major_index(size_, v)];
         }
 
         inline const_reference operator()(const std::array<size_type, Dim_> &v) const {
           assert(!empty());
+          assert(detail::indices_in_bounds(size_, v));
           return data_.const_host_data()[detail::row_major_index(size_, v)];
         }
 

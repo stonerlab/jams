@@ -45,6 +45,17 @@ TYPED_TEST(MultiArrayDetailsTest, product) {
 
 // test row major
 
+TEST(MultiArrayDetailsRuntimeTest, IndicesInBounds) {
+  using jams::detail::indices_in_bounds;
+
+  const std::array<std::size_t, 3> dims{2, 3, 4};
+
+  EXPECT_TRUE(indices_in_bounds(dims, 1u, 2u, 3u));
+  EXPECT_TRUE(indices_in_bounds(dims, std::array<std::size_t, 3>{1, 0, 0}));
+  EXPECT_FALSE(indices_in_bounds(dims, 2u, 2u, 3u));
+  EXPECT_FALSE(indices_in_bounds(dims, std::array<std::size_t, 3>{1, 3, 0}));
+}
+
 
 // fixture class
 template <typename T>
