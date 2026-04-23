@@ -482,7 +482,7 @@ namespace jams {
         }
 
         size_container_type size_ = {{0}};
-        mutable SyncedMemory<Tp_> data_;
+        SyncedMemory<Tp_> data_;
     };
 
     template<class FTp_, std::size_t FDim_, class FIdx_>

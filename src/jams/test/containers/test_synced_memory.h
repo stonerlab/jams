@@ -68,6 +68,17 @@ TYPED_TEST(SynchedMemoryTest, accessors) {
   ASSERT_EQ(x.const_host_data()[9], TypeParam{99});
 }
 
+TEST(SyncedMemoryConstAccessTest, HostReadAccessorsAreCallableOnConstObjects) {
+  jams::SyncedMemory<int> storage(3, 5);
+  const jams::SyncedMemory<int>& const_storage = storage;
+
+  const auto* host = const_storage.const_host_data();
+  ASSERT_NE(host, nullptr);
+  EXPECT_EQ(host[0], 5);
+  EXPECT_EQ(host[1], 5);
+  EXPECT_EQ(host[2], 5);
+}
+
 TYPED_TEST(SynchedMemoryTest, modifiers) {
   using namespace jams;
 
@@ -102,6 +113,24 @@ TEST(SyncedMemoryRangeCtorTest, SupportsInputIterators) {
 }
 
 #if HAS_CUDA
+TEST(SyncedMemoryConstAccessTest, DeviceReadAccessorsAreCallableOnConstObjects) {
+  if (!have_synced_memory_cuda_device()) {
+    GTEST_SKIP() << "CUDA device not available";
+  }
+
+  jams::SyncedMemory<int> storage(3, 4);
+  ASSERT_NE(storage.mutable_device_data(), nullptr);
+
+  const jams::SyncedMemory<int>& const_storage = storage;
+  ASSERT_NE(const_storage.const_device_data(), nullptr);
+
+  const auto* host = const_storage.const_host_data();
+  ASSERT_NE(host, nullptr);
+  EXPECT_EQ(host[0], 4);
+  EXPECT_EQ(host[1], 4);
+  EXPECT_EQ(host[2], 4);
+}
+
 TEST(SyncedMemoryGpuCopyCtorTest, PreservesDeviceMutatedState) {
   if (!have_synced_memory_cuda_device()) {
     GTEST_SKIP() << "CUDA device not available";
