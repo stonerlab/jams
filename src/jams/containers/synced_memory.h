@@ -306,6 +306,7 @@ SyncedMemory<T>::SyncedMemory(SyncedMemory &&rhs) noexcept
   rhs.size_ = 0;
   rhs.host_ptr_ = nullptr;
   rhs.device_ptr_ = nullptr;
+  rhs.host_cuda_malloc_ = false;
 }
 
 
@@ -364,6 +365,7 @@ void SyncedMemory<T>::allocate_host_memory(const SyncedMemory::size_type size) {
 
   // host_ptr_ must not already be allocated before we try to allocate
   assert(!host_ptr_);
+  host_cuda_malloc_ = false;
 
 #if HAS_CUDA
   if (has_cuda_context()) {
@@ -550,6 +552,7 @@ void SyncedMemory<T>::free_host_memory() noexcept {
     if (host_cuda_malloc_) {
       auto status = cudaFreeHost(host_ptr_);
       host_ptr_ = nullptr;
+      host_cuda_malloc_ = false;
       #if SYNCED_MEMORY_ALLOW_GLOBAL
       assert(status == cudaSuccess || status == cudaErrorCudartUnloading);
       #else
@@ -560,6 +563,7 @@ void SyncedMemory<T>::free_host_memory() noexcept {
     #endif
     free(host_ptr_);
     host_ptr_ = nullptr;
+    host_cuda_malloc_ = false;
   }
 }
 
