@@ -383,7 +383,7 @@ TEST(CpuQuantumSpdeNoiseGeneratorTest, PowerSpectralDensityMatchesNoZeroTarget) 
 
 #if HAS_CUDA
 
-TEST(QuantumSpdeNoiseGeneratorTest, MarginalDistributionIsGaussian) {
+TEST(GpuQuantumSpdeNoiseGeneratorTest, MarginalDistributionIsGaussian) {
   if (!have_noise_generator_cuda_device()) {
     GTEST_SKIP() << "CUDA device not available";
   }
@@ -410,7 +410,7 @@ TEST(QuantumSpdeNoiseGeneratorTest, MarginalDistributionIsGaussian) {
   EXPECT_NEAR(moments.frac_within_two_sigma, 0.954499736104, 0.03);
 }
 
-TEST(QuantumSpdeNoiseGeneratorTest, FirstStepIsStationaryWithoutWarmup) {
+TEST(GpuQuantumSpdeNoiseGeneratorTest, FirstStepIsStationaryWithoutWarmup) {
   if (!have_noise_generator_cuda_device()) {
     GTEST_SKIP() << "CUDA device not available";
   }
@@ -441,7 +441,7 @@ TEST(QuantumSpdeNoiseGeneratorTest, FirstStepIsStationaryWithoutWarmup) {
   EXPECT_NEAR(moments.frac_within_two_sigma, 0.954499736104, 0.025);
 }
 
-TEST(GeneralFftNoiseGeneratorTest, MarginalDistributionMatchesAnalyticGaussian) {
+TEST(GpuGeneralFftNoiseGeneratorTest, MarginalDistributionMatchesAnalyticGaussian) {
   if (!have_noise_generator_cuda_device()) {
     GTEST_SKIP() << "CUDA device not available";
   }
@@ -472,7 +472,7 @@ TEST(GeneralFftNoiseGeneratorTest, MarginalDistributionMatchesAnalyticGaussian) 
   EXPECT_NEAR(moments.frac_within_two_sigma, 0.954499736104, 0.04);
 }
 
-TEST(QuantumSpdeNoiseGeneratorTest, PowerSpectralDensityMatchesNoZeroTarget) {
+TEST(GpuQuantumSpdeNoiseGeneratorTest, PowerSpectralDensityMatchesNoZeroTarget) {
   if (!have_noise_generator_cuda_device()) {
     GTEST_SKIP() << "CUDA device not available";
   }

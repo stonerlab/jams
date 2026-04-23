@@ -3,6 +3,7 @@ project(jams LANGUAGES C CXX)
 
 include(cmake/MessageQuiet.cmake)
 include(cmake/Utils.cmake)
+include(CTest)
 
 # Do not allow users to build the project inside of the source directory
 ensure_out_of_source_build()
@@ -94,7 +95,7 @@ if (JAMS_BUILD_DOCS)
     add_subdirectory(docs/)
 endif()
 
-if (JAMS_BUILD_TESTS)
+if (JAMS_BUILD_TESTS AND BUILD_TESTING)
     add_subdirectory(src/jams/test)
 endif()
 
