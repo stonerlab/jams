@@ -7,6 +7,8 @@
 
 #include <array>
 #include <complex>
+#include <iterator>
+#include <sstream>
 #include <utility>
 
 #include "jams/containers/multiarray.h"
@@ -102,6 +104,20 @@ TEST(MultiArrayNoexceptTest, AccessorsCanThrow) {
   EXPECT_FALSE(noexcept(std::declval<const Array2&>().begin()));
   EXPECT_FALSE(noexcept(std::declval<const Array2&>().end()));
   EXPECT_FALSE(noexcept(std::declval<Array2&>().zero()));
+}
+
+TEST(MultiArrayIteratorCtorTest, SupportsInputIteratorsForOneDimensionalArrays) {
+  std::istringstream input("1 2 3 4");
+  std::istream_iterator<int> first(input);
+  std::istream_iterator<int> last;
+
+  jams::MultiArray<int, 1> values(first, last);
+
+  ASSERT_EQ(values.size(), 4u);
+  EXPECT_EQ(values(0), 1);
+  EXPECT_EQ(values(1), 2);
+  EXPECT_EQ(values(2), 3);
+  EXPECT_EQ(values(3), 4);
 }
 
 #endif //JAMS_TEST_MULTIARRAY_H

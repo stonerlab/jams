@@ -12,6 +12,7 @@
 #include <cassert>
 #include <cstring>
 #include <type_traits>
+#include <vector>
 
 namespace jams {
     namespace detail {
@@ -378,9 +379,11 @@ namespace jams {
 
         template<class InputIt>
         inline MultiArray(InputIt first, InputIt last)
-            : size_(detail::array_cast<size_type>(
-                std::array<typename std::iterator_traits<InputIt>::difference_type,1>({std::distance(first, last)}))),
-              data_(first, last) {}
+            : data_([&] {
+                const std::vector<value_type> values(first, last);
+                size_ = {{static_cast<size_type>(values.size())}};
+                return SyncedMemory<Tp_>(values.begin(), values.end());
+              }()) {}
 
         template <typename U>
         inline explicit MultiArray(const Tp_& x, const std::array<U, 1> &v) :
