@@ -191,7 +191,7 @@ inline LLGSpinTorqueField build_llg_spin_torque_field(const libconfig::Setting& 
                                                       const SolverDescriptor& descriptor) {
   LLGSpinTorqueField field;
   field.torque.resize(globals::num_spins, 3);
-  field.torque.zero();
+  zero(field.torque);
 
   if (descriptor.equation != EquationKind::LLG) {
     return field;

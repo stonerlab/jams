@@ -309,7 +309,7 @@ void SpectrumBaseMonitor::resize_channel_storage_()
   if (needs_local_frame_mapping_())
   {
     basis_mag_time_series_.resize(num_basis_atoms(), periodogram_length());
-    basis_mag_time_series_.zero();
+    zero(basis_mag_time_series_);
   }
   else
   {
@@ -835,7 +835,7 @@ void SpectrumBaseMonitor::store_sublattice_magnetisation_(const jams::MultiArray
   if (basis_mag_time_series_.empty())
   {
     basis_mag_time_series_.resize(num_basis_atoms(), periodogram_length());
-    basis_mag_time_series_.zero();
+    zero(basis_mag_time_series_);
   }
   const auto p = periodogram_sample_index();
   for (auto i = 0; i < globals::num_spins; ++i)
@@ -853,7 +853,7 @@ jams::MultiArray<Vec3, 1> SpectrumBaseMonitor::compute_mean_basis_mag_directions
     generate_normalised_window_(periodogram_window_, periodogram_length());
   }
 
-  jams::MultiArray<Vec3, 1> mean_directions(num_basis_atoms());
+  jams::MultiArray<Vec3, 1> mean_directions{num_basis_atoms()};
   zero(mean_directions);
 
   for (auto m = 0; m < num_basis_atoms(); ++m)
@@ -871,7 +871,7 @@ jams::MultiArray<Vec3, 1> SpectrumBaseMonitor::compute_mean_basis_mag_directions
 
 jams::MultiArray<Mat3, 1> SpectrumBaseMonitor::generate_sublattice_rotations_()
 {
-  jams::MultiArray<Mat3, 1> rotations(num_basis_atoms());
+  jams::MultiArray<Mat3, 1> rotations{num_basis_atoms()};
   for (auto a = 0; a < num_basis_atoms(); ++a)
   {
     rotations(a) = kIdentityMat3;

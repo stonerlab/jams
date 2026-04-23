@@ -13,7 +13,7 @@ class NoiseGenerator {
   NoiseGenerator(const jams::Real& temperature, const int num_vectors)
       : temperature_(temperature),
         noise_(num_vectors, 3) {
-    noise_.zero();
+    zero(noise_);
 
 #if HAS_CUDA
     cudaEventCreateWithFlags(&done_, cudaEventDisableTiming);

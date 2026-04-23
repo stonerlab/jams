@@ -196,21 +196,19 @@ DipoleFFTHamiltonian::generate_kspace_dipole_tensor(const int pos_i, const int p
   const Vec3 r_cart_i = globals::lattice->fractional_to_cartesian(r_frac_i);
   const Vec3 r_cart_j = globals::lattice->fractional_to_cartesian(r_frac_j);
 
-  jams::MultiArray<double, 5> rspace_tensor(
-        kspace_padded_size_[0],
+  jams::MultiArray<double, 5> rspace_tensor(kspace_padded_size_[0],
         kspace_padded_size_[1],
         kspace_padded_size_[2],
         3, 3);
 
-  jams::MultiArray<jams::ComplexHi, 5> kspace_tensor(
-        kspace_padded_size_[0],
+  jams::MultiArray<jams::ComplexHi, 5> kspace_tensor(kspace_padded_size_[0],
         kspace_padded_size_[1],
         kspace_padded_size_[2]/2 + 1,
         3, 3);
 
 
-  rspace_tensor.zero();
-  kspace_tensor.zero();
+  zero(rspace_tensor);
+  zero(kspace_tensor);
 
   const double fft_normalization_factor = 1.0 / jams::product(kspace_padded_size_);
   const double a3 = pow3(::globals::lattice->parameter());
@@ -284,8 +282,7 @@ DipoleFFTHamiltonian::generate_kspace_dipole_tensor(const int pos_i, const int p
     fftw_destroy_plan(fft_dipole_tensor_rspace_to_kspace);
   }
 
-  jams::MultiArray<jams::Complex, 5> kspace_tensor_lo(
-      kspace_padded_size_[0],
+  jams::MultiArray<jams::Complex, 5> kspace_tensor_lo(kspace_padded_size_[0],
       kspace_padded_size_[1],
       kspace_padded_size_[2]/2 + 1,
       3, 3);
@@ -315,9 +312,9 @@ void DipoleFFTHamiltonian::calculate_fields(jams::Real time) {
   zero(field_);
 
   for (auto pos_i = 0; pos_i < ::globals::lattice->num_basis_sites(); ++pos_i) {
-    kspace_h_.zero();
+    zero(kspace_h_);
     for (auto pos_j = 0; pos_j < ::globals::lattice->num_basis_sites(); ++pos_j) {
-      rspace_s_.zero();
+      zero(rspace_s_);
       for (auto kx = 0; kx < kspace_size_[0]; ++kx) {
         for (auto ky = 0; ky < kspace_size_[1]; ++ky) {
           for (auto kz = 0; kz < kspace_size_[2]; ++kz) {
@@ -355,7 +352,7 @@ void DipoleFFTHamiltonian::calculate_fields(jams::Real time) {
       }
     }  // unit cell pos_j
 
-    rspace_h_.zero();
+    zero(rspace_h_);
     fftw_execute(fft_h_kspace_to_rspace);
 
     for (auto i = 0; i < kspace_size_[0]; ++i) {
@@ -370,4 +367,3 @@ void DipoleFFTHamiltonian::calculate_fields(jams::Real time) {
     }
   }  // unit cell pos_i
 }
-

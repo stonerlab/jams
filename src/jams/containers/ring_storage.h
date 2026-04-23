@@ -83,7 +83,7 @@ public:
     release_file_backed_();
     using_file_backed_ = false;
     in_memory_.resize(shape_);
-    in_memory_.zero();
+    zero(in_memory_);
   }
 
   [[nodiscard]] const shape_type& shape() const

@@ -14,7 +14,7 @@ CudaWhiteNoiseGenerator::CudaWhiteNoiseGenerator(const jams::Real& temperature,
                                                  const int num_vectors)
     : NoiseGenerator(temperature, num_vectors),
       padded_noise_(noise_.elements() + (noise_.elements() % 2)) {
-  padded_noise_.zero();
+  zero(padded_noise_);
   std::cout << "\n  initialising classical-gpu noise generator\n";
 }
 

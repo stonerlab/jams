@@ -86,10 +86,10 @@ TYPED_TEST(MultiArrayTest, ctor) {
   ASSERT_EQ(x2.size(0), 0);
   ASSERT_EQ(x2.size(1), 0);
 
-  MultiArray<TypeParam, 1> y1(10);
+  MultiArray<TypeParam, 1> y1{10};
   ASSERT_EQ(y1.size(), 10);
 
-  MultiArray<TypeParam, 2> y2(10,3);
+  MultiArray<TypeParam, 2> y2{10, 3};
   ASSERT_EQ(y2.size(0), 10);
   ASSERT_EQ(y2.size(1), 3);
 
@@ -108,7 +108,7 @@ TYPED_TEST(MultiArrayTest, ctor) {
   ASSERT_EQ(a2.size(0), 10);
   ASSERT_EQ(a2.size(1), 3);
 
-  MultiArray<TypeParam, 2> a3(10, 3);
+  MultiArray<TypeParam, 2> a3{10, 3};
   ASSERT_EQ(a3.size(0), 10);
   ASSERT_EQ(a3.size(1), 3);
   
@@ -123,7 +123,7 @@ TEST(MultiArrayNoexceptTest, AccessorsCanThrow) {
   EXPECT_FALSE(noexcept(std::declval<Array2&>().device_data()));
   EXPECT_FALSE(noexcept(std::declval<const Array2&>().begin()));
   EXPECT_FALSE(noexcept(std::declval<const Array2&>().end()));
-  EXPECT_FALSE(noexcept(std::declval<Array2&>().zero()));
+  EXPECT_FALSE(noexcept(jams::zero(std::declval<Array2&>())));
 }
 
 TEST(MultiArrayIteratorCtorTest, SupportsInputIteratorsForOneDimensionalArrays) {
@@ -150,20 +150,20 @@ TEST(MultiArrayIteratorCtorTest, SupportsForwardIteratorsForOneDimensionalArrays
 }
 
 TEST(MultiArrayExtentValidationTest, RejectsNegativeExtents) {
-  EXPECT_THROW((jams::MultiArray<int, 2>(-1, 3)), std::length_error);
+  EXPECT_THROW((jams::MultiArray<int, 2>{-1, 3}), std::length_error);
   EXPECT_THROW((jams::MultiArray<int, 2>(std::array<int, 2>{2, -1})), std::length_error);
 
-  jams::MultiArray<int, 2> grid(2, 3);
+  jams::MultiArray<int, 2> grid{2, 3};
   EXPECT_THROW(grid.resize(2, -1), std::length_error);
 
-  EXPECT_THROW((jams::MultiArray<int, 1, int>(-1)), std::length_error);
+  EXPECT_THROW((jams::MultiArray<int, 1, int>{-1}), std::length_error);
 
-  jams::MultiArray<int, 1, int> line(2);
+  jams::MultiArray<int, 1, int> line{2};
   EXPECT_THROW(line.resize(-1), std::length_error);
 }
 
 TEST(MultiArrayOneDimensionalTest, SizeByAxisMatchesSize) {
-  jams::MultiArray<int, 1> values(7);
+  jams::MultiArray<int, 1> values{7};
 
   ASSERT_EQ(values.size(), 7u);
   ASSERT_EQ(values.size(0), 7u);
@@ -206,7 +206,7 @@ TEST(MultiArrayIndexTypeTest, SupportsNonDefaultIndexTypes) {
 }
 
 TEST(MultiArrayReadOnlyAccessTest, ProvidesReadOnlyHostIterationOnMutableArray) {
-  jams::MultiArray<int, 2> values(2, 2);
+  jams::MultiArray<int, 2> values{2, 2};
   values.fill(3);
 
   const auto* data = values.read_only_data();
@@ -218,7 +218,7 @@ TEST(MultiArrayReadOnlyAccessTest, ProvidesReadOnlyHostIterationOnMutableArray) 
 }
 
 TEST(MultiArrayResizeTest, UpdatesShapeAndElementCount) {
-  jams::MultiArray<int, 2> values(2, 3);
+  jams::MultiArray<int, 2> values{2, 3};
   ASSERT_EQ(values.elements(), 6u);
 
   values.resize(4, 5);
@@ -233,8 +233,8 @@ TEST(MultiArrayResizeTest, UpdatesShapeAndElementCount) {
 }
 
 TEST(MultiArrayAlgorithmsTest, ElementSumAddsMatchingShapes) {
-  jams::MultiArray<int, 2> lhs(2, 2);
-  jams::MultiArray<int, 2> rhs(2, 2);
+  jams::MultiArray<int, 2> lhs{2, 2};
+  jams::MultiArray<int, 2> rhs{2, 2};
 
   lhs(0, 0) = 1;
   lhs(0, 1) = 2;
@@ -286,6 +286,36 @@ TEST(MultiArrayReadOnlyAccessTest, ReadOnlyHostAccessDoesNotDirtyDeviceState) {
   EXPECT_EQ(device_snapshot[0], 1);
   EXPECT_EQ(device_snapshot[1], 2);
   EXPECT_EQ(device_snapshot[2], 3);
+}
+
+TEST(MultiArrayNumericTest, ZeroClearsDeviceBackedStorage) {
+  if (!have_multiarray_cuda_device()) {
+    GTEST_SKIP() << "CUDA device not available";
+  }
+
+  jams::MultiArray<int, 1> values(3, 7);
+  const int device_values[3] = {4, 5, 6};
+
+  ASSERT_NE(values.device_data(), nullptr);
+  ASSERT_EQ(cudaMemcpy(values.device_data(), device_values, values.bytes(), cudaMemcpyHostToDevice), cudaSuccess);
+
+  jams::zero(values);
+
+  const int* host = values.read_only_data();
+  ASSERT_NE(host, nullptr);
+  EXPECT_EQ(host[0], 0);
+  EXPECT_EQ(host[1], 0);
+  EXPECT_EQ(host[2], 0);
+
+  int device_snapshot[3] = {1, 1, 1};
+  ASSERT_EQ(cudaMemcpy(device_snapshot,
+                       values.read_only_device_data(),
+                       values.bytes(),
+                       cudaMemcpyDeviceToHost),
+            cudaSuccess);
+  EXPECT_EQ(device_snapshot[0], 0);
+  EXPECT_EQ(device_snapshot[1], 0);
+  EXPECT_EQ(device_snapshot[2], 0);
 }
 #endif
 

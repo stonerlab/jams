@@ -66,7 +66,7 @@ void UnitcellAverageMonitor::update(Solver& solver) {
   const std::string h5_file_name(jams::instance().output_path() + "/" + globals::simulation_name + "_" + zero_pad_number(outcount) + "_avg.h5");
 
   double moment_IU_factor = 1.0 / kBohrMagnetonIU;
-  cell_mag_.zero();
+  zero(cell_mag_);
   for (auto i = 0; i < globals::num_spins; ++i) {
     auto cell = globals::lattice->cell_containing_atom(i);
     for (auto j = 0; j < 3; ++j) {
@@ -74,7 +74,7 @@ void UnitcellAverageMonitor::update(Solver& solver) {
     }
   }
 
-  cell_neel_.zero();
+  zero(cell_neel_);
   for (auto i = 0; i < globals::num_spins; ++i) {
     auto cell = globals::lattice->cell_containing_atom(i);
     auto s_transformed = spin_transformations_[i] * Vec3{{state_.s(i,0), state_.s(i,1), state_.s(i,2)}};

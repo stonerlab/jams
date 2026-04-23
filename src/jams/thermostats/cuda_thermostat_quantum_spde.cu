@@ -183,16 +183,16 @@ CudaQuantumSpdeNoiseGenerator::CudaQuantumSpdeNoiseGenerator(
 
   cuda_stream_ = CudaStream(CudaStream::Priority::LOW);
 
-  zeta5_.resize(num_channels_).zero();
-  zeta5p_.resize(num_channels_).zero();
-  zeta6_.resize(num_channels_).zero();
-  zeta6p_.resize(num_channels_).zero();
-  eta1a_.resize(2 * num_channels_).zero();
-  eta1b_.resize(2 * num_channels_).zero();
+  zero(zeta5_.resize(num_channels_));
+  zero(zeta5p_.resize(num_channels_));
+  zero(zeta6_.resize(num_channels_));
+  zero(zeta6p_.resize(num_channels_));
+  zero(eta1a_.resize(2 * num_channels_));
+  zero(eta1b_.resize(2 * num_channels_));
 
   if (do_zero_point_) {
-    zeta0_.resize(4 * num_channels_).zero();
-    eta0_.resize(4 * num_channels_).zero();
+    zero(zeta0_.resize(4 * num_channels_));
+    zero(eta0_.resize(4 * num_channels_));
   }
 
   std::cout << "    omega_max (THz) " << omega_max_ / kTwoPi << "\n";

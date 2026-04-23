@@ -122,8 +122,8 @@ NeutronScatteringNoLatticeMonitor::calculate_unpolarized_cross_section(const jam
   const auto num_freqencies = spectrum.size(0);
   const auto num_reciprocal_points = kspace_path_.size();
 
-  jams::MultiArray<jams::ComplexHi, 2> cross_section(num_freqencies, num_reciprocal_points);
-  cross_section.zero();
+  jams::MultiArray<jams::ComplexHi, 2> cross_section{num_freqencies, num_reciprocal_points};
+  zero(cross_section);
 
   for (auto f = 0; f < num_freqencies; ++f) {
     for (auto k = 0; k < num_reciprocal_points; ++k) {
@@ -148,8 +148,8 @@ NeutronScatteringNoLatticeMonitor::calculate_polarized_cross_sections(const jams
   const auto num_freqencies = spectrum.size(0);
   const auto num_reciprocal_points = kspace_path_.size();
 
-  jams::MultiArray<jams::ComplexHi, 3> convolved(polarizations.size(), num_freqencies, num_reciprocal_points);
-  convolved.zero();
+  jams::MultiArray<jams::ComplexHi, 3> convolved{polarizations.size(), num_freqencies, num_reciprocal_points};
+  zero(convolved);
 
   for (auto f = 0; f < num_freqencies; ++f) {
     for (auto k = 0; k < num_reciprocal_points; ++k) {
@@ -181,7 +181,7 @@ jams::MultiArray<Vec3cx,2> NeutronScatteringNoLatticeMonitor::periodogram() {
   const int num_time_samples  = kspace_spectrum_buffer_.size(0);
   const int num_kspace_samples = kspace_spectrum_buffer_.size(1);
 
-  jams::MultiArray<Vec3cx, 1> static_spectrum(num_kspace_samples);
+  jams::MultiArray<Vec3cx, 1> static_spectrum{num_kspace_samples};
   zero(static_spectrum);
   for (auto i = 0; i < num_time_samples; ++i) {
     for (auto j = 0; j < num_kspace_samples; ++j) {
@@ -361,7 +361,7 @@ void NeutronScatteringNoLatticeMonitor::configure_form_factors(libconfig::Settin
 jams::MultiArray<Vec3cx,1> NeutronScatteringNoLatticeMonitor::calculate_static_structure_factor() {
   const auto num_time_points = kspace_spins_timeseries_.size(0);
   const auto num_k_points = kspace_spins_timeseries_.size(1);
-  jams::MultiArray<Vec3cx,1> static_structure_factor(num_k_points);
+  jams::MultiArray<Vec3cx,1> static_structure_factor{num_k_points};
   zero(static_structure_factor);
   for (auto i = 0; i < num_time_points; ++i) {
     for (auto j = 0; j < num_k_points; ++j) {
@@ -388,7 +388,7 @@ void NeutronScatteringNoLatticeMonitor::output_fixed_spectrum() {
 
   const int num_time_samples = periodogram_props_.length;
 
-  jams::MultiArray<double, 2> spin_averages(globals::num_spins, 3);
+  jams::MultiArray<double, 2> spin_averages{globals::num_spins, 3};
   zero(spin_averages);
   for (auto i = 0; i < globals::num_spins; ++i) {
     for (auto j = 0; j < 3; ++j) {

@@ -81,7 +81,7 @@ void CudaNeutronScatteringNoLatticeMonitor::output_spectrum() {
 
   const int num_time_samples = periodogram_props_.length;
 
-  jams::MultiArray<double, 2> spin_averages(globals::num_spins, 3);
+  jams::MultiArray<double, 2> spin_averages{globals::num_spins, 3};
   zero(spin_averages);
   for (auto i = 0; i < globals::num_spins; ++i) {
     for (auto j = 0; j < 3; ++j) {
@@ -123,7 +123,7 @@ void CudaNeutronScatteringNoLatticeMonitor::output_spectrum() {
   const unsigned int num_freq = num_time_samples / 2 + 1;
   const unsigned int num_k = kspace_path_.size();
 
-  jams::MultiArray<jams::Real, 2> r_ij(globals::num_spins, 3);
+  jams::MultiArray<jams::Real, 2> r_ij{globals::num_spins, 3};
 
   dim3 block_size = {32, 16, 1};
   dim3 grid_size = cuda_grid_size(block_size, {num_k, num_freq, 1});

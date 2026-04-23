@@ -7,11 +7,11 @@
 #include <iostream>
 
 CrystalFieldHamiltonian::CrystalFieldHamiltonian(const libconfig::Setting &settings, unsigned int size)
-    : Hamiltonian(settings, size),
+      : Hamiltonian(settings, size),
       energy_cutoff_(jams::config_required<double>(settings, "energy_cutoff")),
       crystal_field_spin_type_(CrystalFieldSpinType::kSpinUp),
-      spin_has_crystal_field_(false, size),
-      crystal_field_tesseral_coeff_(0.0, kCrystalFieldNumCoeff_, size) {
+      spin_has_crystal_field_(size, false),
+      crystal_field_tesseral_coeff_(kCrystalFieldNumCoeff_, size, 0.0) {
   std::cout << "energy_cutoff: " << energy_cutoff_ << "\n";
 
   auto spin_type_string = lowercase(settings["crystal_field_spin_type"]);

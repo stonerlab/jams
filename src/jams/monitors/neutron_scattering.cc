@@ -101,8 +101,8 @@ jams::MultiArray<jams::ComplexHi, 2> NeutronScatteringMonitor::calculate_unpolar
     throw std::runtime_error("NeutronScatteringMonitor requires at least 3 channels");
   }
 
-  jams::MultiArray<jams::ComplexHi, 2> cross_section(num_freqencies, num_reciprocal_points);
-  cross_section.zero();
+  jams::MultiArray<jams::ComplexHi, 2> cross_section{num_freqencies, num_reciprocal_points};
+  zero(cross_section);
 
   for (auto a = 0; a < num_sites; ++a) {
     for (auto b = 0; b < num_sites; ++b) {
@@ -147,8 +147,8 @@ jams::MultiArray<jams::ComplexHi, 3> NeutronScatteringMonitor::calculate_polariz
     throw std::runtime_error("NeutronScatteringMonitor requires at least 3 channels");
   }
 
-  jams::MultiArray<jams::ComplexHi, 3> convolved(polarizations.size(), num_freqencies, num_reciprocal_points);
-  convolved.zero();
+  jams::MultiArray<jams::ComplexHi, 3> convolved{polarizations.size(), num_freqencies, num_reciprocal_points};
+  zero(convolved);
 
   for (auto a = 0; a < num_sites; ++a) {
     for (auto b = 0; b < num_sites; ++b) {

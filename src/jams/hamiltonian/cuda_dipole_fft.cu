@@ -171,8 +171,8 @@ CudaDipoleFFTHamiltonian::CudaDipoleFFTHamiltonian(const libconfig::Setting &set
   kspace_s_.resize(kspace_size);
   kspace_h_.resize(kspace_size);
 
-  kspace_s_.zero();
-  kspace_h_.zero();
+  zero(kspace_s_);
+  zero(kspace_h_);
 
   std::cout << "    kspace size " << kspace_size_ << "\n";
   std::cout << "    kspace padded size " << kspace_padded_size_ << "\n";
@@ -260,7 +260,7 @@ CudaDipoleFFTHamiltonian::CudaDipoleFFTHamiltonian(const libconfig::Setting &set
 
   const int num_pairs = num_sites * (num_sites + 1) / 2;
   kspace_tensors_.resize(num_pairs, num_tensor_components, num_kpoints);
-  kspace_tensors_.zero();
+  zero(kspace_tensors_);
   for (int pos_i = 0; pos_i < num_sites; ++pos_i) {
     for (int pos_j = pos_i; pos_j < num_sites; ++pos_j) {
       std::vector<Vec3> generated_positions;

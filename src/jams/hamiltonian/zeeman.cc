@@ -13,14 +13,14 @@ ZeemanHamiltonian::ZeemanHamiltonian(const libconfig::Setting &settings, const u
 : Hamiltonian(settings, size)
 {
     dc_local_field_.resize(globals::num_spins, 3);
-    dc_local_field_.zero();
+    zero(dc_local_field_);
 
 
     ac_local_field_.resize(globals::num_spins, 3);
     ac_local_frequency_.resize(globals::num_spins);
 
-    ac_local_field_.zero();
-    ac_local_frequency_.zero();
+    zero(ac_local_field_);
+    zero(ac_local_frequency_);
 
 
     if(settings.exists("dc_local_field")) {

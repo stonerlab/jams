@@ -35,8 +35,8 @@ class CPULLLorentzianRK4Solver : public CPULLGSolverBase {
     w_k2_.resize(globals::num_spins, 3);
     w_k3_.resize(globals::num_spins, 3);
     w_k4_.resize(globals::num_spins, 3);
-    w_memory_.zero();
-    w_memory_old_.zero();
+    zero(w_memory_);
+    zero(w_memory_old_);
 
     v_memory_.resize(globals::num_spins, 3);
     v_memory_old_.resize(globals::num_spins, 3);
@@ -44,8 +44,8 @@ class CPULLLorentzianRK4Solver : public CPULLGSolverBase {
     v_k2_.resize(globals::num_spins, 3);
     v_k3_.resize(globals::num_spins, 3);
     v_k4_.resize(globals::num_spins, 3);
-    v_memory_.zero();
-    v_memory_old_.zero();
+    zero(v_memory_);
+    zero(v_memory_old_);
   }
 
   void run() override {

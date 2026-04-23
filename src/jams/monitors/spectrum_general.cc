@@ -61,7 +61,7 @@ outfile(jams::output::full_path_filename("fk.tsv")){
   qmax_      = jams::config_required<double>(settings, "qmax");
 
   spin_data_.resize(globals::num_spins, padded_size_);
-  spin_data_.zero();
+  zero(spin_data_);
 }
 
 void SpectrumGeneralMonitor::update(Solver& solver) {
@@ -147,8 +147,8 @@ SpectrumGeneralMonitor::~SpectrumGeneralMonitor() {
     }
   }
 
-  jams::MultiArray<jams::ComplexHi, 2> SQw(qvecs.size(), padded_size_/2+1);
-  SQw.zero();
+  jams::MultiArray<jams::ComplexHi, 2> SQw{qvecs.size(), padded_size_/2+1};
+  zero(SQw);
 
   // generate spectrum looping over all i,j
   for (unsigned i = 0; i < globals::num_spins; ++i) {

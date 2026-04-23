@@ -197,13 +197,13 @@ CpuQuantumSpdeNoiseGenerator::CpuQuantumSpdeNoiseGenerator(
       num_channels_(3 * num_vectors) {
   std::cout << "\n  initialising quantum-spde-cpu noise generator\n";
 
-  zeta5_.resize(num_channels_).zero();
-  zeta5p_.resize(num_channels_).zero();
-  zeta6_.resize(num_channels_).zero();
-  zeta6p_.resize(num_channels_).zero();
+  zero(zeta5_.resize(num_channels_));
+  zero(zeta5p_.resize(num_channels_));
+  zero(zeta6_.resize(num_channels_));
+  zero(zeta6p_.resize(num_channels_));
 
   if (do_zero_point_) {
-    zeta0_.resize(4 * num_channels_).zero();
+    zero(zeta0_.resize(4 * num_channels_));
   }
 
   std::cout << "    omega_max (THz) " << omega_max_ / kTwoPi << "\n";
@@ -216,7 +216,7 @@ CpuQuantumSpdeNoiseGenerator::CpuQuantumSpdeNoiseGenerator(
 
 void CpuQuantumSpdeNoiseGenerator::update() {
   if (this->temperature() == 0) {
-    noise_.zero();
+    zero(noise_);
     return;
   }
 

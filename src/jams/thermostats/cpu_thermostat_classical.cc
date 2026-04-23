@@ -18,7 +18,7 @@ CpuWhiteNoiseGenerator::CpuWhiteNoiseGenerator(const jams::Real& temperature,
 
 void CpuWhiteNoiseGenerator::update() {
   if (this->temperature() == 0) {
-    noise_.zero();
+    zero(noise_);
     return;
   }
 

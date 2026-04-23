@@ -222,13 +222,13 @@ void SpectrumFourierMonitor::fft_time() {
   jams::MultiArray<std::complex<double>,2> fft_sqw_y(time_points, space_points);
   jams::MultiArray<std::complex<double>,2> fft_sqw_z(time_points, space_points);
 
-  jams::MultiArray<double,2> total_sqw_x(time_points, space_points);
-  jams::MultiArray<double,2> total_sqw_y(time_points, space_points);
-  jams::MultiArray<double,2> total_sqw_z(time_points, space_points);
+  jams::MultiArray<double,2> total_sqw_x{time_points, space_points};
+  jams::MultiArray<double,2> total_sqw_y{time_points, space_points};
+  jams::MultiArray<double,2> total_sqw_z{time_points, space_points};
 
-  total_sqw_x.zero();
-  total_sqw_y.zero();
-  total_sqw_z.zero();
+  zero(total_sqw_x);
+  zero(total_sqw_y);
+  zero(total_sqw_z);
 
   int rank       = 1;
   int sizeN[]   = {static_cast<int>(time_points)};
@@ -368,7 +368,7 @@ void SpectrumFourierMonitor::fft_space() {
   assert(fft_plan_s_rspace_to_kspace != nullptr);
   assert(s_kspace.elements() > 0);
 
-  transformed_spins.zero();
+  zero(transformed_spins);
 
   for (auto n = 0; n < globals::num_spins; ++n) {
     for (auto i = 0; i < 3; ++i) {

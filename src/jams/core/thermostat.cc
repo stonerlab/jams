@@ -92,11 +92,11 @@ jams::MultiArray<jams::Real, 1> make_general_fft_sigma() {
 
 Thermostat::Thermostat(std::unique_ptr<NoiseGenerator> generator,
                        jams::MultiArray<jams::Real, 1> sigma)
-    : temperature_(generator ? generator->temperature() : jams::Real(0.0)),
+      : temperature_(generator ? generator->temperature() : jams::Real(0.0)),
       generator_(std::move(generator)),
       sigma_(std::move(sigma)),
       noise_(generator_ ? generator_->num_vectors() : 0, 3) {
-  noise_.zero();
+  zero(noise_);
 
 #if HAS_CUDA
   cudaEventCreateWithFlags(&done_, cudaEventDisableTiming);
