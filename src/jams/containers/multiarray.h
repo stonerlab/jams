@@ -415,11 +415,7 @@ namespace jams {
         }
 
         inline void fill(const value_type &value) {
-          if (data_.size() == 0) {
-            return;
-          }
-          pointer p = data_.mutable_host_data();
-          std::fill(p, p + data_.size(), value);
+          data_.fill(value);
         }
 
         template<typename... Args,

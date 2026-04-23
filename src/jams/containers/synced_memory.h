@@ -36,7 +36,9 @@
 #endif
 
 #include <algorithm>
+#include <array>
 #include <cassert>
+#include <complex>
 #include <cstdlib>
 #include <cstring>
 #include <iterator>
@@ -44,6 +46,7 @@
 #include <new>
 #include <stdexcept>
 #include <string>
+#include <type_traits>
 #include <utility>
 #include <vector>
 
@@ -91,6 +94,31 @@ template <class T>
 struct is_iterator<T, void_t<
                       typename std::iterator_traits<T>::iterator_category
 >> : std::true_type { };
+
+template <typename T>
+struct supports_fast_zero : std::bool_constant<std::is_integral_v<T> ||
+                                               std::is_floating_point_v<T> ||
+                                               std::is_enum_v<T>> {};
+
+template <typename T>
+struct supports_fast_zero<std::complex<T>> : supports_fast_zero<T> {};
+
+template <typename T, std::size_t N>
+struct supports_fast_zero<std::array<T, N>> : supports_fast_zero<T> {};
+
+template <typename T>
+inline constexpr bool supports_fast_zero_v = supports_fast_zero<T>::value;
+
+template <typename T>
+bool is_all_zero_representation(const T& value) noexcept {
+  static_assert(std::is_trivially_copyable_v<T>,
+                "SyncedMemory zero fast-path requires trivially copyable values");
+
+  unsigned char bytes[sizeof(T)] = {};
+  std::memcpy(bytes, &value, sizeof(T));
+  return std::all_of(std::begin(bytes), std::end(bytes),
+                     [](unsigned char byte) { return byte == 0; });
+}
 }
 
 namespace jams {
@@ -190,6 +218,9 @@ public:
     /// zero all elements of the data
     void zero();
 
+    /// fill all elements of the data with the given value
+    void fill(const value_type& value);
+
     /// resize the data (destructive, reallocates)
     void resize(size_type new_size) noexcept;
 
@@ -254,12 +285,7 @@ SyncedMemory<T>::SyncedMemory(SyncedMemory::size_type size) noexcept
 template<class T>
 SyncedMemory<T>::SyncedMemory(SyncedMemory::size_type size, const T &x)
     : size_(size) {
-  if (x == T{0}) {
-    zero();
-  } else {
-    pointer p = mutable_host_data();
-    std::fill(p, p + size_, x);
-  }
+  fill(x);
 }
 
 
@@ -523,22 +549,42 @@ void SyncedMemory<T>::zero_host() const {
 
 template<class T>
 void SyncedMemory<T>::zero() {
-  if (!host_ptr_ && !device_ptr_) {
-    allocate_host_memory(size_);
+  static_assert(std::is_default_constructible_v<value_type>,
+                "SyncedMemory::zero requires default-constructible value_type");
+  fill(value_type{});
+}
+
+
+template<class T>
+void SyncedMemory<T>::fill(const value_type& value) {
+  if (size_ == 0) {
+    return;
   }
-  if (host_ptr_) {
-    zero_host();
-    sync_status_ = SyncStatus::HOST_IS_MUTATED;
+
+  if constexpr (supports_fast_zero_v<value_type>) {
+    if (is_all_zero_representation(value)) {
+      if (!host_ptr_ && !device_ptr_) {
+        allocate_host_memory(size_);
+      }
+      if (host_ptr_) {
+        zero_host();
+        sync_status_ = SyncStatus::HOST_IS_MUTATED;
+      }
+      #if HAS_CUDA
+      if (device_ptr_) {
+        zero_device();
+        sync_status_ = SyncStatus::DEVICE_IS_MUTATED;
+      }
+      if (host_ptr_ && device_ptr_) {
+        sync_status_ = SyncStatus::SYNCHRONIZED;
+      }
+      #endif
+      return;
+    }
   }
-  #if HAS_CUDA
-  if (device_ptr_) {
-    zero_device();
-    sync_status_ = SyncStatus::DEVICE_IS_MUTATED;
-  }
-  if (host_ptr_ && device_ptr_) {
-    sync_status_ = SyncStatus::SYNCHRONIZED;
-  }
-  #endif
+
+  pointer p = mutable_host_data();
+  std::fill(p, p + size_, value);
 }
 
 

@@ -9,6 +9,7 @@
 #include <complex>
 #include <iterator>
 #include <sstream>
+#include <type_traits>
 #include <gmock/gmock-matchers.h>
 
 #include "jams/containers/synced_memory.h"
@@ -21,6 +22,13 @@ bool have_synced_memory_cuda_device() {
 }
 }  // namespace
 #endif
+
+struct SyncedMemoryBlob {
+  int x;
+  double y;
+};
+
+static_assert(std::is_trivially_copyable_v<SyncedMemoryBlob>);
 
 // fixture class
 template <typename T>
@@ -110,6 +118,44 @@ TEST(SyncedMemoryRangeCtorTest, SupportsInputIterators) {
   EXPECT_EQ(host[1], 2);
   EXPECT_EQ(host[2], 3);
   EXPECT_EQ(host[3], 4);
+}
+
+TEST(SyncedMemoryFillTest, SupportsTriviallyCopyableTypesWithoutEquality) {
+  const SyncedMemoryBlob value{7, 2.5};
+  jams::SyncedMemory<SyncedMemoryBlob> storage(3, value);
+
+  const auto* host = storage.const_host_data();
+  ASSERT_NE(host, nullptr);
+  for (std::size_t i = 0; i < storage.size(); ++i) {
+    EXPECT_EQ(host[i].x, value.x);
+    EXPECT_EQ(host[i].y, value.y);
+  }
+}
+
+TEST(SyncedMemoryFillTest, ZeroUsesValueInitializationForGenericTypes) {
+  jams::SyncedMemory<SyncedMemoryBlob> storage(2, SyncedMemoryBlob{7, 2.5});
+
+  storage.zero();
+
+  const auto* host = storage.const_host_data();
+  ASSERT_NE(host, nullptr);
+  for (std::size_t i = 0; i < storage.size(); ++i) {
+    EXPECT_EQ(host[i].x, 0);
+    EXPECT_EQ(host[i].y, 0.0);
+  }
+}
+
+TEST(SyncedMemoryFillTest, FillOverwritesExistingStorageForGenericTypes) {
+  jams::SyncedMemory<SyncedMemoryBlob> storage(2, SyncedMemoryBlob{1, 1.0});
+
+  storage.fill(SyncedMemoryBlob{9, 4.25});
+
+  const auto* host = storage.const_host_data();
+  ASSERT_NE(host, nullptr);
+  for (std::size_t i = 0; i < storage.size(); ++i) {
+    EXPECT_EQ(host[i].x, 9);
+    EXPECT_EQ(host[i].y, 4.25);
+  }
 }
 
 #if HAS_CUDA
