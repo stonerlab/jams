@@ -22,6 +22,21 @@ if (DEFINED JAMS_SPGLIB_VERSION)
         )
     endif()
 
+    set(_jams_spglib_cmakelists "${spglib_SOURCE_DIR}/CMakeLists.txt")
+    file(READ "${_jams_spglib_cmakelists}" _jams_spglib_cmake)
+    if (_jams_spglib_cmake MATCHES "add_test\\(spglibtest spglibtest\\)")
+        string(REPLACE
+                "add_test(spglibtest spglibtest)"
+                "# JAMS disables vendored spglib tests.\n# add_test(spglibtest spglibtest)"
+                _jams_spglib_cmake
+                "${_jams_spglib_cmake}")
+        file(WRITE "${_jams_spglib_cmakelists}" "${_jams_spglib_cmake}")
+    elseif (NOT _jams_spglib_cmake MATCHES "# JAMS disables vendored spglib tests\\.")
+        message(FATAL_ERROR "Failed to disable vendored spglib test registration")
+    endif()
+    unset(_jams_spglib_cmakelists)
+    unset(_jams_spglib_cmake)
+
     if (DEFINED CMAKE_POLICY_VERSION_MINIMUM)
         set(_jams_policy_minimum_backup "${CMAKE_POLICY_VERSION_MINIMUM}")
     endif()
