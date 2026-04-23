@@ -306,11 +306,19 @@ namespace jams {
           return data_.const_host_data();
         }
 
+        inline const_pointer read_only_data() const {
+          return data_.const_host_data();
+        }
+
         inline pointer device_data() {
           return data_.mutable_device_data();
         }
 
         inline const_pointer device_data() const {
+          return data_.const_device_data();
+        }
+
+        inline const_pointer read_only_device_data() const {
           return data_.const_device_data();
         }
 
@@ -327,6 +335,10 @@ namespace jams {
           return data_.const_host_data();
         }
 
+        inline const_iterator read_only_begin() const {
+          return data_.const_host_data();
+        }
+
         inline iterator end() {
           pointer p = data_.mutable_host_data();
           return p ? p + data_.size() : p;
@@ -338,6 +350,11 @@ namespace jams {
         }
 
         inline const_iterator cend() const {
+          const_pointer p = data_.const_host_data();
+          return p ? p + data_.size() : p;
+        }
+
+        inline const_iterator read_only_end() const {
           const_pointer p = data_.const_host_data();
           return p ? p + data_.size() : p;
         }
@@ -521,11 +538,19 @@ namespace jams {
           return data_.const_host_data();
         }
 
+        inline const_pointer read_only_data() const {
+          return data_.const_host_data();
+        }
+
         inline pointer device_data() {
           return data_.mutable_device_data();
         }
 
         inline const_pointer device_data() const {
+          return data_.const_device_data();
+        }
+
+        inline const_pointer read_only_device_data() const {
           return data_.const_device_data();
         }
 
@@ -542,6 +567,10 @@ namespace jams {
           return data_.const_host_data();
         }
 
+        inline const_iterator read_only_begin() const {
+          return data_.const_host_data();
+        }
+
         inline iterator end() {
           pointer p = data_.mutable_host_data();
           return p ? p + data_.size() : p;
@@ -553,6 +582,11 @@ namespace jams {
         }
 
         inline const_iterator cend() const {
+          const_pointer p = data_.const_host_data();
+          return p ? p + data_.size() : p;
+        }
+
+        inline const_iterator read_only_end() const {
           const_pointer p = data_.const_host_data();
           return p ? p + data_.size() : p;
         }

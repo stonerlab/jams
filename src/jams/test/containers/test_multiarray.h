@@ -13,6 +13,15 @@
 
 #include "jams/containers/multiarray.h"
 
+#if HAS_CUDA
+namespace {
+bool have_multiarray_cuda_device() {
+  int device_count = 0;
+  return cudaGetDeviceCount(&device_count) == cudaSuccess && device_count > 0;
+}
+}  // namespace
+#endif
+
 // fixture class
 template <typename T>
 class MultiArrayDetailsTest : public testing::Test {
@@ -186,5 +195,52 @@ TEST(MultiArrayIndexTypeTest, SupportsNonDefaultIndexTypes) {
   values(std::array<int, 2>{3, 4}) = 11;
   EXPECT_EQ(values(std::array<int, 2>{3, 4}), 11);
 }
+
+TEST(MultiArrayReadOnlyAccessTest, ProvidesReadOnlyHostIterationOnMutableArray) {
+  jams::MultiArray<int, 2> values(2, 2);
+  values.fill(3);
+
+  const auto* data = values.read_only_data();
+  ASSERT_NE(data, nullptr);
+  EXPECT_EQ(values.read_only_begin(), data);
+  EXPECT_EQ(values.read_only_end(), data + values.elements());
+  EXPECT_EQ(data[0], 3);
+  EXPECT_EQ(data[3], 3);
+}
+
+#if HAS_CUDA
+TEST(MultiArrayReadOnlyAccessTest, ReadOnlyHostAccessDoesNotDirtyDeviceState) {
+  if (!have_multiarray_cuda_device()) {
+    GTEST_SKIP() << "CUDA device not available";
+  }
+
+  jams::MultiArray<int, 1> values(3, 0);
+  const int device_values[3] = {1, 2, 3};
+
+  ASSERT_NE(values.device_data(), nullptr);
+  ASSERT_EQ(cudaMemcpy(values.device_data(), device_values, values.bytes(), cudaMemcpyHostToDevice), cudaSuccess);
+
+  const int* host = values.read_only_data();
+  ASSERT_NE(host, nullptr);
+  EXPECT_EQ(host[0], 1);
+  EXPECT_EQ(host[1], 2);
+  EXPECT_EQ(host[2], 3);
+
+  // Deliberately mutate the host storage behind the const API so the test can
+  // detect whether read_only_data() accidentally marked the host copy dirty.
+  auto* writable_host = const_cast<int*>(host);
+  writable_host[0] = 9;
+
+  int device_snapshot[3] = {0, 0, 0};
+  ASSERT_EQ(cudaMemcpy(device_snapshot,
+                       values.read_only_device_data(),
+                       values.bytes(),
+                       cudaMemcpyDeviceToHost),
+            cudaSuccess);
+  EXPECT_EQ(device_snapshot[0], 1);
+  EXPECT_EQ(device_snapshot[1], 2);
+  EXPECT_EQ(device_snapshot[2], 3);
+}
+#endif
 
 #endif //JAMS_TEST_MULTIARRAY_H
