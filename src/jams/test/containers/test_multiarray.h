@@ -120,4 +120,17 @@ TEST(MultiArrayIteratorCtorTest, SupportsInputIteratorsForOneDimensionalArrays) 
   EXPECT_EQ(values(3), 4);
 }
 
+TEST(MultiArrayExtentValidationTest, RejectsNegativeExtents) {
+  EXPECT_THROW((jams::MultiArray<int, 2>(-1, 3)), std::length_error);
+  EXPECT_THROW((jams::MultiArray<int, 2>(std::array<int, 2>{2, -1})), std::length_error);
+
+  jams::MultiArray<int, 2> grid(2, 3);
+  EXPECT_THROW(grid.resize(2, -1), std::length_error);
+
+  EXPECT_THROW((jams::MultiArray<int, 1, int>(-1)), std::length_error);
+
+  jams::MultiArray<int, 1, int> line(2);
+  EXPECT_THROW(line.resize(-1), std::length_error);
+}
+
 #endif //JAMS_TEST_MULTIARRAY_H

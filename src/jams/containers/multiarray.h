@@ -11,6 +11,8 @@
 #include <algorithm>
 #include <cassert>
 #include <cstring>
+#include <limits>
+#include <stdexcept>
 #include <type_traits>
 #include <vector>
 
@@ -32,6 +34,36 @@ namespace jams {
         constexpr auto array_cast(const std::array<U, i> &a) -> std::array<T, i> {
           // tag dispatch to helper with array indices
           return array_cast_helper<T>(a, build_indices<i>());
+        }
+
+        template<typename T, typename U>
+        constexpr T checked_extent_cast(const U value) {
+          static_assert(std::is_integral_v<T> && std::is_integral_v<U>,
+                        "MultiArray extents must use integral types");
+
+          if constexpr (std::is_signed_v<U>) {
+            if (value < 0) {
+              throw std::length_error("MultiArray extents must be non-negative");
+            }
+          }
+
+          using unsigned_t = std::make_unsigned_t<T>;
+          using unsigned_u = std::make_unsigned_t<U>;
+          if (static_cast<unsigned_u>(value) > static_cast<unsigned_t>(std::numeric_limits<T>::max())) {
+            throw std::length_error("MultiArray extents exceed size_type");
+          }
+
+          return static_cast<T>(value);
+        }
+
+        template<typename T, typename U, size_t i, size_t... Is>
+        constexpr std::array<T, i> checked_array_cast_helper(const std::array<U, i> &a, indices<Is...>) {
+          return {{checked_extent_cast<T>(std::get<Is>(a))...}};
+        }
+
+        template<typename T, typename U, size_t i>
+        constexpr auto checked_array_cast(const std::array<U, i> &a) -> std::array<T, i> {
+          return checked_array_cast_helper<T>(a, build_indices<i>());
         }
 
         // partial specialization of templates is not possible, so we use structs
@@ -155,16 +187,16 @@ namespace jams {
         // construct using dimensions as arguments
         template<typename... Args, typename = std::enable_if_t<(std::conjunction_v<std::is_integral<Args>...> && (sizeof...(Args) == Dim_))>>
         inline explicit MultiArray(const Args... args) :
-            size_({static_cast<size_type>(args)...}),
-            data_(detail::product(static_cast<size_type>(args)...)) {
+            size_({detail::checked_extent_cast<size_type>(args)...}),
+            data_(detail::product(detail::checked_extent_cast<size_type>(args)...)) {
           static_assert(sizeof...(args) == Dim_,
                         "number of MultiArray indicies in constructor does not match the MultiArray dimension");
         }
 
         template<typename... Args, typename = std::enable_if_t<(std::conjunction_v<std::is_integral<Args>...> && (sizeof...(Args) == Dim_))>>
         inline explicit MultiArray(const value_type& x, const Args... args):
-            size_({static_cast<size_type>(args)...}),
-            data_(detail::product(static_cast<size_type>(args)...), x) {
+            size_({detail::checked_extent_cast<size_type>(args)...}),
+            data_(detail::product(detail::checked_extent_cast<size_type>(args)...), x) {
           static_assert(sizeof...(args) == Dim_,
                         "number of MultiArray indicies in constructor does not match the MultiArray dimension");
         }
@@ -172,13 +204,13 @@ namespace jams {
         // construct using dimensions in array
         template<typename Integral_>
         inline explicit MultiArray(const std::array<Integral_, Dim_> &v) :
-            size_(detail::array_cast<size_type>(v)),
-            data_(detail::vec<std::size_t, Dim_, Dim_>::last_n_product(detail::array_cast<size_type>(v))) {}
+            size_(detail::checked_array_cast<size_type>(v)),
+            data_(detail::vec<std::size_t, Dim_, Dim_>::last_n_product(detail::checked_array_cast<size_type>(v))) {}
 
       template<typename Integral_>
       inline explicit MultiArray(const value_type& x, const std::array<Integral_, Dim_> v) :
-            size_(detail::array_cast<size_type>(v)),
-            data_(detail::vec<std::size_t, Dim_, Dim_>::last_n_product(detail::array_cast<size_type>(v)), x) {}
+            size_(detail::checked_array_cast<size_type>(v)),
+            data_(detail::vec<std::size_t, Dim_, Dim_>::last_n_product(detail::checked_array_cast<size_type>(v)), x) {}
 
         // capacity
         [[nodiscard]] inline constexpr bool empty() const noexcept {
@@ -308,14 +340,14 @@ namespace jams {
         inline MultiArray& resize(const Args &... args) {
           static_assert(sizeof...(args) == Dim_,
                         "number of MultiArray indicies in resize does not match the MultiArray dimension");
-          size_ = {static_cast<size_type>(args)...};
-          data_.resize(detail::product(static_cast<size_type>(args)...));
+          size_ = {detail::checked_extent_cast<size_type>(args)...};
+          data_.resize(detail::product(detail::checked_extent_cast<size_type>(args)...));
           return *this;
         }
 
         inline MultiArray& resize(const std::array<size_type, Dim_> &v) {
-          size_ = v;
-          data_.resize(detail::vec<std::size_t, Dim_, Dim_>::last_n_product(v));
+          size_ = detail::checked_array_cast<size_type>(v);
+          data_.resize(detail::vec<std::size_t, Dim_, Dim_>::last_n_product(size_));
           return *this;
         }
 
@@ -365,17 +397,17 @@ namespace jams {
         }
 
         inline explicit MultiArray(size_type size):
-            size_({size}),
-            data_(size) {}
+            size_({detail::checked_extent_cast<size_type>(size)}),
+            data_(detail::checked_extent_cast<size_type>(size)) {}
 
         inline MultiArray(const Tp_& x, size_type size):
-                size_({size}),
-                data_(size, x) {}
+                size_({detail::checked_extent_cast<size_type>(size)}),
+                data_(detail::checked_extent_cast<size_type>(size), x) {}
 
         template <typename U>
         inline explicit MultiArray(const std::array<U, 1> &v) :
-            size_(detail::array_cast<size_type>(v)),
-            data_(std::get<0>(v)) {}
+            size_(detail::checked_array_cast<size_type>(v)),
+            data_(std::get<0>(size_)) {}
 
         template<class InputIt>
         inline MultiArray(InputIt first, InputIt last)
@@ -387,8 +419,8 @@ namespace jams {
 
         template <typename U>
         inline explicit MultiArray(const Tp_& x, const std::array<U, 1> &v) :
-            size_(detail::array_cast<size_type>(v)),
-            data_(std::get<0>(v), x) {}
+            size_(detail::checked_array_cast<size_type>(v)),
+            data_(std::get<0>(size_), x) {}
 
         // capacity
         [[nodiscard]] inline constexpr bool empty() const noexcept {
@@ -514,14 +546,14 @@ namespace jams {
         }
 
         inline MultiArray& resize( size_type count ) {
-          std::get<0>(size_) = count;
-          data_.resize(count);
+          std::get<0>(size_) = detail::checked_extent_cast<size_type>(count);
+          data_.resize(std::get<0>(size_));
           return *this;
         }
 
         inline MultiArray& resize(const std::array<size_type, 1> &v) {
-          size_ = v;
-          data_.resize(std::get<0>(v));
+          size_ = detail::checked_array_cast<size_type>(v);
+          data_.resize(std::get<0>(size_));
           return *this;
         }
 
