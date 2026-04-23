@@ -273,30 +273,11 @@ SyncedMemory<T>::SyncedMemory(InputIt first, InputIt last)
 
 template<class T>
 SyncedMemory<T>::SyncedMemory(const SyncedMemory &rhs)
-    : sync_status_(rhs.sync_status_) {
-  if (size_ != rhs.size_) {
-    resize(rhs.size_);
-  }
-
-  // We use mutable_*_data() for 'this' to ensure allocation
-  // We use rhs.*_ptr_ for 'rhs' so we don't change the value of rhs.sync_status_
+    : size_(rhs.size_)
+    , sync_status_(rhs.sync_status_) {
   if (rhs.host_ptr_) {
-    pointer p = mutable_host_data();
-    if (has_cuda_context()) {
-#if HAS_CUDA
-      // 2021-03-16 Joe: The use of cudaMemcpy(..., cudaMemcpyHostToHost)
-      // may not be strictly necessary. Just using memcpy works because
-      // the pointers are all host pointers. However cudaMemcpy should be
-      // enforcing device synchronisation so that we don't copy host memory
-      // while it's being asynchronously copied into or out of else where.
-#if SYNCED_MEMORY_PRINT_MEMCPY
-      std::cout << "INFO(SyncedMemory): cudaMemcpyHostToHost" << std::endl;
-#endif
-      SYNCED_MEMORY_CHECK_CUDA_STATUS(cudaMemcpy(p, rhs.host_ptr_, bytes(size_), cudaMemcpyHostToHost));
-#endif
-    } else {
-      memcpy(p, rhs.host_ptr_, bytes(size_));
-    }
+    allocate_host_memory(size_);
+    memcpy(host_ptr_, rhs.host_ptr_, bytes(size_));
   }
 
   if (rhs.device_ptr_) {
@@ -304,7 +285,8 @@ SyncedMemory<T>::SyncedMemory(const SyncedMemory &rhs)
 #if SYNCED_MEMORY_PRINT_MEMCPY
     std::cout << "INFO(SyncedMemory): cudaMemcpyDeviceToDevice" << std::endl;
 #endif
-    SYNCED_MEMORY_CHECK_CUDA_STATUS(cudaMemcpy(mutable_device_data(), rhs.device_ptr_, bytes(size_), cudaMemcpyDeviceToDevice));
+    allocate_device_memory(size_);
+    SYNCED_MEMORY_CHECK_CUDA_STATUS(cudaMemcpy(device_ptr_, rhs.device_ptr_, bytes(size_), cudaMemcpyDeviceToDevice));
 #endif
   }
 }

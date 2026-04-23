@@ -11,6 +11,15 @@
 
 #include "jams/containers/synced_memory.h"
 
+#if HAS_CUDA
+namespace {
+bool have_synced_memory_cuda_device() {
+  int device_count = 0;
+  return cudaGetDeviceCount(&device_count) == cudaSuccess && device_count > 0;
+}
+}  // namespace
+#endif
+
 // fixture class
 template <typename T>
 class SynchedMemoryTest : public testing::Test {
@@ -72,5 +81,27 @@ TYPED_TEST(SynchedMemoryTest, modifiers) {
   ASSERT_EQ(x.size(), 0);
   ASSERT_EQ(x.const_host_data(), nullptr);
 }
+
+#if HAS_CUDA
+TEST(SyncedMemoryGpuCopyCtorTest, PreservesDeviceMutatedState) {
+  if (!have_synced_memory_cuda_device()) {
+    GTEST_SKIP() << "CUDA device not available";
+  }
+
+  jams::SyncedMemory<int> source(4, 7);
+  ASSERT_NE(source.mutable_device_data(), nullptr);
+
+  jams::SyncedMemory<int> copy(source);
+
+  const auto* host = copy.const_host_data();
+  ASSERT_NE(host, nullptr);
+  EXPECT_EQ(copy.size(), 4u);
+  for (std::size_t i = 0; i < copy.size(); ++i) {
+    EXPECT_EQ(host[i], 7);
+  }
+
+  ASSERT_NE(copy.const_device_data(), nullptr);
+}
+#endif
 
 #endif //JAMS_TEST_SYNCED_MEMORY_H
