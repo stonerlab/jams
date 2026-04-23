@@ -44,14 +44,15 @@ TYPED_TEST(SynchedMemoryTest, ctor) {
 
 TYPED_TEST(SynchedMemoryTest, size) {
   using namespace jams;
+  using size_type = typename SyncedMemory<TypeParam>::size_type;
 
   SyncedMemory<TypeParam> x(10);
   ASSERT_EQ(x.size(), 10);
   ASSERT_EQ(x.bytes(), 10*sizeof(TypeParam));
 
-  // if we can't address the memory space with int then we're
-  // in trouble
-  ASSERT_GE(x.max_size(), std::numeric_limits<int>::max());
+  const auto expected_max_size =
+      std::numeric_limits<size_type>::max() / sizeof(TypeParam);
+  ASSERT_EQ(x.max_size(), expected_max_size);
 }
 
 TYPED_TEST(SynchedMemoryTest, accessors) {
