@@ -28,18 +28,54 @@ gtest_discover_tests(
 
 set(jams_test_labels_script "${CMAKE_CURRENT_BINARY_DIR}/jams_test_labels.cmake")
 file(WRITE "${jams_test_labels_script}" [=[
+set(jams_requires_gpu_exact_tests
+    "SolverDescriptorConfigTest.BackendIntegratorEquationConfigMatchesLegacyModule"
+    "LLGDynamicsTermConfigTest.GenericSotTermMatchesLegacySotAlias"
+    "LLGDynamicsSelectorTest.SurfaceSelectorMatchesExplicitSurfaceSites"
+    "AdditionalCpuBackendsSmokeTest.GseAndLorentzianCpuBackendsRunOneStep"
+    "CpuThermostatIntegrationSmokeTest.QuantumSpdeAndGeneralFftRunWithCpuHeunSolver"
+    "CpuQuantumSpdeNoiseGeneratorTest.MarginalDistributionIsGaussian"
+    "CpuQuantumSpdeNoiseGeneratorTest.PowerSpectralDensityMatchesNoZeroTarget"
+    "CpuGeneralFftNoiseGeneratorTest.MarginalDistributionMatchesAnalyticGaussian")
+
+set(jams_requires_gpu_patterns
+    "^SynchedMemoryTest\\.size<"
+    "^DipoleHamiltonianCPUTests\\."
+    "^LLGSolvers/.*/llg_.+_cpu")
+
 foreach(test_name IN LISTS jams_discovered_tests)
     set(test_labels unit)
     set(run_serial FALSE)
+    set(requires_gpu FALSE)
+    set(backend_label cpu)
 
     if (test_name MATCHES "GPUTests"
             OR test_name MATCHES "(^|[./])Gpu"
             OR test_name MATCHES "(^|[./])Cuda"
             OR test_name MATCHES "_gpu")
-        list(APPEND test_labels gpu)
+        set(backend_label gpu)
+        set(requires_gpu TRUE)
+    endif()
+
+    foreach(requires_gpu_exact_test IN LISTS jams_requires_gpu_exact_tests)
+        if (test_name STREQUAL "${requires_gpu_exact_test}")
+            set(requires_gpu TRUE)
+        endif()
+    endforeach()
+
+    foreach(requires_gpu_pattern IN LISTS jams_requires_gpu_patterns)
+        if (test_name MATCHES "${requires_gpu_pattern}")
+            set(requires_gpu TRUE)
+        endif()
+    endforeach()
+
+    list(APPEND test_labels "${backend_label}")
+
+    if (requires_gpu)
+        list(APPEND test_labels requires-gpu)
         set(run_serial TRUE)
     else()
-        list(APPEND test_labels cpu)
+        list(APPEND test_labels no-gpu)
     endif()
 
     if (test_name MATCHES "SLOW")
