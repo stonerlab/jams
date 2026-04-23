@@ -45,6 +45,7 @@
 #include <stdexcept>
 #include <string>
 #include <utility>
+#include <vector>
 
 // toggle printing all host/device synchronization calls to cout
 #define SYNCED_MEMORY_PRINT_MEMCPY 0
@@ -265,9 +266,11 @@ SyncedMemory<T>::SyncedMemory(SyncedMemory::size_type size, const T &x)
 template<class T>
 template<class InputIt, std::enable_if_t<is_iterator<InputIt>::value, bool>>
 SyncedMemory<T>::SyncedMemory(InputIt first, InputIt last)
-    : size_(std::distance(first, last)) {
+{
+  const std::vector<value_type> values(first, last);
+  size_ = values.size();
   pointer p = mutable_host_data();
-  std::copy(first, last, p);
+  std::copy(values.begin(), values.end(), p);
 }
 
 

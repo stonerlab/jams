@@ -7,6 +7,8 @@
 
 #include <array>
 #include <complex>
+#include <iterator>
+#include <sstream>
 #include <gmock/gmock-matchers.h>
 
 #include "jams/containers/synced_memory.h"
@@ -81,6 +83,22 @@ TYPED_TEST(SynchedMemoryTest, modifiers) {
   x.clear();
   ASSERT_EQ(x.size(), 0);
   ASSERT_EQ(x.const_host_data(), nullptr);
+}
+
+TEST(SyncedMemoryRangeCtorTest, SupportsInputIterators) {
+  std::istringstream input("1 2 3 4");
+  std::istream_iterator<int> first(input);
+  std::istream_iterator<int> last;
+
+  jams::SyncedMemory<int> values(first, last);
+
+  ASSERT_EQ(values.size(), 4u);
+  const auto* host = values.const_host_data();
+  ASSERT_NE(host, nullptr);
+  EXPECT_EQ(host[0], 1);
+  EXPECT_EQ(host[1], 2);
+  EXPECT_EQ(host[2], 3);
+  EXPECT_EQ(host[3], 4);
 }
 
 #if HAS_CUDA
