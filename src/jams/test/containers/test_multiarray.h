@@ -140,4 +140,21 @@ TEST(MultiArrayOneDimensionalTest, SizeByAxisMatchesSize) {
   ASSERT_EQ(values.size(0), 7u);
 }
 
+TEST(MultiArrayEmptyContainerTest, EmptyIteratorsAndFillAreSafe) {
+  jams::MultiArray<int, 2> grid;
+  const auto& const_grid = static_cast<const jams::MultiArray<int, 2>&>(grid);
+  EXPECT_EQ(grid.begin(), grid.end());
+  EXPECT_EQ(const_grid.begin(), const_grid.end());
+
+  grid.fill(7);
+  EXPECT_TRUE(grid.empty());
+  EXPECT_EQ(grid.begin(), grid.end());
+
+  jams::MultiArray<int, 1> line;
+  EXPECT_EQ(line.begin(), line.end());
+  line.fill(9);
+  EXPECT_TRUE(line.empty());
+  EXPECT_EQ(line.begin(), line.end());
+}
+
 #endif //JAMS_TEST_MULTIARRAY_H

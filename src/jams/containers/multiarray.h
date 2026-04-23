@@ -300,15 +300,18 @@ namespace jams {
         }
 
         inline iterator end() {
-          return data_.mutable_host_data() + data_.size();
+          pointer p = data_.mutable_host_data();
+          return p ? p + data_.size() : p;
         }
 
         inline const_iterator end() const {
-          return data_.const_host_data() + data_.size();
+          const_pointer p = data_.const_host_data();
+          return p ? p + data_.size() : p;
         }
 
         inline const_iterator cend() const {
-          return data_.const_host_data() + data_.size();
+          const_pointer p = data_.const_host_data();
+          return p ? p + data_.size() : p;
         }
 
         // Modifiers
@@ -328,6 +331,9 @@ namespace jams {
         }
 
         inline void fill(const value_type &value) {
+          if (data_.size() == 0) {
+            return;
+          }
           if (value == Tp_{0}) {
             zero();
             return;
@@ -509,15 +515,18 @@ namespace jams {
         }
 
         inline iterator end() {
-          return data_.mutable_host_data() + data_.size();
+          pointer p = data_.mutable_host_data();
+          return p ? p + data_.size() : p;
         }
 
         inline const_iterator end() const {
-          return data_.const_host_data() + data_.size();
+          const_pointer p = data_.const_host_data();
+          return p ? p + data_.size() : p;
         }
 
         inline const_iterator cend() const {
-          return data_.const_host_data() + data_.size();
+          const_pointer p = data_.const_host_data();
+          return p ? p + data_.size() : p;
         }
 
         // Modifiers
@@ -537,6 +546,9 @@ namespace jams {
         }
 
         inline void fill(const value_type &value) {
+          if (data_.size() == 0) {
+            return;
+          }
           if (value == Tp_{0}) {
             zero();
             return;
