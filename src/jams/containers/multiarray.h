@@ -13,28 +13,20 @@
 #include <iterator>
 #include <limits>
 #include <stdexcept>
+#include <utility>
 #include <tuple>
 #include <type_traits>
 #include <vector>
 
 namespace jams {
     namespace detail {
-        template <std::size_t... Is>
-        struct indices {};
-        template <std::size_t N, std::size_t... Is>
-        struct build_indices: build_indices<N-1, N-1, Is...> {};
-        template <std::size_t... Is>
-        struct build_indices<0, Is...>: indices<Is...> {};
-
-        template<typename T, typename U, size_t i, size_t... Is>
-        constexpr std::array<T, i> array_cast_helper(const std::array<U, i> &a, indices<Is...>) {
-          return {{static_cast<T>(std::get<Is>(a))...}};
-        }
-
         template<typename T, typename U, size_t i>
         constexpr auto array_cast(const std::array<U, i> &a) -> std::array<T, i> {
-          // tag dispatch to helper with array indices
-          return array_cast_helper<T>(a, build_indices<i>());
+          std::array<T, i> result{};
+          for (std::size_t n = 0; n < i; ++n) {
+            result[n] = static_cast<T>(a[n]);
+          }
+          return result;
         }
 
         template<typename T, typename U>
@@ -57,14 +49,13 @@ namespace jams {
           return static_cast<T>(value);
         }
 
-        template<typename T, typename U, size_t i, size_t... Is>
-        constexpr std::array<T, i> checked_array_cast_helper(const std::array<U, i> &a, indices<Is...>) {
-          return {{checked_extent_cast<T>(std::get<Is>(a))...}};
-        }
-
         template<typename T, typename U, size_t i>
         constexpr auto checked_array_cast(const std::array<U, i> &a) -> std::array<T, i> {
-          return checked_array_cast_helper<T>(a, build_indices<i>());
+          std::array<T, i> result{};
+          for (std::size_t n = 0; n < i; ++n) {
+            result[n] = checked_extent_cast<T>(a[n]);
+          }
+          return result;
         }
 
         template<typename T, std::size_t N>
@@ -80,46 +71,38 @@ namespace jams {
         };
 
         template<typename Tuple, std::size_t... Is>
-        constexpr bool tuple_elements_are_integral(indices<Is...>) {
+        constexpr bool tuple_elements_are_integral(std::index_sequence<Is...>) {
           return (std::is_integral_v<std::remove_reference_t<std::tuple_element_t<Is, Tuple>>> && ...);
         }
-
-        template<std::size_t N, typename... Args>
-        inline constexpr bool first_n_integral_v =
-            tuple_elements_are_integral<std::tuple<Args...>>(build_indices<N>{});
 
         template<std::size_t N, typename Value, typename Tuple, bool = (std::tuple_size_v<Tuple> == N + 1)>
         struct has_filled_shape_signature : std::false_type {};
 
         template<std::size_t N, typename Value, typename Tuple>
         struct has_filled_shape_signature<N, Value, Tuple, true>
-            : std::bool_constant<tuple_elements_are_integral<Tuple>(build_indices<N>{}) &&
+            : std::bool_constant<tuple_elements_are_integral<Tuple>(std::make_index_sequence<N>{}) &&
                                  std::is_convertible_v<std::tuple_element_t<N, Tuple>, Value>> {};
 
         template<std::size_t N, typename Value, typename... Args>
         inline constexpr bool has_filled_shape_signature_v =
             has_filled_shape_signature<N, Value, std::tuple<Args...>>::value;
 
-        // partial specialization of templates is not possible, so we use structs
-
-        // recursive method to multiply the last N elements of array
-        template<typename T, std::size_t N, std::size_t I>
-        struct vec {
-            static constexpr T last_n_product(const std::array<T, N> &v) {
-              return std::get<N - I>(v) * vec<T, N, I - 1>::last_n_product(v);
-            }
-        };
-
-        template<typename T, std::size_t N>
-        struct vec<T, N, 0> {
-            static constexpr T last_n_product(const std::array<T, N> &v) {
-              return 1;
-            }
-        };
-
         template<typename T, std::size_t N>
         constexpr T element_count(const std::array<T, N> &shape) {
-          return vec<T, N, N>::last_n_product(shape);
+          static_assert(std::is_integral_v<T>, "MultiArray shape must use an integral size type");
+
+          using unsigned_t = std::make_unsigned_t<T>;
+          const auto max = static_cast<unsigned_t>(std::numeric_limits<T>::max());
+
+          unsigned_t elements = 1;
+          for (std::size_t n = 0; n < N; ++n) {
+            const auto extent = static_cast<unsigned_t>(shape[n]);
+            if (extent != 0 && elements > max / extent) {
+              throw std::length_error("MultiArray element count exceeds size_type");
+            }
+            elements *= extent;
+          }
+          return static_cast<T>(elements);
         }
 
         template<typename T, typename... Args>
@@ -137,7 +120,7 @@ namespace jams {
         template<typename Value, typename Size, std::size_t N, typename Tuple, std::size_t... Is>
         constexpr validated_shape_with_value<Value, Size, N> make_validated_shape_with_value_from_tuple(
             Tuple&& args,
-            indices<Is...>) {
+            std::index_sequence<Is...>) {
           return {make_validated_shape<Size>(std::get<Is>(args)...),
                   static_cast<Value>(std::get<N>(std::forward<Tuple>(args)))};
         }
@@ -148,70 +131,36 @@ namespace jams {
                         "number of MultiArray arguments does not match the filled-construction dimension");
           return make_validated_shape_with_value_from_tuple<Value, Size, N>(
               std::forward_as_tuple(args...),
-              build_indices<N>{});
-        }
-
-        // recursive methods to generate row major arg_indices at compile time
-        template<typename T, std::size_t N, std::size_t I>
-        struct arg_indices {
-            template<typename... Args>
-            static constexpr std::size_t
-            row_major(const std::array<T, N> &dims, const T &first, const Args &... args) {
-              return static_cast<std::size_t>(first) *
-                         static_cast<std::size_t>(vec<T, N, I - 1>::last_n_product(dims)) +
-                     arg_indices<T, N, I - 1>::row_major(dims, args...);
-            }
-        };
-
-        template<typename T, std::size_t N>
-        struct arg_indices<T, N, 1> {
-            static constexpr std::size_t
-            row_major(const std::array<T, N> &dims, const T &v) {
-              return static_cast<std::size_t>(v);
-            }
-        };
-
-        template<typename T, std::size_t N, std::size_t I>
-        struct arr_indices {
-            static constexpr std::size_t
-            row_major(const std::array<T, N> &dims, const std::array<T, N> &idx) {
-              return static_cast<std::size_t>(std::get<I - 1>(idx)) +
-                         static_cast<std::size_t>(std::get<I - 1>(dims)) *
-                             arr_indices<T, N, I - 1>::row_major(dims, idx);
-            }
-        };
-
-        template<typename T, std::size_t N>
-        struct arr_indices<T, N, 1> {
-            static constexpr std::size_t
-            row_major(const std::array<T, N> &dims, const std::array<T, N> &idx) {
-              return static_cast<std::size_t>(std::get<0>(idx));
-            }
-        };
-
-        template<typename T, std::size_t N, typename... Args>
-        constexpr std::size_t
-        row_major_index(const std::array<T, N> &dims, const Args &... args) {
-          return arg_indices<T, N, N>::row_major(dims, args...);
+              std::make_index_sequence<N>{});
         }
 
         template<typename T, std::size_t N>
         constexpr std::size_t
         row_major_index(const std::array<T, N> &dims, const std::array<T, N> &idx) {
-          return arr_indices<T, N, N>::row_major(dims, idx);
+          std::size_t offset = 0;
+          for (std::size_t n = 0; n < N; ++n) {
+            offset = offset * static_cast<std::size_t>(dims[n]) + static_cast<std::size_t>(idx[n]);
+          }
+          return offset;
         }
 
-        template<typename T, std::size_t N, std::size_t... Is>
-        constexpr bool indices_in_bounds_impl(const std::array<T, N> &dims,
-                                              const std::array<T, N> &idx,
-                                              indices<Is...>) {
-          return ((std::get<Is>(idx) < std::get<Is>(dims)) && ...);
+        template<typename T, std::size_t N, typename... Args>
+        constexpr std::size_t
+        row_major_index(const std::array<T, N> &dims, const Args &... args) {
+          static_assert(sizeof...(args) == N,
+                        "number of indices does not match the MultiArray dimension");
+          return row_major_index(dims, std::array<T, N>{{static_cast<T>(args)...}});
         }
 
         template<typename T, std::size_t N>
         constexpr bool indices_in_bounds(const std::array<T, N> &dims,
                                          const std::array<T, N> &idx) {
-          return indices_in_bounds_impl(dims, idx, build_indices<N>());
+          for (std::size_t n = 0; n < N; ++n) {
+            if (!(idx[n] < dims[n])) {
+              return false;
+            }
+          }
+          return true;
         }
 
         template<std::size_t N, typename T, typename... Args>
@@ -364,19 +313,17 @@ namespace jams {
         // operations
 
         // element access
-        template<typename... Args>
+        template<typename... Args,
+                 std::enable_if_t<(sizeof...(Args) == Dim_) && std::conjunction_v<std::is_integral<Args>...>, int> = 0>
         inline reference operator()(const Args &... args) {
-          static_assert(sizeof...(args) == Dim_,
-                        "number of MultiArray indicies does not match the MultiArray dimension");
           assert(!empty());
           assert(detail::indices_in_bounds(size_, static_cast<size_type>(args)...));
           return data_.mutable_host_data()[detail::row_major_index(size_, static_cast<size_type>(args)...)];
         }
 
-        template<typename... Args>
+        template<typename... Args,
+                 std::enable_if_t<(sizeof...(Args) == Dim_) && std::conjunction_v<std::is_integral<Args>...>, int> = 0>
         inline const_reference operator()(const Args &... args) const {
-          static_assert(sizeof...(args) == Dim_,
-                        "number of MultiArray indicies does not match the MultiArray dimension");
           assert(!empty());
           assert(detail::indices_in_bounds(size_, static_cast<size_type>(args)...));
           return data_.const_host_data()[detail::row_major_index(size_, static_cast<size_type>(args)...)];

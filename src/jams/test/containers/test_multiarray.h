@@ -6,9 +6,11 @@
 #define JAMS_TEST_MULTIARRAY_H
 
 #include <array>
+#include <cstdint>
 #include <complex>
 #include <iterator>
 #include <sstream>
+#include <type_traits>
 #include <utility>
 
 #include "jams/containers/multiarray.h"
@@ -21,6 +23,19 @@ bool have_multiarray_cuda_device() {
 }
 }  // namespace
 #endif
+
+template <typename Array, typename... Args>
+class has_scalar_index_operator {
+ private:
+  template <typename T>
+  static auto test(int) -> decltype(std::declval<T&>()(std::declval<Args>()...), std::true_type{});
+
+  template <typename>
+  static auto test(...) -> std::false_type;
+
+ public:
+  static constexpr bool value = decltype(test<Array>(0))::value;
+};
 
 // fixture class
 template <typename T>
@@ -46,10 +61,6 @@ TYPED_TEST(MultiArrayDetailsTest, product) {
 
   ASSERT_EQ(detail::product(5), 5);
   ASSERT_EQ(detail::product(5,4,3,2,1), 120);
-  auto x = detail::vec<TypeParam,1,1>::last_n_product(std::array<TypeParam, 1>{5});
-  ASSERT_EQ(x, 5);
-  auto y = detail::vec<TypeParam,5,5>::last_n_product(std::array<TypeParam, 5>{5, 4, 3, 2, 1});
-  ASSERT_EQ(y, 120);
 }
 
 // test row major
@@ -162,6 +173,15 @@ TEST(MultiArrayExtentValidationTest, RejectsNegativeExtents) {
   EXPECT_THROW(line.resize(-1), std::length_error);
 }
 
+TEST(MultiArrayExtentValidationTest, RejectsShapeProductsThatOverflowSizeType) {
+  EXPECT_THROW((jams::MultiArray<int, 2, std::uint8_t>{16, 16}), std::length_error);
+  EXPECT_THROW((jams::MultiArray<int, 2, std::uint8_t>(std::array<int, 2>{16, 16})), std::length_error);
+
+  jams::MultiArray<int, 2, std::uint8_t> values{15, 15};
+  EXPECT_THROW(values.resize(16, 16), std::length_error);
+  EXPECT_THROW(values.resize(std::array<int, 2>{16, 16}), std::length_error);
+}
+
 TEST(MultiArrayOneDimensionalTest, SizeByAxisMatchesSize) {
   jams::MultiArray<int, 1> values{7};
 
@@ -203,6 +223,15 @@ TEST(MultiArrayIndexTypeTest, SupportsNonDefaultIndexTypes) {
 
   values(std::array<int, 2>{3, 4}) = 11;
   EXPECT_EQ(values(std::array<int, 2>{3, 4}), 11);
+}
+
+TEST(MultiArrayIndexTypeTest, ScalarIndexingRequiresIntegralArguments) {
+  using Array = jams::MultiArray<int, 2>;
+
+  EXPECT_TRUE((has_scalar_index_operator<Array, int, int>::value));
+  EXPECT_TRUE((has_scalar_index_operator<Array, unsigned, short>::value));
+  EXPECT_FALSE((has_scalar_index_operator<Array, double, int>::value));
+  EXPECT_FALSE((has_scalar_index_operator<Array, int, float>::value));
 }
 
 TEST(MultiArrayReadOnlyAccessTest, ProvidesReadOnlyHostIterationOnMutableArray) {
