@@ -29,7 +29,7 @@ tsv_file_(jams::output::full_path_filename("jsp.tsv"))
     material_count_[globals::lattice->lattice_site_material_id(i)]++;
   }
 
-  s_old_.resize(globals::num_spins,3);
+  s_old_.resize(globals::num_spins, 3);
 }
 
 void SpinPumpingMonitor::update(Solver& solver) {

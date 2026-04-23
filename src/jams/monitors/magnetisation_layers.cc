@@ -33,7 +33,7 @@ MagnetisationLayersMonitor::MagnetisationLayersMonitor(
   }
 
   if (grouping_ == Grouping::NONE) {
-    jams::MultiArray<int,1> indices(globals::num_spins);
+    jams::MultiArray<int,1> indices{globals::num_spins};
     for (auto i = 0; i < globals::num_spins; ++i) {
       indices(i) = i;
     }
@@ -123,9 +123,9 @@ MagnetisationLayersMonitor::MagnetisationLayersMonitor(
     group_layer_magnetisation_[group_idx].resize(num_layers, 3);
 
     // Move all the data into MultiArrays
-    jams::MultiArray<double, 1> layer_positions(num_layers);
-    jams::MultiArray<double, 1> layer_saturation_moment(num_layers);
-    jams::MultiArray<int, 1> layer_spin_count(num_layers);
+    jams::MultiArray<double, 1> layer_positions{num_layers};
+    jams::MultiArray<double, 1> layer_saturation_moment{num_layers};
+    jams::MultiArray<int, 1> layer_spin_count{num_layers};
 
     int counter = 0;
     for (auto const &z: unique_positions) {

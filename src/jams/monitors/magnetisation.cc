@@ -68,7 +68,7 @@ jams::output::TsvWriter MagnetisationMonitor::make_tsv_writer(const libconfig::S
 
   switch (grouping_) {
     case Grouping::NONE: {
-      jams::MultiArray<int,1> indices(globals::num_spins);
+      jams::MultiArray<int,1> indices{globals::num_spins};
       for (auto i = 0; i < globals::num_spins; ++i) {
         indices(i) = i;
       }

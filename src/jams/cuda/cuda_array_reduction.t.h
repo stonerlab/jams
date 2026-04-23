@@ -31,7 +31,7 @@ TEST(CudaArrayReductionTest, vector_field_reduce_cuda) {
   std::mt19937 rng(seed);
   std::uniform_real_distribution<double> dist;
 
-  jams::MultiArray<double, 2> x(size, 3);
+  jams::MultiArray<double, 2> x{size, 3};
 
   double counter = 0.0;
   for (auto i = 0; i < size; ++i) {
@@ -75,7 +75,7 @@ TEST(CudaArrayReductionTest, vector_field_indexed_reduce_cuda) {
   std::uniform_real_distribution<double> dist;
   std::uniform_int_distribution<int> int_dist(0,size);
 
-  jams::MultiArray<double, 2> x(size, 3);
+  jams::MultiArray<double, 2> x{size, 3};
 
   double counter = 0.0;
   for (auto i = 0; i < size; ++i) {
@@ -85,7 +85,7 @@ TEST(CudaArrayReductionTest, vector_field_indexed_reduce_cuda) {
     }
   }
 
-  jams::MultiArray<int, 1> indices(num_indices);
+  jams::MultiArray<int, 1> indices{num_indices};
   for (auto i = 0; i < num_indices; ++i) {
     indices(i) = int_dist(rng);
   }

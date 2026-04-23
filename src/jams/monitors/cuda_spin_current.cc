@@ -122,7 +122,7 @@ void CudaSpinCurrentMonitor::write_spin_current_h5_file(const std::string &h5_fi
 
   DataSetCreateProps props;
 
-  jams::MultiArray<double, 2> js(globals::num_spins, 3);
+  jams::MultiArray<double, 2> js{globals::num_spins, 3};
 
   for (auto i = 0; i < globals::num_spins; ++i) {
     js(i,0) = spin_current_rx_z(i);
