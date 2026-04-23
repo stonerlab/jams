@@ -84,50 +84,53 @@ namespace jams {
         };
 
         // recursive methods to generate row major arg_indices at compile time
-        template<std::size_t N, std::size_t I>
+        template<typename T, std::size_t N, std::size_t I>
         struct arg_indices {
             template<typename... Args>
             static constexpr std::size_t
-            row_major(const std::array<std::size_t, N> &dims, const std::size_t &first, const Args &... args) {
-              return first * vec<std::size_t, N, I - 1>::last_n_product(dims) +
-                     arg_indices<N, I - 1>::row_major(dims, args...);
+            row_major(const std::array<T, N> &dims, const T &first, const Args &... args) {
+              return static_cast<std::size_t>(first) *
+                         static_cast<std::size_t>(vec<T, N, I - 1>::last_n_product(dims)) +
+                     arg_indices<T, N, I - 1>::row_major(dims, args...);
             }
         };
 
-        template<std::size_t N>
-        struct arg_indices<N, 1> {
+        template<typename T, std::size_t N>
+        struct arg_indices<T, N, 1> {
             static constexpr std::size_t
-            row_major(const std::array<std::size_t, N> &dims, const std::size_t &v) {
-              return v;
+            row_major(const std::array<T, N> &dims, const T &v) {
+              return static_cast<std::size_t>(v);
             }
         };
 
-        template<std::size_t N, std::size_t I>
+        template<typename T, std::size_t N, std::size_t I>
         struct arr_indices {
             static constexpr std::size_t
-            row_major(const std::array<std::size_t, N> &dims, const std::array<std::size_t, N> &idx) {
-              return std::get<I - 1>(idx) + std::get<I - 1>(dims) * arr_indices<N, I - 1>::row_major(dims, idx);
+            row_major(const std::array<T, N> &dims, const std::array<T, N> &idx) {
+              return static_cast<std::size_t>(std::get<I - 1>(idx)) +
+                         static_cast<std::size_t>(std::get<I - 1>(dims)) *
+                             arr_indices<T, N, I - 1>::row_major(dims, idx);
             }
         };
 
-        template<std::size_t N>
-        struct arr_indices<N, 1> {
+        template<typename T, std::size_t N>
+        struct arr_indices<T, N, 1> {
             static constexpr std::size_t
-            row_major(const std::array<std::size_t, N> &dims, const std::array<std::size_t, N> &idx) {
-              return std::get<0>(idx);
+            row_major(const std::array<T, N> &dims, const std::array<T, N> &idx) {
+              return static_cast<std::size_t>(std::get<0>(idx));
             }
         };
 
-        template<std::size_t N, typename... Args>
+        template<typename T, std::size_t N, typename... Args>
         constexpr std::size_t
-        row_major_index(const std::array<std::size_t, N> &dims, const Args &... args) {
-          return arg_indices<N, N>::row_major(dims, args...);
+        row_major_index(const std::array<T, N> &dims, const Args &... args) {
+          return arg_indices<T, N, N>::row_major(dims, args...);
         }
 
-        template<std::size_t N>
+        template<typename T, std::size_t N>
         constexpr std::size_t
-        row_major_index(const std::array<std::size_t, N> &dims, const std::array<std::size_t, N> &idx) {
-          return arr_indices<N, N>::row_major(dims, idx);
+        row_major_index(const std::array<T, N> &dims, const std::array<T, N> &idx) {
+          return arr_indices<T, N, N>::row_major(dims, idx);
         }
 
         template<typename T, std::size_t N, std::size_t... Is>
@@ -225,12 +228,12 @@ namespace jams {
         template<typename Integral_>
         inline explicit MultiArray(const std::array<Integral_, Dim_> &v) :
             size_(detail::checked_array_cast<size_type>(v)),
-            data_(detail::vec<std::size_t, Dim_, Dim_>::last_n_product(detail::checked_array_cast<size_type>(v))) {}
+            data_(detail::vec<size_type, Dim_, Dim_>::last_n_product(detail::checked_array_cast<size_type>(v))) {}
 
       template<typename Integral_>
       inline explicit MultiArray(const value_type& x, const std::array<Integral_, Dim_> v) :
             size_(detail::checked_array_cast<size_type>(v)),
-            data_(detail::vec<std::size_t, Dim_, Dim_>::last_n_product(detail::checked_array_cast<size_type>(v)), x) {}
+            data_(detail::vec<size_type, Dim_, Dim_>::last_n_product(detail::checked_array_cast<size_type>(v)), x) {}
 
         // capacity
         [[nodiscard]] inline constexpr bool empty() const noexcept {
@@ -378,7 +381,7 @@ namespace jams {
 
         inline MultiArray& resize(const std::array<size_type, Dim_> &v) {
           size_ = detail::checked_array_cast<size_type>(v);
-          data_.resize(detail::vec<std::size_t, Dim_, Dim_>::last_n_product(size_));
+          data_.resize(detail::vec<size_type, Dim_, Dim_>::last_n_product(size_));
           return *this;
         }
 

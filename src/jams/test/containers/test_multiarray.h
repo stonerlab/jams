@@ -168,4 +168,23 @@ TEST(MultiArrayEmptyContainerTest, EmptyIteratorsAndFillAreSafe) {
   EXPECT_EQ(line.begin(), line.end());
 }
 
+TEST(MultiArrayIndexTypeTest, SupportsNonDefaultIndexTypes) {
+  jams::MultiArray<int, 2, int> values(std::array<short, 2>{2, 3});
+
+  ASSERT_EQ(values.size(0), 2);
+  ASSERT_EQ(values.size(1), 3);
+  ASSERT_EQ(values.elements(), 6);
+
+  values(1, 2) = 7;
+  EXPECT_EQ(values(1, 2), 7);
+
+  values.resize(std::array<int, 2>{4, 5});
+  ASSERT_EQ(values.size(0), 4);
+  ASSERT_EQ(values.size(1), 5);
+  ASSERT_EQ(values.elements(), 20);
+
+  values(std::array<int, 2>{3, 4}) = 11;
+  EXPECT_EQ(values(std::array<int, 2>{3, 4}), 11);
+}
+
 #endif //JAMS_TEST_MULTIARRAY_H
