@@ -2,7 +2,6 @@
 
 #include "jams/core/globals.h"
 #include "jams/core/monitor.h"
-#include "jams/monitors/binary.h"
 #include "jams/monitors/boltzmann.h"
 #include "jams/monitors/energy.h"
 #include "jams/monitors/field.h"
@@ -93,7 +92,6 @@ bool Monitor::is_updating(const int &iteration) {
 }
 
 Monitor* Monitor::create(const libconfig::Setting &settings) {
-  DEFINED_MONITOR("binary", BinaryMonitor, settings);
   DEFINED_MONITOR("boltzmann", BoltzmannMonitor, settings);
   DEFINED_MONITOR("energy", EnergyMonitor, settings);
   DEFINED_MONITOR("field", FieldMonitor, settings);

@@ -59,7 +59,6 @@ set(JAMS_SOURCES_CXX
         lattice/minimum_image.cc
         maths/functions.cc
         maths/interpolation.cc
-        monitors/binary.cc
         monitors/boltzmann.cc
         monitors/energy.cc
         monitors/field.cc
