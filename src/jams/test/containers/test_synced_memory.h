@@ -120,6 +120,17 @@ TEST(SyncedMemoryRangeCtorTest, SupportsInputIterators) {
   EXPECT_EQ(host[3], 4);
 }
 
+TEST(SyncedMemoryRangeCtorTest, SupportsForwardIterators) {
+  const std::vector<int> source{5, 6, 7, 8};
+
+  jams::SyncedMemory<int> values(source.begin(), source.end());
+
+  ASSERT_EQ(values.size(), source.size());
+  const auto* host = values.const_host_data();
+  ASSERT_NE(host, nullptr);
+  EXPECT_TRUE(std::equal(host, host + values.size(), source.begin(), source.end()));
+}
+
 TEST(SyncedMemoryFillTest, SupportsTriviallyCopyableTypesWithoutEquality) {
   const SyncedMemoryBlob value{7, 2.5};
   jams::SyncedMemory<SyncedMemoryBlob> storage(3, value);
@@ -241,6 +252,57 @@ TEST(SyncedMemoryGpuMoveAssignTest, TransfersOwnershipFromDeviceBackedSource) {
 
   EXPECT_EQ(source.size(), 0u);
   EXPECT_EQ(source.const_host_data(), nullptr);
+}
+
+TEST(SyncedMemoryGpuSyncTest, HostReadRefreshesAllocatedStaleHostBuffer) {
+  if (!have_synced_memory_cuda_device()) {
+    GTEST_SKIP() << "CUDA device not available";
+  }
+
+  jams::SyncedMemory<int> storage(3, 1);
+  ASSERT_NE(storage.const_host_data(), nullptr);
+
+  const int device_values[3] = {7, 8, 9};
+  ASSERT_NE(storage.mutable_device_data(), nullptr);
+  ASSERT_EQ(cudaMemcpy(storage.mutable_device_data(),
+                       device_values,
+                       storage.bytes(),
+                       cudaMemcpyHostToDevice),
+            cudaSuccess);
+
+  const auto* host = storage.const_host_data();
+  ASSERT_NE(host, nullptr);
+  EXPECT_EQ(host[0], 7);
+  EXPECT_EQ(host[1], 8);
+  EXPECT_EQ(host[2], 9);
+}
+
+TEST(SyncedMemoryGpuSyncTest, DeviceReadRefreshesAllocatedStaleDeviceBuffer) {
+  if (!have_synced_memory_cuda_device()) {
+    GTEST_SKIP() << "CUDA device not available";
+  }
+
+  jams::SyncedMemory<int> storage(3, 1);
+  ASSERT_NE(storage.mutable_device_data(), nullptr);
+
+  auto* host = storage.mutable_host_data();
+  ASSERT_NE(host, nullptr);
+  host[0] = 4;
+  host[1] = 5;
+  host[2] = 6;
+
+  const int* device = storage.const_device_data();
+  ASSERT_NE(device, nullptr);
+
+  int snapshot[3] = {0, 0, 0};
+  ASSERT_EQ(cudaMemcpy(snapshot,
+                       device,
+                       storage.bytes(),
+                       cudaMemcpyDeviceToHost),
+            cudaSuccess);
+  EXPECT_EQ(snapshot[0], 4);
+  EXPECT_EQ(snapshot[1], 5);
+  EXPECT_EQ(snapshot[2], 6);
 }
 #endif
 

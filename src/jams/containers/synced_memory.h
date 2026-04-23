@@ -140,12 +140,11 @@ public:
     static_assert(std::is_trivially_copyable<T>::value,
       "SyncedMemory<T> requires trivially copyable T (uses memcpy)");
 
-    /// Memory contents synchronisation state.
-    enum class SyncStatus {
-        UNINITIALIZED,     ///< Memory has not been allocated yet
-        SYNCHRONIZED,      ///< Host and GPU memory contents are in sync
-        DEVICE_IS_MUTATED, ///< GPU memory contents has changed since last sync
-        HOST_IS_MUTATED    ///< Host memory contents has changed since last sync
+    /// Tracks which side most recently mutated the memory contents.
+    enum class LastWriter {
+        NONE,   ///< No side currently owns a fresher copy
+        HOST,   ///< Host memory was the last side marked mutable
+        DEVICE  ///< Device memory was the last side marked mutable
     };
 
 private:
@@ -153,7 +152,9 @@ private:
     size_type         size_             = 0;       ///< Number of elements which can be held
     mutable pointer   host_ptr_         = nullptr; ///< Pointer to start of host memory
     mutable pointer   device_ptr_       = nullptr; ///< Pointer to start of GPU memory
-    mutable SyncStatus sync_status_     = SyncStatus::UNINITIALIZED; ///< Current synchronisation status
+    mutable bool      host_valid_       = false;   ///< Whether host memory holds up-to-date contents
+    mutable bool      device_valid_     = false;   ///< Whether device memory holds up-to-date contents
+    mutable LastWriter last_writer_     = LastWriter::NONE; ///< Which side most recently mutated the data
     mutable bool      host_cuda_malloc_ = false; ///< Whether host memory was allocated was allocated with CudaMalloc
 
 public:
@@ -271,6 +272,19 @@ private:
 
     /// Free memory allocated on the device
     void free_device_memory() noexcept;
+
+    template<class InputIt>
+    void init_from_range(InputIt first, InputIt last, std::input_iterator_tag);
+
+    template<class ForwardIt>
+    void init_from_range(ForwardIt first, ForwardIt last, std::forward_iterator_tag);
+
+    void copy_authoritative_from(const SyncedMemory& rhs);
+    void move_from(SyncedMemory&& rhs) noexcept;
+    void mark_host_modified() const noexcept;
+    void mark_device_modified() const noexcept;
+    void mark_synchronized() const noexcept;
+    void reset_sync_state() noexcept;
 };
 
 // ============================================================================
@@ -293,46 +307,22 @@ template<class T>
 template<class InputIt, std::enable_if_t<is_iterator<InputIt>::value, bool>>
 SyncedMemory<T>::SyncedMemory(InputIt first, InputIt last)
 {
-  const std::vector<value_type> values(first, last);
-  size_ = values.size();
-  pointer p = mutable_host_data();
-  std::copy(values.begin(), values.end(), p);
+  using iterator_category = typename std::iterator_traits<InputIt>::iterator_category;
+  init_from_range(first, last, iterator_category{});
 }
 
 
 template<class T>
 SyncedMemory<T>::SyncedMemory(const SyncedMemory &rhs)
-    : size_(rhs.size_)
-    , sync_status_(rhs.sync_status_) {
-  if (rhs.host_ptr_) {
-    allocate_host_memory(size_);
-    memcpy(host_ptr_, rhs.host_ptr_, bytes(size_));
-  }
-
-  if (rhs.device_ptr_) {
-#if HAS_CUDA
-#if SYNCED_MEMORY_PRINT_MEMCPY
-    std::cout << "INFO(SyncedMemory): cudaMemcpyDeviceToDevice" << std::endl;
-#endif
-    allocate_device_memory(size_);
-    SYNCED_MEMORY_CHECK_CUDA_STATUS(cudaMemcpy(device_ptr_, rhs.device_ptr_, bytes(size_), cudaMemcpyDeviceToDevice));
-#endif
-  }
+    : size_(rhs.size_) {
+  copy_authoritative_from(rhs);
 }
 
 
 template<class T>
 SyncedMemory<T>::SyncedMemory(SyncedMemory &&rhs) noexcept
-    : size_(std::move(rhs.size_))
-    , host_ptr_(std::move(rhs.host_ptr_))
-    , device_ptr_(std::move(rhs.device_ptr_))
-    , sync_status_(std::move(rhs.sync_status_))
-    , host_cuda_malloc_(std::move(rhs.host_cuda_malloc_)){
-  rhs.sync_status_ = SyncStatus::UNINITIALIZED;
-  rhs.size_ = 0;
-  rhs.host_ptr_ = nullptr;
-  rhs.device_ptr_ = nullptr;
-  rhs.host_cuda_malloc_ = false;
+    : size_(0) {
+  move_from(std::move(rhs));
 }
 
 
@@ -356,8 +346,11 @@ SyncedMemory<T> &SyncedMemory<T>::operator=(const SyncedMemory& rhs) &{
 template<class T>
 SyncedMemory<T> &SyncedMemory<T>::operator=(SyncedMemory &&rhs) & noexcept {
   if (this != &rhs) {
-    SyncedMemory tmp(std::move(rhs));
-    swap(*this, tmp);
+    free_host_memory();
+    free_device_memory();
+    size_ = 0;
+    reset_sync_state();
+    move_from(std::move(rhs));
   }
   return *this;
 }
@@ -438,7 +431,7 @@ template<class T>
 inline
 typename SyncedMemory<T>::pointer SyncedMemory<T>::mutable_host_data() {
   copy_to_host();
-  sync_status_ = SyncStatus::HOST_IS_MUTATED;
+  mark_host_modified();
   return host_ptr_;
 }
 
@@ -447,7 +440,7 @@ template<class T>
 inline
 typename SyncedMemory<T>::pointer SyncedMemory<T>::mutable_device_data() {
   copy_to_device();
-  sync_status_ = SyncStatus::DEVICE_IS_MUTATED;
+  mark_device_modified();
   return device_ptr_;
 }
 
@@ -455,32 +448,31 @@ typename SyncedMemory<T>::pointer SyncedMemory<T>::mutable_device_data() {
 template<class T>
 void SyncedMemory<T>::copy_to_device() const {
   #if HAS_CUDA
-  if (sync_status_ == SyncStatus::DEVICE_IS_MUTATED || sync_status_ == SyncStatus::SYNCHRONIZED) {
+  if (device_valid_) {
     return;
   }
 
-  if (sync_status_ == SyncStatus::HOST_IS_MUTATED) {
+  if (host_valid_) {
     if (!device_ptr_) {
       allocate_device_memory(size_);
     }
     #if SYNCED_MEMORY_PRINT_MEMCPY
     std::cout << "INFO(SyncedMemory): cudaMemcpyHostToDevice" << std::endl;
     #endif
-    assert(device_ptr_ && host_ptr_);
-    SYNCED_MEMORY_CHECK_CUDA_STATUS(cudaMemcpy(device_ptr_, host_ptr_, bytes(size_),
-                                 cudaMemcpyHostToDevice));
-    sync_status_ = SyncStatus::SYNCHRONIZED;
+    if (size_ != 0) {
+      assert(device_ptr_ && host_ptr_);
+      SYNCED_MEMORY_CHECK_CUDA_STATUS(cudaMemcpy(device_ptr_, host_ptr_, bytes(size_),
+                                   cudaMemcpyHostToDevice));
+    }
+    mark_synchronized();
     return;
   }
 
-  if (sync_status_ == SyncStatus::UNINITIALIZED) {
-    allocate_device_memory(size_);
-    #if SYNCED_MEMORY_ZERO_ON_ALLOCATION
-    zero_device();
-    #endif
-    sync_status_ = SyncStatus::DEVICE_IS_MUTATED;
-    return;
-  }
+  allocate_device_memory(size_);
+  #if SYNCED_MEMORY_ZERO_ON_ALLOCATION
+  zero_device();
+  #endif
+  mark_device_modified();
   #endif
 }
 
@@ -489,11 +481,11 @@ template<class T>
 void SyncedMemory<T>::copy_to_host() const {
   // Splitting into if statements and returning early has improved performance
   // over using a switch statement (on GCC at least).
-  if (sync_status_ == SyncStatus::HOST_IS_MUTATED || sync_status_ == SyncStatus::SYNCHRONIZED) {
+  if (host_valid_) {
     return;
   }
 
-  if (sync_status_ == SyncStatus::DEVICE_IS_MUTATED) {
+  if (device_valid_) {
     #if HAS_CUDA
     if (!host_ptr_) {
       allocate_host_memory(size_);
@@ -501,21 +493,20 @@ void SyncedMemory<T>::copy_to_host() const {
     #if SYNCED_MEMORY_PRINT_MEMCPY
     std::cout << "INFO(SyncedMemory): cudaMemcpyDeviceToHost" << std::endl;
     #endif
-    assert(device_ptr_ && host_ptr_);
-    SYNCED_MEMORY_CHECK_CUDA_STATUS(cudaMemcpy(host_ptr_, device_ptr_, bytes(size_), cudaMemcpyDeviceToHost));
-    sync_status_ = SyncStatus::SYNCHRONIZED;
+    if (size_ != 0) {
+      assert(device_ptr_ && host_ptr_);
+      SYNCED_MEMORY_CHECK_CUDA_STATUS(cudaMemcpy(host_ptr_, device_ptr_, bytes(size_), cudaMemcpyDeviceToHost));
+    }
+    mark_synchronized();
     #endif
     return;
   }
 
-  if (sync_status_ == SyncStatus::UNINITIALIZED) {
-    allocate_host_memory(size_);
-    #if SYNCED_MEMORY_ZERO_ON_ALLOCATION
-    zero_host();
-    #endif
-    sync_status_ = SyncStatus::HOST_IS_MUTATED;
-    return;
-  }
+  allocate_host_memory(size_);
+  #if SYNCED_MEMORY_ZERO_ON_ALLOCATION
+  zero_host();
+  #endif
+  mark_host_modified();
 }
 
 
@@ -568,15 +559,15 @@ void SyncedMemory<T>::fill(const value_type& value) {
       }
       if (host_ptr_) {
         zero_host();
-        sync_status_ = SyncStatus::HOST_IS_MUTATED;
+        mark_host_modified();
       }
       #if HAS_CUDA
       if (device_ptr_) {
         zero_device();
-        sync_status_ = SyncStatus::DEVICE_IS_MUTATED;
+        mark_device_modified();
       }
       if (host_ptr_ && device_ptr_) {
-        sync_status_ = SyncStatus::SYNCHRONIZED;
+        mark_synchronized();
       }
       #endif
       return;
@@ -585,6 +576,116 @@ void SyncedMemory<T>::fill(const value_type& value) {
 
   pointer p = mutable_host_data();
   std::fill(p, p + size_, value);
+}
+
+
+template<class T>
+void SyncedMemory<T>::mark_host_modified() const noexcept {
+  host_valid_ = true;
+  device_valid_ = false;
+  last_writer_ = LastWriter::HOST;
+}
+
+
+template<class T>
+void SyncedMemory<T>::mark_device_modified() const noexcept {
+  host_valid_ = false;
+  device_valid_ = true;
+  last_writer_ = LastWriter::DEVICE;
+}
+
+
+template<class T>
+void SyncedMemory<T>::mark_synchronized() const noexcept {
+  host_valid_ = true;
+  device_valid_ = true;
+  last_writer_ = LastWriter::NONE;
+}
+
+
+template<class T>
+void SyncedMemory<T>::reset_sync_state() noexcept {
+  host_valid_ = false;
+  device_valid_ = false;
+  last_writer_ = LastWriter::NONE;
+}
+
+
+template<class T>
+template<class InputIt>
+void SyncedMemory<T>::init_from_range(InputIt first, InputIt last, std::input_iterator_tag) {
+  const std::vector<value_type> values(first, last);
+  size_ = values.size();
+  pointer p = mutable_host_data();
+  std::copy(values.begin(), values.end(), p);
+}
+
+
+template<class T>
+template<class ForwardIt>
+void SyncedMemory<T>::init_from_range(ForwardIt first, ForwardIt last, std::forward_iterator_tag) {
+  size_ = static_cast<size_type>(std::distance(first, last));
+  pointer p = mutable_host_data();
+  std::copy(first, last, p);
+}
+
+
+template<class T>
+void SyncedMemory<T>::copy_authoritative_from(const SyncedMemory& rhs) {
+  if (rhs.size_ == 0) {
+    reset_sync_state();
+    return;
+  }
+
+  const bool prefer_device =
+      rhs.device_valid_ && (!rhs.host_valid_ || rhs.last_writer_ == LastWriter::DEVICE);
+
+  if (prefer_device && rhs.device_ptr_) {
+#if HAS_CUDA
+#if SYNCED_MEMORY_PRINT_MEMCPY
+    std::cout << "INFO(SyncedMemory): cudaMemcpyDeviceToDevice" << std::endl;
+#endif
+    allocate_device_memory(size_);
+    SYNCED_MEMORY_CHECK_CUDA_STATUS(
+        cudaMemcpy(device_ptr_, rhs.device_ptr_, bytes(size_), cudaMemcpyDeviceToDevice));
+    mark_device_modified();
+    return;
+#endif
+  }
+
+  if (rhs.host_valid_ && rhs.host_ptr_) {
+    allocate_host_memory(size_);
+    std::memcpy(host_ptr_, rhs.host_ptr_, bytes(size_));
+    mark_host_modified();
+    return;
+  }
+
+  if (rhs.device_valid_ && rhs.device_ptr_) {
+#if HAS_CUDA
+#if SYNCED_MEMORY_PRINT_MEMCPY
+    std::cout << "INFO(SyncedMemory): cudaMemcpyDeviceToDevice" << std::endl;
+#endif
+    allocate_device_memory(size_);
+    SYNCED_MEMORY_CHECK_CUDA_STATUS(
+        cudaMemcpy(device_ptr_, rhs.device_ptr_, bytes(size_), cudaMemcpyDeviceToDevice));
+    mark_device_modified();
+    return;
+#endif
+  }
+
+  reset_sync_state();
+}
+
+
+template<class T>
+void SyncedMemory<T>::move_from(SyncedMemory&& rhs) noexcept {
+  size_ = std::exchange(rhs.size_, 0);
+  host_ptr_ = std::exchange(rhs.host_ptr_, nullptr);
+  device_ptr_ = std::exchange(rhs.device_ptr_, nullptr);
+  host_valid_ = std::exchange(rhs.host_valid_, false);
+  device_valid_ = std::exchange(rhs.device_valid_, false);
+  last_writer_ = std::exchange(rhs.last_writer_, LastWriter::NONE);
+  host_cuda_malloc_ = std::exchange(rhs.host_cuda_malloc_, false);
 }
 
 
@@ -641,7 +742,7 @@ void SyncedMemory<T>::resize(SyncedMemory::size_type new_size) noexcept {
   size_ = new_size;
   free_host_memory();
   free_device_memory();
-  sync_status_ = SyncStatus::UNINITIALIZED;
+  reset_sync_state();
 }
 
 
@@ -673,10 +774,12 @@ SyncedMemory<T>::max_size_host() const noexcept {
 template<class T>
 void swap(SyncedMemory<T> &lhs, SyncedMemory<T> &rhs) noexcept {
   using std::swap;
-  swap(lhs.sync_status_, rhs.sync_status_);
   swap(lhs.size_, rhs.size_);
   swap(lhs.host_ptr_, rhs.host_ptr_);
   swap(lhs.device_ptr_, rhs.device_ptr_);
+  swap(lhs.host_valid_, rhs.host_valid_);
+  swap(lhs.device_valid_, rhs.device_valid_);
+  swap(lhs.last_writer_, rhs.last_writer_);
   swap(lhs.host_cuda_malloc_, rhs.host_cuda_malloc_);
 }
 
