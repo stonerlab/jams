@@ -432,7 +432,7 @@ namespace jams {
         }
 
         [[nodiscard]] inline constexpr size_type size(const size_type n) const noexcept {
-          static_assert(n == 0, "MultiArray.size(n) is greater than the dimension");
+          assert(n == 0);
           return std::get<0>(size_);
         }
 

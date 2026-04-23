@@ -133,4 +133,11 @@ TEST(MultiArrayExtentValidationTest, RejectsNegativeExtents) {
   EXPECT_THROW(line.resize(-1), std::length_error);
 }
 
+TEST(MultiArrayOneDimensionalTest, SizeByAxisMatchesSize) {
+  jams::MultiArray<int, 1> values(7);
+
+  ASSERT_EQ(values.size(), 7u);
+  ASSERT_EQ(values.size(0), 7u);
+}
+
 #endif //JAMS_TEST_MULTIARRAY_H
