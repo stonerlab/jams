@@ -232,6 +232,28 @@ TEST(MultiArrayResizeTest, UpdatesShapeAndElementCount) {
   ASSERT_EQ(values.elements(), 18u);
 }
 
+TEST(MultiArrayAlgorithmsTest, ElementSumAddsMatchingShapes) {
+  jams::MultiArray<int, 2> lhs(2, 2);
+  jams::MultiArray<int, 2> rhs(2, 2);
+
+  lhs(0, 0) = 1;
+  lhs(0, 1) = 2;
+  lhs(1, 0) = 3;
+  lhs(1, 1) = 4;
+
+  rhs(0, 0) = 10;
+  rhs(0, 1) = 20;
+  rhs(1, 0) = 30;
+  rhs(1, 1) = 40;
+
+  jams::element_sum(lhs, rhs);
+
+  EXPECT_EQ(lhs(0, 0), 11);
+  EXPECT_EQ(lhs(0, 1), 22);
+  EXPECT_EQ(lhs(1, 0), 33);
+  EXPECT_EQ(lhs(1, 1), 44);
+}
+
 #if HAS_CUDA
 TEST(MultiArrayReadOnlyAccessTest, ReadOnlyHostAccessDoesNotDirtyDeviceState) {
   if (!have_multiarray_cuda_device()) {

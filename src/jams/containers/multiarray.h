@@ -761,7 +761,7 @@ namespace jams {
 
     template<class FTp_, std::size_t FDim_, class FIdx_>
     inline void element_sum(MultiArray<FTp_, FDim_, FIdx_>& x, const MultiArray<FTp_, FDim_, FIdx_>& y) {
-      assert(x.elements() == y.elements());
+      assert(x.shape() == y.shape());
       std::transform(y.begin(), y.end(), x.begin(), x.begin(),
                      [](const FTp_&x, const FTp_ &y) -> FTp_ { return x + y; });
     }
