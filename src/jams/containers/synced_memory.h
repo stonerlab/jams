@@ -190,7 +190,7 @@ public:
 
     /// Destroy the synchronised memory. All memory allocated of the host and
     /// GPU is released.
-    ~SyncedMemory();
+    ~SyncedMemory() noexcept;
 
     /// copy assign
     SyncedMemory &operator=(const SyncedMemory& rhs) &;
@@ -327,7 +327,7 @@ SyncedMemory<T>::SyncedMemory(SyncedMemory &&rhs) noexcept
 
 
 template<class T>
-SyncedMemory<T>::~SyncedMemory() {
+SyncedMemory<T>::~SyncedMemory() noexcept {
   free_host_memory();
   free_device_memory();
 }
