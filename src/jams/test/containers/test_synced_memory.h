@@ -102,6 +102,28 @@ TEST(SyncedMemoryGpuCopyCtorTest, PreservesDeviceMutatedState) {
 
   ASSERT_NE(copy.const_device_data(), nullptr);
 }
+
+TEST(SyncedMemoryGpuCopyAssignTest, ReplacesExistingDeviceBufferWhenSourceIsHostOnly) {
+  if (!have_synced_memory_cuda_device()) {
+    GTEST_SKIP() << "CUDA device not available";
+  }
+
+  jams::SyncedMemory<int> destination(2, 1);
+  ASSERT_NE(destination.mutable_device_data(), nullptr);
+
+  jams::SyncedMemory<int> source(4, 9);
+
+  destination = source;
+
+  ASSERT_EQ(destination.size(), 4u);
+  const auto* host = destination.const_host_data();
+  ASSERT_NE(host, nullptr);
+  for (std::size_t i = 0; i < destination.size(); ++i) {
+    EXPECT_EQ(host[i], 9);
+  }
+
+  ASSERT_NE(destination.const_device_data(), nullptr);
+}
 #endif
 
 #endif //JAMS_TEST_SYNCED_MEMORY_H

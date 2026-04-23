@@ -316,49 +316,8 @@ SyncedMemory<T>::~SyncedMemory() {
 template<class T>
 SyncedMemory<T> &SyncedMemory<T>::operator=(const SyncedMemory& rhs) &{
   if (this != &rhs) {
-    // Only reallocate if sizes are different and only resize the memory
-    // spaces that were already allocated on the rhs.
-    if (size_ != rhs.size_) {
-      if (rhs.host_ptr_) {
-        free_host_memory();
-        allocate_host_memory(rhs.size_);
-      }
-
-      if (rhs.device_ptr_) {
-        free_device_memory();
-        allocate_device_memory(rhs.size_);
-      }
-    }
-
-    size_ = rhs.size_;
-
-    // we use mutable_*_data() for 'this' to ensure allocation
-    // we use rhs.*_ptr_ for 'rhs' so we don't change the value of rhs.sync_status_
-
-    if (rhs.host_ptr_) {
-      pointer p = mutable_host_data();
-      #if HAS_CUDA
-      if (has_cuda_context()) {
-        #if SYNCED_MEMORY_PRINT_MEMCPY
-        std::cout << "INFO(SyncedMemory): cudaMemcpyHostToHost" << std::endl;
-        #endif
-        SYNCED_MEMORY_CHECK_CUDA_STATUS(cudaMemcpy(p, rhs.host_ptr_, bytes(size_), cudaMemcpyHostToHost));
-      } else {
-        memcpy(p, rhs.host_ptr_, bytes(size_));
-      }
-      #else
-      memcpy(p, rhs.host_ptr_, bytes(size_));
-      #endif
-    }
-
-    if (rhs.device_ptr_) {
-      #if HAS_CUDA
-      #if SYNCED_MEMORY_PRINT_MEMCPY
-      std::cout << "INFO(SyncedMemory): cudaMemcpyDeviceToDevice" << std::endl;
-      #endif
-      SYNCED_MEMORY_CHECK_CUDA_STATUS(cudaMemcpy(mutable_device_data(), rhs.device_ptr_, bytes(size_), cudaMemcpyDeviceToDevice));
-      #endif
-    }
+    SyncedMemory tmp(rhs);
+    swap(*this, tmp);
   }
   return *this;
 }
