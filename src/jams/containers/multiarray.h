@@ -66,6 +66,12 @@ namespace jams {
           return checked_array_cast_helper<T>(a, build_indices<i>());
         }
 
+        template<typename T, std::size_t N>
+        struct validated_shape {
+          std::array<T, N> shape{};
+          T elements{};
+        };
+
         // partial specialization of templates is not possible, so we use structs
 
         // recursive method to multiply the last N elements of array
@@ -82,6 +88,23 @@ namespace jams {
               return 1;
             }
         };
+
+        template<typename T, std::size_t N>
+        constexpr T element_count(const std::array<T, N> &shape) {
+          return vec<T, N, N>::last_n_product(shape);
+        }
+
+        template<typename T, typename... Args>
+        constexpr validated_shape<T, sizeof...(Args)> make_validated_shape(const Args... args) {
+          const auto shape = std::array<T, sizeof...(Args)>{{checked_extent_cast<T>(args)...}};
+          return {shape, element_count(shape)};
+        }
+
+        template<typename T, typename U, std::size_t N>
+        constexpr validated_shape<T, N> make_validated_shape(const std::array<U, N> &shape) {
+          const auto validated = checked_array_cast<T>(shape);
+          return {validated, element_count(validated)};
+        }
 
         // recursive methods to generate row major arg_indices at compile time
         template<typename T, std::size_t N, std::size_t I>
@@ -185,6 +208,10 @@ namespace jams {
         static_assert(std::is_trivially_copyable<Tp_>::value,
               "MultiArray<T> requires trivially copyable T for device use");
 
+    private:
+        using validated_shape_type = detail::validated_shape<size_type, Dim_>;
+
+    public:
         MultiArray() noexcept = default;
         ~MultiArray() = default;
 
@@ -209,31 +236,27 @@ namespace jams {
 
         // construct using dimensions as arguments
         template<typename... Args, typename = std::enable_if_t<(std::conjunction_v<std::is_integral<Args>...> && (sizeof...(Args) == Dim_))>>
-        inline explicit MultiArray(const Args... args) :
-            size_({detail::checked_extent_cast<size_type>(args)...}),
-            data_(detail::product(detail::checked_extent_cast<size_type>(args)...)) {
+        inline explicit MultiArray(const Args... args)
+            : MultiArray(detail::make_validated_shape<size_type>(args...)) {
           static_assert(sizeof...(args) == Dim_,
                         "number of MultiArray indicies in constructor does not match the MultiArray dimension");
         }
 
         template<typename... Args, typename = std::enable_if_t<(std::conjunction_v<std::is_integral<Args>...> && (sizeof...(Args) == Dim_))>>
-        inline explicit MultiArray(const value_type& x, const Args... args):
-            size_({detail::checked_extent_cast<size_type>(args)...}),
-            data_(detail::product(detail::checked_extent_cast<size_type>(args)...), x) {
+        inline explicit MultiArray(const value_type& x, const Args... args)
+            : MultiArray(x, detail::make_validated_shape<size_type>(args...)) {
           static_assert(sizeof...(args) == Dim_,
                         "number of MultiArray indicies in constructor does not match the MultiArray dimension");
         }
 
         // construct using dimensions in array
         template<typename Integral_>
-        inline explicit MultiArray(const std::array<Integral_, Dim_> &v) :
-            size_(detail::checked_array_cast<size_type>(v)),
-            data_(detail::vec<size_type, Dim_, Dim_>::last_n_product(detail::checked_array_cast<size_type>(v))) {}
+        inline explicit MultiArray(const std::array<Integral_, Dim_> &v)
+            : MultiArray(detail::make_validated_shape<size_type>(v)) {}
 
       template<typename Integral_>
-      inline explicit MultiArray(const value_type& x, const std::array<Integral_, Dim_> v) :
-            size_(detail::checked_array_cast<size_type>(v)),
-            data_(detail::vec<size_type, Dim_, Dim_>::last_n_product(detail::checked_array_cast<size_type>(v)), x) {}
+      inline explicit MultiArray(const value_type& x, const std::array<Integral_, Dim_> &v)
+            : MultiArray(x, detail::make_validated_shape<size_type>(v)) {}
 
         // capacity
         [[nodiscard]] inline constexpr bool empty() const noexcept {
@@ -391,18 +414,29 @@ namespace jams {
         inline MultiArray& resize(const Args &... args) {
           static_assert(sizeof...(args) == Dim_,
                         "number of MultiArray indicies in resize does not match the MultiArray dimension");
-          size_ = {detail::checked_extent_cast<size_type>(args)...};
-          data_.resize(detail::product(detail::checked_extent_cast<size_type>(args)...));
+          const auto validated = detail::make_validated_shape<size_type>(args...);
+          size_ = validated.shape;
+          data_.resize(validated.elements);
           return *this;
         }
 
-        inline MultiArray& resize(const std::array<size_type, Dim_> &v) {
-          size_ = detail::checked_array_cast<size_type>(v);
-          data_.resize(detail::vec<size_type, Dim_, Dim_>::last_n_product(size_));
+        template<typename Integral_>
+        inline MultiArray& resize(const std::array<Integral_, Dim_> &v) {
+          const auto validated = detail::make_validated_shape<size_type>(v);
+          size_ = validated.shape;
+          data_.resize(validated.elements);
           return *this;
         }
 
     private:
+        inline explicit MultiArray(const validated_shape_type& validated)
+            : size_(validated.shape),
+              data_(validated.elements) {}
+
+        inline MultiArray(const value_type& x, const validated_shape_type& validated)
+            : size_(validated.shape),
+              data_(validated.elements, x) {}
+
         size_container_type size_ = { {0} };
         mutable SyncedMemory<Tp_> data_;
     };
@@ -426,6 +460,10 @@ namespace jams {
         template<class FTp_, std::size_t FDim_, class FIdx_>
         friend void swap(MultiArray<FTp_, FDim_, FIdx_>& lhs, MultiArray<FTp_, FDim_, FIdx_>& rhs);
 
+    private:
+        using validated_shape_type = detail::validated_shape<size_type, 1>;
+
+    public:
         MultiArray() noexcept = default;
         ~MultiArray() = default;
 
@@ -447,31 +485,27 @@ namespace jams {
           return *this;
         }
 
-        inline explicit MultiArray(size_type size):
-            size_({detail::checked_extent_cast<size_type>(size)}),
-            data_(detail::checked_extent_cast<size_type>(size)) {}
+        inline explicit MultiArray(size_type size)
+            : MultiArray(detail::make_validated_shape<size_type>(size)) {}
 
-        inline MultiArray(const Tp_& x, size_type size):
-                size_({detail::checked_extent_cast<size_type>(size)}),
-                data_(detail::checked_extent_cast<size_type>(size), x) {}
+        inline MultiArray(const Tp_& x, size_type size)
+            : MultiArray(x, detail::make_validated_shape<size_type>(size)) {}
 
         template <typename U>
-        inline explicit MultiArray(const std::array<U, 1> &v) :
-            size_(detail::checked_array_cast<size_type>(v)),
-            data_(std::get<0>(size_)) {}
+        inline explicit MultiArray(const std::array<U, 1> &v)
+            : MultiArray(detail::make_validated_shape<size_type>(v)) {}
 
         template<class InputIt>
         inline MultiArray(InputIt first, InputIt last)
             : data_([&] {
                 const std::vector<value_type> values(first, last);
-                size_ = {{static_cast<size_type>(values.size())}};
+                size_ = detail::make_validated_shape<size_type>(values.size()).shape;
                 return SyncedMemory<Tp_>(values.begin(), values.end());
               }()) {}
 
         template <typename U>
-        inline explicit MultiArray(const Tp_& x, const std::array<U, 1> &v) :
-            size_(detail::checked_array_cast<size_type>(v)),
-            data_(std::get<0>(size_), x) {}
+        inline explicit MultiArray(const Tp_& x, const std::array<U, 1> &v)
+            : MultiArray(x, detail::make_validated_shape<size_type>(v)) {}
 
         // capacity
         [[nodiscard]] inline constexpr bool empty() const noexcept {
@@ -620,18 +654,29 @@ namespace jams {
         }
 
         inline MultiArray& resize( size_type count ) {
-          std::get<0>(size_) = detail::checked_extent_cast<size_type>(count);
-          data_.resize(std::get<0>(size_));
+          const auto validated = detail::make_validated_shape<size_type>(count);
+          size_ = validated.shape;
+          data_.resize(validated.elements);
           return *this;
         }
 
-        inline MultiArray& resize(const std::array<size_type, 1> &v) {
-          size_ = detail::checked_array_cast<size_type>(v);
-          data_.resize(std::get<0>(size_));
+        template<typename Integral_>
+        inline MultiArray& resize(const std::array<Integral_, 1> &v) {
+          const auto validated = detail::make_validated_shape<size_type>(v);
+          size_ = validated.shape;
+          data_.resize(validated.elements);
           return *this;
         }
 
     private:
+        inline explicit MultiArray(const validated_shape_type& validated)
+            : size_(validated.shape),
+              data_(validated.elements) {}
+
+        inline MultiArray(const value_type& x, const validated_shape_type& validated)
+            : size_(validated.shape),
+              data_(validated.elements, x) {}
+
         size_container_type size_ = { {0} };
         mutable SyncedMemory<Tp_> data_;
     };

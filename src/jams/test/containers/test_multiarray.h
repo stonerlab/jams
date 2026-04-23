@@ -208,6 +208,21 @@ TEST(MultiArrayReadOnlyAccessTest, ProvidesReadOnlyHostIterationOnMutableArray) 
   EXPECT_EQ(data[3], 3);
 }
 
+TEST(MultiArrayResizeTest, UpdatesShapeAndElementCount) {
+  jams::MultiArray<int, 2> values(2, 3);
+  ASSERT_EQ(values.elements(), 6u);
+
+  values.resize(4, 5);
+  ASSERT_EQ(values.size(0), 4u);
+  ASSERT_EQ(values.size(1), 5u);
+  ASSERT_EQ(values.elements(), 20u);
+
+  values.resize(std::array<int, 2>{3, 6});
+  ASSERT_EQ(values.size(0), 3u);
+  ASSERT_EQ(values.size(1), 6u);
+  ASSERT_EQ(values.elements(), 18u);
+}
+
 #if HAS_CUDA
 TEST(MultiArrayReadOnlyAccessTest, ReadOnlyHostAccessDoesNotDirtyDeviceState) {
   if (!have_multiarray_cuda_device()) {
