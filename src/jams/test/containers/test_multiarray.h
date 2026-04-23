@@ -140,6 +140,15 @@ TEST(MultiArrayIteratorCtorTest, SupportsInputIteratorsForOneDimensionalArrays) 
   EXPECT_EQ(values(3), 4);
 }
 
+TEST(MultiArrayIteratorCtorTest, SupportsForwardIteratorsForOneDimensionalArrays) {
+  const std::vector<int> source{5, 6, 7, 8};
+
+  jams::MultiArray<int, 1> values(source.begin(), source.end());
+
+  ASSERT_EQ(values.size(), source.size());
+  EXPECT_TRUE(std::equal(values.begin(), values.end(), source.begin(), source.end()));
+}
+
 TEST(MultiArrayExtentValidationTest, RejectsNegativeExtents) {
   EXPECT_THROW((jams::MultiArray<int, 2>(-1, 3)), std::length_error);
   EXPECT_THROW((jams::MultiArray<int, 2>(std::array<int, 2>{2, -1})), std::length_error);

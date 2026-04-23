@@ -11,6 +11,7 @@
 #include <algorithm>
 #include <cassert>
 #include <cstring>
+#include <iterator>
 #include <limits>
 #include <stdexcept>
 #include <type_traits>
@@ -463,6 +464,11 @@ namespace jams {
     private:
         using validated_shape_type = detail::validated_shape<size_type, 1>;
 
+        struct range_construction {
+          validated_shape_type validated;
+          SyncedMemory<Tp_> data;
+        };
+
     public:
         MultiArray() noexcept = default;
         ~MultiArray() = default;
@@ -495,13 +501,9 @@ namespace jams {
         inline explicit MultiArray(const std::array<U, 1> &v)
             : MultiArray(detail::make_validated_shape<size_type>(v)) {}
 
-        template<class InputIt>
+        template<class InputIt, typename = std::enable_if_t<!std::is_integral_v<InputIt>>>
         inline MultiArray(InputIt first, InputIt last)
-            : data_([&] {
-                const std::vector<value_type> values(first, last);
-                size_ = detail::make_validated_shape<size_type>(values.size()).shape;
-                return SyncedMemory<Tp_>(values.begin(), values.end());
-              }()) {}
+            : MultiArray(make_range_construction(first, last)) {}
 
         template <typename U>
         inline explicit MultiArray(const Tp_& x, const std::array<U, 1> &v)
@@ -669,6 +671,10 @@ namespace jams {
         }
 
     private:
+        inline explicit MultiArray(range_construction range)
+            : size_(range.validated.shape),
+              data_(std::move(range.data)) {}
+
         inline explicit MultiArray(const validated_shape_type& validated)
             : size_(validated.shape),
               data_(validated.elements) {}
@@ -676,6 +682,31 @@ namespace jams {
         inline MultiArray(const value_type& x, const validated_shape_type& validated)
             : size_(validated.shape),
               data_(validated.elements, x) {}
+
+        template<class InputIt>
+        static range_construction make_range_construction(InputIt first,
+                                                          InputIt last) {
+          using iterator_category = typename std::iterator_traits<InputIt>::iterator_category;
+          return make_range_construction(first, last, iterator_category{});
+        }
+
+        template<class InputIt>
+        static range_construction make_range_construction(InputIt first,
+                                                          InputIt last,
+                                                          std::input_iterator_tag) {
+          const std::vector<value_type> values(first, last);
+          return {detail::make_validated_shape<size_type>(values.size()),
+                  SyncedMemory<Tp_>(values.begin(), values.end())};
+        }
+
+        template<class ForwardIt>
+        static range_construction make_range_construction(ForwardIt first,
+                                                          ForwardIt last,
+                                                          std::forward_iterator_tag) {
+          const auto validated =
+              detail::make_validated_shape<size_type>(std::distance(first, last));
+          return {validated, SyncedMemory<Tp_>(first, last)};
+        }
 
         size_container_type size_ = { {0} };
         mutable SyncedMemory<Tp_> data_;
