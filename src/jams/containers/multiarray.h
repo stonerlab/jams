@@ -636,14 +636,6 @@ namespace jams {
         mutable SyncedMemory<Tp_> data_;
     };
 
-    /**
-    * Force a MultiArray to synchronise CPU and GPU data
-    */
-    template <typename T, std::size_t N>
-    inline void force_multiarray_sync(const MultiArray<T,N> & x) {
-      volatile const auto sync_data = x.data();
-    }
-
     // allows simple zero(x.resize(a,b,c))
     template<class FTp_, std::size_t FDim_, class FIdx_>
     void zero(MultiArray<FTp_, FDim_, FIdx_>& x) {
