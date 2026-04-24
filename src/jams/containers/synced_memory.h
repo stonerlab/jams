@@ -160,7 +160,7 @@ public:
 
     /// Destroy the synchronised memory. All memory allocated of the host and
     /// GPU is released.
-    ~SyncedMemory();
+    ~SyncedMemory() noexcept;
 
     /// copy assign
     SyncedMemory &operator=(const SyncedMemory& rhs) &;
@@ -330,21 +330,16 @@ SyncedMemory<T>::SyncedMemory(const SyncedMemory &rhs)
 
 template<class T>
 SyncedMemory<T>::SyncedMemory(SyncedMemory &&rhs) noexcept
-    : size_(std::move(rhs.size_))
-    , host_ptr_(std::move(rhs.host_ptr_))
-    , device_ptr_(std::move(rhs.device_ptr_))
-    , valid_(std::move(rhs.valid_))
-    , host_cuda_malloc_(std::move(rhs.host_cuda_malloc_)){
-  rhs.size_ = 0;
-  rhs.host_ptr_ = nullptr;
-  rhs.device_ptr_ = nullptr;
-  rhs.valid_ = Validity::none;
-  rhs.host_cuda_malloc_ = false;
+    : size_(std::exchange(rhs.size_, 0))
+    , host_ptr_(std::exchange(rhs.host_ptr_, nullptr))
+    , device_ptr_(std::exchange(rhs.device_ptr_, nullptr))
+    , valid_(std::exchange(rhs.valid_, Validity::none))
+    , host_cuda_malloc_(std::exchange(rhs.host_cuda_malloc_, false)) {
 }
 
 
 template<class T>
-SyncedMemory<T>::~SyncedMemory() {
+SyncedMemory<T>::~SyncedMemory() noexcept {
   free_host_memory();
   free_device_memory();
 }
@@ -353,8 +348,37 @@ SyncedMemory<T>::~SyncedMemory() {
 template<class T>
 SyncedMemory<T> &SyncedMemory<T>::operator=(const SyncedMemory& rhs) &{
   if (this != &rhs) {
-    SyncedMemory tmp(rhs);
-    swap(*this, tmp);
+    if (size_ != rhs.size_) {
+      SyncedMemory tmp(rhs);
+      swap(*this, tmp);
+      return *this;
+    }
+
+    if (rhs.host_valid()) {
+      if (!host_ptr_) {
+        allocate_host_memory(size_);
+      }
+      std::memcpy(host_ptr_, rhs.host_ptr_, bytes(size_));
+      set_valid(Validity::host);
+      return *this;
+    }
+
+#if HAS_CUDA
+    if (rhs.device_valid()) {
+      if (!device_ptr_) {
+        allocate_device_memory(size_);
+      }
+      set_valid(Validity::none);
+#if SYNCED_MEMORY_PRINT_MEMCPY
+      std::cout << "INFO(SyncedMemory): cudaMemcpyDeviceToDevice" << std::endl;
+#endif
+      SYNCED_MEMORY_CHECK_CUDA_STATUS(cudaMemcpy(device_ptr_, rhs.device_ptr_, bytes(size_), cudaMemcpyDeviceToDevice));
+      set_valid(Validity::device);
+      return *this;
+    }
+#endif
+
+    set_valid(Validity::none);
   }
   return *this;
 }
@@ -369,17 +393,11 @@ SyncedMemory<T> &SyncedMemory<T>::operator=(SyncedMemory &&rhs) & noexcept {
   free_host_memory();
   free_device_memory();
 
-  size_ = rhs.size_;
-  host_ptr_ = rhs.host_ptr_;
-  device_ptr_ = rhs.device_ptr_;
-  valid_ = rhs.valid_;
-  host_cuda_malloc_ = rhs.host_cuda_malloc_;
-
-  rhs.size_ = 0;
-  rhs.host_ptr_ = nullptr;
-  rhs.device_ptr_ = nullptr;
-  rhs.valid_ = Validity::none;
-  rhs.host_cuda_malloc_ = false;
+  size_ = std::exchange(rhs.size_, 0);
+  host_ptr_ = std::exchange(rhs.host_ptr_, nullptr);
+  device_ptr_ = std::exchange(rhs.device_ptr_, nullptr);
+  valid_ = std::exchange(rhs.valid_, Validity::none);
+  host_cuda_malloc_ = std::exchange(rhs.host_cuda_malloc_, false);
   return *this;
 }
 

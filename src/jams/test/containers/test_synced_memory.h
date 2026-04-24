@@ -99,6 +99,7 @@ TEST(SyncedMemoryApiTest, TraitsAndNoexceptContract) {
   static_assert(std::is_default_constructible<Memory>::value, "");
   static_assert(std::is_copy_constructible<Memory>::value, "");
   static_assert(std::is_copy_assignable<Memory>::value, "");
+  static_assert(std::is_nothrow_destructible<Memory>::value, "");
   static_assert(std::is_nothrow_move_constructible<Memory>::value, "");
   static_assert(std::is_nothrow_move_assignable<Memory>::value, "");
   static_assert(noexcept(swap(std::declval<Memory&>(), std::declval<Memory&>())), "");
@@ -313,6 +314,84 @@ TEST(SyncedMemoryApiTest, CopyAssignmentReplacesSizeStateAndLogicalValue) {
   source_host[0] = 99;
   EXPECT_EQ(target_host[0], 10);
 }
+
+TEST(SyncedMemoryApiTest, CopyAssignmentReusesHostStorageWhenSizeMatches) {
+  using namespace jams;
+  using namespace testing;
+
+  SyncedMemory<int> source(3, 1);
+  source.mutable_host_data()[0] = 4;
+  source.mutable_host_data()[1] = 5;
+  source.mutable_host_data()[2] = 6;
+
+  SyncedMemory<int> target(3, -1);
+  int* original_target_host = target.mutable_host_data();
+  ASSERT_NE(original_target_host, nullptr);
+
+  target = source;
+  EXPECT_EQ(target.mutable_host_data(), original_target_host);
+  EXPECT_TRUE(target.host_valid());
+  EXPECT_FALSE(target.device_valid());
+  EXPECT_THAT(std::vector<int>(target.host_data(), target.host_data() + target.size()),
+              ElementsAre(4, 5, 6));
+}
+
+#if HAS_CUDA
+TEST(SyncedMemoryApiTest, CopyConstructionCopiesDeviceOnlySourceThroughDevice) {
+  using namespace jams;
+  using namespace testing;
+
+  if (!synced_memory_cuda_device_available()) {
+    GTEST_SKIP() << "CUDA runtime is enabled but no CUDA device is available";
+  }
+
+  SyncedMemory<int> source(3, 0);
+  int values[3] = {31, 32, 33};
+  int* source_device = source.mutable_device_data();
+  ASSERT_NE(source_device, nullptr);
+  ASSERT_EQ(cudaMemcpy(source_device, values, sizeof(values), cudaMemcpyHostToDevice), cudaSuccess);
+  EXPECT_FALSE(source.host_valid());
+  EXPECT_TRUE(source.device_valid());
+
+  SyncedMemory<int> copy(source);
+  EXPECT_FALSE(copy.host_valid());
+  EXPECT_TRUE(copy.device_valid());
+
+  const int* host = copy.host_data();
+  ASSERT_NE(host, nullptr);
+  EXPECT_THAT(std::vector<int>(host, host + copy.size()), ElementsAre(31, 32, 33));
+}
+
+TEST(SyncedMemoryApiTest, CopyAssignmentReusesDeviceStorageWhenSizeMatches) {
+  using namespace jams;
+  using namespace testing;
+
+  if (!synced_memory_cuda_device_available()) {
+    GTEST_SKIP() << "CUDA runtime is enabled but no CUDA device is available";
+  }
+
+  SyncedMemory<int> source(3, 0);
+  int values[3] = {41, 42, 43};
+  int* source_device = source.mutable_device_data();
+  ASSERT_NE(source_device, nullptr);
+  ASSERT_EQ(cudaMemcpy(source_device, values, sizeof(values), cudaMemcpyHostToDevice), cudaSuccess);
+  EXPECT_FALSE(source.host_valid());
+  EXPECT_TRUE(source.device_valid());
+
+  SyncedMemory<int> target(3, 0);
+  int* original_target_device = target.mutable_device_data();
+  ASSERT_NE(original_target_device, nullptr);
+
+  target = source;
+  EXPECT_EQ(target.mutable_device_data(), original_target_device);
+  EXPECT_FALSE(target.host_valid());
+  EXPECT_TRUE(target.device_valid());
+
+  const int* host = target.host_data();
+  ASSERT_NE(host, nullptr);
+  EXPECT_THAT(std::vector<int>(host, host + target.size()), ElementsAre(41, 42, 43));
+}
+#endif
 
 TEST(SyncedMemoryApiTest, MoveConstructionTransfersOwnershipAndEmptiesSource) {
   using namespace jams;
