@@ -301,15 +301,18 @@ namespace jams {
         }
 
         inline iterator end() {
-          return data_.mutable_host_data() + data_.size();
+          pointer p = begin();
+          return p ? p + data_.size() : p;
         }
 
         inline const_iterator end() const {
-          return data_.host_data() + data_.size();
+          const_pointer p = begin();
+          return p ? p + data_.size() : p;
         }
 
         inline const_iterator cend() const {
-          return data_.host_data() + data_.size();
+          const_pointer p = cbegin();
+          return p ? p + data_.size() : p;
         }
 
         // Modifiers
@@ -337,12 +340,16 @@ namespace jams {
         }
 
         inline void fill(const value_type &value) {
-          if (value == Tp_{0}) {
-            zero();
+          if (empty()) {
             return;
           }
-          pointer p = data_.mutable_host_data();
-          std::fill(p, p + data_.size(), value);
+          if constexpr (detail::synced_memory_byte_zeroable_v<value_type>) {
+            if (value == value_type{}) {
+              zero();
+              return;
+            }
+          }
+          std::fill_n(data_.mutable_host_data(), data_.size(), value);
         }
 
         template<typename... Args>

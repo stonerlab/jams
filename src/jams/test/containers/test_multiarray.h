@@ -352,6 +352,20 @@ TEST(MultiArrayFinalApiTest, FillZeroAndClearUseUniformApi) {
   EXPECT_EQ(grid.begin(), grid.end());
 }
 
+TEST(MultiArrayFinalApiTest, FillAndZeroSupportNonNumericTriviallyCopyableValues) {
+  using namespace jams;
+  using Vec3 = std::array<int, 3>;
+
+  MultiArray<Vec3, 1> values(2);
+  values.fill(Vec3{1, 2, 3});
+  EXPECT_EQ(values(0), (Vec3{1, 2, 3}));
+  EXPECT_EQ(values(1), (Vec3{1, 2, 3}));
+
+  values.zero();
+  EXPECT_EQ(values(0), (Vec3{0, 0, 0}));
+  EXPECT_EQ(values(1), (Vec3{0, 0, 0}));
+}
+
 TEST(MultiArrayFinalApiTest, ReleaseStaleStorageForwardsToSyncedMemory) {
   using namespace jams;
 
