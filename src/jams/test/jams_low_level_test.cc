@@ -6,6 +6,7 @@
 
 #include "jams/test/containers/test_mat3.h"
 #include "jams/test/containers/test_multiarray.h"
+#include "jams/test/containers/test_name_id_map.h"
 #include "jams/test/containers/test_synced_memory.h"
 #include "jams/test/containers/test_vec3.h"
 
