@@ -20,6 +20,17 @@
 #include <cuda_runtime_api.h>
 #endif
 
+namespace {
+bool synced_memory_cuda_device_available() {
+#if HAS_CUDA
+  int device_count = 0;
+  return cudaGetDeviceCount(&device_count) == cudaSuccess && device_count > 0;
+#else
+  return false;
+#endif
+}
+}
+
 // fixture class
 template <typename T>
 class SynchedMemoryTest : public testing::Test {
@@ -146,9 +157,11 @@ TEST(SyncedMemoryApiTest, MutableHostAccessInvalidatesOnlyDeviceCurrentness) {
   SyncedMemory<int> memory(3, 1);
 
 #if HAS_CUDA
-  ASSERT_NE(memory.device_data(), nullptr);
-  EXPECT_TRUE(memory.host_valid());
-  EXPECT_TRUE(memory.device_valid());
+  if (synced_memory_cuda_device_available()) {
+    ASSERT_NE(memory.device_data(), nullptr);
+    EXPECT_TRUE(memory.host_valid());
+    EXPECT_TRUE(memory.device_valid());
+  }
 #endif
 
   int* host = memory.mutable_host_data();
@@ -171,6 +184,10 @@ TEST(SyncedMemoryApiTest, MutableHostAccessInvalidatesOnlyDeviceCurrentness) {
 #if HAS_CUDA
 TEST(SyncedMemoryApiTest, ConstDeviceReadSynchronizesHostChangesWithoutInvalidatingHost) {
   using namespace jams;
+
+  if (!synced_memory_cuda_device_available()) {
+    GTEST_SKIP() << "CUDA runtime is enabled but no CUDA device is available";
+  }
 
   SyncedMemory<int> memory(3, 0);
   int* host = memory.mutable_host_data();
@@ -196,6 +213,10 @@ TEST(SyncedMemoryApiTest, ConstDeviceReadSynchronizesHostChangesWithoutInvalidat
 TEST(SyncedMemoryApiTest, MutableDeviceAccessInvalidatesHostUntilConstHostRead) {
   using namespace jams;
   using namespace testing;
+
+  if (!synced_memory_cuda_device_available()) {
+    GTEST_SKIP() << "CUDA runtime is enabled but no CUDA device is available";
+  }
 
   SyncedMemory<int> memory(3, 1);
   int device_values[3] = {21, 22, 23};
@@ -239,7 +260,9 @@ TEST(SyncedMemoryApiTest, CopyConstructionCopiesCurrentLogicalValue) {
   SyncedMemory<int> source(3, 1);
 
 #if HAS_CUDA
-  ASSERT_NE(source.device_data(), nullptr);
+  if (synced_memory_cuda_device_available()) {
+    ASSERT_NE(source.device_data(), nullptr);
+  }
 #endif
 
   int* source_host = source.mutable_host_data();
@@ -272,7 +295,9 @@ TEST(SyncedMemoryApiTest, CopyAssignmentReplacesSizeStateAndLogicalValue) {
 
   SyncedMemory<int> target(2, -1);
 #if HAS_CUDA
-  ASSERT_NE(target.device_data(), nullptr);
+  if (synced_memory_cuda_device_available()) {
+    ASSERT_NE(target.device_data(), nullptr);
+  }
 #endif
 
   target = source;
@@ -381,14 +406,16 @@ TEST(SyncedMemoryApiTest, ZeroKeepsOnlyAllocatedCurrentMemorySpacesCurrent) {
               ElementsAre(0, 0, 0));
 
 #if HAS_CUDA
-  SyncedMemory<int> host_and_device(3, 5);
-  ASSERT_NE(host_and_device.device_data(), nullptr);
-  host_and_device.zero();
-  EXPECT_TRUE(host_and_device.host_valid());
-  EXPECT_TRUE(host_and_device.device_valid());
-  EXPECT_THAT(std::vector<int>(host_and_device.host_data(),
-                               host_and_device.host_data() + host_and_device.size()),
-              ElementsAre(0, 0, 0));
+  if (synced_memory_cuda_device_available()) {
+    SyncedMemory<int> host_and_device(3, 5);
+    ASSERT_NE(host_and_device.device_data(), nullptr);
+    host_and_device.zero();
+    EXPECT_TRUE(host_and_device.host_valid());
+    EXPECT_TRUE(host_and_device.device_valid());
+    EXPECT_THAT(std::vector<int>(host_and_device.host_data(),
+                                 host_and_device.host_data() + host_and_device.size()),
+                ElementsAre(0, 0, 0));
+  }
 #endif
 }
 

@@ -204,7 +204,7 @@ namespace jams {
           return Dim_;
         }
 
-        [[nodiscard]] inline constexpr size_type max_size() const noexcept {
+        [[nodiscard]] inline size_type max_size() const {
           return data_.max_size();
         }
 
@@ -224,7 +224,7 @@ namespace jams {
           static_assert(sizeof...(args) == Dim_,
                         "number of MultiArray indicies does not match the MultiArray dimension");
           assert(!empty());
-          return data_.const_host_data()[detail::row_major_index(size_, static_cast<size_type>(args)...)];
+          return data_.host_data()[detail::row_major_index(size_, static_cast<size_type>(args)...)];
         }
 
         inline reference operator()(const std::array<size_type, Dim_> &v) {
@@ -234,48 +234,48 @@ namespace jams {
 
         inline const_reference operator()(const std::array<size_type, Dim_> &v) const {
           assert(!empty());
-          return data_.const_host_data()[detail::row_major_index(size_, v)];
+          return data_.host_data()[detail::row_major_index(size_, v)];
         }
 
-        inline pointer data() noexcept {
+        inline pointer data() {
           return data_.mutable_host_data();
         }
 
-        inline const_pointer data() const noexcept {
-          return data_.const_host_data();
+        inline const_pointer data() const {
+          return data_.host_data();
         }
 
-        inline pointer device_data() noexcept {
+        inline pointer device_data() {
           return data_.mutable_device_data();
         }
 
-        inline const_pointer device_data() const noexcept {
-          return data_.const_device_data();
+        inline const_pointer device_data() const {
+          return data_.device_data();
         }
 
         // iterators
-        inline iterator begin() noexcept {
+        inline iterator begin() {
           return data_.mutable_host_data();
         }
 
-        inline const_iterator begin() const noexcept {
-          return data_.const_host_data();
+        inline const_iterator begin() const {
+          return data_.host_data();
         }
 
-        inline const_iterator cbegin() const noexcept {
-          return data_.const_host_data();
+        inline const_iterator cbegin() const {
+          return data_.host_data();
         }
 
-        inline iterator end() noexcept {
+        inline iterator end() {
           return data_.mutable_host_data() + data_.size();
         }
 
-        inline const_iterator end() const noexcept {
-          return data_.const_host_data() + data_.size();
+        inline const_iterator end() const {
+          return data_.host_data() + data_.size();
         }
 
-        inline const_iterator cend() const noexcept {
-          return data_.const_host_data() + data_.size();
+        inline const_iterator cend() const {
+          return data_.host_data() + data_.size();
         }
 
         // Modifiers
@@ -290,7 +290,7 @@ namespace jams {
           swap(this->data_, other.data_);
         }
 
-        inline void zero() noexcept {
+        inline void zero() {
           data_.zero();
         }
 
@@ -320,7 +320,7 @@ namespace jams {
 
     private:
         size_container_type size_ = { {0} };
-        mutable SyncedMemory<Tp_> data_;
+        SyncedMemory<Tp_> data_;
     };
 
     // specialize for 1D
@@ -378,9 +378,9 @@ namespace jams {
 
         template<class InputIt>
         inline MultiArray(InputIt first, InputIt last)
-            : size_(detail::array_cast<size_type>(
-                std::array<typename std::iterator_traits<InputIt>::difference_type,1>({std::distance(first, last)}))),
-              data_(first, last) {}
+            : data_(first, last) {
+          size_ = {static_cast<size_type>(data_.size())};
+        }
 
         template <typename U>
         inline explicit MultiArray(const Tp_& x, const std::array<U, 1> &v) :
@@ -417,7 +417,7 @@ namespace jams {
           return 1;
         }
 
-        [[nodiscard]] inline constexpr size_type max_size() const noexcept {
+        [[nodiscard]] inline size_type max_size() const {
           return data_.max_size();
         }
 
@@ -431,7 +431,7 @@ namespace jams {
 
         inline const_reference operator()(const size_type & x) const {
           assert(!empty() && x < data_.size());
-          return data_.const_host_data()[x];
+          return data_.host_data()[x];
         }
 
         inline reference operator()(const std::array<size_type, 1> &v) {
@@ -441,48 +441,48 @@ namespace jams {
 
         inline const_reference operator()(const std::array<size_type, 1> &v) const {
           assert(!empty() && std::get<0>(v) < data_.size());
-          return data_.const_host_data()[std::get<0>(v)];
+          return data_.host_data()[std::get<0>(v)];
         }
 
-        inline pointer data() noexcept {
+        inline pointer data() {
           return data_.mutable_host_data();
         }
 
-        inline const_pointer data() const noexcept {
-          return data_.const_host_data();
+        inline const_pointer data() const {
+          return data_.host_data();
         }
 
-        inline pointer device_data() noexcept {
+        inline pointer device_data() {
           return data_.mutable_device_data();
         }
 
-        inline const_pointer device_data() const noexcept {
-          return data_.const_device_data();
+        inline const_pointer device_data() const {
+          return data_.device_data();
         }
 
         // iterators
-        inline iterator begin() noexcept {
+        inline iterator begin() {
           return data_.mutable_host_data();
         }
 
-        inline const_iterator begin() const noexcept {
-          return data_.const_host_data();
+        inline const_iterator begin() const {
+          return data_.host_data();
         }
 
-        inline const_iterator cbegin() const noexcept {
-          return data_.const_host_data();
+        inline const_iterator cbegin() const {
+          return data_.host_data();
         }
 
-        inline iterator end() noexcept {
+        inline iterator end() {
           return data_.mutable_host_data() + data_.size();
         }
 
-        inline const_iterator end() const noexcept {
-          return data_.const_host_data() + data_.size();
+        inline const_iterator end() const {
+          return data_.host_data() + data_.size();
         }
 
-        inline const_iterator cend() const noexcept {
-          return data_.const_host_data() + data_.size();
+        inline const_iterator cend() const {
+          return data_.host_data() + data_.size();
         }
 
         // Modifiers
@@ -497,7 +497,7 @@ namespace jams {
           swap(this->data_, other.data_);
         }
 
-        inline void zero() noexcept {
+        inline void zero() {
           data_.zero();
         }
 
@@ -524,7 +524,7 @@ namespace jams {
 
     private:
         size_container_type size_ = { {0} };
-        mutable SyncedMemory<Tp_> data_;
+        SyncedMemory<Tp_> data_;
     };
 
     /**
