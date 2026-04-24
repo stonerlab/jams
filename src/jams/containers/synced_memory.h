@@ -196,6 +196,12 @@ public:
     /// resize the data (destructive, reallocates)
     void resize(size_type new_size) noexcept;
 
+    /// Release host storage if another current copy exists or host data is stale.
+    void release_stale_host() noexcept;
+
+    /// Release device storage if another current copy exists or device data is stale.
+    void release_stale_device() noexcept;
+
     // ACCESSORS
 
     /// Return true if the host memory contains current data.
@@ -673,6 +679,22 @@ void SyncedMemory<T>::zero() {
     add_valid(Validity::device);
   }
   #endif
+}
+
+
+template<class T>
+void SyncedMemory<T>::release_stale_host() noexcept {
+  if (!host_valid() || device_valid()) {
+    release_host_memory();
+  }
+}
+
+
+template<class T>
+void SyncedMemory<T>::release_stale_device() noexcept {
+  if (!device_valid() || host_valid()) {
+    release_device_memory();
+  }
 }
 
 

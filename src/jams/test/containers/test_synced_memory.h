@@ -116,6 +116,8 @@ TEST(SyncedMemoryApiTest, TraitsAndNoexceptContract) {
   static_assert(!noexcept(std::declval<Memory&>().mutable_device_data()), "");
   static_assert(noexcept(std::declval<Memory&>().clear()), "");
   static_assert(noexcept(std::declval<Memory&>().resize(0)), "");
+  static_assert(noexcept(std::declval<Memory&>().release_stale_host()), "");
+  static_assert(noexcept(std::declval<Memory&>().release_stale_device()), "");
   static_assert(!noexcept(std::declval<Memory&>().zero()), "");
 }
 
@@ -245,6 +247,85 @@ TEST(SyncedMemoryApiTest, MutableDeviceAccessInvalidatesHostUntilConstHostRead) 
   EXPECT_THAT(std::vector<int>(host, host + memory.size()), ElementsAre(21, 22, 23));
   EXPECT_TRUE(memory.host_valid());
   EXPECT_TRUE(memory.device_valid());
+}
+
+TEST(SyncedMemoryApiTest, ReleaseStaleHostFreesOnlyRedundantHostStorage) {
+  using namespace jams;
+  using namespace testing;
+
+  if (!synced_memory_cuda_device_available()) {
+    GTEST_SKIP() << "CUDA runtime is enabled but no CUDA device is available";
+  }
+
+  SyncedMemory<int> memory(3, 7);
+  ASSERT_NE(memory.device_data(), nullptr);
+  EXPECT_TRUE(memory.host_valid());
+  EXPECT_TRUE(memory.device_valid());
+
+  memory.release_stale_host();
+  EXPECT_FALSE(memory.host_valid());
+  EXPECT_TRUE(memory.device_valid());
+
+  const int* host = memory.host_data();
+  ASSERT_NE(host, nullptr);
+  EXPECT_THAT(std::vector<int>(host, host + memory.size()), ElementsAre(7, 7, 7));
+  EXPECT_TRUE(memory.host_valid());
+  EXPECT_TRUE(memory.device_valid());
+}
+
+TEST(SyncedMemoryApiTest, ReleaseStaleDeviceFreesOnlyRedundantDeviceStorage) {
+  using namespace jams;
+  using namespace testing;
+
+  if (!synced_memory_cuda_device_available()) {
+    GTEST_SKIP() << "CUDA runtime is enabled but no CUDA device is available";
+  }
+
+  SyncedMemory<int> memory(3, 8);
+  ASSERT_NE(memory.device_data(), nullptr);
+  EXPECT_TRUE(memory.host_valid());
+  EXPECT_TRUE(memory.device_valid());
+
+  memory.release_stale_device();
+  EXPECT_TRUE(memory.host_valid());
+  EXPECT_FALSE(memory.device_valid());
+
+  const int* device = memory.device_data();
+  ASSERT_NE(device, nullptr);
+  EXPECT_TRUE(memory.host_valid());
+  EXPECT_TRUE(memory.device_valid());
+}
+
+TEST(SyncedMemoryApiTest, ReleaseStaleStorageKeepsSoleCurrentCopy) {
+  using namespace jams;
+  using namespace testing;
+
+  SyncedMemory<int> host_only(3, 9);
+  host_only.release_stale_host();
+  EXPECT_TRUE(host_only.host_valid());
+  EXPECT_FALSE(host_only.device_valid());
+  EXPECT_THAT(std::vector<int>(host_only.host_data(), host_only.host_data() + host_only.size()),
+              ElementsAre(9, 9, 9));
+
+  if (!synced_memory_cuda_device_available()) {
+    GTEST_SKIP() << "CUDA runtime is enabled but no CUDA device is available";
+  }
+
+  SyncedMemory<int> device_only(3, 0);
+  int values[3] = {51, 52, 53};
+  int* device = device_only.mutable_device_data();
+  ASSERT_NE(device, nullptr);
+  ASSERT_EQ(cudaMemcpy(device, values, sizeof(values), cudaMemcpyHostToDevice), cudaSuccess);
+  EXPECT_FALSE(device_only.host_valid());
+  EXPECT_TRUE(device_only.device_valid());
+
+  device_only.release_stale_device();
+  EXPECT_FALSE(device_only.host_valid());
+  EXPECT_TRUE(device_only.device_valid());
+
+  const int* host = device_only.host_data();
+  ASSERT_NE(host, nullptr);
+  EXPECT_THAT(std::vector<int>(host, host + device_only.size()), ElementsAre(51, 52, 53));
 }
 #endif
 
