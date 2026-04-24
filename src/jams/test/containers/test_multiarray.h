@@ -101,8 +101,11 @@ TEST(MultiArrayFinalApiTest, ConstAccessorsAreLogicallyConstAndMaySynchronize) {
 
   static_assert(std::is_same<decltype(std::declval<Array&>().data()), int*>::value, "");
   static_assert(std::is_same<decltype(std::declval<const Array&>().data()), const int*>::value, "");
+  static_assert(std::is_same<decltype(std::declval<Array&>().host_data()), int*>::value, "");
+  static_assert(std::is_same<decltype(std::declval<const Array&>().host_data()), const int*>::value, "");
   static_assert(std::is_same<decltype(std::declval<Array&>().device_data()), int*>::value, "");
   static_assert(std::is_same<decltype(std::declval<const Array&>().device_data()), const int*>::value, "");
+  static_assert(std::is_same<decltype(std::declval<Array&>().mutable_device_data()), int*>::value, "");
   static_assert(std::is_nothrow_default_constructible<Array>::value, "");
   static_assert(std::is_nothrow_move_constructible<Array>::value, "");
   static_assert(std::is_nothrow_move_assignable<Array>::value, "");
@@ -111,20 +114,26 @@ TEST(MultiArrayFinalApiTest, ConstAccessorsAreLogicallyConstAndMaySynchronize) {
   static_assert(noexcept(swap(std::declval<Array&>(), std::declval<Array&>())), "");
   static_assert(noexcept(std::declval<const Array&>().empty()), "");
   static_assert(noexcept(std::declval<const Array&>().size()), "");
+  static_assert(noexcept(std::declval<const Array&>().extent(0)), "");
   static_assert(noexcept(std::declval<const Array&>().shape()), "");
   static_assert(!noexcept(std::declval<const Array&>().bytes()), "");
   static_assert(noexcept(std::declval<const Array&>().elements()), "");
-  static_assert(noexcept(std::declval<const Array&>().dimension()), "");
+  static_assert(noexcept(std::declval<const Array&>().rank()), "");
   static_assert(!noexcept(std::declval<const Array&>().max_size()), "");
   static_assert(!noexcept(std::declval<Array&>().data()), "");
   static_assert(!noexcept(std::declval<const Array&>().data()), "");
+  static_assert(!noexcept(std::declval<Array&>().host_data()), "");
+  static_assert(!noexcept(std::declval<const Array&>().host_data()), "");
   static_assert(!noexcept(std::declval<Array&>().device_data()), "");
   static_assert(!noexcept(std::declval<const Array&>().device_data()), "");
+  static_assert(!noexcept(std::declval<Array&>().mutable_device_data()), "");
   static_assert(!noexcept(std::declval<Array&>().begin()), "");
   static_assert(!noexcept(std::declval<const Array&>().begin()), "");
   static_assert(!noexcept(std::declval<Array&>().end()), "");
   static_assert(!noexcept(std::declval<const Array&>().end()), "");
   static_assert(!noexcept(std::declval<Array&>().zero()), "");
+  static_assert(noexcept(std::declval<Array&>().release_stale_host()), "");
+  static_assert(noexcept(std::declval<Array&>().release_stale_device()), "");
 
   Array values(4);
   for (std::size_t i = 0; i < values.size(); ++i) {
@@ -139,19 +148,44 @@ TEST(MultiArrayFinalApiTest, ConstAccessorsAreLogicallyConstAndMaySynchronize) {
   EXPECT_EQ(const_values(2), 3);
 }
 
+TEST(MultiArrayFinalApiTest, UniformCapacityApiForOneAndTwoDimensions) {
+  using namespace jams;
+
+  MultiArray<int, 1> line(4);
+  EXPECT_FALSE(line.empty());
+  EXPECT_EQ(line.rank(), 1u);
+  EXPECT_EQ(line.size(), 4u);
+  EXPECT_EQ(line.elements(), 4u);
+  EXPECT_EQ(line.extent(0), 4u);
+  EXPECT_EQ(line.shape(), (std::array<MultiArray<int, 1>::size_type, 1>{4}));
+
+  MultiArray<int, 2> grid(2, 3);
+  EXPECT_FALSE(grid.empty());
+  EXPECT_EQ(grid.rank(), 2u);
+  EXPECT_EQ(grid.size(), 6u);
+  EXPECT_EQ(grid.elements(), 6u);
+  EXPECT_EQ(grid.extent(0), 2u);
+  EXPECT_EQ(grid.extent(1), 3u);
+  EXPECT_EQ(grid.shape(), (std::array<MultiArray<int, 2>::size_type, 2>{2, 3}));
+}
+
 TEST(MultiArrayFinalApiTest, ConstAccessorsWorkForMultidimensionalArrays) {
   using namespace jams;
 
   MultiArray<int, 2> values(2, 3);
   int n = 0;
-  for (std::size_t i = 0; i < values.size(0); ++i) {
-    for (std::size_t j = 0; j < values.size(1); ++j) {
+  for (std::size_t i = 0; i < values.extent(0); ++i) {
+    for (std::size_t j = 0; j < values.extent(1); ++j) {
       values(i, j) = ++n;
     }
   }
 
   const MultiArray<int, 2>& const_values = values;
   EXPECT_EQ(const_values.shape(), (std::array<MultiArray<int, 2>::size_type, 2>{2, 3}));
+  EXPECT_EQ(const_values.rank(), 2u);
+  EXPECT_EQ(const_values.size(), 6u);
+  EXPECT_EQ(const_values.extent(0), 2u);
+  EXPECT_EQ(const_values.extent(1), 3u);
   EXPECT_EQ(const_values(0, 0), 1);
   EXPECT_EQ(const_values(0, 2), 3);
   EXPECT_EQ(const_values(1, 0), 4);
@@ -163,6 +197,25 @@ TEST(MultiArrayFinalApiTest, ConstAccessorsWorkForMultidimensionalArrays) {
               testing::ElementsAre(1, 2, 3, 4, 5, 6));
 }
 
+TEST(MultiArrayFinalApiTest, OneDimensionalAndMultidimensionalIndexingUseUniformCallSyntax) {
+  using namespace jams;
+
+  MultiArray<int, 1> line(3);
+  line(0) = 11;
+  line(1) = 12;
+  line(2) = 13;
+  EXPECT_EQ(line(std::array<MultiArray<int, 1>::size_type, 1>{0}), 11);
+  EXPECT_EQ(line(std::array<MultiArray<int, 1>::size_type, 1>{2}), 13);
+
+  MultiArray<int, 3> cube(2, 2, 2);
+  cube(0, 0, 0) = 1;
+  cube(0, 1, 1) = 4;
+  cube(1, 0, 0) = 5;
+  cube(1, 1, 1) = 8;
+  EXPECT_EQ(cube(std::array<MultiArray<int, 3>::size_type, 3>{0, 1, 1}), 4);
+  EXPECT_EQ(cube(std::array<MultiArray<int, 3>::size_type, 3>{1, 1, 1}), 8);
+}
+
 TEST(MultiArrayFinalApiTest, OneDimensionalInputIteratorConstructionConsumesSinglePassRangeOnce) {
   using namespace jams;
 
@@ -172,6 +225,7 @@ TEST(MultiArrayFinalApiTest, OneDimensionalInputIteratorConstructionConsumesSing
 
   MultiArray<int, 1> values(first, last);
   EXPECT_EQ(values.size(), 4u);
+  EXPECT_EQ(values.extent(0), 4u);
   EXPECT_EQ(values.elements(), 4u);
 
   const int* data = values.data();
@@ -186,6 +240,7 @@ TEST(MultiArrayFinalApiTest, OneDimensionalForwardIteratorConstructionUsesExactL
   const std::vector<int> source = {4, 8, 15, 16, 23, 42};
   MultiArray<int, 1> values(source.begin(), source.end());
   EXPECT_EQ(values.size(), source.size());
+  EXPECT_EQ(values.extent(0), source.size());
   EXPECT_EQ(values.elements(), source.size());
   EXPECT_EQ(values.bytes(), source.size() * sizeof(int));
 
@@ -201,6 +256,7 @@ TEST(MultiArrayFinalApiTest, OneDimensionalRandomAccessIteratorConstructionUsesE
   const int source[] = {10, 20, 30};
   MultiArray<int, 1> values(std::begin(source), std::end(source));
   EXPECT_EQ(values.size(), 3u);
+  EXPECT_EQ(values.extent(0), 3u);
   EXPECT_EQ(values.elements(), 3u);
   EXPECT_EQ(values.bytes(), sizeof(source));
 
@@ -218,13 +274,88 @@ TEST(MultiArrayFinalApiTest, OneDimensionalIntegralConstructionDoesNotSelectIter
 
   MultiArray<int, 1> sized(4);
   EXPECT_EQ(sized.size(), 4u);
+  EXPECT_EQ(sized.extent(0), 4u);
   EXPECT_EQ(sized.elements(), 4u);
 
   MultiArray<int, 1> filled(12, 3);
   EXPECT_EQ(filled.size(), 3u);
+  EXPECT_EQ(filled.extent(0), 3u);
   EXPECT_EQ(filled.elements(), 3u);
   EXPECT_THAT(std::vector<int>(filled.data(), filled.data() + filled.size()),
               testing::ElementsAre(12, 12, 12));
+}
+
+TEST(MultiArrayFinalApiTest, ResizeUsesUniformExtentAndTotalSizeApi) {
+  using namespace jams;
+
+  MultiArray<int, 1> line;
+  line.resize(5);
+  EXPECT_EQ(line.rank(), 1u);
+  EXPECT_EQ(line.size(), 5u);
+  EXPECT_EQ(line.extent(0), 5u);
+  EXPECT_EQ(line.elements(), 5u);
+
+  line.resize(std::array<MultiArray<int, 1>::size_type, 1>{2});
+  EXPECT_EQ(line.size(), 2u);
+  EXPECT_EQ(line.extent(0), 2u);
+  EXPECT_EQ(line.elements(), 2u);
+
+  MultiArray<int, 2> grid;
+  grid.resize(3, 4);
+  EXPECT_EQ(grid.rank(), 2u);
+  EXPECT_EQ(grid.size(), 12u);
+  EXPECT_EQ(grid.extent(0), 3u);
+  EXPECT_EQ(grid.extent(1), 4u);
+  EXPECT_EQ(grid.elements(), 12u);
+
+  grid.resize(std::array<MultiArray<int, 2>::size_type, 2>{2, 5});
+  EXPECT_EQ(grid.size(), 10u);
+  EXPECT_EQ(grid.extent(0), 2u);
+  EXPECT_EQ(grid.extent(1), 5u);
+  EXPECT_EQ(grid.elements(), 10u);
+}
+
+TEST(MultiArrayFinalApiTest, FillZeroAndClearUseUniformApi) {
+  using namespace jams;
+  using testing::ElementsAre;
+
+  MultiArray<int, 2> grid(2, 2);
+  grid.fill(7);
+  EXPECT_THAT(std::vector<int>(grid.data(), grid.data() + grid.size()),
+              ElementsAre(7, 7, 7, 7));
+
+  grid.zero();
+  EXPECT_THAT(std::vector<int>(grid.data(), grid.data() + grid.size()),
+              ElementsAre(0, 0, 0, 0));
+
+  grid.clear();
+  EXPECT_TRUE(grid.empty());
+  EXPECT_EQ(grid.size(), 0u);
+  EXPECT_EQ(grid.extent(0), 0u);
+  EXPECT_EQ(grid.extent(1), 0u);
+  EXPECT_EQ(grid.elements(), 0u);
+  EXPECT_EQ(grid.begin(), grid.end());
+}
+
+TEST(MultiArrayFinalApiTest, ReleaseStaleStorageForwardsToSyncedMemory) {
+  using namespace jams;
+
+  MultiArray<int, 1> values(3);
+  values(0) = 21;
+  values(1) = 22;
+  values(2) = 23;
+
+  ASSERT_NE(values.device_data(), nullptr);
+  values.release_stale_host();
+
+  const int* host = values.data();
+  ASSERT_NE(host, nullptr);
+  EXPECT_THAT(std::vector<int>(host, host + values.size()),
+              testing::ElementsAre(21, 22, 23));
+
+  values.release_stale_device();
+  EXPECT_THAT(std::vector<int>(values.data(), values.data() + values.size()),
+              testing::ElementsAre(21, 22, 23));
 }
 
 TEST(MultiArrayFinalApiTest, CopyMoveAndSwapPreserveLogicalValues) {
