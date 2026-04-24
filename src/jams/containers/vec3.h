@@ -220,7 +220,7 @@ inline constexpr auto norm(const Vec<T,3>& a) -> decltype(std::sqrt(a[0])) {
 
 /// Returns the square of the Euclidean norm (x^2 + y^2 + z^2) of the vector.
 template <typename T>
-inline constexpr T norm_squared(const Vec<T,3>& a) {
+inline constexpr auto norm_squared(const Vec<T,3>& a) -> decltype(dot(a, a)) {
   return dot(a, a);
 }
 

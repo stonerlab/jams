@@ -3,6 +3,7 @@
 
 #include "gtest/gtest.h"
 
+#include <cstdint>
 #include <type_traits>
 
 #include "jams/containers/vec3.h"
@@ -36,6 +37,14 @@ TEST(Vec3Test, CompoundAssignmentReturnsMutatedVectorReference) {
 
   EXPECT_EQ(&(a /= 2.0), &a);
   EXPECT_EQ((a), (Vec3{1.0, 1.5, 2.0}));
+}
+
+TEST(Vec3Test, NormSquaredPreservesPromotedArithmeticType) {
+  static_assert(std::is_same_v<decltype(jams::norm_squared(std::declval<Vec<std::int8_t, 3>>())), int>);
+
+  const Vec<std::int8_t, 3> a{100, 0, 0};
+
+  EXPECT_EQ(jams::norm_squared(a), 10000);
 }
 
 #endif // JAMS_TEST_VEC3_H
