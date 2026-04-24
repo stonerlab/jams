@@ -91,33 +91,51 @@ inline constexpr auto operator-(const Vec<T1,3>& lhs, const Vec<T2,3>& rhs) -> V
 }
 
 template <typename T1, typename T2>
-inline constexpr auto operator+=(Vec<T1,3>& lhs, const T2& rhs) -> Vec<decltype(lhs[0] + rhs), 3> {
-  return {lhs[0] += rhs, lhs[1] += rhs, lhs[2] += rhs};
+inline constexpr Vec<T1,3>& operator+=(Vec<T1,3>& lhs, const T2& rhs) {
+  lhs[0] += rhs;
+  lhs[1] += rhs;
+  lhs[2] += rhs;
+  return lhs;
 }
 
 template <typename T1, typename T2>
-inline constexpr auto operator+=(Vec<T1,3>& lhs, const Vec<T2,3>& rhs) -> Vec<decltype(lhs[0] + rhs[0]), 3> {
-  return {lhs[0] += rhs[0], lhs[1] += rhs[1], lhs[2] += rhs[2]};
+inline constexpr Vec<T1,3>& operator+=(Vec<T1,3>& lhs, const Vec<T2,3>& rhs) {
+  lhs[0] += rhs[0];
+  lhs[1] += rhs[1];
+  lhs[2] += rhs[2];
+  return lhs;
 }
 
 template <typename T1, typename T2>
-inline constexpr auto operator-=(Vec<T1,3>& lhs, const T2& rhs) -> Vec<decltype(lhs[0] - rhs), 3> {
-  return {lhs[0] -= rhs, lhs[1] -= rhs, lhs[2] -= rhs};
+inline constexpr Vec<T1,3>& operator-=(Vec<T1,3>& lhs, const T2& rhs) {
+  lhs[0] -= rhs;
+  lhs[1] -= rhs;
+  lhs[2] -= rhs;
+  return lhs;
 }
 
 template <typename T1, typename T2>
-inline constexpr auto operator-=(Vec<T1,3>& lhs, const Vec<T2,3>& rhs) -> Vec<decltype(lhs[0] - rhs[0]), 3> {
-  return {lhs[0] -= rhs[0], lhs[1] -= rhs[1], lhs[2] -= rhs[2]};
+inline constexpr Vec<T1,3>& operator-=(Vec<T1,3>& lhs, const Vec<T2,3>& rhs) {
+  lhs[0] -= rhs[0];
+  lhs[1] -= rhs[1];
+  lhs[2] -= rhs[2];
+  return lhs;
 }
 
 template <typename T1, typename T2>
-inline constexpr auto operator*=(Vec<T1,3>& lhs, const T2& rhs) -> Vec<decltype(lhs[0] * rhs), 3> {
-  return {lhs[0] *= rhs, lhs[1] *= rhs, lhs[2] *= rhs};
+inline constexpr Vec<T1,3>& operator*=(Vec<T1,3>& lhs, const T2& rhs) {
+  lhs[0] *= rhs;
+  lhs[1] *= rhs;
+  lhs[2] *= rhs;
+  return lhs;
 }
 
 template <typename T1, typename T2>
-inline constexpr auto operator/=(Vec<T1,3>& lhs, const T2& rhs) -> Vec<decltype(lhs[0] / rhs), 3> {
-  return {lhs[0] /= rhs, lhs[1] /= rhs, lhs[2] /= rhs};
+inline constexpr Vec<T1,3>& operator/=(Vec<T1,3>& lhs, const T2& rhs) {
+  lhs[0] /= rhs;
+  lhs[1] /= rhs;
+  lhs[2] /= rhs;
+  return lhs;
 }
 
 
