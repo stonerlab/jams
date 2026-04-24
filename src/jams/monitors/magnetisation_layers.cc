@@ -162,8 +162,8 @@ MagnetisationLayersMonitor::MagnetisationLayersMonitor(
     }
     {
       auto dataset = h5_group.createDataSet<double>(
-          "layer_normal",HighFive::DataSpace::From(layer_normal));
-      dataset.write(layer_normal);
+          "layer_normal",HighFive::DataSpace::From(layer_normal.values));
+      dataset.write(layer_normal.values);
       dataset.createAttribute<std::string>("axis0", "xyz");
     }
     {

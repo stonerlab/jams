@@ -9,15 +9,8 @@
 #include <array>
 #include <jams/interface/blas.h>
 #include <limits>
+#include "jams/containers/mat.h"
 #include "jams/containers/vec3.h"
-
-template <typename T, std::size_t M, std::size_t N>
-using Mat = std::array<std::array<T, M>, N>;
-
-using Mat3  = std::array<std::array<double, 3>, 3>;
-using Mat3R  = std::array<std::array<jams::Real, 3>, 3>;
-
-using Mat3cx  = std::array<std::array<std::complex<double>, 3>, 3>;
 
 const Mat<double, 3, 3> kIdentityMat3 = {1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0};
 const Mat3cx kIdentityMat3cx = {1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0};
@@ -26,12 +19,9 @@ const Mat<double, 3, 3> kZeroMat3 = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0
 const Mat<jams::Real, 3, 3> kIdentityMat3R = {1, 0, 0, 0, 1, 0, 0, 0, 1};
 const Mat<jams::Real, 3, 3> kZeroMat3R = {0, 0, 0, 0, 0, 0, 0, 0, 0};
 
-template <typename T, std::size_t N>
-using Vec = std::array<T, N>;
-
 template <typename To, typename From, std::size_t M, std::size_t N>
-constexpr std::array<std::array<To, M>, N>
-matrix_cast(const std::array<std::array<From, M>, N>& in)
+constexpr Mat<To, M, N>
+matrix_cast(const Mat<From, M, N>& in)
 {
   if constexpr (std::is_same<To, From>::value) {
     return in;
@@ -41,7 +31,7 @@ matrix_cast(const std::array<std::array<From, M>, N>& in)
     static_assert(std::is_arithmetic<From>::value,
                   "array_cast requires arithmetic From type");
 
-    std::array<std::array<To, M>, N> out{};
+    Mat<To, M, N> out{};
     for (std::size_t i = 0; i < N; ++i)
     {
       for (std::size_t j = 0; j < M; ++j)
@@ -53,15 +43,23 @@ matrix_cast(const std::array<std::array<From, M>, N>& in)
   }
 }
 
-template <typename T, std::size_t N>
-constexpr std::array<std::array<T, N>, N> identity()
+template <typename To, typename From, std::size_t M, std::size_t N>
+constexpr Mat<To, M, N>
+matrix_cast(const std::array<std::array<From, M>, N>& in)
 {
-  std::array<std::array<T, N>, N> out{};  // zero/value-initialised
+  return matrix_cast<To>(Mat<From, M, N>{in});
+}
+
+template <typename T, std::size_t N>
+constexpr Mat<T, N, N> identity()
+{
+  Mat<T, N, N> out{};  // zero/value-initialised
   for (std::size_t i = 0; i < N; ++i)
     out[i][i] = T{1};
   return out;
 }
 
+namespace jams {
 
 template <typename T1, typename T2>
 inline auto operator*(const Mat<T1,3,3>& lhs, const Vec<T2,3>& rhs) ->Vec<decltype(lhs[0][0] * rhs[0]),3> {
@@ -121,6 +119,8 @@ inline Mat<T,3,3> operator*(const Mat<T,3,3>& lhs, const Mat<T,3,3>& rhs) {
   }
   return result;
 }
+
+} // namespace jams
 
 // Vec3 specialization
 template <typename T>

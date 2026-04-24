@@ -92,11 +92,10 @@ SpectrumBaseMonitor::ChannelTransform SpectrumBaseMonitor::raise_lower_channel_m
 {
   ChannelTransform m;
   m.output_channels = 3;
-  m.weights = {{
-      {{kInvSqrtTwo, +kImagOne * kInvSqrtTwo, 0.0}},
-      {{kInvSqrtTwo, -kImagOne * kInvSqrtTwo, 0.0}},
-      {{0.0, 0.0, 1.0}}
-  }};
+  m.weights = Mat3cx{
+      kInvSqrtTwo, +kImagOne * kInvSqrtTwo, 0.0,
+      kInvSqrtTwo, -kImagOne * kInvSqrtTwo, 0.0,
+      0.0, 0.0, 1.0};
   m.use_local_frame = true;
   m.scale_to_physical_spin = true;
   return m;

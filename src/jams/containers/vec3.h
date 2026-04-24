@@ -22,8 +22,8 @@
 namespace jams {
 
 template <typename To, typename From, std::size_t N>
-constexpr std::array<To, N>
-array_cast(const std::array<From, N>& in)
+constexpr Vec<To, N>
+array_cast(const Vec<From, N>& in)
 {
   if constexpr (std::is_same<To, From>::value) {
     return in;
@@ -33,14 +33,19 @@ array_cast(const std::array<From, N>& in)
     static_assert(std::is_arithmetic<From>::value,
                   "array_cast requires arithmetic From type");
 
-    std::array<To, N> out{};
+    Vec<To, N> out{};
     for (std::size_t i = 0; i < N; ++i)
       out[i] = static_cast<To>(in[i]);
     return out;
   }
 }
 
-} // namespace jams
+template <typename To, typename From, std::size_t N>
+constexpr Vec<To, N>
+array_cast(const std::array<From, N>& in)
+{
+  return array_cast<To>(Vec<From, N>{in});
+}
 
 template <typename T>
 inline constexpr Vec<T,3> operator-(const Vec<T,3>& rhs) {
@@ -125,16 +130,11 @@ inline constexpr Vec<T1,3>& operator/=(Vec<T1,3>& lhs, const T2& rhs) {
   return lhs;
 }
 
-
-namespace jams {
-
 /// Returns true if all components of the Vec are exactly equal, false otherwise.
 template <typename T>
 inline constexpr bool equal(const Vec<T,3>& lhs, const Vec<T,3>& rhs) {
   return (lhs[0] == rhs[0]) && (lhs[1] == rhs[1]) && (lhs[2] == rhs[2]);
 }
-
-} // namespace jams
 
 template <typename T>
 inline constexpr bool operator==(const Vec<T,3>& lhs, const Vec<T,3>& rhs) {
@@ -150,10 +150,6 @@ template <typename T>
 inline constexpr auto operator%(const Vec<T,3>& lhs, const Vec<T,3>& rhs) -> Vec<decltype(lhs[0] % rhs[0]), 3> {
   return {lhs[0] % rhs[0], lhs[1] % rhs[1], lhs[2] % rhs[2]};
 }
-
-namespace jams {
-
-
 /// Returns the fused-multiply-add operation elementwise on the vectors a,b and c.
 /// x_k = (a_k * b_k) + c_k
 template <typename T1>
@@ -340,10 +336,20 @@ inline constexpr auto sum(const Vec<T,3>& a) -> decltype(a[0] + a[1] + a[2]) {
   return a[0] + a[1] + a[2];
 }
 
+template <typename T>
+inline constexpr auto sum(const std::array<T,3>& a) -> decltype(a[0] + a[1] + a[2]) {
+  return sum(Vec<T, 3>{a});
+}
+
 /// Returns the product of the elements in the vector a
 template <typename T>
 inline constexpr auto product(const Vec<T,3>& a) -> decltype(a[0] * a[1] * a[2]) {
   return a[0] * a[1] * a[2];
+}
+
+template <typename T>
+inline constexpr auto product(const std::array<T,3>& a) -> decltype(a[0] * a[1] * a[2]) {
+  return product(Vec<T, 3>{a});
 }
 
 /// Returns a complex Vec3 with the conjugate of each component of a,
@@ -382,12 +388,17 @@ inline constexpr Vec<int,3> to_int(const Vec<T,3>& a) {
 
 /// Returns the largest absolute value in the array
 template <typename T, std::size_t N>
-auto absolute_max(const std::array<T,N>& x) -> decltype(std::abs(x[0])) {
+auto absolute_max(const Vec<T,N>& x) -> decltype(std::abs(x[0])) {
   static_assert(N > 0, "absolute_max requires a non-empty array");
 
   return std::abs(*std::max_element(x.begin(), x.end(),
                            [](const T& a, const T& b) {
                                return std::abs(a) < std::abs(b); }));
+}
+
+template <typename T, std::size_t N>
+auto absolute_max(const std::array<T,N>& x) -> decltype(std::abs(x[0])) {
+  return absolute_max(Vec<T, N>{x});
 }
 
 /// Returns a Vec with each component divided by its magnitude. Components
@@ -401,9 +412,6 @@ Vec<T, N> normalize_components(const Vec<T, N>& a) {
   return result;
 }
 
-} // namespace jams
-
-
 template <typename T>
 inline std::ostream& operator<<(std::ostream& os, const Vec<T,3> &a) {
   auto w = os.width();
@@ -414,5 +422,11 @@ inline std::ostream& operator<<(std::ostream& os, const Vec<T,3> &a) {
   return os;
 }
 
+} // namespace jams
+
+template <typename T>
+inline std::ostream& operator<<(std::ostream& os, const std::array<T,3> &a) {
+  return os << Vec<T, 3>{a};
+}
 
 #endif //JAMS_VEC3_H

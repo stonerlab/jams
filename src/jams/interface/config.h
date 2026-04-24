@@ -58,6 +58,14 @@ struct config_required_impl<std::array<T, N>, void> {
   }
 };
 
+// Specialisation for jams::Vec<T, N>
+template<typename T, std::size_t N>
+struct config_required_impl<Vec<T, N>, void> {
+  static Vec<T, N> get(const libconfig::Setting &s, const std::string &name) {
+    return Vec<T, N>{config_required<std::array<T, N>>(s, name)};
+  }
+};
+
 // Specialisations for scalar / simple types
 template<>
 struct config_required_impl<std::string, void> {
@@ -82,8 +90,16 @@ struct config_required_impl<std::string, void> {
       }
 
       return out;
-    }
-  };
+  }
+};
+
+// Specialisation for jams::Mat<T, M, N>
+template<typename T, std::size_t M, std::size_t N>
+struct config_required_impl<Mat<T, M, N>, void> {
+  static Mat<T, M, N> get(const libconfig::Setting &s, const std::string &name) {
+    return Mat<T, M, N>{config_required<std::array<std::array<T, M>, N>>(s, name)};
+  }
+};
 
 template<>
 struct config_required_impl<CoordinateFormat, void> {

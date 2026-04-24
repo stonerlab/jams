@@ -23,7 +23,7 @@ namespace jams {
     template<typename CoordType>
     class InteractionNearTree {
     public:
-        using PositionType = std::array<CoordType, 3>;
+        using PositionType = Vec<CoordType, 3>;
         using NearTreeDataType = std::pair<PositionType, int>;
         using NearTreeFunctorType = std::function<CoordType(
             const NearTreeDataType &a, const NearTreeDataType &b)>;

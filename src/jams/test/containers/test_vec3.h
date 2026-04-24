@@ -6,6 +6,7 @@
 #include <cmath>
 #include <complex>
 #include <cstdint>
+#include <numeric>
 #include <type_traits>
 
 #include "jams/containers/vec3.h"
@@ -34,6 +35,29 @@ constexpr DotSum operator+(DotSum, CrossProductTerm) {
 }
 
 } // namespace
+
+TEST(VecTest, IsContiguousStandardLayoutStorage) {
+  static_assert(sizeof(Vec3) == 3 * sizeof(double));
+  static_assert(alignof(Vec3) == alignof(double));
+  static_assert(std::is_trivially_copyable_v<Vec3>);
+  static_assert(std::is_standard_layout_v<Vec3>);
+
+  Vec3 v{1.0, 2.0, 3.0};
+
+  EXPECT_EQ(v.data(), &v[0]);
+  EXPECT_EQ(v.data() + 1, &v[1]);
+  EXPECT_EQ(v.data() + 2, &v[2]);
+}
+
+TEST(VecTest, SupportsStdArrayCompatibilityAndIteration) {
+  Vec3 from_array{std::array<double, 3>{1.0, 2.0, 3.0}};
+  std::array<double, 3>& as_array = from_array;
+  const std::array<double, 3>& as_const_array = from_array;
+
+  EXPECT_EQ(as_array[1], 2.0);
+  EXPECT_EQ(as_const_array[2], 3.0);
+  EXPECT_EQ(std::accumulate(from_array.begin(), from_array.end(), 0.0), 6.0);
+}
 
 TEST(Vec3Test, AngleUsesBothVectorNorms) {
   const Vec3 a{2.0, 0.0, 0.0};
