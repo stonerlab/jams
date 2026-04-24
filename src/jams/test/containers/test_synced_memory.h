@@ -69,11 +69,11 @@ TYPED_TEST(SynchedMemoryTest, accessors) {
   using namespace jams;
 
   SyncedMemory<TypeParam> x(10, TypeParam{99});
-  ASSERT_NE(x.const_host_data(), nullptr);
-  ASSERT_EQ(x.const_host_data(), x.mutable_host_data());
+  ASSERT_NE(x.host_data(), nullptr);
+  ASSERT_EQ(x.host_data(), x.mutable_host_data());
 
-  ASSERT_EQ(x.const_host_data()[0], TypeParam{99});
-  ASSERT_EQ(x.const_host_data()[9], TypeParam{99});
+  ASSERT_EQ(x.host_data()[0], TypeParam{99});
+  ASSERT_EQ(x.host_data()[9], TypeParam{99});
 }
 
 TYPED_TEST(SynchedMemoryTest, modifiers) {
@@ -82,15 +82,15 @@ TYPED_TEST(SynchedMemoryTest, modifiers) {
   SyncedMemory<TypeParam> x(10, TypeParam{99});
 
   x.zero();
-  ASSERT_EQ(x.const_host_data()[0], TypeParam{0});
-  ASSERT_EQ(x.const_host_data()[9], TypeParam{0});
+  ASSERT_EQ(x.host_data()[0], TypeParam{0});
+  ASSERT_EQ(x.host_data()[9], TypeParam{0});
 
   x.resize(20);
   ASSERT_EQ(x.size(), 20);
 
   x.clear();
   ASSERT_EQ(x.size(), 0);
-  ASSERT_EQ(x.const_host_data(), nullptr);
+  ASSERT_EQ(x.host_data(), nullptr);
 }
 
 TEST(SyncedMemoryApiTest, TraitsAndNoexceptContract) {

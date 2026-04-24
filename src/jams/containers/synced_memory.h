@@ -222,12 +222,6 @@ public:
     /// Return const_pointer to start of device (GPU) data.
     const_pointer device_data() const;
 
-    /// Compatibility alias for host_data().
-    const_pointer const_host_data() const;
-
-    /// Compatibility alias for device_data().
-    const_pointer const_device_data() const;
-
     /// Return mutable pointer to start of host data
     pointer mutable_host_data();
 
@@ -505,20 +499,6 @@ inline
 typename SyncedMemory<T>::const_pointer SyncedMemory<T>::device_data() const {
   ensure_device_current();
   return device_ptr_;
-}
-
-
-template<class T>
-inline
-typename SyncedMemory<T>::const_pointer SyncedMemory<T>::const_host_data() const {
-  return host_data();
-}
-
-
-template<class T>
-inline
-typename SyncedMemory<T>::const_pointer SyncedMemory<T>::const_device_data() const {
-  return device_data();
 }
 
 
