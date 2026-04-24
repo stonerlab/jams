@@ -39,6 +39,7 @@
 #include <cassert>
 #include <cstdlib>
 #include <cstring>
+#include <exception>
 #include <iostream>
 #include <iterator>
 #include <limits>
@@ -65,6 +66,13 @@ inline void check_cuda_status(cudaError_t status, const char* file, int line) {
     throw std::runtime_error(std::string(file) + ":" + std::to_string(line) +
                              " CUDA error: " + cudaGetErrorString(status));
   }
+}
+
+[[noreturn]] inline void terminate_cuda_free_failure(cudaError_t status, const char* operation) noexcept {
+  std::cerr << "FATAL(SyncedMemory): " << operation
+            << " failed during noexcept cleanup: "
+            << cudaGetErrorString(status) << std::endl;
+  std::terminate();
 }
 #endif
 
@@ -655,6 +663,7 @@ void SyncedMemory<T>::free_host_memory() const noexcept {
     if (host_cuda_malloc_) {
       if (auto status = cudaFreeHost(host_ptr_); !is_acceptable_free_status(status)) {
         assert(false);
+        detail::terminate_cuda_free_failure(status, "cudaFreeHost");
       }
       host_ptr_ = nullptr;
       host_cuda_malloc_ = false;
@@ -674,6 +683,7 @@ void SyncedMemory<T>::free_device_memory() const noexcept{
   if (device_ptr_) {
     if (auto status = cudaFree(device_ptr_); !is_acceptable_free_status(status)) {
       assert(false);
+      detail::terminate_cuda_free_failure(status, "cudaFree");
     }
   }
   #endif
