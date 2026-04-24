@@ -441,6 +441,38 @@ TEST(GpuQuantumSpdeNoiseGeneratorTest, FirstStepIsStationaryWithoutWarmup) {
   EXPECT_NEAR(moments.frac_within_two_sigma, 0.954499736104, 0.025);
 }
 
+TEST(GpuQuantumSpdeNoiseGeneratorTest, FirstNonzeroStepAfterZeroTemperatureIsStationary) {
+  if (!have_noise_generator_cuda_device()) {
+    GTEST_SKIP() << "CUDA device not available";
+  }
+
+  initialise_gpu_noise_generator_test_rng(0x3456ULL);
+
+  CudaQuantumSpdeNoiseGeneratorConfig config;
+  config.zero_point = false;
+
+  CudaQuantumSpdeNoiseGenerator generator(
+      0.0, kNoiseTestTimeStepPs, kQuantumInitialSampleVectors, config);
+  generator.set_temperature(kNoiseTestTemperature);
+  const double expected_variance = generator.stationary_variance();
+
+  generator.update();
+  generator.record_done();
+  generator.synchronize_done();
+
+  std::vector<double> samples;
+  samples.reserve(kQuantumInitialSampleVectors);
+  for (int i = 0; i < kQuantumInitialSampleVectors; ++i) {
+    samples.push_back(generator.field(i, 0));
+  }
+
+  const auto moments = compute_sample_moments(samples, std::sqrt(expected_variance));
+  EXPECT_NEAR(moments.mean, 0.0, 0.06 * std::sqrt(expected_variance));
+  EXPECT_NEAR(moments.variance, expected_variance, 0.10 * expected_variance);
+  EXPECT_NEAR(moments.frac_within_one_sigma, 0.682689492137, 0.04);
+  EXPECT_NEAR(moments.frac_within_two_sigma, 0.954499736104, 0.025);
+}
+
 TEST(GpuGeneralFftNoiseGeneratorTest, MarginalDistributionMatchesAnalyticGaussian) {
   if (!have_noise_generator_cuda_device()) {
     GTEST_SKIP() << "CUDA device not available";

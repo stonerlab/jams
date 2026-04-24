@@ -302,6 +302,7 @@ void CudaQuantumSpdeNoiseGenerator::update() {
   }
 
   if (stationary_temperature_ == jams::Real(0.0)) {
+    initialize_stationary_state();
     stationary_temperature_ = this->temperature();
   }
 
