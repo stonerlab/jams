@@ -81,6 +81,10 @@ namespace jams {
                                               const std::array<Size, N> &idx) {
           return row_major_index_array_impl(dims, idx, std::make_index_sequence<N>{});
         }
+
+        template<std::size_t Dim, typename... Args>
+        inline constexpr bool valid_extent_args_v =
+            sizeof...(Args) == Dim && (std::is_integral_v<std::decay_t<Args>> && ...);
     }
 
     template<class Tp_, std::size_t Dim_, class Idx_ = std::size_t>
@@ -138,14 +142,14 @@ namespace jams {
         }
 
         // construct using dimensions as arguments
-        template<typename... Args, typename = std::enable_if_t<(std::conjunction_v<std::is_integral<Args>...> && (sizeof...(Args) == Dim_))>>
+        template<typename... Args, std::enable_if_t<detail::valid_extent_args_v<Dim_, Args...>, int> = 0>
         inline explicit MultiArray(const Args... args)
             : MultiArray(size_container_type{detail::checked_integral_cast<size_type>(args)...}) {
           static_assert(sizeof...(args) == Dim_,
                         "number of MultiArray indicies in constructor does not match the MultiArray dimension");
         }
 
-        template<typename... Args, typename = std::enable_if_t<(std::conjunction_v<std::is_integral<Args>...> && (sizeof...(Args) == Dim_))>>
+        template<typename... Args, std::enable_if_t<detail::valid_extent_args_v<Dim_, Args...>, int> = 0>
         inline explicit MultiArray(const value_type& x, const Args... args)
             : MultiArray(x, size_container_type{detail::checked_integral_cast<size_type>(args)...}) {
           static_assert(sizeof...(args) == Dim_,
