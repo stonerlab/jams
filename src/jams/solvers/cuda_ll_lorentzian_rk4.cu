@@ -246,6 +246,8 @@ void CUDALLLorentzianRK4Solver::run()
       step_size_, globals::num_spins3);
   DEBUG_CHECK_CUDA_ASYNC_STATUS
 
+  record_spin_barrier_event();
+
   iteration_++;
   time_ = iteration_ * step_size_;
 }
