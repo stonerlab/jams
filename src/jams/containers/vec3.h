@@ -185,25 +185,25 @@ inline Vec<T1,3> fma(const T1& a, const Vec<T1,3>& b, const Vec<T1,3>& c) {
 
 /// Returns the dot product a . b
 template <typename T1, typename T2>
-inline constexpr auto dot(const Vec<T1,3>& a, const Vec<T2,3>& b) -> decltype(a[0] * b[0]) {
+inline constexpr auto dot(const Vec<T1,3>& a, const Vec<T2,3>& b) -> decltype(a[0] * b[0] + a[1] * b[1] + a[2] * b[2]) {
   return a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
 }
 
 /// Returns the dot product a . b
 template <typename T1, typename T2>
-inline constexpr auto dot(const Vec<T1,3>& a, const T2 b[3]) -> decltype(a[0] * b[0]) {
+inline constexpr auto dot(const Vec<T1,3>& a, const T2 b[3]) -> decltype(a[0] * b[0] + a[1] * b[1] + a[2] * b[2]) {
   return a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
 }
 
 /// Returns the dot product a . b
 template <typename T1, typename T2>
-inline constexpr auto dot(const T1 a[3], const Vec<T2,3>& b) -> decltype(a[0] * b[0]) {
+inline constexpr auto dot(const T1 a[3], const Vec<T2,3>& b) -> decltype(a[0] * b[0] + a[1] * b[1] + a[2] * b[2]) {
   return a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
 }
 
 /// Returns the dot product a . b
 template <typename T1, typename T2>
-inline constexpr auto dot(const T1 a[3], const T2 b[3]) -> decltype(a[0] * b[0]) {
+inline constexpr auto dot(const T1 a[3], const T2 b[3]) -> decltype(a[0] * b[0] + a[1] * b[1] + a[2] * b[2]) {
   return a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
 }
 

@@ -15,12 +15,21 @@ namespace {
 struct CrossOperand {};
 struct CrossProductTerm {};
 struct CrossComponent {};
+struct DotSum {};
 
 constexpr CrossProductTerm operator*(CrossOperand, CrossOperand) {
   return {};
 }
 
 constexpr CrossComponent operator-(CrossProductTerm, CrossProductTerm) {
+  return {};
+}
+
+constexpr DotSum operator+(CrossProductTerm, CrossProductTerm) {
+  return {};
+}
+
+constexpr DotSum operator+(DotSum, CrossProductTerm) {
   return {};
 }
 
@@ -101,6 +110,12 @@ TEST(Vec3Test, CrossReturnTypeUsesFullComponentExpression) {
   static_assert(std::is_same_v<
       decltype(jams::cross(std::declval<Vec<CrossOperand, 3>>(), std::declval<Vec<CrossOperand, 3>>())),
       Vec<CrossComponent, 3>>);
+}
+
+TEST(Vec3Test, DotReturnTypeUsesFullSumExpression) {
+  static_assert(std::is_same_v<
+      decltype(jams::dot(std::declval<Vec<CrossOperand, 3>>(), std::declval<Vec<CrossOperand, 3>>())),
+      DotSum>);
 }
 
 #endif // JAMS_TEST_VEC3_H
