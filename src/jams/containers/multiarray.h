@@ -24,17 +24,6 @@ namespace jams {
         template <std::size_t... Is>
         struct build_indices<0, Is...>: indices<Is...> {};
 
-        template<typename T, typename U, size_t i, size_t... Is>
-        constexpr std::array<T, i> array_cast_helper(const std::array<U, i> &a, indices<Is...>) {
-          return {{static_cast<T>(std::get<Is>(a))...}};
-        }
-
-        template<typename T, typename U, size_t i>
-        constexpr auto array_cast(const std::array<U, i> &a) -> std::array<T, i> {
-          // tag dispatch to helper with array indices
-          return array_cast_helper<T>(a, build_indices<i>());
-        }
-
         template<typename To, typename From>
         constexpr To checked_integral_cast(From value) {
           static_assert(std::is_integral_v<To>, "target type must be integral");
@@ -84,23 +73,6 @@ namespace jams {
           return result;
         }
 
-        // partial specialization of templates is not possible, so we use structs
-
-        // recursive method to multiply the last N elements of array
-        template<typename T, std::size_t N, std::size_t I>
-        struct vec {
-            static constexpr T last_n_product(const std::array<T, N> &v) {
-              return std::get<N - I>(v) * vec<T, N, I - 1>::last_n_product(v);
-            }
-        };
-
-        template<typename T, std::size_t N>
-        struct vec<T, N, 0> {
-            static constexpr T last_n_product(const std::array<T, N> &v) {
-              return 1;
-            }
-        };
-
         template<typename Size, std::size_t N, std::size_t... Is>
         constexpr std::size_t row_major_index_array_impl(const std::array<Size, N> &dims,
                                                          const std::array<Size, N> &idx,
@@ -115,16 +87,6 @@ namespace jams {
         constexpr std::size_t row_major_index(const std::array<Size, N> &dims,
                                               const std::array<Size, N> &idx) {
           return row_major_index_array_impl(dims, idx, build_indices<N>());
-        }
-
-        template<typename T, typename... Args>
-        constexpr T product(T v) {
-          return v;
-        }
-
-        template<typename T, typename... Args>
-        constexpr T product(T first, Args... args) {
-          return first * product(args...);
         }
     }
 

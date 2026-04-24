@@ -33,39 +33,6 @@ bool multiarray_cuda_device_available() {
 
 // fixture class
 template <typename T>
-class MultiArrayDetailsTest : public testing::Test {
-
-};
-
-typedef testing::Types<int, unsigned, long, unsigned long> IntTypes;
-TYPED_TEST_SUITE(MultiArrayDetailsTest, IntTypes);
-
-
-// test array cast
-TYPED_TEST(MultiArrayDetailsTest, array_cast) {
-  using namespace jams;
-  using namespace testing;
-  auto x = detail::array_cast<TypeParam>(std::array<int,3>{1,2,3});
-  ASSERT_THAT(x, ElementsAre(1,2,3));
-}
-
-// test product
-TYPED_TEST(MultiArrayDetailsTest, product) {
-  using namespace jams;
-
-  ASSERT_EQ(detail::product(5), 5);
-  ASSERT_EQ(detail::product(5,4,3,2,1), 120);
-  auto x = detail::vec<TypeParam,1,1>::last_n_product(std::array<TypeParam, 1>{5});
-  ASSERT_EQ(x, 5);
-  auto y = detail::vec<TypeParam,5,5>::last_n_product(std::array<TypeParam, 5>{5, 4, 3, 2, 1});
-  ASSERT_EQ(y, 120);
-}
-
-// test row major
-
-
-// fixture class
-template <typename T>
 class MultiArrayTest : public testing::Test {
 
 };
