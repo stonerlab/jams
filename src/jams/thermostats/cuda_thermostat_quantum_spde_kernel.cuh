@@ -93,7 +93,7 @@ __global__ inline void cuda_thermostat_quantum_spde_zero_point_kernel
 
     jams::Real e[4];
     for (auto i = 0; i < 4; ++i) {
-      e[i] = eta[4*x + i] * sqrtf(jams::Real(2.0) / (lambda[i] * h));
+      e[i] = eta[4*x + i] * sqrt(jams::Real(2.0) / (lambda[i] * h));
     }
 
     for (auto i = 0; i < 4; ++i) {
@@ -135,7 +135,7 @@ __global__ void cuda_thermostat_quantum_spde_no_zero_kernel
 
     jams::Real gamma_omega[2] = {jams::Real(5.0142), jams::Real(2.7189)};
 
-    e[0] = eta[x] * sqrtf(jams::Real(2.0) * gamma_omega[0] / h);
+    e[0] = eta[x] * sqrt(jams::Real(2.0) * gamma_omega[0] / h);
     e[1] = jams::Real(0.0);
 
     z[0] = zeta5[x];
@@ -153,7 +153,7 @@ __global__ void cuda_thermostat_quantum_spde_no_zero_kernel
     gamma_omega[0] = jams::Real(3.2974);
     gamma_omega[1] = jams::Real(1.2223);
 
-    e[0] = eta[N + x] * sqrtf(jams::Real(2.0) * gamma_omega[0] / h);
+    e[0] = eta[N + x] * sqrt(jams::Real(2.0) * gamma_omega[0] / h);
     e[1] = jams::Real(0.0);
 
     z[0] = zeta6[x];
