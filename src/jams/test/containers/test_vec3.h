@@ -8,6 +8,22 @@
 
 #include "jams/containers/vec3.h"
 
+namespace {
+
+struct CrossOperand {};
+struct CrossProductTerm {};
+struct CrossComponent {};
+
+constexpr CrossProductTerm operator*(CrossOperand, CrossOperand) {
+  return {};
+}
+
+constexpr CrossComponent operator-(CrossProductTerm, CrossProductTerm) {
+  return {};
+}
+
+} // namespace
+
 TEST(Vec3Test, AngleUsesBothVectorNorms) {
   const Vec3 a{2.0, 0.0, 0.0};
   const Vec3 b{2.0, 2.0, 0.0};
@@ -45,6 +61,12 @@ TEST(Vec3Test, NormSquaredPreservesPromotedArithmeticType) {
   const Vec<std::int8_t, 3> a{100, 0, 0};
 
   EXPECT_EQ(jams::norm_squared(a), 10000);
+}
+
+TEST(Vec3Test, CrossReturnTypeUsesFullComponentExpression) {
+  static_assert(std::is_same_v<
+      decltype(jams::cross(std::declval<Vec<CrossOperand, 3>>(), std::declval<Vec<CrossOperand, 3>>())),
+      Vec<CrossComponent, 3>>);
 }
 
 #endif // JAMS_TEST_VEC3_H

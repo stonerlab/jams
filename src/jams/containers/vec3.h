@@ -233,7 +233,7 @@ inline constexpr auto absolute(const Vec<T1,3>& a) -> Vec<decltype(std::abs(a[0]
 
 /// Returns a Vec from the cross product a x b.
 template <typename T1, typename T2>
-inline constexpr auto cross(const Vec<T1,3>& a, const Vec<T2,3>& b) -> Vec<decltype(a[0] * b[0]), 3> {
+inline constexpr auto cross(const Vec<T1,3>& a, const Vec<T2,3>& b) -> Vec<decltype(a[1]*b[2] - a[2]*b[1]), 3> {
   return {a[1]*b[2] - a[2]*b[1],
           a[2]*b[0] - a[0]*b[2],
           a[0]*b[1] - a[1]*b[0]};
