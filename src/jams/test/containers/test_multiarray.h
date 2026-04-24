@@ -87,6 +87,9 @@ TEST(MultiArrayFinalApiTest, ConstAccessorsAreLogicallyConstAndMaySynchronize) {
   static_assert(std::is_same<decltype(std::declval<const Array&>().data()), const int*>::value, "");
   static_assert(std::is_same<decltype(std::declval<Array&>().host_data()), int*>::value, "");
   static_assert(std::is_same<decltype(std::declval<const Array&>().host_data()), const int*>::value, "");
+  static_assert(std::is_same<decltype(std::declval<Array&>().host_view().data()), const int*>::value, "");
+  static_assert(std::is_same<decltype(std::declval<const Array&>().host_view().data()), const int*>::value, "");
+  static_assert(std::is_same<decltype(std::declval<Array&>().mutable_host_view().data()), int*>::value, "");
   static_assert(std::is_same<decltype(std::declval<Array&>().device_data()), const int*>::value, "");
   static_assert(std::is_same<decltype(std::declval<const Array&>().device_data()), const int*>::value, "");
   static_assert(std::is_same<decltype(std::declval<Array&>().mutable_device_data()), int*>::value, "");
@@ -108,6 +111,9 @@ TEST(MultiArrayFinalApiTest, ConstAccessorsAreLogicallyConstAndMaySynchronize) {
   static_assert(!noexcept(std::declval<const Array&>().data()), "");
   static_assert(!noexcept(std::declval<Array&>().host_data()), "");
   static_assert(!noexcept(std::declval<const Array&>().host_data()), "");
+  static_assert(!noexcept(std::declval<Array&>().host_view()), "");
+  static_assert(!noexcept(std::declval<const Array&>().host_view()), "");
+  static_assert(!noexcept(std::declval<Array&>().mutable_host_view()), "");
   static_assert(!noexcept(std::declval<Array&>().device_data()), "");
   static_assert(!noexcept(std::declval<const Array&>().device_data()), "");
   static_assert(!noexcept(std::declval<Array&>().mutable_device_data()), "");
@@ -210,6 +216,46 @@ TEST(MultiArrayFinalApiTest, IndexingSupportsCustomSignedIndexType) {
   EXPECT_EQ(values(0, 0), 1);
   EXPECT_EQ(values(1, 2), 6);
   EXPECT_EQ(values(std::array<int, 2>{1, 2}), 6);
+}
+
+TEST(MultiArrayFinalApiTest, HostViewsProvideReadOnlyAndMutableAccess) {
+  using namespace jams;
+  using testing::ElementsAre;
+
+  MultiArray<int, 2> values(2, 3);
+  auto writable = values.mutable_host_view();
+  EXPECT_EQ(writable.size(), 6u);
+  EXPECT_EQ(writable.elements(), 6u);
+  EXPECT_FALSE(writable.empty());
+  EXPECT_EQ(writable.extent(0), 2u);
+  EXPECT_EQ(writable.extent(1), 3u);
+  EXPECT_EQ(writable.shape(), (std::array<MultiArray<int, 2>::size_type, 2>{2, 3}));
+  EXPECT_EQ(writable.stride(0), 3u);
+  EXPECT_EQ(writable.stride(1), 1u);
+
+  int n = 0;
+  for (std::size_t i = 0; i < writable.extent(0); ++i) {
+    int* row = writable.row_data(i);
+    for (std::size_t j = 0; j < writable.extent(1); ++j) {
+      row[j] = ++n;
+    }
+  }
+  writable(1, 2) = 9;
+  writable(std::array<MultiArray<int, 2>::size_type, 2>{0, 1}) = 8;
+
+  const auto readable_from_mutable = values.host_view();
+  static_assert(std::is_same<decltype(readable_from_mutable.data()), const int*>::value, "");
+  EXPECT_EQ(readable_from_mutable(0, 0), 1);
+  EXPECT_EQ(readable_from_mutable(0, 1), 8);
+  EXPECT_EQ(readable_from_mutable(1, 2), 9);
+  EXPECT_THAT(std::vector<int>(readable_from_mutable.data(),
+                               readable_from_mutable.data() + readable_from_mutable.size()),
+              ElementsAre(1, 8, 3, 4, 5, 9));
+
+  const MultiArray<int, 2>& const_values = values;
+  const auto readable = const_values.host_view();
+  static_assert(std::is_same<decltype(readable.row_data(0)), const int*>::value, "");
+  EXPECT_EQ(readable.row_data(1)[2], 9);
 }
 
 TEST(MultiArrayFinalApiTest, OneDimensionalInputIteratorConstructionConsumesSinglePassRangeOnce) {

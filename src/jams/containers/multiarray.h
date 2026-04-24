@@ -97,7 +97,131 @@ namespace jams {
         constexpr std::array<Size, Dim> make_size_container(const std::array<Integral, Dim>& values) {
           return checked_array_cast<Size>(values);
         }
+
+        template<typename Size, std::size_t Dim>
+        constexpr std::array<std::size_t, Dim> row_major_strides(const std::array<Size, Dim>& shape) noexcept {
+          std::array<std::size_t, Dim> strides{};
+          std::size_t stride = 1;
+          for (std::size_t i = Dim; i > 0; --i) {
+            strides[i - 1] = stride;
+            stride *= static_cast<std::size_t>(shape[i - 1]);
+          }
+          return strides;
+        }
+
+        template<typename Size, std::size_t Dim, std::size_t... Is>
+        constexpr std::size_t row_major_index_from_strides_impl(const std::array<std::size_t, Dim>& strides,
+                                                                const std::array<Size, Dim>& idx,
+                                                                std::index_sequence<Is...>) noexcept {
+          std::size_t offset = 0;
+          ((offset += strides[Is] * static_cast<std::size_t>(idx[Is])), ...);
+          return offset;
+        }
+
+        template<typename Size, std::size_t Dim>
+        constexpr std::size_t row_major_index_from_strides(const std::array<std::size_t, Dim>& strides,
+                                                           const std::array<Size, Dim>& idx) noexcept {
+          return row_major_index_from_strides_impl(strides, idx, std::make_index_sequence<Dim>{});
+        }
     }
+
+    template<class Tp_, std::size_t Dim_, class Idx_ = std::size_t>
+    class MultiArrayHostView {
+    public:
+        using value_type = std::remove_const_t<Tp_>;
+        using size_type = Idx_;
+        using dim_type = std::size_t;
+        using size_container_type = std::array<size_type, Dim_>;
+        using stride_container_type = std::array<std::size_t, Dim_>;
+        using pointer = Tp_*;
+        using reference = Tp_&;
+
+        static_assert(Dim_ > 0, "MultiArrayHostView dimension must be greater than zero");
+        static_assert(std::is_integral_v<Idx_>, "MultiArrayHostView index type must be integral");
+
+        constexpr MultiArrayHostView() noexcept = default;
+
+        constexpr MultiArrayHostView(pointer data, size_container_type shape, size_type elements) noexcept
+            : data_(data),
+              shape_(shape),
+              strides_(detail::row_major_strides(shape)),
+              elements_(elements) {}
+
+        [[nodiscard]] constexpr pointer data() const noexcept {
+          return data_;
+        }
+
+        [[nodiscard]] constexpr size_type size() const noexcept {
+          return elements_;
+        }
+
+        [[nodiscard]] constexpr size_type elements() const noexcept {
+          return elements_;
+        }
+
+        [[nodiscard]] constexpr bool empty() const noexcept {
+          return elements_ == 0;
+        }
+
+        [[nodiscard]] constexpr size_type extent(const dim_type n) const noexcept {
+          assert(n < Dim_);
+          return shape_[n];
+        }
+
+        [[nodiscard]] constexpr const size_container_type& shape() const noexcept {
+          return shape_;
+        }
+
+        [[nodiscard]] constexpr std::size_t stride(const dim_type n) const noexcept {
+          assert(n < Dim_);
+          return strides_[n];
+        }
+
+        template<typename... Args>
+        [[nodiscard]] constexpr reference operator()(const Args&... args) const noexcept {
+          static_assert(sizeof...(args) == Dim_,
+                        "number of MultiArrayHostView indicies does not match the dimension");
+          const size_container_type indices{static_cast<size_type>(args)...};
+          assert(indices_in_bounds(indices));
+          return data_[detail::row_major_index_from_strides(strides_, indices)];
+        }
+
+        [[nodiscard]] constexpr reference operator()(const size_container_type& indices) const noexcept {
+          assert(indices_in_bounds(indices));
+          return data_[detail::row_major_index_from_strides(strides_, indices)];
+        }
+
+        [[nodiscard]] constexpr pointer row_data(const size_type n) const noexcept {
+          static_assert(Dim_ >= 1, "row_data requires at least one dimension");
+          assert(index_in_bounds(n, shape_[0]));
+          return data_ + static_cast<std::size_t>(n) * strides_[0];
+        }
+
+    private:
+        [[nodiscard]] static constexpr bool index_in_bounds(const size_type index, const size_type extent) noexcept {
+          using unsigned_size_type = std::make_unsigned_t<size_type>;
+          if constexpr (std::is_signed_v<size_type>) {
+            if (index < 0) {
+              return false;
+            }
+          }
+          return static_cast<unsigned_size_type>(index) < static_cast<unsigned_size_type>(extent);
+        }
+
+        [[nodiscard]] constexpr bool indices_in_bounds(const size_container_type& indices) const noexcept {
+          for (dim_type dim = 0; dim < Dim_; ++dim) {
+            if (!index_in_bounds(indices[dim], shape_[dim])) {
+              return false;
+            }
+          }
+          return true;
+        }
+
+        pointer data_ = nullptr;
+        size_container_type shape_ = { {0} };
+        stride_container_type strides_ = { {0} };
+        size_type elements_ = 0;
+    };
 
     template<class Tp_, std::size_t Dim_, class Idx_ = std::size_t>
     class MultiArray {
@@ -116,6 +240,8 @@ namespace jams {
         using const_pointer = const value_type *;
         using iterator = pointer;
         using const_iterator = const_pointer;
+        using host_view_type = MultiArrayHostView<value_type, Dim_, size_type>;
+        using const_host_view_type = MultiArrayHostView<const value_type, Dim_, size_type>;
 
         static_assert(std::is_trivially_copyable_v<Tp_>,
               "MultiArray<T> requires trivially copyable T for device use");
@@ -264,6 +390,18 @@ namespace jams {
 
         inline const_pointer host_data() const {
           return data_.host_data();
+        }
+
+        inline const_host_view_type host_view() {
+          return const_host_view_type(data_.host_data(), size_, data_.size());
+        }
+
+        inline const_host_view_type host_view() const {
+          return const_host_view_type(data_.host_data(), size_, data_.size());
+        }
+
+        inline host_view_type mutable_host_view() {
+          return host_view_type(data_.mutable_host_data(), size_, data_.size());
         }
 
         inline const_pointer device_data() {
