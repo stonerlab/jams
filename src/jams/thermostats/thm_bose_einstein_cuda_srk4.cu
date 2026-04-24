@@ -49,6 +49,18 @@ jams::BoseEinsteinCudaSRK4NoiseGenerator::BoseEinsteinCudaSRK4NoiseGenerator(
 }
 
 jams::BoseEinsteinCudaSRK4NoiseGenerator::~BoseEinsteinCudaSRK4NoiseGenerator() {
+  if (cuda_stream_) {
+    cuda_stream_.synchronize();
+  }
+
+  if (dev_stream5_) {
+    dev_stream5_.synchronize();
+  }
+
+  if (dev_stream6_) {
+    dev_stream6_.synchronize();
+  }
+
   if (prng5_ != nullptr) {
     curandDestroyGenerator(prng5_);
     prng5_ = nullptr;

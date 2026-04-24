@@ -106,6 +106,10 @@ Thermostat::Thermostat(std::unique_ptr<NoiseGenerator> generator,
 
 Thermostat::~Thermostat() {
 #if HAS_CUDA
+  if (cuda_stream_) {
+    cuda_stream_.synchronize();
+  }
+
   if (done_ != nullptr) {
     cudaEventDestroy(done_);
     done_ = nullptr;

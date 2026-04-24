@@ -209,6 +209,14 @@ void CudaGeneralFFTNoiseGenerator::update() {
 }
 
 CudaGeneralFFTNoiseGenerator::~CudaGeneralFFTNoiseGenerator() {
+  if (cuda_stream_) {
+    cuda_stream_.synchronize();
+  }
+
+  if (curand_stream_) {
+    curand_stream_.synchronize();
+  }
+
   if (curand_done_ != nullptr) {
     cudaEventDestroy(curand_done_);
     curand_done_ = nullptr;

@@ -18,6 +18,12 @@ CudaWhiteNoiseGenerator::CudaWhiteNoiseGenerator(const jams::Real& temperature,
   std::cout << "\n  initialising classical-gpu noise generator\n";
 }
 
+CudaWhiteNoiseGenerator::~CudaWhiteNoiseGenerator() {
+  if (cuda_stream_) {
+    cuda_stream_.synchronize();
+  }
+}
+
 void CudaWhiteNoiseGenerator::update() {
   if (this->temperature() == 0) {
     CHECK_CUDA_STATUS(cudaMemsetAsync(

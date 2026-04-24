@@ -14,6 +14,7 @@ class CudaWhiteNoiseGenerator : public NoiseGenerator {
   CudaWhiteNoiseGenerator(const jams::Real& temperature,
                           const jams::Real timestep,
                           int num_vectors);
+  ~CudaWhiteNoiseGenerator() override;
 
   void update() override;
 

@@ -23,6 +23,10 @@ class NoiseGenerator {
 
   virtual ~NoiseGenerator() {
 #if HAS_CUDA
+    if (cuda_stream_) {
+      cuda_stream_.synchronize();
+    }
+
     if (done_ != nullptr) {
       cudaEventDestroy(done_);
       done_ = nullptr;
