@@ -424,7 +424,7 @@ TEST(SyncedMemoryApiTest, CopyConstructionCopiesDeviceOnlySourceThroughDevice) {
   EXPECT_THAT(std::vector<int>(host, host + copy.size()), ElementsAre(31, 32, 33));
 }
 
-TEST(SyncedMemoryApiTest, CopyAssignmentReusesDeviceStorageWhenSizeMatches) {
+TEST(SyncedMemoryApiTest, CopyAssignmentStagesDeviceStorageWhenSizeMatches) {
   using namespace jams;
   using namespace testing;
 
@@ -445,7 +445,7 @@ TEST(SyncedMemoryApiTest, CopyAssignmentReusesDeviceStorageWhenSizeMatches) {
   ASSERT_NE(original_target_device, nullptr);
 
   target = source;
-  EXPECT_EQ(target.mutable_device_data(), original_target_device);
+  EXPECT_NE(target.mutable_device_data(), original_target_device);
   EXPECT_FALSE(target.host_valid());
   EXPECT_TRUE(target.device_valid());
 

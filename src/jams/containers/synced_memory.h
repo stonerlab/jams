@@ -363,14 +363,9 @@ SyncedMemory<T> &SyncedMemory<T>::operator=(const SyncedMemory& rhs) &{
 
 #if HAS_CUDA
     if (rhs.device_valid()) {
-      if (!device_ptr_) {
-        allocate_device_memory(size_);
-      }
-      set_valid(Validity::none);
-      if constexpr (detail::synced_memory_print_memcpy) {
-        std::cout << "INFO(SyncedMemory): cudaMemcpyDeviceToDevice" << std::endl;
-      }
-      SYNCED_MEMORY_CHECK_CUDA_STATUS(cudaMemcpy(device_ptr_, rhs.device_ptr_, bytes(size_), cudaMemcpyDeviceToDevice));
+      SyncedMemory tmp(rhs);
+      free_device_memory();
+      device_ptr_ = std::exchange(tmp.device_ptr_, nullptr);
       set_valid(Validity::device);
       return *this;
     }
