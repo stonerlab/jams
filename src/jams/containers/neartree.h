@@ -5,6 +5,7 @@
 #include <limits>
 #include <memory>
 #include <algorithm>
+#include <optional>
 #include <random>
 #include <utility>
 #include <vector>
@@ -49,7 +50,7 @@ namespace jams {
         NearTree& operator=(const NearTree&) = delete;
 
         NearTree(NearTree&& other) noexcept
-        : left(nullptr), right(nullptr), left_branch(nullptr), right_branch(nullptr),
+        : left(), right(), left_branch(nullptr), right_branch(nullptr),
           max_distance_left(empty_distance()), max_distance_right(empty_distance()), size_(0),
           owned_norm_functor_(nullptr), norm_functor(nullptr) {
           swap(*this, other);
@@ -91,8 +92,8 @@ namespace jams {
     private:
         explicit NearTree(const FuncType* func) noexcept;
 
-        T *left = nullptr;  // left object stored in this node
-        T *right = nullptr;  // right object stored in this node
+        std::optional<T> left;  // left object stored in this node
+        std::optional<T> right;  // right object stored in this node
 
         NearTree *left_branch = nullptr;  // tree descending from the left
         NearTree *right_branch = nullptr;  // tree descending from the right
@@ -137,6 +138,8 @@ namespace jams {
 
         template<typename U>
         void insert_impl(U&& t);
+
+        std::size_t descendant_memory() const noexcept;
     };
 
     //
@@ -179,20 +182,7 @@ namespace jams {
     template<typename T, typename FuncType, typename DistType>
     NearTree<T, FuncType, DistType>::~NearTree() {
       delete left_branch;
-      left_branch = nullptr;
-
       delete right_branch;
-      right_branch = nullptr;
-
-      delete left;
-      left = nullptr;
-
-      delete right;
-      right = nullptr;
-
-      max_distance_left = empty_distance();
-      max_distance_right = empty_distance();
-      size_ = 0;
     }
 
     template<typename T, typename FuncType, typename DistType>
@@ -224,18 +214,19 @@ namespace jams {
 
     template<typename T, typename FuncType, typename DistType>
     std::size_t NearTree<T, FuncType, DistType>::memory() const noexcept {
+      return (left.has_value() ? sizeof(T) : 0)
+             + (right.has_value() ? sizeof(T) : 0)
+             + descendant_memory();
+    }
+
+    template<typename T, typename FuncType, typename DistType>
+    std::size_t NearTree<T, FuncType, DistType>::descendant_memory() const noexcept {
       std::size_t bytes = 0;
-      if (left != nullptr) {
-        bytes += sizeof(T);
-      }
-      if (right != nullptr) {
-        bytes += sizeof(T);
-      }
       if (left_branch != nullptr) {
-        bytes += sizeof(NearTree) + left_branch->memory();
+        bytes += sizeof(NearTree) + left_branch->descendant_memory();
       }
       if (right_branch != nullptr) {
-        bytes += sizeof(NearTree) + right_branch->memory();
+        bytes += sizeof(NearTree) + right_branch->descendant_memory();
       }
       return bytes;
     }
@@ -272,13 +263,13 @@ namespace jams {
       // reduce the number of calls to operator norm_functor as much
       // as possible; norm_functor might use square roots
       const T& value = t;
-      DistType tmp_distance_right = (right != nullptr) ? distance(value, *right) : DistType(0);
-      DistType tmp_distance_left = (left != nullptr) ? distance(value, *left) : DistType(0);
+      DistType tmp_distance_right = right.has_value() ? distance(value, *right) : DistType(0);
+      DistType tmp_distance_left = left.has_value() ? distance(value, *left) : DistType(0);
 
-      if (left == nullptr) {
-        left = new T(std::forward<U>(t));
-      } else if (right == nullptr) {
-        right = new T(std::forward<U>(t));
+      if (!left.has_value()) {
+        left.emplace(std::forward<U>(t));
+      } else if (!right.has_value()) {
+        right.emplace(std::forward<U>(t));
       } else if (tmp_distance_left > tmp_distance_right) {
         if (right_branch == nullptr) {
           right_branch = new NearTree(norm_functor);
@@ -353,16 +344,16 @@ namespace jams {
       // first test each of the left and right positions to see
       // if one holds a point nearer than the nearest so far.
 
-      const auto norm_left = left != nullptr ? distance(origin, *left) : DistType(0);
-      const auto norm_right = right != nullptr ? distance(origin, *right) : DistType(0);
+      const auto norm_left = left.has_value() ? distance(origin, *left) : DistType(0);
+      const auto norm_right = right.has_value() ? distance(origin, *right) : DistType(0);
 
-      if ((left != nullptr) &&
+      if (left.has_value() &&
           ((tmp_radius = norm_left) <= radius)) {
         radius = tmp_radius;
         closest = *left;
         is_nearer = true;
       }
-      if ((right != nullptr) &&
+      if (right.has_value() &&
           ((tmp_radius = norm_right) <= radius)) {
         radius = tmp_radius;
         closest = *right;
@@ -391,13 +382,13 @@ namespace jams {
       // first test each of the left and right positions to see
       // if one holds a point nearer than the search radius.
 
-      const auto norm_left = left != nullptr ? distance(origin, *left) : DistType(0);
-      const auto norm_right = right != nullptr ? distance(origin, *right) : DistType(0);
+      const auto norm_left = left.has_value() ? distance(origin, *left) : DistType(0);
+      const auto norm_right = right.has_value() ? distance(origin, *right) : DistType(0);
 
-      if ((left != nullptr) && less_equal(norm_left, radius, epsilon)) {
+      if (left.has_value() && less_equal(norm_left, radius, epsilon)) {
         closest.push_back(*left); // It's a keeper
       }
-      if ((right != nullptr) && less_equal(norm_right, radius, epsilon)) {
+      if (right.has_value() && less_equal(norm_right, radius, epsilon)) {
         closest.push_back(*right); // It's a keeper
       }
       //
@@ -421,15 +412,15 @@ namespace jams {
       // first test each of the left and right positions to see
       // if one holds a point nearer than the search radius.
 
-      const auto norm_left = left != nullptr ? distance(origin, *left) : DistType(0);
-      const auto norm_right = right != nullptr ? distance(origin, *right) : DistType(0);
+      const auto norm_left = left.has_value() ? distance(origin, *left) : DistType(0);
+      const auto norm_right = right.has_value() ? distance(origin, *right) : DistType(0);
 
-      if ((left != nullptr)
+      if (left.has_value()
       && !definately_greater_than(norm_left, outer_radius, epsilon)
         && definately_greater_than(norm_left, inner_radius, epsilon)) {
         closest.push_back(*left); // It's a keeper
       }
-      if ((right != nullptr)
+      if (right.has_value()
           && !definately_greater_than(norm_right, outer_radius, epsilon)
           && definately_greater_than(norm_right, inner_radius, epsilon)) {
         closest.push_back(*right); // It's a keeper
@@ -457,13 +448,13 @@ namespace jams {
       // first test each of the left and right positions to see
       // if one holds a point nearer than the search radius.
 
-      const auto norm_left = left != nullptr ? distance(origin, *left) : DistType(0);
-      const auto norm_right = right != nullptr ? distance(origin, *right) : DistType(0);
+      const auto norm_left = left.has_value() ? distance(origin, *left) : DistType(0);
+      const auto norm_right = right.has_value() ? distance(origin, *right) : DistType(0);
 
-      if ((left != nullptr) && less_equal(norm_left, radius, epsilon)) {
+      if (left.has_value() && less_equal(norm_left, radius, epsilon)) {
         num_neighbours++;
       }
-      if ((right != nullptr) && less_equal(norm_right, radius, epsilon)) {
+      if (right.has_value() && less_equal(norm_right, radius, epsilon)) {
         num_neighbours++;
       }
       //
