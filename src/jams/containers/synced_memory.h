@@ -8,28 +8,65 @@
 ///   jams::SyncedMemory<T>: allocator for host/cuda gpu synchronised memory
 ///
 /// @description: This component provides a concrete allocator,
-/// 'jams::SyncedMemory<T>' which lazily allocates memory on the host and CUDA
-/// GPU. Accessing host or device pointers will allocate and synchronise the
-/// memory spaces performing any needed memory transfers.
+/// 'jams::SyncedMemory<T>', for trivially copyable values stored in lazily
+/// allocated host and CUDA device buffers. Accessing either memory space
+/// allocates that buffer on demand and synchronises from the other buffer when
+/// the other buffer contains the current logical value.
 ///
-/// The lazy allocation means that the memory is not allocated until it is
-/// accessed for the first time. Therefore if the memory is only ever accessed
-/// by the host, no GPU memory is allocated. Moreover, the host memory
-/// allocation checks if there is a CUDA device available. If a CUDA device
-/// exists then the host memory is allocated with CudaMallocHost as pinned
-/// memory for improved performance for data transfers between the GPU and host.
-/// If there is no CUDA device we allocated aligned memory.
+/// The class tracks currentness separately for host and device storage. A
+/// valid buffer contains the current logical value; an allocated buffer may
+/// still be stale. Const read accessors are logically const:
+///   - 'host_data() const' returns a const host pointer, allocating/copying if
+///     needed, and leaves the logical value unchanged.
+///   - 'device_data() const' does the same for device storage.
+/// Mutable accessors mark the accessed side as the only current side:
+///   - 'mutable_host_data()' returns a host pointer and invalidates device
+///     currentness.
+///   - 'mutable_device_data()' returns a device pointer and invalidates host
+///     currentness.
+///
+/// The lazy allocation means that storage is not allocated until first use. If
+/// a buffer is only ever accessed on the host, no device memory is allocated.
+/// When CUDA is enabled and an active CUDA runtime context is available, host
+/// storage is allocated with 'cudaMallocHost' as pinned memory to improve
+/// transfer performance. Otherwise host storage is allocated with aligned host
+/// memory.
+///
+/// The 'release_stale_host()' and 'release_stale_device()' manipulators free
+/// stale or redundant storage without discarding the only current copy of the
+/// logical value. 'resize()' and 'clear()' are destructive operations and
+/// release all existing storage.
+///
+/// 'zero()' assigns the logical value 'T{}' to every element. Arithmetic and
+/// 'std::complex' values use byte-zero fast paths ('memset'/'cudaMemset').
+/// Other trivially copyable values are value-initialised on the host and copied
+/// to the device when a device buffer exists.
 ///
 /// NOTE: We previously checked if there is an active CUDA context (i.e. there
-/// could be a device present but if there are no CUDA calls made then the
-/// context is never initialised). However this causes requires the binary to
-/// be linked to libcuda.so (rather than libcudart.so) which is part of the
-/// driver, not part of the runtime API. Binaries compiled against libcuda.so
-/// therefore don't work on machines without the CUDA driver installed even
-/// if they do have the CUDA runtime installed.
+/// could be a device present but, if no CUDA calls have been made, the context
+/// is not initialised). Checking for a driver context directly requires linking
+/// against libcuda.so rather than libcudart.so. libcuda.so is part of the
+/// driver, not the runtime API, so binaries linked against it do not work on
+/// machines without the CUDA driver installed even if they have the CUDA
+/// runtime installed.
 ///
 /// Usage
 /// -----
+///   jams::SyncedMemory<double> values(1024);
+///   double* host = values.mutable_host_data();
+///   std::fill(host, host + values.size(), 1.0);
+///
+///   // Allocates device storage and copies the current host values.
+///   const double* device = values.device_data();
+///
+///   // Device writes make the host copy stale until the next host_data() read.
+///   double* mutable_device = values.mutable_device_data();
+///   (void)device;
+///   (void)mutable_device;
+///
+///   // Frees stale host storage only when the device still has the current
+///   // value.
+///   values.release_stale_host();
 
 #if HAS_CUDA
 #include <cuda_runtime_api.h>
