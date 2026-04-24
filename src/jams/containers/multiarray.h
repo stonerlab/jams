@@ -117,11 +117,11 @@ namespace jams {
         using iterator = pointer;
         using const_iterator = const_pointer;
 
-        static_assert(std::is_trivially_copyable<Tp_>::value,
+        static_assert(std::is_trivially_copyable_v<Tp_>,
               "MultiArray<T> requires trivially copyable T for device use");
         static_assert(Dim_ > 0,
               "MultiArray dimension must be greater than zero");
-        static_assert(std::is_integral<Idx_>::value,
+        static_assert(std::is_integral_v<Idx_>,
               "MultiArray index type must be integral");
         static_assert(!std::is_same_v<std::remove_cv_t<Idx_>, bool>,
               "MultiArray index type must not be bool");
