@@ -59,6 +59,18 @@ TEST(VecTest, SupportsStdArrayCompatibilityAndIteration) {
   EXPECT_EQ(std::accumulate(from_array.begin(), from_array.end(), 0.0), 6.0);
 }
 
+TEST(VecTest, SupportsGenericDimensionArithmetic) {
+  const Vec<int, 4> a{1, 2, 3, 4};
+  const Vec<int, 4> b{5, 6, 7, 8};
+
+  EXPECT_EQ(a + b, (Vec<int, 4>{6, 8, 10, 12}));
+  EXPECT_EQ(2 * a, (Vec<int, 4>{2, 4, 6, 8}));
+  EXPECT_EQ(jams::hadamard_product(a, b), (Vec<int, 4>{5, 12, 21, 32}));
+  EXPECT_EQ(jams::dot(a, b), 70);
+  EXPECT_EQ(jams::sum(a), 10);
+  EXPECT_EQ(jams::product(a), 24);
+}
+
 TEST(Vec3Test, AngleUsesBothVectorNorms) {
   const Vec3 a{2.0, 0.0, 0.0};
   const Vec3 b{2.0, 2.0, 0.0};

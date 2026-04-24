@@ -21,135 +21,6 @@
 
 namespace jams {
 
-template <typename To, typename From, std::size_t N>
-constexpr Vec<To, N>
-array_cast(const Vec<From, N>& in)
-{
-  if constexpr (std::is_same<To, From>::value) {
-    return in;
-  } else {
-    static_assert(std::is_arithmetic<To>::value,
-                  "array_cast requires arithmetic To type");
-    static_assert(std::is_arithmetic<From>::value,
-                  "array_cast requires arithmetic From type");
-
-    Vec<To, N> out{};
-    for (std::size_t i = 0; i < N; ++i)
-      out[i] = static_cast<To>(in[i]);
-    return out;
-  }
-}
-
-template <typename To, typename From, std::size_t N>
-constexpr Vec<To, N>
-array_cast(const std::array<From, N>& in)
-{
-  return array_cast<To>(Vec<From, N>{in});
-}
-
-template <typename T>
-inline constexpr Vec<T,3> operator-(const Vec<T,3>& rhs) {
-  return {-rhs[0], -rhs[1], -rhs[2]};
-}
-
-template <typename T1, typename T2>
-inline constexpr auto operator*(const T1& lhs, const Vec<T2,3>& rhs) -> Vec<decltype(lhs * rhs[0]), 3> {
-  return {lhs * rhs[0], lhs * rhs[1], lhs * rhs[2]};
-}
-
-template <typename T1, typename T2>
-inline constexpr auto operator*(const Vec<T1,3>& lhs, const T2& rhs) -> Vec<decltype(lhs[0] * rhs), 3> {
-  return {lhs[0] * rhs, lhs[1] * rhs, lhs[2] * rhs};
-}
-
-template <typename T1, typename T2>
-inline constexpr auto operator/(const Vec<T1,3>& lhs, const T2& rhs) -> Vec<decltype(lhs[0] / rhs), 3> {
-  return {lhs[0] / rhs, lhs[1] / rhs, lhs[2] / rhs};
-}
-
-template <typename T1, typename T2>
-inline constexpr auto operator/(const T1& lhs, const Vec<T2,3>& rhs) -> Vec<decltype(lhs / rhs[0]), 3> {
-  return {lhs / rhs[0], lhs / rhs[1], lhs / rhs[2]};
-}
-
-template <typename T1, typename T2>
-inline constexpr auto operator+(const Vec<T1,3>& lhs, const Vec<T2,3>& rhs) -> Vec<decltype(lhs[0] + rhs[0]), 3> {
-  return {lhs[0] + rhs[0], lhs[1] + rhs[1], lhs[2] + rhs[2]};
-}
-
-template <typename T1, typename T2>
-inline constexpr auto operator-(const Vec<T1,3>& lhs, const Vec<T2,3>& rhs) -> Vec<decltype(lhs[0] - rhs[0]), 3> {
-  return {lhs[0] - rhs[0], lhs[1] - rhs[1], lhs[2] - rhs[2]};
-}
-
-template <typename T1, typename T2>
-inline constexpr Vec<T1,3>& operator+=(Vec<T1,3>& lhs, const T2& rhs) {
-  lhs[0] += rhs;
-  lhs[1] += rhs;
-  lhs[2] += rhs;
-  return lhs;
-}
-
-template <typename T1, typename T2>
-inline constexpr Vec<T1,3>& operator+=(Vec<T1,3>& lhs, const Vec<T2,3>& rhs) {
-  lhs[0] += rhs[0];
-  lhs[1] += rhs[1];
-  lhs[2] += rhs[2];
-  return lhs;
-}
-
-template <typename T1, typename T2>
-inline constexpr Vec<T1,3>& operator-=(Vec<T1,3>& lhs, const T2& rhs) {
-  lhs[0] -= rhs;
-  lhs[1] -= rhs;
-  lhs[2] -= rhs;
-  return lhs;
-}
-
-template <typename T1, typename T2>
-inline constexpr Vec<T1,3>& operator-=(Vec<T1,3>& lhs, const Vec<T2,3>& rhs) {
-  lhs[0] -= rhs[0];
-  lhs[1] -= rhs[1];
-  lhs[2] -= rhs[2];
-  return lhs;
-}
-
-template <typename T1, typename T2>
-inline constexpr Vec<T1,3>& operator*=(Vec<T1,3>& lhs, const T2& rhs) {
-  lhs[0] *= rhs;
-  lhs[1] *= rhs;
-  lhs[2] *= rhs;
-  return lhs;
-}
-
-template <typename T1, typename T2>
-inline constexpr Vec<T1,3>& operator/=(Vec<T1,3>& lhs, const T2& rhs) {
-  lhs[0] /= rhs;
-  lhs[1] /= rhs;
-  lhs[2] /= rhs;
-  return lhs;
-}
-
-/// Returns true if all components of the Vec are exactly equal, false otherwise.
-template <typename T>
-inline constexpr bool equal(const Vec<T,3>& lhs, const Vec<T,3>& rhs) {
-  return (lhs[0] == rhs[0]) && (lhs[1] == rhs[1]) && (lhs[2] == rhs[2]);
-}
-
-template <typename T>
-inline constexpr bool operator==(const Vec<T,3>& lhs, const Vec<T,3>& rhs) {
-  return jams::equal(lhs, rhs);
-}
-
-template <typename T>
-inline constexpr bool operator!=(const Vec<T,3>& lhs, const Vec<T,3>& rhs) {
-  return !jams::equal(lhs, rhs);
-}
-
-template <typename T>
-inline constexpr auto operator%(const Vec<T,3>& lhs, const Vec<T,3>& rhs) -> Vec<decltype(lhs[0] % rhs[0]), 3> {
-  return {lhs[0] % rhs[0], lhs[1] % rhs[1], lhs[2] % rhs[2]};
-}
 /// Returns the fused-multiply-add operation elementwise on the vectors a,b and c.
 /// x_k = (a_k * b_k) + c_k
 template <typename T1>
@@ -163,12 +34,6 @@ inline Vec<T1,3> fma(const Vec<T1,3>& a, const Vec<T1,3>& b, const Vec<T1,3>& c)
 template <typename T1>
 inline Vec<T1,3> fma(const T1& a, const Vec<T1,3>& b, const Vec<T1,3>& c) {
   return {std::fma(a, b[0], c[0]), std::fma(a, b[1], c[1]), std::fma(a, b[2], c[2])};
-}
-
-/// Returns the dot product a . b
-template <typename T1, typename T2>
-inline constexpr auto dot(const Vec<T1,3>& a, const Vec<T2,3>& b) -> decltype(a[0] * b[0] + a[1] * b[1] + a[2] * b[2]) {
-  return a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
 }
 
 /// Returns the dot product a . b
@@ -187,24 +52,6 @@ inline constexpr auto dot(const T1 a[3], const Vec<T2,3>& b) -> decltype(a[0] * 
 template <typename T1, typename T2>
 inline constexpr auto dot(const T1 a[3], const T2 b[3]) -> decltype(a[0] * b[0] + a[1] * b[1] + a[2] * b[2]) {
   return a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
-}
-
-/// Returns the dot product of a and b, which is then squared.
-template <typename T1, typename T2>
-inline constexpr auto dot_squared(const Vec<T1,3>& a, const Vec<T2,3>& b) -> decltype(pow2(dot(a,b))) {
-  return pow2(dot(a,b));
-}
-
-/// Returns the Euclidean norm \sqrt(x^2 + y^2 + z^2) of the vector.
-template <typename T>
-inline constexpr auto norm(const Vec<T,3>& a) -> decltype(std::sqrt(a[0])) {
-  return std::sqrt(dot(a, a));
-}
-
-/// Returns the square of the Euclidean norm (x^2 + y^2 + z^2) of the vector.
-template <typename T>
-inline constexpr auto norm_squared(const Vec<T,3>& a) -> decltype(dot(a, a)) {
-  return dot(a, a);
 }
 
 /// Returns a vector of the absolute values of each component of the argument
@@ -239,13 +86,6 @@ inline constexpr auto scalar_triple_product(const Vec<T1,3>& a, const Vec<T2,3>&
 template <typename T1, typename T2, typename T3>
 inline constexpr auto vector_triple_product(const Vec<T1,3>& a, const Vec<T2,3>& b, const Vec<T3,3>& c) -> Vec<decltype(a[0] * b[0] * c[0]), 3> {
   return cross(a, cross(b, c));
-}
-
-/// Returns a Vec with the element wise multiplication of a and b,
-/// c_k = a_k * b_k
-template <typename T1, typename T2>
-inline constexpr auto hadamard_product(const Vec<T1,3>& a, const Vec<T2,3>& b) -> Vec<decltype(a[0] * b[0]), 3> {
-  return {a[0] * b[0], a[1] * b[1], a[2] * b[2]};
 }
 
 /// Returns the angle in radians between vector a and b
@@ -328,28 +168,6 @@ inline auto unit_vector(const Vec<T, 3> &a, const T& epsilon = std::numeric_limi
   }
 
   return a / length;
-}
-
-/// Returns the sum of the elements in the vector a
-template <typename T>
-inline constexpr auto sum(const Vec<T,3>& a) -> decltype(a[0] + a[1] + a[2]) {
-  return a[0] + a[1] + a[2];
-}
-
-template <typename T>
-inline constexpr auto sum(const std::array<T,3>& a) -> decltype(a[0] + a[1] + a[2]) {
-  return sum(Vec<T, 3>{a});
-}
-
-/// Returns the product of the elements in the vector a
-template <typename T>
-inline constexpr auto product(const Vec<T,3>& a) -> decltype(a[0] * a[1] * a[2]) {
-  return a[0] * a[1] * a[2];
-}
-
-template <typename T>
-inline constexpr auto product(const std::array<T,3>& a) -> decltype(a[0] * a[1] * a[2]) {
-  return product(Vec<T, 3>{a});
 }
 
 /// Returns a complex Vec3 with the conjugate of each component of a,
