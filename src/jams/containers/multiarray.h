@@ -69,6 +69,7 @@ namespace jams {
 
         template<typename T, std::size_t N>
         constexpr std::size_t checked_product(const std::array<T, N>& v) {
+          const auto max_size = static_cast<std::size_t>(std::numeric_limits<T>::max());
           std::size_t result = 1;
           for (const auto value : v) {
             const auto extent = checked_integral_cast<std::size_t>(value);
@@ -76,6 +77,9 @@ namespace jams {
               throw std::overflow_error("MultiArray shape product overflow");
             }
             result *= extent;
+            if (result > max_size) {
+              throw std::overflow_error("MultiArray shape product exceeds size_type");
+            }
           }
           return result;
         }
@@ -144,6 +148,8 @@ namespace jams {
 
         static_assert(std::is_trivially_copyable<Tp_>::value,
               "MultiArray<T> requires trivially copyable T for device use");
+        static_assert(Dim_ > 0,
+              "MultiArray dimension must be greater than zero");
         static_assert(std::is_integral<Idx_>::value,
               "MultiArray index type must be integral");
         static_assert(!std::is_same_v<std::remove_cv_t<Idx_>, bool>,
@@ -200,7 +206,7 @@ namespace jams {
         template<class InputIt, std::enable_if_t<(Dim_ == 1 && detail::is_iterator<InputIt>::value), bool> = true>
         inline MultiArray(InputIt first, InputIt last)
             : data_(first, last) {
-          size_ = {static_cast<size_type>(data_.size())};
+          size_ = {detail::checked_integral_cast<size_type>(data_.size())};
         }
 
         // capacity
@@ -234,7 +240,10 @@ namespace jams {
         }
 
         [[nodiscard]] inline size_type max_size() const {
-          return data_.max_size();
+          const auto max_count = std::min<std::size_t>(
+              data_.max_size(),
+              static_cast<std::size_t>(std::numeric_limits<size_type>::max()));
+          return static_cast<size_type>(max_count);
         }
 
         // operations
@@ -371,9 +380,11 @@ namespace jams {
           return *this;
         }
 
-        inline MultiArray& resize(const std::array<size_type, Dim_> &v) {
-          data_.resize(detail::checked_product(v));
-          size_ = v;
+        template<typename Integral_>
+        inline MultiArray& resize(const std::array<Integral_, Dim_> &v) {
+          const auto new_size = detail::checked_array_cast<size_type>(v);
+          data_.resize(detail::checked_product(new_size));
+          size_ = new_size;
           return *this;
         }
 

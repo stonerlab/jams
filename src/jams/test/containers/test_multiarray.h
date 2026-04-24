@@ -349,14 +349,22 @@ TEST(MultiArrayFinalApiTest, ShapeConstructionAndResizeCheckExtentOverflow) {
 
   EXPECT_THROW((MultiArray<int, 1, int>(-1)), std::length_error);
   EXPECT_THROW((MultiArray<int, 1, unsigned char>(std::array<unsigned, 1>{300u})), std::overflow_error);
+  EXPECT_THROW((MultiArray<int, 2, unsigned char>(20, 20)), std::overflow_error);
   EXPECT_THROW((MultiArray<int, 2>(std::numeric_limits<std::size_t>::max(), std::size_t{2})),
                std::overflow_error);
 
   MultiArray<int, 2> values(2, 3);
+  values.resize(std::array<int, 2>{2, 4});
+  EXPECT_EQ(values.shape(), (std::array<MultiArray<int, 2>::size_type, 2>{2, 4}));
+  EXPECT_EQ(values.size(), 8u);
+
   EXPECT_THROW(values.resize(std::numeric_limits<std::size_t>::max(), std::size_t{2}),
                std::overflow_error);
-  EXPECT_EQ(values.shape(), (std::array<MultiArray<int, 2>::size_type, 2>{2, 3}));
-  EXPECT_EQ(values.size(), 6u);
+  EXPECT_EQ(values.shape(), (std::array<MultiArray<int, 2>::size_type, 2>{2, 4}));
+  EXPECT_EQ(values.size(), 8u);
+
+  const std::vector<int> source(300);
+  EXPECT_THROW((MultiArray<int, 1, unsigned char>(source.begin(), source.end())), std::overflow_error);
 }
 
 TEST(MultiArrayFinalApiTest, FillZeroAndClearUseUniformApi) {
