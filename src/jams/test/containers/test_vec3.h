@@ -125,4 +125,14 @@ TEST(Vec3Test, DotSquaredUsesSquaredDotProductType) {
   EXPECT_EQ(jams::dot_squared(a, a), 10000);
 }
 
+TEST(Vec3Test, SumAndProductPreservePromotedArithmeticType) {
+  const Vec<std::int8_t, 3> sum_values{100, 30, 1};
+  const Vec<std::int8_t, 3> product_values{10, 20, 3};
+
+  static_assert(std::is_same_v<decltype(jams::sum(sum_values)), int>);
+  static_assert(std::is_same_v<decltype(jams::product(product_values)), int>);
+  EXPECT_EQ(jams::sum(sum_values), 131);
+  EXPECT_EQ(jams::product(product_values), 600);
+}
+
 #endif // JAMS_TEST_VEC3_H

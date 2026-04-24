@@ -350,13 +350,13 @@ inline auto unit_vector(const Vec<T, 3> &a, const T& epsilon = std::numeric_limi
 
 /// Returns the sum of the elements in the vector a
 template <typename T>
-inline constexpr T sum(const Vec<T,3>& a) {
+inline constexpr auto sum(const Vec<T,3>& a) -> decltype(a[0] + a[1] + a[2]) {
   return a[0] + a[1] + a[2];
 }
 
 /// Returns the product of the elements in the vector a
 template <typename T>
-inline constexpr T product(const Vec<T,3>& a) {
+inline constexpr auto product(const Vec<T,3>& a) -> decltype(a[0] * a[1] * a[2]) {
   return a[0] * a[1] * a[2];
 }
 
