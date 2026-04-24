@@ -396,7 +396,9 @@ inline constexpr Vec<int,3> to_int(const Vec<T,3>& a) {
 
 /// Returns the largest absolute value in the array
 template <typename T, std::size_t N>
-T absolute_max(const std::array<T,N>& x) {
+auto absolute_max(const std::array<T,N>& x) -> decltype(std::abs(x[0])) {
+  static_assert(N > 0, "absolute_max requires a non-empty array");
+
   return std::abs(*std::max_element(x.begin(), x.end(),
                            [](const T& a, const T& b) {
                                return std::abs(a) < std::abs(b); }));

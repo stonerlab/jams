@@ -4,6 +4,7 @@
 #include "gtest/gtest.h"
 
 #include <cmath>
+#include <complex>
 #include <cstdint>
 #include <type_traits>
 
@@ -48,6 +49,15 @@ TEST(Vec3Test, PolarAngleHandlesZeroVectorAndClampsAxisVectors) {
 TEST(Vec3Test, UnitVectorDefaultEpsilonIsTypeAware) {
   EXPECT_EQ(jams::unit_vector(Vec3{0.0, 0.0, 0.0}), (Vec3{0.0, 0.0, 0.0}));
   EXPECT_EQ(jams::unit_vector(Vec3f{0.0f, 0.0f, 0.0f}), (Vec3f{0.0f, 0.0f, 0.0f}));
+}
+
+TEST(Vec3Test, AbsoluteMaxReturnsAbsoluteValueType) {
+  const std::array<std::complex<double>, 2> values{
+      std::complex<double>{3.0, 4.0},
+      std::complex<double>{1.0, 0.0}};
+
+  static_assert(std::is_same_v<decltype(jams::absolute_max(values)), double>);
+  EXPECT_DOUBLE_EQ(jams::absolute_max(values), 5.0);
 }
 
 TEST(Vec3Test, CompoundAssignmentReturnsMutatedVectorReference) {
