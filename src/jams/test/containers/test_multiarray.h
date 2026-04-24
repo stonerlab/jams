@@ -14,6 +14,21 @@
 
 #include "jams/containers/multiarray.h"
 
+#if HAS_CUDA
+#include <cuda_runtime_api.h>
+#endif
+
+namespace {
+bool multiarray_cuda_device_available() {
+#if HAS_CUDA
+  int device_count = 0;
+  return cudaGetDeviceCount(&device_count) == cudaSuccess && device_count > 0;
+#else
+  return false;
+#endif
+}
+}
+
 // fixture class
 template <typename T>
 class MultiArrayDetailsTest : public testing::Test {
@@ -339,6 +354,10 @@ TEST(MultiArrayFinalApiTest, FillZeroAndClearUseUniformApi) {
 
 TEST(MultiArrayFinalApiTest, ReleaseStaleStorageForwardsToSyncedMemory) {
   using namespace jams;
+
+  if (!multiarray_cuda_device_available()) {
+    GTEST_SKIP() << "CUDA runtime is enabled but no CUDA device is available";
+  }
 
   MultiArray<int, 1> values(3);
   values(0) = 21;

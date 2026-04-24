@@ -187,8 +187,17 @@ namespace jams {
           return data_.size() == 0;
         }
 
-        [[nodiscard]] inline constexpr size_type size(const size_type n) const noexcept {
+        [[nodiscard]] inline constexpr size_type size() const noexcept {
+          return data_.size();
+        }
+
+        [[nodiscard]] inline constexpr size_type extent(const size_type n) const noexcept {
+          assert(n < Dim_);
           return size_[n];
+        }
+
+        [[nodiscard]] inline constexpr size_type size(const size_type n) const noexcept {
+          return extent(n);
         }
 
         [[nodiscard]] inline const size_container_type& shape() const noexcept {
@@ -204,6 +213,10 @@ namespace jams {
         }
 
         [[nodiscard]] inline constexpr dim_type dimension() const noexcept {
+          return rank();
+        }
+
+        [[nodiscard]] inline constexpr dim_type rank() const noexcept {
           return Dim_;
         }
 
@@ -241,19 +254,31 @@ namespace jams {
         }
 
         inline pointer data() {
-          return data_.mutable_host_data();
+          return host_data();
         }
 
         inline const_pointer data() const {
+          return host_data();
+        }
+
+        inline pointer host_data() {
+          return data_.mutable_host_data();
+        }
+
+        inline const_pointer host_data() const {
           return data_.host_data();
         }
 
         inline pointer device_data() {
-          return data_.mutable_device_data();
+          return mutable_device_data();
         }
 
         inline const_pointer device_data() const {
           return data_.device_data();
+        }
+
+        inline pointer mutable_device_data() {
+          return data_.mutable_device_data();
         }
 
         // iterators
@@ -295,6 +320,14 @@ namespace jams {
 
         inline void zero() {
           data_.zero();
+        }
+
+        inline void release_stale_host() noexcept {
+          data_.release_stale_host();
+        }
+
+        inline void release_stale_device() noexcept {
+          data_.release_stale_device();
         }
 
         inline void fill(const value_type &value) {
@@ -401,12 +434,16 @@ namespace jams {
         }
 
         [[nodiscard]] inline constexpr size_type size() const noexcept {
+          return data_.size();
+        }
+
+        [[nodiscard]] inline constexpr size_type extent(const size_type n) const noexcept {
+          assert(n == 0);
           return std::get<0>(size_);
         }
 
         [[nodiscard]] inline constexpr size_type size(const size_type n) const noexcept {
-          static_assert(n == 0, "MultiArray.size(n) is greater than the dimension");
-          return std::get<0>(size_);
+          return extent(n);
         }
 
         [[nodiscard]] inline const size_container_type& shape() const noexcept {
@@ -422,6 +459,10 @@ namespace jams {
         }
 
         [[nodiscard]] inline constexpr dim_type dimension() const noexcept {
+          return rank();
+        }
+
+        [[nodiscard]] inline constexpr dim_type rank() const noexcept {
           return 1;
         }
 
@@ -453,19 +494,31 @@ namespace jams {
         }
 
         inline pointer data() {
-          return data_.mutable_host_data();
+          return host_data();
         }
 
         inline const_pointer data() const {
+          return host_data();
+        }
+
+        inline pointer host_data() {
+          return data_.mutable_host_data();
+        }
+
+        inline const_pointer host_data() const {
           return data_.host_data();
         }
 
         inline pointer device_data() {
-          return data_.mutable_device_data();
+          return mutable_device_data();
         }
 
         inline const_pointer device_data() const {
           return data_.device_data();
+        }
+
+        inline pointer mutable_device_data() {
+          return data_.mutable_device_data();
         }
 
         // iterators
@@ -507,6 +560,14 @@ namespace jams {
 
         inline void zero() {
           data_.zero();
+        }
+
+        inline void release_stale_host() noexcept {
+          data_.release_stale_host();
+        }
+
+        inline void release_stale_device() noexcept {
+          data_.release_stale_device();
         }
 
         inline void fill(const value_type &value) {
