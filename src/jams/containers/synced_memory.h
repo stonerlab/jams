@@ -82,16 +82,16 @@
 }
 
 namespace jams::detail {
-template <typename... >
-using void_t = void;
-
 template <class T, class = void>
 struct is_iterator : std::false_type { };
 
 template <class T>
-struct is_iterator<T, void_t<
+struct is_iterator<T, std::void_t<
                       typename std::iterator_traits<T>::iterator_category
 >> : std::true_type { };
+
+template <class T>
+inline constexpr bool is_iterator_v = is_iterator<T>::value;
 } // namespace jams::detail
 
 namespace jams {
@@ -110,7 +110,7 @@ public:
     using const_pointer = const value_type *;
     using size_type = std::size_t;
 
-    static_assert(std::is_trivially_copyable<T>::value,
+    static_assert(std::is_trivially_copyable_v<T>,
       "SyncedMemory<T> requires trivially copyable T (uses memcpy)");
 
 private:
@@ -149,7 +149,7 @@ public:
 
     /// Construct a synced memory object with a size and values taken from
     /// the range between the 'first' and 'last' input iterators.
-    template<class InputIt, std::enable_if_t<detail::is_iterator<InputIt>::value, bool> = true>
+    template<class InputIt, std::enable_if_t<detail::is_iterator_v<InputIt>, bool> = true>
     SyncedMemory(InputIt first, InputIt last);
 
     /// Construct a synced memory object from another similar object.
@@ -261,6 +261,10 @@ private:
     /// Free memory allocated on the device
     void free_device_memory() const noexcept;
 
+#if HAS_CUDA
+    static bool is_acceptable_free_status(cudaError_t status) noexcept;
+#endif
+
     static constexpr unsigned bits(Validity validity) noexcept;
 
     [[nodiscard]] bool valid_contains(Validity validity) const noexcept;
@@ -270,10 +274,10 @@ private:
     void add_valid(Validity validity) const noexcept;
 
     template<class InputIt>
-    void assign_from_range(InputIt first, InputIt last, std::input_iterator_tag);
+    void assign_from_input_range(InputIt first, InputIt last);
 
     template<class ForwardIt>
-    void assign_from_range(ForwardIt first, ForwardIt last, std::forward_iterator_tag);
+    void assign_from_forward_range(ForwardIt first, ForwardIt last);
 };
 
 // ============================================================================
@@ -298,10 +302,14 @@ SyncedMemory<T>::SyncedMemory(SyncedMemory::size_type size, const T &x)
 
 
 template<class T>
-template<class InputIt, std::enable_if_t<detail::is_iterator<InputIt>::value, bool>>
+template<class InputIt, std::enable_if_t<detail::is_iterator_v<InputIt>, bool>>
 SyncedMemory<T>::SyncedMemory(InputIt first, InputIt last) {
   using category = typename std::iterator_traits<InputIt>::iterator_category;
-  assign_from_range(first, last, category{});
+  if constexpr (std::is_base_of_v<std::forward_iterator_tag, category>) {
+    assign_from_forward_range(first, last);
+  } else {
+    assign_from_input_range(first, last);
+  }
 }
 
 
@@ -657,16 +665,13 @@ void SyncedMemory<T>::zero() {
 template<class T>
 void SyncedMemory<T>::free_host_memory() const noexcept {
   if (host_ptr_) {
-    #if HAS_CUDA
+#if HAS_CUDA
     if (host_cuda_malloc_) {
-      auto status = cudaFreeHost(host_ptr_);
+      if (auto status = cudaFreeHost(host_ptr_); !is_acceptable_free_status(status)) {
+        assert(false);
+      }
       host_ptr_ = nullptr;
       host_cuda_malloc_ = false;
-      #if SYNCED_MEMORY_ALLOW_GLOBAL
-      assert(status == cudaSuccess || status == cudaErrorCudartUnloading);
-      #else
-      assert(status == cudaSuccess);
-      #endif
       return;
     }
     #endif
@@ -681,12 +686,9 @@ template<class T>
 void SyncedMemory<T>::free_device_memory() const noexcept{
   #if HAS_CUDA
   if (device_ptr_) {
-    auto status = cudaFree(device_ptr_);
-    #if SYNCED_MEMORY_ALLOW_GLOBAL
-    assert(status == cudaSuccess || status == cudaErrorCudartUnloading);
-    #else
-    assert(status == cudaSuccess);
-    #endif
+    if (auto status = cudaFree(device_ptr_); !is_acceptable_free_status(status)) {
+      assert(false);
+    }
   }
   #endif
   device_ptr_ = nullptr;
@@ -758,6 +760,17 @@ constexpr unsigned SyncedMemory<T>::bits(Validity validity) noexcept {
   return static_cast<unsigned>(validity);
 }
 
+#if HAS_CUDA
+template<class T>
+bool SyncedMemory<T>::is_acceptable_free_status(cudaError_t status) noexcept {
+#if SYNCED_MEMORY_ALLOW_GLOBAL
+  return status == cudaSuccess || status == cudaErrorCudartUnloading;
+#else
+  return status == cudaSuccess;
+#endif
+}
+#endif
+
 
 template<class T>
 bool SyncedMemory<T>::valid_contains(Validity validity) const noexcept {
@@ -792,9 +805,10 @@ bool SyncedMemory<T>::device_valid() const noexcept {
 template<class T>
 bool SyncedMemory<T>::has_cuda_context() const noexcept{
 #if HAS_CUDA
-  int device;
-  cudaError_t status = cudaGetDevice(&device);
-  return status == cudaSuccess;
+  if (int device = 0; cudaGetDevice(&device) == cudaSuccess) {
+    return true;
+  }
+  return false;
 #else
   return false;
 #endif
@@ -829,7 +843,7 @@ void SyncedMemory<T>::clear() noexcept { resize(0); }
 
 template<class T>
 template<class InputIt>
-void SyncedMemory<T>::assign_from_range(InputIt first, InputIt last, std::input_iterator_tag) {
+void SyncedMemory<T>::assign_from_input_range(InputIt first, InputIt last) {
   std::vector<T> values(first, last);
   size_ = values.size();
   if (size_ == 0) {
@@ -844,7 +858,7 @@ void SyncedMemory<T>::assign_from_range(InputIt first, InputIt last, std::input_
 
 template<class T>
 template<class ForwardIt>
-void SyncedMemory<T>::assign_from_range(ForwardIt first, ForwardIt last, std::forward_iterator_tag) {
+void SyncedMemory<T>::assign_from_forward_range(ForwardIt first, ForwardIt last) {
   size_ = static_cast<size_type>(std::distance(first, last));
   if (size_ == 0) {
     return;
