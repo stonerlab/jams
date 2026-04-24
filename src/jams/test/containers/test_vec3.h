@@ -3,6 +3,7 @@
 
 #include "gtest/gtest.h"
 
+#include <cmath>
 #include <cstdint>
 #include <type_traits>
 
@@ -29,6 +30,13 @@ TEST(Vec3Test, AngleUsesBothVectorNorms) {
   const Vec3 b{2.0, 2.0, 0.0};
 
   EXPECT_NEAR(jams::angle(a, b), M_PI / 4.0, 1e-14);
+}
+
+TEST(Vec3Test, AngleReturnsFloatingTypeAndHandlesZeroVectors) {
+  static_assert(std::is_same_v<decltype(jams::angle(std::declval<Vec3i>(), std::declval<Vec3i>())), double>);
+
+  EXPECT_TRUE(std::isnan(jams::angle(Vec3{0.0, 0.0, 0.0}, Vec3{1.0, 0.0, 0.0})));
+  EXPECT_DOUBLE_EQ(jams::angle(Vec3{1.0, 0.0, 0.0}, Vec3{1.0, 0.0, 0.0}), 0.0);
 }
 
 TEST(Vec3Test, CompoundAssignmentReturnsMutatedVectorReference) {

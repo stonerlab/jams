@@ -11,6 +11,7 @@
 #include <iomanip>
 #include <algorithm>
 #include <complex>
+#include <limits>
 #include <type_traits>
 #include "jams/helpers/maths.h"
 #include "jams/helpers/mixed_precision.h"
@@ -267,8 +268,16 @@ inline constexpr auto hadamard_product(const Vec<T1,3>& a, const Vec<T2,3>& b) -
 
 /// Returns the angle in radians between vector a and b
 template <typename T>
-inline constexpr T angle(const Vec<T,3>& a, const Vec<T,3>& b) {
-  return std::acos(dot(a,b) / (norm(a) * norm(b)));
+inline auto angle(const Vec<T,3>& a, const Vec<T,3>& b) -> decltype(std::acos(dot(a,b) / (norm(a) * norm(b)))) {
+  using result_type = decltype(std::acos(dot(a,b) / (norm(a) * norm(b))));
+
+  const auto denominator = norm(a) * norm(b);
+  if (denominator == decltype(denominator){0}) {
+    return std::numeric_limits<result_type>::quiet_NaN();
+  }
+
+  const auto cosine = static_cast<result_type>(dot(a,b) / denominator);
+  return std::acos(std::clamp(cosine, result_type{-1}, result_type{1}));
 }
 
 /// Returns a Vec3 in cartesian coordinates (x, y, z) from the polar coordinates
