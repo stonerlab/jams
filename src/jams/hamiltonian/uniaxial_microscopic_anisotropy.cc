@@ -124,7 +124,7 @@ Vec3R UniaxialMicroscopicAnisotropyHamiltonian::calculate_field(const int i, jam
 void UniaxialMicroscopicAnisotropyHamiltonian::calculate_fields(jams::Real time) {
   field_.zero();
   for (int n = 0; n < mca_order_.size(); ++n) {
-    for (int i = 0; i < field_.size(0); ++i) {
+    for (int i = 0; i < field_.extent(0); ++i) {
       field_(i, 2) += -mca_value_(n,i) * legendre_dpoly(globals::s(i, 2), mca_order_(n));
     }
   }

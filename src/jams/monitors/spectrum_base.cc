@@ -323,8 +323,8 @@ void SpectrumBaseMonitor::resize_channel_storage_()
 
   if (temporal_estimator_ == TemporalEstimator::Multitaper)
   {
-    if (multitaper_windows_.size(0) != multitaper_count_
-        || multitaper_windows_.size(1) != T
+    if (multitaper_windows_.extent(0) != multitaper_count_
+        || multitaper_windows_.extent(1) != T
         || multitaper_weights_.size() != static_cast<std::size_t>(multitaper_count_))
     {
       generate_normalised_dpss_tapers_(
@@ -490,8 +490,8 @@ const SpectrumBaseMonitor::CmplxMappedSlice& SpectrumBaseMonitor::compute_freque
     generate_normalised_window_(periodogram_window_, num_time_samples);
   }
   if (temporal_estimator_ == TemporalEstimator::Multitaper
-      && (multitaper_windows_.size(0) != multitaper_count_
-          || multitaper_windows_.size(1) != num_time_samples
+      && (multitaper_windows_.extent(0) != multitaper_count_
+          || multitaper_windows_.extent(1) != num_time_samples
           || multitaper_weights_.size() != static_cast<std::size_t>(multitaper_count_)))
   {
     generate_normalised_dpss_tapers_(
@@ -503,9 +503,9 @@ const SpectrumBaseMonitor::CmplxMappedSlice& SpectrumBaseMonitor::compute_freque
   }
 
   if (!sk_time_fft_plan_
-      || frequency_scratch_.size(0) != num_sites
-      || frequency_scratch_.size(1) != num_time_samples
-      || frequency_scratch_.size(2) != channels)
+      || frequency_scratch_.extent(0) != num_sites
+      || frequency_scratch_.extent(1) != num_time_samples
+      || frequency_scratch_.extent(2) != channels)
   {
     if (sk_time_fft_plan_)
     {
@@ -549,24 +549,24 @@ const SpectrumBaseMonitor::CmplxMappedSlice& SpectrumBaseMonitor::compute_freque
     assert(sk_time_fft_plan_);
   }
 
-  if (frequency_accum_.size(0) != num_sites
-      || frequency_accum_.size(1) != num_time_samples
-      || frequency_accum_.size(2) != channels)
+  if (frequency_accum_.extent(0) != num_sites
+      || frequency_accum_.extent(1) != num_time_samples
+      || frequency_accum_.extent(2) != channels)
   {
     frequency_accum_.resize(num_sites, num_time_samples, channels);
   }
 
   if (temporal_estimator_ == TemporalEstimator::Multitaper
-      && (frequency_taper_sum_.size(0) != num_sites
-          || frequency_taper_sum_.size(1) != num_time_samples
-          || frequency_taper_sum_.size(2) != channels))
+      && (frequency_taper_sum_.extent(0) != num_sites
+          || frequency_taper_sum_.extent(1) != num_time_samples
+          || frequency_taper_sum_.extent(2) != channels))
   {
     frequency_taper_sum_.resize(num_sites, num_time_samples, channels);
   }
   if (temporal_estimator_ == TemporalEstimator::Multitaper
-      && (frequency_taper_power_sum_.size(0) != num_sites
-          || frequency_taper_power_sum_.size(1) != num_time_samples
-          || frequency_taper_power_sum_.size(2) != channels))
+      && (frequency_taper_power_sum_.extent(0) != num_sites
+          || frequency_taper_power_sum_.extent(1) != num_time_samples
+          || frequency_taper_power_sum_.extent(2) != channels))
   {
     frequency_taper_power_sum_.resize(num_sites, num_time_samples, channels);
   }
@@ -745,10 +745,10 @@ const SpectrumBaseMonitor::CmplxMappedSpectrum& SpectrumBaseMonitor::finalise_pe
   const int channels = num_channels();
   const int num_freq_out = keep_negative_frequencies_ ? periodogram_length() : (periodogram_length() / 2 + 1);
 
-  if (skw_buffer_.size(0) != num_sites
-      || skw_buffer_.size(1) != num_freq_out
-      || skw_buffer_.size(2) != num_k
-      || skw_buffer_.size(3) != channels)
+  if (skw_buffer_.extent(0) != num_sites
+      || skw_buffer_.extent(1) != num_freq_out
+      || skw_buffer_.extent(2) != num_k
+      || skw_buffer_.extent(3) != channels)
   {
     skw_buffer_.resize(num_sites, num_freq_out, num_k, channels);
   }
@@ -776,13 +776,13 @@ void SpectrumBaseMonitor::append_sk_sample_for_k_list(const jams::MultiArray<Vec
                                                     const std::vector<jams::HKLIndex> &k_list)
 {
   const auto time_index = static_cast<std::size_t>(periodogram_sample_index_);
-  const auto num_basis = static_cast<std::size_t>(sk_sample.size(3));
+  const auto num_basis = static_cast<std::size_t>(sk_sample.extent(3));
   const auto num_k = k_list.size();
   const auto stored_channels = static_cast<std::size_t>(stored_channel_count_);
   const bool use_local_frame = needs_local_frame_mapping_();
   std::vector<CmplxStored> tail_buffer(num_basis * num_k * stored_channels);
 
-  for (auto a = 0; a < sk_sample.size(3); ++a)
+  for (auto a = 0; a < sk_sample.extent(3); ++a)
   {
     for (auto k = 0; k < k_list.size(); ++k)
     {
@@ -1029,7 +1029,7 @@ void SpectrumBaseMonitor::generate_normalised_dpss_tapers_(
     throw std::runtime_error("time_bandwidth must be less than num_time_samples / 2");
   }
 
-  if (tapers.size(0) != num_tapers || tapers.size(1) != num_time_samples)
+  if (tapers.extent(0) != num_tapers || tapers.extent(1) != num_time_samples)
   {
     tapers.resize(num_tapers, num_time_samples);
   }
@@ -1117,7 +1117,7 @@ void SpectrumBaseMonitor::generate_phase_factors_(
     const std::vector<Vec3>& r_frac,
     const std::vector<jams::HKLIndex>& kpoints)
 {
-  if (phase_factors.size(0) != r_frac.size() || phase_factors.size(1) != kpoints.size())
+  if (phase_factors.extent(0) != r_frac.size() || phase_factors.extent(1) != kpoints.size())
   {
     phase_factors.resize(r_frac.size(), kpoints.size());
   }

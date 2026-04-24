@@ -238,9 +238,9 @@ vector_field_key_multiply_and_reduce_kernel(const T1 *g_data, const T2 *g_ifacto
 
 
 Vec3 jams::vector_field_reduce_cuda(const jams::MultiArray<double, 2>& x) {
-  assert(x.size(1) == 3);
+  assert(x.extent(1) == 3);
 
-  int size = x.size(0);
+  int size = x.extent(0);
   int threads = (size < MAX_THREADS*2) ? next_pow2((size + 1)/ 2) : MAX_THREADS;
   int blocks = (size + (threads * 2 - 1)) / (threads * 2);
 
@@ -248,7 +248,7 @@ Vec3 jams::vector_field_reduce_cuda(const jams::MultiArray<double, 2>& x) {
   // call. THIS IS NOT THREAD SAFE
   static jams::MultiArray<double, 2> block_sums;
 
-  if (block_sums.size(0) < blocks) {
+  if (block_sums.extent(0) < blocks) {
     block_sums.resize(blocks, 3);
   }
 
@@ -307,7 +307,7 @@ Vec3 jams::vector_field_reduce_cuda(const jams::MultiArray<double, 2>& x) {
 
 
 Vec3 jams::vector_field_indexed_reduce_cuda(const jams::MultiArray<double, 2>& x, const jams::MultiArray<int, 1>& indices) {
-  assert(x.size(1) == 3);
+  assert(x.extent(1) == 3);
 
   int size = indices.size();
   int threads = (size < MAX_THREADS*2) ? next_pow2((size + 1)/ 2) : MAX_THREADS;
@@ -317,7 +317,7 @@ Vec3 jams::vector_field_indexed_reduce_cuda(const jams::MultiArray<double, 2>& x
   // call. THIS IS NOT THREAD SAFE
   static jams::MultiArray<double, 2> block_sums;
 
-  if (block_sums.size(0) < blocks) {
+  if (block_sums.extent(0) < blocks) {
     block_sums.resize(blocks, 3);
   }
 
@@ -376,10 +376,10 @@ Vec3 jams::vector_field_indexed_reduce_cuda(const jams::MultiArray<double, 2>& x
 
 
 Vec3 jams::vector_field_scale_and_reduce_cuda(const jams::MultiArray<double, 2>& x, const jams::MultiArray<double, 1>& scale_factors) {
-  assert(x.size(1) == 3);
-  assert(x.size(0) == scale_factors.size());
+  assert(x.extent(1) == 3);
+  assert(x.extent(0) == scale_factors.size());
 
-  int size = x.size(0);
+  int size = x.extent(0);
   int threads = (size < MAX_THREADS*2) ? next_pow2((size + 1)/ 2) : MAX_THREADS;
   int blocks = (size + (threads * 2 - 1)) / (threads * 2);
 
@@ -387,7 +387,7 @@ Vec3 jams::vector_field_scale_and_reduce_cuda(const jams::MultiArray<double, 2>&
   // call. THIS IS NOT THREAD SAFE
   static jams::MultiArray<double, 2> block_sums;
 
-  if (block_sums.size(0) < blocks) {
+  if (block_sums.extent(0) < blocks) {
     block_sums.resize(blocks, 3);
   }
 
@@ -446,8 +446,8 @@ Vec3 jams::vector_field_scale_and_reduce_cuda(const jams::MultiArray<double, 2>&
 
 template <typename X, typename S>
 std::array<X,3> jams::vector_field_indexed_scale_and_reduce_cuda(const jams::MultiArray<X, 2>& x, const jams::MultiArray<S, 1>& scale_factors, const jams::MultiArray<int, 1>& indices) {
-  assert(x.size(1) == 3);
-  assert(x.size(0) == scale_factors.size());
+  assert(x.extent(1) == 3);
+  assert(x.extent(0) == scale_factors.size());
 
   using X3 = std::conditional_t<std::is_same_v<X, double>, double3, float3>;
   static_assert(std::is_same_v<X, double> || std::is_same_v<X, float>, "type must be float or double");
@@ -460,7 +460,7 @@ std::array<X,3> jams::vector_field_indexed_scale_and_reduce_cuda(const jams::Mul
   // call. THIS IS NOT THREAD SAFE
   static jams::MultiArray<X, 2> block_sums;
 
-  if (block_sums.size(0) < blocks) {
+  if (block_sums.extent(0) < blocks) {
     block_sums.resize(blocks, 3);
   }
 

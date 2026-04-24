@@ -93,9 +93,9 @@ void NeutronScatteringNoLatticeMonitor::configure_kspace_vectors(const libconfig
     kspace_path_(i) = kvector_ * i * (kmax_ / num_k_);
   }
 
-  rspace_displacement_.resize(globals::s.size(0));
+  rspace_displacement_.resize(globals::s.extent(0));
   Vec3i lattice_dimensions = ::globals::lattice->size();
-  for (auto i = 0; i < globals::s.size(0); ++i) {
+  for (auto i = 0; i < globals::s.extent(0); ++i) {
     // generalize so that we can impose open boundaries
     rspace_displacement_(i) = globals::lattice->displacement(
         {0.5 * lattice_dimensions[0], 0.5 * lattice_dimensions[1], 0.5 * lattice_dimensions[2]},
@@ -105,7 +105,7 @@ void NeutronScatteringNoLatticeMonitor::configure_kspace_vectors(const libconfig
 
 jams::MultiArray<jams::ComplexHi, 2>
 NeutronScatteringNoLatticeMonitor::calculate_unpolarized_cross_section(const jams::MultiArray<Vec3cx,2> &spectrum) {
-  const auto num_freqencies = spectrum.size(0);
+  const auto num_freqencies = spectrum.extent(0);
   const auto num_reciprocal_points = kspace_path_.size();
 
   jams::MultiArray<jams::ComplexHi, 2> cross_section(num_freqencies, num_reciprocal_points);
@@ -131,7 +131,7 @@ NeutronScatteringNoLatticeMonitor::calculate_unpolarized_cross_section(const jam
 jams::MultiArray<jams::ComplexHi, 3>
 NeutronScatteringNoLatticeMonitor::calculate_polarized_cross_sections(const jams::MultiArray<Vec3cx, 2> &spectrum,
     const std::vector<Vec3> &polarizations) {
-  const auto num_freqencies = spectrum.size(0);
+  const auto num_freqencies = spectrum.extent(0);
   const auto num_reciprocal_points = kspace_path_.size();
 
   jams::MultiArray<jams::ComplexHi, 3> convolved(polarizations.size(), num_freqencies, num_reciprocal_points);
@@ -164,8 +164,8 @@ NeutronScatteringNoLatticeMonitor::calculate_polarized_cross_sections(const jams
 jams::MultiArray<Vec3cx,2> NeutronScatteringNoLatticeMonitor::periodogram() {
   jams::MultiArray<Vec3cx,2> spectrum(kspace_spins_timeseries_);
 
-  const int num_time_samples  = spectrum.size(0);
-  const int num_kspace_samples = spectrum.size(1);
+  const int num_time_samples  = spectrum.extent(0);
+  const int num_kspace_samples = spectrum.extent(1);
 
   int rank = 1;
   int transform_size[1] = {num_time_samples};
@@ -209,8 +209,8 @@ jams::MultiArray<Vec3cx,2> NeutronScatteringNoLatticeMonitor::periodogram() {
 void NeutronScatteringNoLatticeMonitor::shift_periodogram_overlap() {
   // shift overlap data to the start of the range
   for (auto i = 0; i < periodogram_props_.overlap; ++i) {
-    for (auto j = 0; j < kspace_spins_timeseries_.size(1); ++j) {
-      kspace_spins_timeseries_(i, j) = kspace_spins_timeseries_(kspace_spins_timeseries_.size(0) - periodogram_props_.overlap + i, j);
+    for (auto j = 0; j < kspace_spins_timeseries_.extent(1); ++j) {
+      kspace_spins_timeseries_(i, j) = kspace_spins_timeseries_(kspace_spins_timeseries_.extent(0) - periodogram_props_.overlap + i, j);
     }
   }
 
@@ -220,7 +220,7 @@ void NeutronScatteringNoLatticeMonitor::shift_periodogram_overlap() {
 
 void NeutronScatteringNoLatticeMonitor::output_static_structure_factor() {
   auto static_structure_factor = calculate_static_structure_factor();
-  const auto num_time_points = kspace_spins_timeseries_.size(0);
+  const auto num_time_points = kspace_spins_timeseries_.extent(0);
 
 
   std::ofstream ofs(jams::output::full_path_filename("static_structure_factor.tsv"));
@@ -254,7 +254,7 @@ void NeutronScatteringNoLatticeMonitor::output_neutron_cross_section() {
 
     ofs << "index\t" << "qx\t" << "qy\t" << "qz\t" << "q_A-1\t";
     ofs << "freq_THz\t" << "energy_meV\t" << "sigma_unpol_re\t" << "sigma_unpol_im\t";
-    for (auto k = 0; k < total_polarized_neutron_cross_sections_.size(0); ++k) {
+    for (auto k = 0; k < total_polarized_neutron_cross_sections_.extent(0); ++k) {
       ofs << "sigma_pol" << std::to_string(k) << "_re\t" << "sigma_pol" << std::to_string(k) << "_im\t";
     }
     ofs << "\n";
@@ -264,7 +264,7 @@ void NeutronScatteringNoLatticeMonitor::output_neutron_cross_section() {
     auto prefactor = (periodogram_props_.sample_time / double(total_periods_)) * (1.0 / (kTwoPi * kHBarIU))
                      * pow2((0.5 * kNeutronGFactor * pow2(kElementaryCharge)) / (kElectronMass * pow2(kSpeedOfLight)));
     auto barns_unitcell = prefactor / (1e-28);
-    auto time_points = total_unpolarized_neutron_cross_section_.size(0);
+    auto time_points = total_unpolarized_neutron_cross_section_.extent(0);
     auto freq_delta = 1.0 / (periodogram_props_.length * periodogram_props_.sample_time);
 
     for (auto i = 0; i < (time_points / 2) + 1; ++i) {
@@ -278,7 +278,7 @@ void NeutronScatteringNoLatticeMonitor::output_neutron_cross_section() {
         // cross section output units are Barns Steradian^-1 Joules^-1 unitcell^-1
         ofs << jams::fmt::sci << barns_unitcell * total_unpolarized_neutron_cross_section_(i, j).real() << "\t";
         ofs << jams::fmt::sci << barns_unitcell * total_unpolarized_neutron_cross_section_(i, j).imag() << "\t";
-        for (auto k = 0; k < total_polarized_neutron_cross_sections_.size(0); ++k) {
+        for (auto k = 0; k < total_polarized_neutron_cross_sections_.extent(0); ++k) {
           ofs << jams::fmt::sci << barns_unitcell * total_polarized_neutron_cross_sections_(k, i, j).real() << "\t";
           ofs << jams::fmt::sci << barns_unitcell * total_polarized_neutron_cross_sections_(k, i, j).imag() << "\t";
         }
@@ -359,8 +359,8 @@ void NeutronScatteringNoLatticeMonitor::configure_form_factors(libconfig::Settin
 }
 
 jams::MultiArray<Vec3cx,1> NeutronScatteringNoLatticeMonitor::calculate_static_structure_factor() {
-  const auto num_time_points = kspace_spins_timeseries_.size(0);
-  const auto num_k_points = kspace_spins_timeseries_.size(1);
+  const auto num_time_points = kspace_spins_timeseries_.extent(0);
+  const auto num_k_points = kspace_spins_timeseries_.extent(1);
   jams::MultiArray<Vec3cx,1> static_structure_factor(num_k_points);
   zero(static_structure_factor);
   for (auto i = 0; i < num_time_points; ++i) {

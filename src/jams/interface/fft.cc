@@ -109,9 +109,9 @@ void apply_kspace_phase_factors(jams::MultiArray<std::complex<double>, 5> &kspac
 
     precalculate_kspace_phase_factors(globals::lattice->kspace_size(), r_cart, exp_phase_x, exp_phase_y, exp_phase_z);
 
-    for (auto i = 0; i < kspace.size(0); ++i) {
-      for (auto j = 0; j < kspace.size(1); ++j) {
-        for (auto k = 0; k < kspace.size(2); ++k) {
+    for (auto i = 0; i < kspace.extent(0); ++i) {
+      for (auto j = 0; j < kspace.extent(1); ++j) {
+        for (auto k = 0; k < kspace.extent(2); ++k) {
           std::complex<double> phase = exp_phase_x[i] * exp_phase_y[j] * exp_phase_z[k];
           for (auto n = 0; n < 3; ++n) {
             kspace(i, j, k, m, n) = kspace(i, j, k, m, n) * phase;

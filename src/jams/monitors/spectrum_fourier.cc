@@ -214,8 +214,8 @@ void SpectrumFourierMonitor::update(Solver& solver) {
 
 void SpectrumFourierMonitor::fft_time() {
 
-  const auto time_points = sqw_x.size(1);
-  const auto space_points = sqw_x.size(2);
+  const auto time_points = sqw_x.extent(1);
+  const auto space_points = sqw_x.extent(2);
   const double norm = 1.0/sqrt(time_points);
 
   jams::MultiArray<std::complex<double>,2> fft_sqw_x(time_points, space_points);
@@ -391,20 +391,20 @@ void SpectrumFourierMonitor::store_bz_path_data() {
   Vec3i size = globals::lattice->kspace_size();
 
   // extra safety in case there is an extra one time point due to floating point maths
-  if (time_point_counter_ < sqw_x.size(1)) {
+  if (time_point_counter_ < sqw_x.extent(1)) {
     for (auto m = 0; m < ::globals::lattice->num_basis_sites(); ++m) {
       for (auto i = 0; i < b_uvw_points.size(); ++i) {
         auto uvw = b_uvw_points[i];
 
         uvw = (size + uvw) % size;
 
-        assert(uvw[0] >= 0 && uvw[0] < s_kspace.size(0));
-        assert(uvw[1] >= 0 && uvw[1] < s_kspace.size(1));
-        assert(uvw[2] >= 0 && uvw[2] < s_kspace.size(2));
+        assert(uvw[0] >= 0 && uvw[0] < s_kspace.extent(0));
+        assert(uvw[1] >= 0 && uvw[1] < s_kspace.extent(1));
+        assert(uvw[2] >= 0 && uvw[2] < s_kspace.extent(2));
 
-        assert(m < sqw_x.size(0));
-        assert(time_point_counter_ < sqw_x.size(1));
-        assert(i < sqw_x.size(2));
+        assert(m < sqw_x.extent(0));
+        assert(time_point_counter_ < sqw_x.extent(1));
+        assert(i < sqw_x.extent(2));
 
         sqw_x(m, time_point_counter_, i) = s_kspace(uvw[0], uvw[1], uvw[2], m, 0);
         sqw_y(m, time_point_counter_, i) = s_kspace(uvw[0], uvw[1], uvw[2], m, 1);

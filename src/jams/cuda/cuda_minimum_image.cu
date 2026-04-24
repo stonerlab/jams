@@ -43,8 +43,8 @@ __global__ void minimum_image_smith_method(const int num_spins,
 
 void jams::cuda_minimum_image(const Vec3R &a, const Vec3R &b, const Vec3R &c, const Vec3b &pbc,
                    const Vec3R &r_i, const jams::MultiArray<jams::Real,2>& r, jams::MultiArray<jams::Real,2>& r_ij) {
-  assert(r.size(1) == 3 && r_ij.size(1) == 3);
-  assert(r.size(0) == r_ij.size(0));
+  assert(r.extent(1) == 3 && r_ij.extent(1) == 3);
+  assert(r.extent(0) == r_ij.extent(0));
 
   static Vec3R a_cached = {0, 0, 0};
   static Vec3R b_cached = {0, 0, 0};
@@ -60,8 +60,8 @@ void jams::cuda_minimum_image(const Vec3R &a, const Vec3R &b, const Vec3R &c, co
   }
 
   dim3 block_size = {64, 1, 1};
-  dim3 grid_size = {(int(r.size(0)) + block_size.x - 1) / block_size.x, 1, 1};
+  dim3 grid_size = {(int(r.extent(0)) + block_size.x - 1) / block_size.x, 1, 1};
 
   minimum_image_smith_method<<<grid_size, block_size>>>(
-    r.size(0), r_i[0], r_i[1], r_i[2], r.device_data(), r_ij.device_data());
+    r.extent(0), r_i[0], r_i[1], r_i[2], r.device_data(), r_ij.device_data());
 }

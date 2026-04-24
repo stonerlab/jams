@@ -254,7 +254,7 @@ CudaDipoleFFTHamiltonian::CudaDipoleFFTHamiltonian(const libconfig::Setting &set
                     num_transforms));
 #endif
 
-  s_float_.resize(globals::s.size(0), globals::s.size(1));
+  s_float_.resize(globals::s.extent(0), globals::s.extent(1));
 
   const auto num_tensor_components = 6;
 

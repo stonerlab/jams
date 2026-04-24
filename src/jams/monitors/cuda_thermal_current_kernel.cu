@@ -64,10 +64,10 @@ Vec3 execute_cuda_thermal_current_kernel(
   dim3 block_size;
   block_size.x = 64;
   dim3 grid_size;
-  grid_size.x = (spins.size(0) + block_size.x - 1) / block_size.x;
+  grid_size.x = (spins.extent(0) + block_size.x - 1) / block_size.x;
 
   thermal_current_kernel<<<grid_size, block_size, 0, stream.get()>>>(
-      spins.size(0),
+      spins.extent(0),
       spins.device_data(),
       interaction_matrix.row_device_data(),
       interaction_matrix.index_device_data(),
@@ -78,9 +78,9 @@ Vec3 execute_cuda_thermal_current_kernel(
   DEBUG_CHECK_CUDA_ASYNC_STATUS;
 
   // triple counting in the sum
-  double j_rx = 0.5 * cuda_reduce_array(dev_thermal_current_rx.device_data(), spins.size(0));
-  double j_ry = 0.5 * cuda_reduce_array(dev_thermal_current_ry.device_data(), spins.size(0));
-  double j_rz = 0.5 * cuda_reduce_array(dev_thermal_current_rz.device_data(), spins.size(0));
+  double j_rx = 0.5 * cuda_reduce_array(dev_thermal_current_rx.device_data(), spins.extent(0));
+  double j_ry = 0.5 * cuda_reduce_array(dev_thermal_current_ry.device_data(), spins.extent(0));
+  double j_rz = 0.5 * cuda_reduce_array(dev_thermal_current_rz.device_data(), spins.extent(0));
 
   return {j_rx, j_ry, j_rz};
 }

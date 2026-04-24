@@ -8,7 +8,7 @@
 namespace jams {
 template<class T>
 inline std::array<T, 3> vector_field_reduce(const jams::MultiArray<T, 2> &x) {
-  assert(x.size(1) == 3);
+  assert(x.extent(1) == 3);
 
   // Kahan sum over the field components to keep precision for long
   // vectors.
@@ -16,7 +16,7 @@ inline std::array<T, 3> vector_field_reduce(const jams::MultiArray<T, 2> &x) {
   std::array<T, 3> sum = {x(0,0), x(0,1), x(0,2)};
   std::array<T, 3> c = {0, 0, 0};
 
-  for (auto i = 1; i < x.size(0); ++i) {
+  for (auto i = 1; i < x.extent(0); ++i) {
     std::array<T, 3> y = {
         x(i, 0) - c[0],
         x(i, 1) - c[1],
@@ -30,7 +30,7 @@ inline std::array<T, 3> vector_field_reduce(const jams::MultiArray<T, 2> &x) {
 
 template<class T>
 inline std::array<T, 3> vector_field_indexed_reduce(const jams::MultiArray<T, 2> &x, const jams::MultiArray<int, 1>& indices) {
-  assert(x.size(1) == 3);
+  assert(x.extent(1) == 3);
 
   // Kahan sum over the field components to keep precision for long
   // vectors.

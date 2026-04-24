@@ -76,7 +76,7 @@ void SpectrumGeneralMonitor::update(Solver& solver) {
 void SpectrumGeneralMonitor::apply_time_fourier_transform() {
 
   // window the data in time space
-  for (auto i = 0; i < spin_data_.size(0); ++i) {
+  for (auto i = 0; i < spin_data_.extent(0); ++i) {
     for (auto n = 0; n < num_samples_; ++n) {
       spin_data_(i, n) *= fft_window_exponential(n, num_samples_);
     }
@@ -87,7 +87,7 @@ void SpectrumGeneralMonitor::apply_time_fourier_transform() {
   int rank            = 1;
   int stride          = 1;
   int dist            = (int) padded_size_; // num_samples
-  int num_transforms  = (int) spin_data_.size(0); // num_spins
+  int num_transforms  = (int) spin_data_.extent(0); // num_spins
   int transform_size[1]  = {(int) padded_size_};
 
   int * nembed = nullptr;

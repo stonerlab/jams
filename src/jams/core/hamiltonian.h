@@ -54,7 +54,7 @@ public:
     }
 
     inline jams::Real field(const int i, const int j) const {
-      assert(i < field_.size(0));
+      assert(i < field_.extent(0));
       assert(j < 3);
       return field_(i, j);
     }

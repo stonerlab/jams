@@ -629,8 +629,8 @@ void jams::MetadynamicsPotential::synchronise_shared_potential(const std::string
       file.getDataSet("shared_potential").read(shared_potential);
     }
 
-    for (auto i = 0; i < metad_potential_.size(0); ++i) {
-      for (auto j = 0; j < metad_potential_.size(1); ++j) {
+    for (auto i = 0; i < metad_potential_.extent(0); ++i) {
+      for (auto j = 0; j < metad_potential_.extent(1); ++j) {
         shared_potential(i, j) += metad_potential_delta_(i, j);
       }
     }

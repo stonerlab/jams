@@ -153,7 +153,7 @@ void MagnonSpectrumMonitor::output_site_resolved_magnon_spectrum()
     //         // sample time is here because the fourier transform in time is not an integral
     //         // but a discrete sum
     //         auto prefactor = (sample_time_interval() / num_periodogram_periods());
-    //         auto time_points = cumulative_magnon_spectrum_.size(1);
+    //         auto time_points = cumulative_magnon_spectrum_.extent(1);
     //
     //         auto path_begin = kspace_continuous_path_ranges_[n];
     //         auto path_end = kspace_continuous_path_ranges_[n + 1];
@@ -239,8 +239,8 @@ void MagnonSpectrumMonitor::accumulate_magnon_spectrum()
         const auto freq_start = (time_points % 2 == 0) ? (time_points / 2 + 1) : ((time_points + 1) / 2);
 
         // Defensive: check that cumulative_magnon_spectrum_ is sized to hold freq_end and kpoints
-        assert(cumulative_magnon_spectrum_.size(0) >= static_cast<std::size_t>(freq_end));
-        assert(cumulative_magnon_spectrum_.size(1) >= static_cast<std::size_t>(num_k_points()));
+        assert(cumulative_magnon_spectrum_.extent(0) >= static_cast<std::size_t>(freq_end));
+        assert(cumulative_magnon_spectrum_.extent(1) >= static_cast<std::size_t>(num_k_points()));
 
         for (auto a = 0; a < num_basis_atoms(); ++a)
         {

@@ -3,7 +3,7 @@
 
 void jams::rotate_spins(jams::MultiArray<double, 2> &spins,
                         const Mat3 &rotation_matrix) {
-  for (auto i = 0; i < spins.size(0); ++i) {
+  for (auto i = 0; i < spins.extent(0); ++i) {
     Vec3 spin = rotation_matrix * Vec3{spins(i,0), spins(i,1), spins(i,2)};
     for (auto j = 0; j < 3; ++j) {
       spins(i, j) = spin[j];
@@ -42,7 +42,7 @@ Vec3 jams::sum_spins(const jams::MultiArray<double, 2> &spins,
 Vec3 jams::sum_spins_moments(const jams::MultiArray<double, 2> &spins,
                              const jams::MultiArray<jams::Real, 1> &mus) {
   Vec3 sum = {0.0, 0.0, 0.0};
-  for (auto i = 0; i < spins.size(0); ++i) {
+  for (auto i = 0; i < spins.extent(0); ++i) {
     for (auto j = 0; j < 3; ++j) {
       sum[j] += mus(i) * spins(i, j);
     }

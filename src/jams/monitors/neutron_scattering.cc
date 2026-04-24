@@ -94,10 +94,10 @@ void NeutronScatteringMonitor::update(Solver& solver) {
  */
 
 jams::MultiArray<jams::ComplexHi, 2> NeutronScatteringMonitor::calculate_unpolarized_cross_section(const CmplxMappedSpectrum& spectrum) {
-  const auto num_sites = spectrum.size(0);
-  const auto num_freqencies = spectrum.size(1);
-  const auto num_reciprocal_points = spectrum.size(2);
-  if (spectrum.size(3) < 3) {
+  const auto num_sites = spectrum.extent(0);
+  const auto num_freqencies = spectrum.extent(1);
+  const auto num_reciprocal_points = spectrum.extent(2);
+  if (spectrum.extent(3) < 3) {
     throw std::runtime_error("NeutronScatteringMonitor requires at least 3 channels");
   }
 
@@ -140,10 +140,10 @@ jams::MultiArray<jams::ComplexHi, 2> NeutronScatteringMonitor::calculate_unpolar
 }
 
 jams::MultiArray<jams::ComplexHi, 3> NeutronScatteringMonitor::calculate_polarized_cross_sections(const CmplxMappedSpectrum& spectrum, const std::vector<Vec3>& polarizations) {
-  const auto num_sites = spectrum.size(0);
-  const auto num_freqencies = spectrum.size(1);
-  const auto num_reciprocal_points = spectrum.size(2);
-  if (spectrum.size(3) < 3) {
+  const auto num_sites = spectrum.extent(0);
+  const auto num_freqencies = spectrum.extent(1);
+  const auto num_reciprocal_points = spectrum.extent(2);
+  if (spectrum.extent(3) < 3) {
     throw std::runtime_error("NeutronScatteringMonitor requires at least 3 channels");
   }
 
@@ -199,7 +199,7 @@ void NeutronScatteringMonitor::output_neutron_cross_section() {
 
     ofs << "index\t" << "q_total\t" << "h\t" << "k\t" << "l\t" << "qx\t" << "qy\t" << "qz\t";
     ofs << "freq_THz\t" << "energy_meV\t" << "sigma_unpol_re\t" << "sigma_unpol_im\t";
-    for (auto k = 0; k < total_polarized_neutron_cross_sections_.size(0); ++k) {
+    for (auto k = 0; k < total_polarized_neutron_cross_sections_.extent(0); ++k) {
       ofs << "sigma_pol" << std::to_string(k) << "_re\t" << "sigma_pol" << std::to_string(k) << "_im\t";
     }
     ofs << "\n";
@@ -209,7 +209,7 @@ void NeutronScatteringMonitor::output_neutron_cross_section() {
     auto prefactor = (sample_time_interval() / periodogram_window_count()) * (1.0 / (kTwoPi * kHBarIU))
                      * pow2((0.5 * kNeutronGFactor * pow2(kElementaryCharge)) / (kElectronMass * pow2(kSpeedOfLight)));
     auto barns_unitcell = prefactor / (1e-28 * globals::lattice->num_cells());
-    auto time_points = total_unpolarized_neutron_cross_section_.size(0);
+    auto time_points = total_unpolarized_neutron_cross_section_.extent(0);
 
     auto path_begin = k_segment_offsets_[n];
     auto path_end = k_segment_offsets_[n + 1];
@@ -225,7 +225,7 @@ void NeutronScatteringMonitor::output_neutron_cross_section() {
         // cross section output units are Barns Steradian^-1 Joules^-1 unitcell^-1
         ofs << jams::fmt::sci << barns_unitcell * total_unpolarized_neutron_cross_section_(i, j).real() << "\t";
         ofs << jams::fmt::sci << barns_unitcell * total_unpolarized_neutron_cross_section_(i, j).imag() << "\t";
-        for (auto k = 0; k < total_polarized_neutron_cross_sections_.size(0); ++k) {
+        for (auto k = 0; k < total_polarized_neutron_cross_sections_.extent(0); ++k) {
           ofs << jams::fmt::sci << barns_unitcell * total_polarized_neutron_cross_sections_(k, i, j).real() << "\t";
           ofs << jams::fmt::sci << barns_unitcell * total_polarized_neutron_cross_sections_(k, i, j).imag() << "\t";
         }

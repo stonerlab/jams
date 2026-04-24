@@ -229,10 +229,10 @@ void CudaNeutronScatteringNoLatticeMonitor::shift_periodogram_overlap() {
 
   // shift overlap data to the start of the range
   for (auto t = 0; t < periodogram_props_.overlap; ++t) {
-    for (auto i = 0; i < spin_timeseries_.size(1); ++i) {
-      for (auto j = 0; j < spin_timeseries_.size(2); ++j) {
+    for (auto i = 0; i < spin_timeseries_.extent(1); ++i) {
+      for (auto j = 0; j < spin_timeseries_.extent(2); ++j) {
         spin_timeseries_(t, i, j) = spin_timeseries_(
-            spin_timeseries_.size(0) - periodogram_props_.overlap + t, i, j);
+            spin_timeseries_.extent(0) - periodogram_props_.overlap + t, i, j);
       }
     }
   }
