@@ -65,12 +65,14 @@ namespace jams {
         explicit NearTree(FuncType func);
 
         NearTree(FuncType func, const std::vector<T>& items, bool randomize = true);
+        NearTree(FuncType func, std::vector<T>&& items, bool randomize = true);
 
         ~NearTree();
 
         void insert(const T &t);
 
-        void insert(std::vector<T> items, bool randomize = true);
+        void insert(const std::vector<T>& items, bool randomize = true);
+        void insert(std::vector<T>&& items, bool randomize = true);
 
         bool nearest_neighbour(const DistType &radius, T &closest, const T &origin) const;
 
@@ -133,6 +135,12 @@ namespace jams {
       insert(items, randomize);
     }
 
+    template<typename T, typename FuncType, typename DistType>
+    NearTree<T, FuncType, DistType>::NearTree(FuncType func, std::vector<T>&& items, bool randomize)
+        : norm_functor(func) {
+      insert(std::move(items), randomize);
+    }
+
     //
     // NearTree destructor
     //
@@ -155,8 +163,20 @@ namespace jams {
       size_ = 0;
     }
 
-    template<typename T, typename FuncType, typename  DistType>
-    void NearTree<T, FuncType, DistType>::insert(std::vector<T> items, bool randomize) {
+    template<typename T, typename FuncType, typename DistType>
+    void NearTree<T, FuncType, DistType>::insert(const std::vector<T>& items, bool randomize) {
+      if (randomize) {
+        auto shuffled_items = items;
+        insert(std::move(shuffled_items), true);
+        return;
+      }
+      for (const auto& x : items) {
+        insert(x);
+      }
+    }
+
+    template<typename T, typename FuncType, typename DistType>
+    void NearTree<T, FuncType, DistType>::insert(std::vector<T>&& items, bool randomize) {
       if (randomize) {
         // Near tree lookups are MUCH more efficient (an order of magnitude)
         // if the inserted positions are randomized, rather than regular in
@@ -165,7 +185,7 @@ namespace jams {
         std::mt19937 rng(rd());
         std::shuffle(items.begin(), items.end(), rng);
       }
-      for (auto &x : items) {
+      for (const auto& x : items) {
         insert(x);
       }
     }
