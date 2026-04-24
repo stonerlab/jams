@@ -51,6 +51,7 @@ class CudaQuantumSpdeNoiseGenerator : public NoiseGenerator {
   jams::MultiArray<jams::Real, 1> eta1b_;
   double delta_tau_;
   double omega_max_;
+  jams::Real stationary_temperature_;
   int num_channels_;
 };
 

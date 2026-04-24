@@ -8,6 +8,7 @@
 #include <iostream>
 #include <limits>
 #include <random>
+#include <stdexcept>
 
 #include <jams/common.h>
 
@@ -175,6 +176,7 @@ CudaQuantumSpdeNoiseGenerator::CudaQuantumSpdeNoiseGenerator(
       do_zero_point_(config.zero_point),
       delta_tau_((timestep * kBoltzmannIU) / kHBarIU),
       omega_max_(config.omega_max),
+      stationary_temperature_(temperature),
       num_channels_(3 * num_vectors) {
   std::cout << "\n  initialising quantum-spde-gpu noise generator\n";
 
@@ -297,6 +299,15 @@ void CudaQuantumSpdeNoiseGenerator::update() {
   if (this->temperature() == 0) {
     CHECK_CUDA_STATUS(cudaMemsetAsync(noise_.device_data(), 0, noise_.bytes(), cuda_stream_.get()));
     return;
+  }
+
+  if (stationary_temperature_ == jams::Real(0.0)) {
+    stationary_temperature_ = this->temperature();
+  }
+
+  if (this->temperature() != stationary_temperature_) {
+    throw std::runtime_error(
+        "CudaQuantumSpdeNoiseGenerator does not support nonzero dynamic temperature changes");
   }
 
   const int block_size = 128;
