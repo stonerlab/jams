@@ -37,6 +37,7 @@
 
 #include <algorithm>
 #include <cassert>
+#include <cstdio>
 #include <cstdlib>
 #include <cstring>
 #include <exception>
@@ -68,10 +69,15 @@ inline void check_cuda_status(cudaError_t status, const char* file, int line) {
   }
 }
 
+inline void report_cuda_free_failure(cudaError_t status, const char* operation) noexcept {
+  std::fprintf(stderr,
+               "FATAL(SyncedMemory): %s failed during noexcept cleanup: %s\n",
+               operation,
+               cudaGetErrorString(status));
+}
+
 [[noreturn]] inline void terminate_cuda_free_failure(cudaError_t status, const char* operation) noexcept {
-  std::cerr << "FATAL(SyncedMemory): " << operation
-            << " failed during noexcept cleanup: "
-            << cudaGetErrorString(status) << std::endl;
+  report_cuda_free_failure(status, operation);
   std::terminate();
 }
 #endif
