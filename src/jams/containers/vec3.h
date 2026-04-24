@@ -289,8 +289,13 @@ inline Vec3 spherical_to_cartesian_vector(const double r, const double theta, co
 
 /// Returns the polar angle in radians of the cartesian vector a. The polar
 /// angle is the angle down from the +z axis.
-inline double polar_angle(const Vec<double,3> a) {
-  return acos(a[2]/norm(a));
+inline double polar_angle(const Vec<double,3>& a) {
+  const auto length = norm(a);
+  if (length == 0.0) {
+    return 0.0;
+  }
+
+  return std::acos(std::clamp(a[2] / length, -1.0, 1.0));
 }
 
 /// Returns the azimuthal angle in radians of the cartesian vector a. The
