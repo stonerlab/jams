@@ -416,11 +416,13 @@ SyncedMemory<T>::allocate_device_memory(const SyncedMemory::size_type size) cons
                 "SyncedMemory<T>: alignof(T) > 256 may not be satisfied by cudaMalloc alignment");
 
   assert(!device_ptr_);
-  const cudaError_t status = cudaMalloc(reinterpret_cast<void**>(&device_ptr_), allocation_bytes);
+  void* raw = nullptr;
+  const cudaError_t status = cudaMalloc(&raw, allocation_bytes);
   if (status == cudaErrorMemoryAllocation) {
     throw std::bad_alloc();
   }
   SYNCED_MEMORY_CHECK_CUDA_STATUS(status);
+  device_ptr_ = static_cast<pointer>(raw);
   assert(device_ptr_);
 #else
   if (size != 0) {
@@ -434,12 +436,20 @@ template<class T>
 void SyncedMemory<T>::allocate_host_memory(const SyncedMemory::size_type size) const {
   if (size == 0) return;
 
+  const std::size_t allocation_bytes = bytes(size);
+
   // host_ptr_ must not already be allocated before we try to allocate
   assert(!host_ptr_);
 
 #if HAS_CUDA
   if (has_cuda_context()) {
-    SYNCED_MEMORY_CHECK_CUDA_STATUS(cudaMallocHost(reinterpret_cast<void **>(&host_ptr_), bytes(size)));
+    void* raw = nullptr;
+    const cudaError_t status = cudaMallocHost(&raw, allocation_bytes);
+    if (status == cudaErrorMemoryAllocation) {
+      throw std::bad_alloc();
+    }
+    SYNCED_MEMORY_CHECK_CUDA_STATUS(status);
+    host_ptr_ = static_cast<pointer>(raw);
     assert(host_ptr_);
     host_cuda_malloc_ = true;
     return;
@@ -454,7 +464,7 @@ void SyncedMemory<T>::allocate_host_memory(const SyncedMemory::size_type size) c
                 "synced_memory_host_alignment must be a power of two");
 
   void* raw = nullptr;
-  if (posix_memalign(&raw, alignment, bytes(size)) != 0) {
+  if (posix_memalign(&raw, alignment, allocation_bytes) != 0) {
     throw std::bad_alloc();
   }
   host_ptr_ = reinterpret_cast<pointer>(raw);
