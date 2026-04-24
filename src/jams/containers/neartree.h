@@ -51,7 +51,8 @@ namespace jams {
 
         NearTree(NearTree&& other) noexcept
         : left(nullptr), right(nullptr), left_branch(nullptr), right_branch(nullptr),
-          max_distance_left(-1), max_distance_right(-1), norm_functor(std::move(other.norm_functor)) {
+          max_distance_left(empty_distance()), max_distance_right(empty_distance()),
+          norm_functor(std::move(other.norm_functor)) {
           swap(*this, other);
         }
 
@@ -91,10 +92,14 @@ namespace jams {
         NearTree *left_branch = nullptr;  // tree descending from the left
         NearTree *right_branch = nullptr;  // tree descending from the right
 
-        DistType max_distance_left = -1;  // longest distance from the left object to anything below it in the tree
-        DistType max_distance_right = -1; // longest distance from the right object to anything below it in the tree
+        DistType max_distance_left = empty_distance();  // longest distance from the left object to anything below it in the tree
+        DistType max_distance_right = empty_distance(); // longest distance from the right object to anything below it in the tree
 
         FuncType norm_functor;  // functor to calculate distance
+
+        static constexpr DistType empty_distance() noexcept {
+          return std::numeric_limits<DistType>::lowest();
+        }
 
         void
         in_radius(const DistType &radius, std::vector<T> &closest, const T &origin,
@@ -147,8 +152,8 @@ namespace jams {
       delete right;
       right = nullptr;
 
-      max_distance_left = -1;
-      max_distance_right = -1;
+      max_distance_left = empty_distance();
+      max_distance_right = empty_distance();
     }
 
     template<typename T, typename FuncType, typename  DistType>
