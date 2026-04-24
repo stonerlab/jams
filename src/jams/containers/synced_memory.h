@@ -41,7 +41,6 @@
 #include <cstdlib>
 #include <cstring>
 #include <exception>
-#include <iostream>
 #include <iterator>
 #include <limits>
 #include <new>
@@ -60,6 +59,10 @@ inline constexpr std::size_t synced_memory_host_alignment = 64;
 // If SyncedMemory is used in a global context then free() can call CUDA
 // routines after the CUDA context has been unloaded.
 inline constexpr bool synced_memory_allow_global = true;
+
+inline void print_synced_memory_event(const char* event) noexcept {
+  std::fprintf(stderr, "INFO(SyncedMemory): %s\n", event);
+}
 
 #if HAS_CUDA
 inline void check_cuda_status(cudaError_t status, const char* file, int line) {
@@ -339,7 +342,7 @@ SyncedMemory<T>::SyncedMemory(const SyncedMemory &rhs)
   if (rhs.device_valid()) {
     allocate_device_memory(size_);
     if constexpr (detail::synced_memory_print_memcpy) {
-      std::cout << "INFO(SyncedMemory): cudaMemcpyDeviceToDevice" << std::endl;
+      detail::print_synced_memory_event("cudaMemcpyDeviceToDevice");
     }
     SYNCED_MEMORY_CHECK_CUDA_STATUS(cudaMemcpy(device_ptr_, rhs.device_ptr_, bytes(size_), cudaMemcpyDeviceToDevice));
     set_valid(Validity::device);
@@ -553,7 +556,7 @@ void SyncedMemory<T>::ensure_host_current() const {
       allocate_host_memory(size_);
     }
     if constexpr (detail::synced_memory_print_memcpy) {
-      std::cout << "INFO(SyncedMemory): cudaMemcpyDeviceToHost" << std::endl;
+      detail::print_synced_memory_event("cudaMemcpyDeviceToHost");
     }
     assert(device_ptr_ && host_ptr_);
     SYNCED_MEMORY_CHECK_CUDA_STATUS(cudaMemcpy(host_ptr_, device_ptr_, bytes(size_), cudaMemcpyDeviceToHost));
@@ -593,7 +596,7 @@ void SyncedMemory<T>::ensure_device_current() const {
 
   if (host_valid()) {
     if constexpr (detail::synced_memory_print_memcpy) {
-      std::cout << "INFO(SyncedMemory): cudaMemcpyHostToDevice" << std::endl;
+      detail::print_synced_memory_event("cudaMemcpyHostToDevice");
     }
     assert(device_ptr_ && host_ptr_);
     SYNCED_MEMORY_CHECK_CUDA_STATUS(cudaMemcpy(device_ptr_, host_ptr_, bytes(size_),
@@ -643,7 +646,7 @@ void SyncedMemory<T>::zero_device() const {
 
 #if HAS_CUDA
   if constexpr (detail::synced_memory_print_memset) {
-    std::cout << "INFO(SyncedMemory): device zero" << std::endl;
+    detail::print_synced_memory_event("device zero");
   }
   assert(device_ptr_);
   SYNCED_MEMORY_CHECK_CUDA_STATUS(cudaMemset(device_ptr_, 0, bytes(size_)));
@@ -657,7 +660,7 @@ void SyncedMemory<T>::zero_host() const {
   if (size_ == 0) return;
 
   if constexpr (detail::synced_memory_print_memset) {
-    std::cout << "INFO(SyncedMemory): host zero" << std::endl;
+    detail::print_synced_memory_event("host zero");
   }
   assert(host_ptr_);
   memset(host_ptr_, 0, bytes(size_));
