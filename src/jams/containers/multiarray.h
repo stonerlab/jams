@@ -85,6 +85,18 @@ namespace jams {
         template<std::size_t Dim, typename... Args>
         inline constexpr bool valid_extent_args_v =
             sizeof...(Args) == Dim && (std::is_integral_v<std::decay_t<Args>> && ...);
+
+        template<typename Size, std::size_t Dim, typename... Args>
+        constexpr std::array<Size, Dim> make_size_container(Args... args) {
+          static_assert(sizeof...(Args) == Dim,
+                        "number of MultiArray indicies does not match the MultiArray dimension");
+          return {checked_integral_cast<Size>(args)...};
+        }
+
+        template<typename Size, typename Integral, std::size_t Dim>
+        constexpr std::array<Size, Dim> make_size_container(const std::array<Integral, Dim>& values) {
+          return checked_array_cast<Size>(values);
+        }
     }
 
     template<class Tp_, std::size_t Dim_, class Idx_ = std::size_t>
@@ -144,14 +156,14 @@ namespace jams {
         // construct using dimensions as arguments
         template<typename... Args, std::enable_if_t<detail::valid_extent_args_v<Dim_, Args...>, int> = 0>
         inline explicit MultiArray(const Args... args)
-            : MultiArray(size_container_type{detail::checked_integral_cast<size_type>(args)...}) {
+            : MultiArray(detail::make_size_container<size_type, Dim_>(args...)) {
           static_assert(sizeof...(args) == Dim_,
                         "number of MultiArray indicies in constructor does not match the MultiArray dimension");
         }
 
         template<typename... Args, std::enable_if_t<detail::valid_extent_args_v<Dim_, Args...>, int> = 0>
         inline explicit MultiArray(const value_type& x, const Args... args)
-            : MultiArray(x, size_container_type{detail::checked_integral_cast<size_type>(args)...}) {
+            : MultiArray(x, detail::make_size_container<size_type, Dim_>(args...)) {
           static_assert(sizeof...(args) == Dim_,
                         "number of MultiArray indicies in constructor does not match the MultiArray dimension");
         }
@@ -159,12 +171,12 @@ namespace jams {
         // construct using dimensions in array
         template<typename Integral_>
         inline explicit MultiArray(const std::array<Integral_, Dim_> &v) :
-            size_(detail::checked_array_cast<size_type>(v)),
+            size_(detail::make_size_container<size_type>(v)),
             data_(detail::checked_product(size_)) {}
 
       template<typename Integral_>
       inline explicit MultiArray(const value_type& x, const std::array<Integral_, Dim_> v) :
-            size_(detail::checked_array_cast<size_type>(v)),
+            size_(detail::make_size_container<size_type>(v)),
             data_(detail::checked_product(size_), x) {}
 
         template<class InputIt, std::enable_if_t<(Dim_ == 1 && detail::is_iterator<InputIt>::value), bool> = true>
@@ -217,7 +229,7 @@ namespace jams {
         inline reference operator()(const Args &... args) {
           static_assert(sizeof...(args) == Dim_,
                         "number of MultiArray indicies does not match the MultiArray dimension");
-          const size_container_type indices{static_cast<size_type>(args)...};
+          const auto indices = detail::make_size_container<size_type, Dim_>(args...);
           assert(indices_in_bounds(indices));
           return data_.mutable_host_data()[detail::row_major_index(size_, indices)];
         }
@@ -226,7 +238,7 @@ namespace jams {
         inline const_reference operator()(const Args &... args) const {
           static_assert(sizeof...(args) == Dim_,
                         "number of MultiArray indicies does not match the MultiArray dimension");
-          const size_container_type indices{static_cast<size_type>(args)...};
+          const auto indices = detail::make_size_container<size_type, Dim_>(args...);
           assert(indices_in_bounds(indices));
           return data_.host_data()[detail::row_major_index(size_, indices)];
         }
@@ -338,7 +350,7 @@ namespace jams {
         inline MultiArray& resize(const Args &... args) {
           static_assert(sizeof...(args) == Dim_,
                         "number of MultiArray indicies in resize does not match the MultiArray dimension");
-          const size_container_type new_size{detail::checked_integral_cast<size_type>(args)...};
+          const auto new_size = detail::make_size_container<size_type, Dim_>(args...);
           data_.resize(detail::checked_product(new_size));
           size_ = new_size;
           return *this;
@@ -346,7 +358,7 @@ namespace jams {
 
         template<typename Integral_>
         inline MultiArray& resize(const std::array<Integral_, Dim_> &v) {
-          const auto new_size = detail::checked_array_cast<size_type>(v);
+          const auto new_size = detail::make_size_container<size_type>(v);
           data_.resize(detail::checked_product(new_size));
           size_ = new_size;
           return *this;
