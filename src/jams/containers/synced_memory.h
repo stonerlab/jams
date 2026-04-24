@@ -81,7 +81,7 @@
   } \
 }
 
-namespace {
+namespace jams::detail {
 template <typename... >
 using void_t = void;
 
@@ -92,7 +92,7 @@ template <class T>
 struct is_iterator<T, void_t<
                       typename std::iterator_traits<T>::iterator_category
 >> : std::true_type { };
-}
+} // namespace jams::detail
 
 namespace jams {
 
@@ -149,7 +149,7 @@ public:
 
     /// Construct a synced memory object with a size and values taken from
     /// the range between the 'first' and 'last' input iterators.
-    template<class InputIt, std::enable_if_t<is_iterator<InputIt>::value, bool> = true>
+    template<class InputIt, std::enable_if_t<detail::is_iterator<InputIt>::value, bool> = true>
     SyncedMemory(InputIt first, InputIt last);
 
     /// Construct a synced memory object from another similar object.
@@ -298,7 +298,7 @@ SyncedMemory<T>::SyncedMemory(SyncedMemory::size_type size, const T &x)
 
 
 template<class T>
-template<class InputIt, std::enable_if_t<is_iterator<InputIt>::value, bool>>
+template<class InputIt, std::enable_if_t<detail::is_iterator<InputIt>::value, bool>>
 SyncedMemory<T>::SyncedMemory(InputIt first, InputIt last) {
   using category = typename std::iterator_traits<InputIt>::iterator_category;
   assign_from_range(first, last, category{});

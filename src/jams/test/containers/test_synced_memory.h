@@ -257,6 +257,56 @@ TEST(SyncedMemoryApiTest, InputIteratorConstructionConsumesSinglePassRangeOnce) 
   EXPECT_THAT(std::vector<int>(host, host + memory.size()), ElementsAre(3, 1, 4, 1, 5));
 }
 
+TEST(SyncedMemoryApiTest, ForwardIteratorConstructionAllocatesExactLogicalSize) {
+  using namespace jams;
+  using namespace testing;
+
+  const std::vector<int> values = {8, 6, 7, 5, 3, 0, 9};
+  SyncedMemory<int> memory(values.begin(), values.end());
+  EXPECT_EQ(memory.size(), values.size());
+  EXPECT_EQ(memory.bytes(), values.size() * sizeof(int));
+  EXPECT_TRUE(memory.host_valid());
+  EXPECT_FALSE(memory.device_valid());
+
+  const int* host = memory.host_data();
+  ASSERT_NE(host, nullptr);
+  EXPECT_THAT(std::vector<int>(host, host + memory.size()),
+              ElementsAre(8, 6, 7, 5, 3, 0, 9));
+}
+
+TEST(SyncedMemoryApiTest, RandomAccessIteratorConstructionAllocatesExactLogicalSize) {
+  using namespace jams;
+  using namespace testing;
+
+  const int values[] = {2, 7, 1, 8};
+  SyncedMemory<int> memory(std::begin(values), std::end(values));
+  EXPECT_EQ(memory.size(), 4u);
+  EXPECT_EQ(memory.bytes(), sizeof(values));
+  EXPECT_TRUE(memory.host_valid());
+  EXPECT_FALSE(memory.device_valid());
+
+  const int* host = memory.host_data();
+  ASSERT_NE(host, nullptr);
+  EXPECT_THAT(std::vector<int>(host, host + memory.size()), ElementsAre(2, 7, 1, 8));
+}
+
+TEST(SyncedMemoryApiTest, IntegralConstructionDoesNotSelectIteratorOverload) {
+  using namespace jams;
+
+  static_assert(std::is_constructible<SyncedMemory<int>, SyncedMemory<int>::size_type>::value, "");
+  static_assert(std::is_constructible<SyncedMemory<int>, SyncedMemory<int>::size_type, int>::value, "");
+
+  SyncedMemory<int> sized(3);
+  EXPECT_EQ(sized.size(), 3u);
+  EXPECT_FALSE(sized.host_valid());
+
+  SyncedMemory<int> filled(3, 11);
+  EXPECT_EQ(filled.size(), 3u);
+  EXPECT_TRUE(filled.host_valid());
+  EXPECT_THAT(std::vector<int>(filled.host_data(), filled.host_data() + filled.size()),
+              testing::ElementsAre(11, 11, 11));
+}
+
 TEST(SyncedMemoryApiTest, CopyConstructionCopiesCurrentLogicalValue) {
   using namespace jams;
   using namespace testing;

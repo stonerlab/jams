@@ -180,6 +180,53 @@ TEST(MultiArrayFinalApiTest, OneDimensionalInputIteratorConstructionConsumesSing
               testing::ElementsAre(9, 2, 6, 5));
 }
 
+TEST(MultiArrayFinalApiTest, OneDimensionalForwardIteratorConstructionUsesExactLogicalSize) {
+  using namespace jams;
+
+  const std::vector<int> source = {4, 8, 15, 16, 23, 42};
+  MultiArray<int, 1> values(source.begin(), source.end());
+  EXPECT_EQ(values.size(), source.size());
+  EXPECT_EQ(values.elements(), source.size());
+  EXPECT_EQ(values.bytes(), source.size() * sizeof(int));
+
+  const int* data = values.data();
+  ASSERT_NE(data, nullptr);
+  EXPECT_THAT(std::vector<int>(data, data + values.size()),
+              testing::ElementsAre(4, 8, 15, 16, 23, 42));
+}
+
+TEST(MultiArrayFinalApiTest, OneDimensionalRandomAccessIteratorConstructionUsesExactLogicalSize) {
+  using namespace jams;
+
+  const int source[] = {10, 20, 30};
+  MultiArray<int, 1> values(std::begin(source), std::end(source));
+  EXPECT_EQ(values.size(), 3u);
+  EXPECT_EQ(values.elements(), 3u);
+  EXPECT_EQ(values.bytes(), sizeof(source));
+
+  const int* data = values.data();
+  ASSERT_NE(data, nullptr);
+  EXPECT_THAT(std::vector<int>(data, data + values.size()),
+              testing::ElementsAre(10, 20, 30));
+}
+
+TEST(MultiArrayFinalApiTest, OneDimensionalIntegralConstructionDoesNotSelectIteratorOverload) {
+  using namespace jams;
+
+  static_assert(std::is_constructible<MultiArray<int, 1>, MultiArray<int, 1>::size_type>::value, "");
+  static_assert(std::is_constructible<MultiArray<int, 1>, int, MultiArray<int, 1>::size_type>::value, "");
+
+  MultiArray<int, 1> sized(4);
+  EXPECT_EQ(sized.size(), 4u);
+  EXPECT_EQ(sized.elements(), 4u);
+
+  MultiArray<int, 1> filled(12, 3);
+  EXPECT_EQ(filled.size(), 3u);
+  EXPECT_EQ(filled.elements(), 3u);
+  EXPECT_THAT(std::vector<int>(filled.data(), filled.data() + filled.size()),
+              testing::ElementsAre(12, 12, 12));
+}
+
 TEST(MultiArrayFinalApiTest, CopyMoveAndSwapPreserveLogicalValues) {
   using namespace jams;
   using testing::ElementsAre;

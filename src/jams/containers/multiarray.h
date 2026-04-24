@@ -384,7 +384,7 @@ namespace jams {
             size_(detail::array_cast<size_type>(v)),
             data_(std::get<0>(v)) {}
 
-        template<class InputIt>
+        template<class InputIt, std::enable_if_t<detail::is_iterator<InputIt>::value, bool> = true>
         inline MultiArray(InputIt first, InputIt last)
             : data_(first, last) {
           size_ = {static_cast<size_type>(data_.size())};
