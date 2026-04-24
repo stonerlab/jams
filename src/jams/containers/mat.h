@@ -15,32 +15,11 @@
 
 namespace jams {
 
-template <typename>
-struct is_mat : std::false_type {};
-
 namespace detail {
-
-template <typename>
-struct is_vec : std::false_type {};
-
-template <typename T, std::size_t N>
-struct is_vec<Vec<T, N>> : std::true_type {};
-
-template <typename T>
-inline constexpr bool is_mat_scalar_v =
-    !is_mat<std::decay_t<T>>::value && !is_vec<std::decay_t<T>>::value;
 
 template <typename T1, typename T2>
 using multiply_accumulate_result_t =
     decltype(std::declval<T1>() * std::declval<T2>() + std::declval<T1>() * std::declval<T2>());
-
-template <typename To, typename From, typename = void>
-struct is_static_castable : std::false_type {};
-
-template <typename To, typename From>
-struct is_static_castable<To, From,
-                          std::void_t<decltype(static_cast<To>(std::declval<From>()))>>
-    : std::true_type {};
 
 } // namespace detail
 
@@ -68,13 +47,15 @@ struct Mat {
   constexpr Mat& operator=(Mat&&) = default;
   ~Mat() = default;
 
-  constexpr Mat(const storage_type& storage) : values(storage) {}
-  constexpr Mat(storage_type&& storage) : values(std::move(storage)) {}
+  constexpr Mat(const storage_type& storage) noexcept(std::is_nothrow_copy_constructible_v<storage_type>)
+      : values(storage) {}
+  constexpr Mat(storage_type&& storage) noexcept(std::is_nothrow_move_constructible_v<storage_type>)
+      : values(std::move(storage)) {}
 
   template <typename... Args,
             typename = std::enable_if_t<sizeof...(Args) == Rows * Cols &&
                                         (std::is_convertible_v<Args, T> && ...)>>
-  constexpr Mat(Args&&... args)
+  constexpr Mat(Args&&... args) noexcept((std::is_nothrow_constructible_v<T, Args&&> && ...))
       : values(make_storage(std::forward_as_tuple(std::forward<Args>(args)...),
                             std::make_index_sequence<Rows>{})) {}
 
@@ -107,21 +88,25 @@ struct Mat {
   static constexpr size_type rows() noexcept { return Rows; }
   static constexpr size_type cols() noexcept { return Cols; }
   static constexpr size_type element_count() noexcept { return Rows * Cols; }
-  // size() follows the existing container convention of returning the row count.
-  static constexpr size_type size() noexcept { return Rows; }
   static constexpr bool empty() noexcept { return false; }
 
-  constexpr operator storage_type&() noexcept { return values; }
-  constexpr operator const storage_type&() const noexcept { return values; }
+  constexpr storage_type& storage() & noexcept { return values; }
+  constexpr const storage_type& storage() const& noexcept { return values; }
+  constexpr storage_type&& storage() && noexcept { return std::move(values); }
+  constexpr const storage_type&& storage() const&& noexcept { return std::move(values); }
 
  private:
   template <std::size_t Row, typename Tuple, std::size_t... ColIndexes>
-  static constexpr row_type make_row(Tuple&& args, std::index_sequence<ColIndexes...>) {
+  static constexpr row_type make_row(Tuple&& args, std::index_sequence<ColIndexes...>)
+      noexcept((noexcept(static_cast<T>(
+          std::get<Row * Cols + ColIndexes>(std::forward<Tuple>(args)))) && ...)) {
     return {static_cast<T>(std::get<Row * Cols + ColIndexes>(std::forward<Tuple>(args)))...};
   }
 
   template <typename Tuple, std::size_t... RowIndexes>
-  static constexpr storage_type make_storage(Tuple&& args, std::index_sequence<RowIndexes...>) {
+  static constexpr storage_type make_storage(Tuple&& args, std::index_sequence<RowIndexes...>)
+      noexcept((noexcept(make_row<RowIndexes>(
+          std::forward<Tuple>(args), std::make_index_sequence<Cols>{})) && ...)) {
     return {make_row<RowIndexes>(std::forward<Tuple>(args), std::make_index_sequence<Cols>{})...};
   }
 };
@@ -213,6 +198,8 @@ constexpr Mat<T, Cols, Rows> transpose(const Mat<T, Rows, Cols>& matrix)
 
 template <typename T1, typename T2, std::size_t Rows, std::size_t Cols>
 inline constexpr auto operator*(const Mat<T1, Rows, Cols>& lhs, const Vec<T2, Cols>& rhs)
+    noexcept(noexcept(std::declval<detail::multiply_accumulate_result_t<T1, T2>&>() +=
+                      std::declval<const T1&>() * std::declval<const T2&>()))
     -> Vec<detail::multiply_accumulate_result_t<T1, T2>, Rows> {
   Vec<detail::multiply_accumulate_result_t<T1, T2>, Rows> result{};
   for (std::size_t row = 0; row < Rows; ++row) {
@@ -224,8 +211,9 @@ inline constexpr auto operator*(const Mat<T1, Rows, Cols>& lhs, const Vec<T2, Co
 }
 
 template <typename T1, typename T2, std::size_t Rows, std::size_t Cols,
-          typename = std::enable_if_t<detail::is_mat_scalar_v<T1>>>
+          typename = std::enable_if_t<detail::is_container_scalar_v<T1>>>
 inline constexpr auto operator*(const T1& lhs, const Mat<T2, Rows, Cols>& rhs)
+    noexcept(noexcept(lhs * rhs[0][0]))
     -> Mat<decltype(lhs * rhs[0][0]), Rows, Cols> {
   Mat<decltype(lhs * rhs[0][0]), Rows, Cols> result{};
   for (std::size_t row = 0; row < Rows; ++row) {
@@ -237,8 +225,9 @@ inline constexpr auto operator*(const T1& lhs, const Mat<T2, Rows, Cols>& rhs)
 }
 
 template <typename T1, typename T2, std::size_t Rows, std::size_t Cols,
-          typename = std::enable_if_t<detail::is_mat_scalar_v<T2>>>
+          typename = std::enable_if_t<detail::is_container_scalar_v<T2>>>
 inline constexpr auto operator*(const Mat<T1, Rows, Cols>& lhs, const T2& rhs)
+    noexcept(noexcept(lhs[0][0] * rhs))
     -> Mat<decltype(lhs[0][0] * rhs), Rows, Cols> {
   Mat<decltype(lhs[0][0] * rhs), Rows, Cols> result{};
   for (std::size_t row = 0; row < Rows; ++row) {
@@ -251,6 +240,7 @@ inline constexpr auto operator*(const Mat<T1, Rows, Cols>& lhs, const T2& rhs)
 
 template <typename T1, typename T2, std::size_t Rows, std::size_t Cols>
 inline constexpr auto operator/(const Mat<T1, Rows, Cols>& lhs, const T2& rhs)
+    noexcept(noexcept(lhs[0][0] / rhs))
     -> Mat<decltype(lhs[0][0] / rhs), Rows, Cols> {
   Mat<decltype(lhs[0][0] / rhs), Rows, Cols> result{};
   for (std::size_t row = 0; row < Rows; ++row) {
@@ -263,7 +253,8 @@ inline constexpr auto operator/(const Mat<T1, Rows, Cols>& lhs, const T2& rhs)
 
 template <typename T1, typename T2, std::size_t Rows, std::size_t Cols>
 inline constexpr Mat<T1, Rows, Cols>& operator+=(Mat<T1, Rows, Cols>& lhs,
-                                                 const Mat<T2, Rows, Cols>& rhs) {
+                                                 const Mat<T2, Rows, Cols>& rhs) noexcept(noexcept(
+    std::declval<T1&>() += std::declval<const T2&>())) {
   for (std::size_t row = 0; row < Rows; ++row) {
     for (std::size_t col = 0; col < Cols; ++col) {
       lhs[row][col] += rhs[row][col];
@@ -274,6 +265,7 @@ inline constexpr Mat<T1, Rows, Cols>& operator+=(Mat<T1, Rows, Cols>& lhs,
 
 template <typename T1, typename T2, std::size_t Rows, std::size_t Cols>
 inline constexpr auto operator+(const Mat<T1, Rows, Cols>& lhs, const Mat<T2, Rows, Cols>& rhs)
+    noexcept(noexcept(lhs[0][0] + rhs[0][0]))
     -> Mat<decltype(lhs[0][0] + rhs[0][0]), Rows, Cols> {
   Mat<decltype(lhs[0][0] + rhs[0][0]), Rows, Cols> result{};
   for (std::size_t row = 0; row < Rows; ++row) {
@@ -286,7 +278,8 @@ inline constexpr auto operator+(const Mat<T1, Rows, Cols>& lhs, const Mat<T2, Ro
 
 template <typename T1, typename T2, std::size_t Rows, std::size_t Cols>
 inline constexpr Mat<T1, Rows, Cols>& operator-=(Mat<T1, Rows, Cols>& lhs,
-                                                 const Mat<T2, Rows, Cols>& rhs) {
+                                                 const Mat<T2, Rows, Cols>& rhs) noexcept(noexcept(
+    std::declval<T1&>() -= std::declval<const T2&>())) {
   for (std::size_t row = 0; row < Rows; ++row) {
     for (std::size_t col = 0; col < Cols; ++col) {
       lhs[row][col] -= rhs[row][col];
@@ -297,6 +290,7 @@ inline constexpr Mat<T1, Rows, Cols>& operator-=(Mat<T1, Rows, Cols>& lhs,
 
 template <typename T1, typename T2, std::size_t Rows, std::size_t Cols>
 inline constexpr auto operator-(const Mat<T1, Rows, Cols>& lhs, const Mat<T2, Rows, Cols>& rhs)
+    noexcept(noexcept(lhs[0][0] - rhs[0][0]))
     -> Mat<decltype(lhs[0][0] - rhs[0][0]), Rows, Cols> {
   Mat<decltype(lhs[0][0] - rhs[0][0]), Rows, Cols> result{};
   for (std::size_t row = 0; row < Rows; ++row) {
@@ -308,8 +302,9 @@ inline constexpr auto operator-(const Mat<T1, Rows, Cols>& lhs, const Mat<T2, Ro
 }
 
 template <typename T1, typename T2, std::size_t Rows, std::size_t Cols,
-          typename = std::enable_if_t<detail::is_mat_scalar_v<T2>>>
-inline constexpr Mat<T1, Rows, Cols>& operator*=(Mat<T1, Rows, Cols>& lhs, const T2& rhs) {
+          typename = std::enable_if_t<detail::is_container_scalar_v<T2>>>
+inline constexpr Mat<T1, Rows, Cols>& operator*=(Mat<T1, Rows, Cols>& lhs, const T2& rhs)
+    noexcept(noexcept(std::declval<T1&>() *= std::declval<const T2&>())) {
   for (std::size_t row = 0; row < Rows; ++row) {
     for (std::size_t col = 0; col < Cols; ++col) {
       lhs[row][col] *= rhs;
@@ -319,8 +314,9 @@ inline constexpr Mat<T1, Rows, Cols>& operator*=(Mat<T1, Rows, Cols>& lhs, const
 }
 
 template <typename T1, typename T2, std::size_t Rows, std::size_t Cols,
-          typename = std::enable_if_t<detail::is_mat_scalar_v<T2>>>
-inline constexpr Mat<T1, Rows, Cols>& operator/=(Mat<T1, Rows, Cols>& lhs, const T2& rhs) {
+          typename = std::enable_if_t<detail::is_container_scalar_v<T2>>>
+inline constexpr Mat<T1, Rows, Cols>& operator/=(Mat<T1, Rows, Cols>& lhs, const T2& rhs)
+    noexcept(noexcept(std::declval<T1&>() /= std::declval<const T2&>())) {
   for (std::size_t row = 0; row < Rows; ++row) {
     for (std::size_t col = 0; col < Cols; ++col) {
       lhs[row][col] /= rhs;
@@ -330,7 +326,8 @@ inline constexpr Mat<T1, Rows, Cols>& operator/=(Mat<T1, Rows, Cols>& lhs, const
 }
 
 template <typename T, std::size_t Rows, std::size_t Cols>
-inline constexpr auto operator-(const Mat<T, Rows, Cols>& a) -> Mat<decltype(-a[0][0]), Rows, Cols> {
+inline constexpr auto operator-(const Mat<T, Rows, Cols>& a) noexcept(noexcept(-a[0][0]))
+    -> Mat<decltype(-a[0][0]), Rows, Cols> {
   Mat<decltype(-a[0][0]), Rows, Cols> result{};
   for (std::size_t row = 0; row < Rows; ++row) {
     for (std::size_t col = 0; col < Cols; ++col) {
@@ -342,6 +339,8 @@ inline constexpr auto operator-(const Mat<T, Rows, Cols>& a) -> Mat<decltype(-a[
 
 template <typename T1, typename T2, std::size_t Rows, std::size_t Inner, std::size_t Cols>
 inline constexpr auto operator*(const Mat<T1, Rows, Inner>& lhs, const Mat<T2, Inner, Cols>& rhs)
+    noexcept(noexcept(std::declval<detail::multiply_accumulate_result_t<T1, T2>&>() +=
+                      std::declval<const T1&>() * std::declval<const T2&>()))
     -> Mat<detail::multiply_accumulate_result_t<T1, T2>, Rows, Cols> {
   Mat<detail::multiply_accumulate_result_t<T1, T2>, Rows, Cols> result{};
   for (std::size_t row = 0; row < Rows; ++row) {
@@ -362,19 +361,18 @@ static_assert(std::is_standard_layout_v<Mat<double, 3, 3>>,
               "Mat must use standard layout storage");
 
 template <typename T, std::size_t Rows, std::size_t Cols>
-constexpr bool operator==(const Mat<T, Rows, Cols>& lhs, const Mat<T, Rows, Cols>& rhs) {
+constexpr bool operator==(const Mat<T, Rows, Cols>& lhs, const Mat<T, Rows, Cols>& rhs) noexcept(
+    noexcept(lhs.values == rhs.values)) {
   return lhs.values == rhs.values;
 }
 
 template <typename T, std::size_t Rows, std::size_t Cols>
-constexpr bool operator!=(const Mat<T, Rows, Cols>& lhs, const Mat<T, Rows, Cols>& rhs) {
+constexpr bool operator!=(const Mat<T, Rows, Cols>& lhs, const Mat<T, Rows, Cols>& rhs) noexcept(
+    noexcept(lhs == rhs)) {
   return !(lhs == rhs);
 }
 
 } // namespace jams
-
-template <typename T, std::size_t Rows, std::size_t Cols>
-using Mat = jams::Mat<T, Rows, Cols>;
 
 using jams::identity;
 using jams::matrix_cast;

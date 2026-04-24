@@ -23,13 +23,13 @@ namespace jams {
     template<typename CoordType>
     class InteractionNearTree {
     public:
-        using PositionType = Vec<CoordType, 3>;
+        using PositionType = jams::Vec<CoordType, 3>;
         using NearTreeDataType = std::pair<PositionType, int>;
         using NearTreeFunctorType = std::function<CoordType(
             const NearTreeDataType &a, const NearTreeDataType &b)>;
         using NearTreeType = jams::NearTree<NearTreeDataType, NearTreeFunctorType, CoordType>;
 
-        InteractionNearTree(const PositionType &a, const PositionType &b, const PositionType &c, const Vec<bool, 3>& pbc,
+        InteractionNearTree(const PositionType &a, const PositionType &b, const PositionType &c, const jams::Vec<bool, 3>& pbc,
                             const CoordType& r_cutoff, const CoordType& epsilon);
 
         // Insert a vector of site positions. The index will be numbered from
@@ -70,7 +70,7 @@ namespace jams {
         PositionType normal_cb_;
         PositionType normal_ba_;
 
-        Vec<int, 3> num_image_cells_ = {0, 0, 0};
+        jams::Vec<int, 3> num_image_cells_ = {0, 0, 0};
 
         NearTreeType neartree_;
     };
@@ -79,7 +79,7 @@ namespace jams {
 template<typename CoordType>
 InteractionNearTree<CoordType>::InteractionNearTree(
     const PositionType&a, const PositionType& b, const PositionType& c,
-    const Vec<bool, 3>& pbc, const CoordType& r_cutoff, const CoordType& epsilon) :
+    const jams::Vec<bool, 3>& pbc, const CoordType& r_cutoff, const CoordType& epsilon) :
     r_cutoff_(r_cutoff),
     epsilon_(epsilon),
     a_(a),

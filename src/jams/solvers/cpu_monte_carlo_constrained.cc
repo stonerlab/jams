@@ -117,11 +117,11 @@ void ConstrainedMCSolver::run() {
   }
 }
 
-unsigned ConstrainedMCSolver::AsselinAlgorithm(const std::function<Vec<double, 3>(Vec<double, 3>)>& trial_spin_move) {
+unsigned ConstrainedMCSolver::AsselinAlgorithm(const std::function<jams::Vec<double, 3>(jams::Vec<double, 3>)>& trial_spin_move) {
   std::uniform_real_distribution<> uniform_distribution;
 
   const double beta = 1.0 / (physics_module_->temperature() * kBoltzmannIU);
-  Vec<double, 3> magnetisation = total_transformed_magnetization();
+  jams::Vec<double, 3> magnetisation = total_transformed_magnetization();
 
   unsigned moves_accepted = 0;
 
@@ -135,18 +135,18 @@ unsigned ConstrainedMCSolver::AsselinAlgorithm(const std::function<Vec<double, 3
       s2 = jams::montecarlo::random_spin_index();
     }
 
-    Vec<double, 3> s1_initial         = jams::montecarlo::get_spin(s1);
+    jams::Vec<double, 3> s1_initial         = jams::montecarlo::get_spin(s1);
 
-    Vec<double, 3> s1_initial_rotated = rotate_cartesian_to_constraint(s1, s1_initial);
+    jams::Vec<double, 3> s1_initial_rotated = rotate_cartesian_to_constraint(s1, s1_initial);
 
-    Vec<double, 3> s1_trial           = trial_spin_move(s1_initial);
-    Vec<double, 3> s1_trial_rotated   = rotate_cartesian_to_constraint(s1, s1_trial);
+    jams::Vec<double, 3> s1_trial           = trial_spin_move(s1_initial);
+    jams::Vec<double, 3> s1_trial_rotated   = rotate_cartesian_to_constraint(s1, s1_trial);
 
-    Vec<double, 3> s2_initial         = jams::montecarlo::get_spin(s2);
-    Vec<double, 3> s2_initial_rotated = rotate_cartesian_to_constraint(s2, s2_initial);
+    jams::Vec<double, 3> s2_initial         = jams::montecarlo::get_spin(s2);
+    jams::Vec<double, 3> s2_initial_rotated = rotate_cartesian_to_constraint(s2, s2_initial);
 
     // calculate new spin based on contraint mx = my = 0 in the constraint vector reference frame
-    Vec<double, 3> s2_trial_rotated   = s2_initial_rotated + (s1_initial_rotated - s1_trial_rotated ) * (globals::mus(s1) / globals::mus(s2)) ;
+    jams::Vec<double, 3> s2_trial_rotated   = s2_initial_rotated + (s1_initial_rotated - s1_trial_rotated ) * (globals::mus(s1) / globals::mus(s2)) ;
 
     double ss2 = s2_trial_rotated[0] * s2_trial_rotated[0] + s2_trial_rotated[1] * s2_trial_rotated[1];
     if (ss2 > 1.0) {
@@ -156,18 +156,18 @@ unsigned ConstrainedMCSolver::AsselinAlgorithm(const std::function<Vec<double, 3
     // calculate the z-component so that |s2| = 1
     s2_trial_rotated[2] = copysign(sqrt(1.0 - ss2), s2_initial_rotated[2]);
 
-    Vec<double, 3> s2_trial = rotate_constraint_to_cartesian(s2, s2_trial_rotated);
+    jams::Vec<double, 3> s2_trial = rotate_constraint_to_cartesian(s2, s2_trial_rotated);
 
-    Vec<double, 3> delta_m = magnetization_difference(s1, s1_initial, s1_trial, s2, s2_initial, s2_trial);
+    jams::Vec<double, 3> delta_m = magnetization_difference(s1, s1_initial, s1_trial, s2, s2_initial, s2_trial);
 
-    Vec<double, 3> m_trial_rotated = rotation_matrix_ * (magnetisation + delta_m);
+    jams::Vec<double, 3> m_trial_rotated = rotation_matrix_ * (magnetisation + delta_m);
 
     if (m_trial_rotated[2] < 0.0) {
       // The new magnetization is in the opposite sense - revert s1, reject move
       continue;
     }
 
-    Vec<double, 3> m_initial_rotated = rotation_matrix_ * (magnetisation);
+    jams::Vec<double, 3> m_initial_rotated = rotation_matrix_ * (magnetisation);
 
     // calculate the Boltzmann weighted probability including the Jacobian factors (see paper)
     double delta_e = energy_difference(s1, s1_initial, s1_trial, s2, s2_initial, s2_trial);
@@ -191,8 +191,8 @@ unsigned ConstrainedMCSolver::AsselinAlgorithm(const std::function<Vec<double, 3
   return moves_accepted;
 }
 
-double ConstrainedMCSolver::energy_difference(const int &s1, const Vec<double, 3> &s1_initial, const Vec<double, 3> &s1_trial,
-                                              const int &s2, const Vec<double, 3> &s2_initial, const Vec<double, 3> &s2_trial) const {
+double ConstrainedMCSolver::energy_difference(const int &s1, const jams::Vec<double, 3> &s1_initial, const jams::Vec<double, 3> &s1_trial,
+                                              const int &s2, const jams::Vec<double, 3> &s2_initial, const jams::Vec<double, 3> &s2_trial) const {
   assert(s1 != s2);
   double delta_energy1 = 0.0;
   for (const auto& hamiltonian : hamiltonians_) {
@@ -210,14 +210,14 @@ double ConstrainedMCSolver::energy_difference(const int &s1, const Vec<double, 3
   return delta_energy1 + delta_energy2;
 }
 
-Vec<double, 3> ConstrainedMCSolver::magnetization_difference(const int &s1, const Vec<double, 3> &s1_initial, const Vec<double, 3> &s1_trial,
-                                                   const int &s2, const Vec<double, 3> &s2_initial, const Vec<double, 3> &s2_trial) const {
+jams::Vec<double, 3> ConstrainedMCSolver::magnetization_difference(const int &s1, const jams::Vec<double, 3> &s1_initial, const jams::Vec<double, 3> &s1_trial,
+                                                   const int &s2, const jams::Vec<double, 3> &s2_initial, const jams::Vec<double, 3> &s2_trial) const {
   return globals::mus(s1) * (spin_transformations_[s1] * (s1_trial - s1_initial))
   + globals::mus(s2) * (spin_transformations_[s2] * (s2_trial - s2_initial));
 }
 
-Vec<double, 3> ConstrainedMCSolver::total_transformed_magnetization() const {
-  Vec<double, 3> m_total = {0.0, 0.0, 0.0};
+jams::Vec<double, 3> ConstrainedMCSolver::total_transformed_magnetization() const {
+  jams::Vec<double, 3> m_total = {0.0, 0.0, 0.0};
 
   for (auto i = 0; i < globals::num_spins; ++i) {
     m_total += globals::mus(i) * (spin_transformations_[i] *
@@ -227,11 +227,11 @@ Vec<double, 3> ConstrainedMCSolver::total_transformed_magnetization() const {
   return m_total;
 }
 
-Vec<double, 3> ConstrainedMCSolver::rotate_cartesian_to_constraint(const int &i, const Vec<double, 3> &spin) const {
+jams::Vec<double, 3> ConstrainedMCSolver::rotate_cartesian_to_constraint(const int &i, const jams::Vec<double, 3> &spin) const {
   return rotation_matrix_ * (spin_transformations_[i] * spin);
 }
 
-Vec<double, 3> ConstrainedMCSolver::rotate_constraint_to_cartesian(const int &i, const Vec<double, 3> &spin) const {
+jams::Vec<double, 3> ConstrainedMCSolver::rotate_constraint_to_cartesian(const int &i, const jams::Vec<double, 3> &spin) const {
   return transpose(spin_transformations_[i]) * (inverse_rotation_matrix_ * spin);
 }
 
@@ -263,9 +263,9 @@ void ConstrainedMCSolver::output_initialization_info(std::ostream &os) {
 }
 
 void ConstrainedMCSolver::validate_rotation_matricies() const {
-  Vec<double, 3> test_unit_vec = {0.0, 0.0, 1.0};
-  Vec<double, 3> test_forward_vec = rotation_matrix_ * test_unit_vec;
-  Vec<double, 3> test_back_vec    = inverse_rotation_matrix_ * test_forward_vec;
+  jams::Vec<double, 3> test_unit_vec = {0.0, 0.0, 1.0};
+  jams::Vec<double, 3> test_forward_vec = rotation_matrix_ * test_unit_vec;
+  jams::Vec<double, 3> test_back_vec    = inverse_rotation_matrix_ * test_forward_vec;
 
   std::cout << "  rotation sanity check\n";
   std::cout << "    rotate\n";
@@ -302,7 +302,7 @@ void ConstrainedMCSolver::output_running_stats_info(std::ostream &os) {
 
 
 void ConstrainedMCSolver::validate_constraint() const {
-  Vec<double, 3> m_total = total_transformed_magnetization();
+  jams::Vec<double, 3> m_total = total_transformed_magnetization();
 
   const double actual_theta = rad_to_deg(jams::polar_angle(m_total));
   const double actual_phi = rad_to_deg(jams::azimuthal_angle(m_total));
@@ -369,7 +369,7 @@ void ConstrainedMCSolver::align_spins_to_constraint() const {
   auto rotation = rotation_matrix_between_vectors(M, constraint_vector_);
 
   for (auto i = 0; i < globals::num_spins; ++i) {
-    Vec<double, 3> snew = rotation * jams::montecarlo::get_spin(i);
+    jams::Vec<double, 3> snew = rotation * jams::montecarlo::get_spin(i);
     for (auto j : {0, 1, 2}) {
       globals::s(i, j) = snew[j];
     }

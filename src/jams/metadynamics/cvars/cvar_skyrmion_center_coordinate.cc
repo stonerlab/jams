@@ -54,8 +54,8 @@ double jams::CVarSkyrmionCoreCoordinate::calculate_expensive_value() {
 }
 
 double jams::CVarSkyrmionCoreCoordinate::spin_move_trial_value(int i,
-															   const Vec<double, 3> &spin_initial,
-															   const Vec<double, 3> &spin_trial) {
+															   const jams::Vec<double, 3> &spin_initial,
+															   const jams::Vec<double, 3> &spin_trial) {
   double trial_coordinate = cached_value();
 
   if (is_spin_below_threshold(spin_initial, spin_trial,
@@ -96,7 +96,7 @@ void jams::CVarSkyrmionCoreCoordinate::space_remapping() {
 			 && ::approximately_zero(c_unit_vec[1], 1e-8)
 			 && ::approximately_equal(c_unit_vec[2], 1.0, 1e-8));
 
-  Mat<double, 3, 3> W = globals::lattice->get_unitcell().matrix();
+  jams::Mat<double, 3, 3> W = globals::lattice->get_unitcell().matrix();
   W[0][2] = 0.0;
   W[1][2] = 0.0;
   W[2][2] = 1.0;
@@ -113,7 +113,7 @@ void jams::CVarSkyrmionCoreCoordinate::space_remapping() {
 	  auto x = (x_max / (kTwoPi)) * cos(theta_x);
 	  auto y = r[1];
 	  auto z = (x_max / (kTwoPi)) * sin(theta_x);
-	  cylinder_remapping_x_[i] = Vec<double, 3>{x, y, z};
+	  cylinder_remapping_x_[i] = jams::Vec<double, 3>{x, y, z};
 	} else {
 	  cylinder_remapping_x_[i] = r;
 	}
@@ -125,15 +125,15 @@ void jams::CVarSkyrmionCoreCoordinate::space_remapping() {
 	  auto y = (y_max / (kTwoPi)) * cos(theta_y);
 	  auto z = (y_max / (kTwoPi)) * sin(theta_y);
 
-	  cylinder_remapping_y_[i] = Vec<double, 3>{x, y, z};
+	  cylinder_remapping_y_[i] = jams::Vec<double, 3>{x, y, z};
 	} else {
 	  cylinder_remapping_y_[i] = r;
 	}
   }
 }
 
-bool jams::CVarSkyrmionCoreCoordinate::is_spin_below_threshold(const Vec<double, 3> &s_initial,
-                                                               const Vec<double, 3> &s_final,
+bool jams::CVarSkyrmionCoreCoordinate::is_spin_below_threshold(const jams::Vec<double, 3> &s_initial,
+                                                               const jams::Vec<double, 3> &s_final,
                                                                const double &threshold) {
   return (s_initial[2] <= threshold) || (s_final[2] <= threshold);
 //  return (s_initial[2] <= threshold && s_final[2] > threshold) || (s_initial[2] > threshold && s_final[2] <= threshold);
@@ -146,8 +146,8 @@ double jams::CVarSkyrmionCoreCoordinate::skyrmion_center_of_mass() {
   // vectors the space is distorted in the transformation between fractional
   // and cartesian coordinates
 
-  Vec<double, 3> tube_center_of_mass_x = {0.0, 0.0, 0.0};
-  Vec<double, 3> tube_center_of_mass_y = {0.0, 0.0, 0.0};
+  jams::Vec<double, 3> tube_center_of_mass_x = {0.0, 0.0, 0.0};
+  jams::Vec<double, 3> tube_center_of_mass_y = {0.0, 0.0, 0.0};
 
 
   int num_core_spins = 0;
@@ -177,16 +177,16 @@ double jams::CVarSkyrmionCoreCoordinate::skyrmion_center_of_mass() {
 }
 
 double jams::CVarSkyrmionCoreCoordinate::skyrmion_center_of_mass_change(int i,
-                                                                        const Vec<double, 3> &spin_initial,
-                                                                        const Vec<double, 3> &spin_trial) {
+                                                                        const jams::Vec<double, 3> &spin_initial,
+                                                                        const jams::Vec<double, 3> &spin_trial) {
   // In the fully general case we need to calculate the centre of mass in
   // fractional coordinates for BOTH x AND y and then transform back to
   // cartesian and return ONLY x OR y. This is because for non orthogonal lattice
   // vectors the space is distorted in the transformation between fractional
   // and cartesian coordinates
 
-  Vec<double, 3> basic_tube_center_of_mass_x = {0.0, 0.0, 0.0};
-  Vec<double, 3> basic_tube_center_of_mass_y = {0.0, 0.0, 0.0};
+  jams::Vec<double, 3> basic_tube_center_of_mass_x = {0.0, 0.0, 0.0};
+  jams::Vec<double, 3> basic_tube_center_of_mass_y = {0.0, 0.0, 0.0};
 
   int basic_num_core_spins = 0;
 
@@ -201,8 +201,8 @@ double jams::CVarSkyrmionCoreCoordinate::skyrmion_center_of_mass_change(int i,
     }
   }
 
-  Vec<double, 3> initial_tube_center_of_mass_x = basic_tube_center_of_mass_x;
-  Vec<double, 3> initial_tube_center_of_mass_y = basic_tube_center_of_mass_y;
+  jams::Vec<double, 3> initial_tube_center_of_mass_x = basic_tube_center_of_mass_x;
+  jams::Vec<double, 3> initial_tube_center_of_mass_y = basic_tube_center_of_mass_y;
   int initial_num_core_spins = basic_num_core_spins;
 
   if (spin_initial[2] <= skyrmion_core_threshold_) {
@@ -211,8 +211,8 @@ double jams::CVarSkyrmionCoreCoordinate::skyrmion_center_of_mass_change(int i,
     initial_num_core_spins++;
   }
 
-  Vec<double, 3> trial_tube_center_of_mass_x = basic_tube_center_of_mass_x;
-  Vec<double, 3> trial_tube_center_of_mass_y = basic_tube_center_of_mass_y;
+  jams::Vec<double, 3> trial_tube_center_of_mass_x = basic_tube_center_of_mass_x;
+  jams::Vec<double, 3> trial_tube_center_of_mass_y = basic_tube_center_of_mass_y;
   int trial_num_core_spins = basic_num_core_spins;
 
   if (spin_trial[2] <= skyrmion_core_threshold_) {
@@ -237,8 +237,8 @@ double jams::CVarSkyrmionCoreCoordinate::skyrmion_center_of_mass_change(int i,
 
 }
 
-Vec<double, 3> jams::CVarSkyrmionCoreCoordinate::center_of_mass_reverse_transform(const double total_mass, const Vec<double, 3>& tube_center_of_mass_x, const Vec<double, 3>& tube_center_of_mass_y) {
-  Vec<double, 3> center_of_mass = {0.0, 0.0, 0.0};
+jams::Vec<double, 3> jams::CVarSkyrmionCoreCoordinate::center_of_mass_reverse_transform(const double total_mass, const jams::Vec<double, 3>& tube_center_of_mass_x, const jams::Vec<double, 3>& tube_center_of_mass_y) {
+  jams::Vec<double, 3> center_of_mass = {0.0, 0.0, 0.0};
 
   if (periodic_x_) {
     double theta_x = atan2(-tube_center_of_mass_x[2], -tube_center_of_mass_x[0]) + kPi;
@@ -263,7 +263,7 @@ Vec<double, 3> jams::CVarSkyrmionCoreCoordinate::center_of_mass_reverse_transfor
 	}
   }
 
-  Mat<double, 3, 3> W = globals::lattice->get_unitcell().matrix();
+  jams::Mat<double, 3, 3> W = globals::lattice->get_unitcell().matrix();
 
   // ignore the z-direction
   W[0][2] = 0.0; W[1][2] = 0.0; W[2][2] = 1.0;

@@ -55,7 +55,7 @@ void CudaNeutronScatteringNoLatticeMonitor::configure_periodogram(libconfig::Set
 
 void CudaNeutronScatteringNoLatticeMonitor::configure_kspace_vectors(const libconfig::Setting &settings) {
   kmax_ = jams::config_required<double>(settings, "kmax");
-  kvector_ = jams::config_required<Vec<jams::Real, 3>>(settings, "kvector");
+  kvector_ = jams::config_required<jams::Vec<jams::Real, 3>>(settings, "kvector");
   num_k_ = jams::config_required<int>(settings, "num_k");
 
   kspace_path_.resize(num_k_ + 1);
@@ -143,7 +143,7 @@ void CudaNeutronScatteringNoLatticeMonitor::output_spectrum() {
   for (auto i = 0; i < globals::num_spins; ++i) {
 
     // find all r_ij for current i using the minimum image convention.
-    Vec<jams::Real, 3> r_i = {globals::positions(i, 0), globals::positions(i, 1), globals::positions(i, 2)};
+    jams::Vec<jams::Real, 3> r_i = {globals::positions(i, 0), globals::positions(i, 1), globals::positions(i, 2)};
 
     // **ASSUMPTION** the system is cubic so that Smith's method for minimum
     // image works for all distances, not just the in-sphere.

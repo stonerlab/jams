@@ -92,7 +92,7 @@ SpectrumBaseMonitor::ChannelTransform SpectrumBaseMonitor::raise_lower_channel_m
 {
   ChannelTransform m;
   m.output_channels = 3;
-  m.weights = Mat<std::complex<double>, 3, 3>{
+  m.weights = jams::Mat<std::complex<double>, 3, 3>{
       kInvSqrtTwo, +kImagOne * kInvSqrtTwo, 0.0,
       kInvSqrtTwo, -kImagOne * kInvSqrtTwo, 0.0,
       0.0, 0.0, 1.0};
@@ -161,7 +161,7 @@ void SpectrumBaseMonitor::initialise_k_points_(
 void SpectrumBaseMonitor::initialise_basis_phase_factors_()
 {
   std::cout << "  generating basis phase factors" << std::endl;
-  std::vector<Vec<double, 3>> r_frac(num_basis_atoms());
+  std::vector<jams::Vec<double, 3>> r_frac(num_basis_atoms());
   for (auto a = 0; a < num_basis_atoms(); ++a)
   {
     r_frac[a] = globals::lattice->basis_site_atom(a).position_frac;
@@ -571,7 +571,7 @@ const SpectrumBaseMonitor::CmplxMappedSlice& SpectrumBaseMonitor::compute_freque
   }
   const auto rotations = use_local_frame
       ? generate_sublattice_rotations_()
-      : jams::MultiArray<Mat<double, 3, 3>, 1>{};
+      : jams::MultiArray<jams::Mat<double, 3, 3>, 1>{};
   const auto* rotations_ptr = use_local_frame ? &rotations : nullptr;
 
   for (auto a = 0; a < num_sites; ++a)
@@ -580,7 +580,7 @@ const SpectrumBaseMonitor::CmplxMappedSlice& SpectrumBaseMonitor::compute_freque
     {
       if (use_local_frame)
       {
-        const Vec<std::complex<double>, 3> spin_xyz = read_cartesian_spin_(a, t, kpoint_index);
+        const jams::Vec<std::complex<double>, 3> spin_xyz = read_cartesian_spin_(a, t, kpoint_index);
         for (auto c = 0; c < channels; ++c)
         {
           frequency_scratch_(a, t, c) = map_spin_component_(a, c, spin_xyz, rotations_ptr);
@@ -725,7 +725,7 @@ void SpectrumBaseMonitor::advance_periodogram_window()
         std::copy_n(src, overlap, dst);
         std::fill_n(&basis_mag_time_series_(sublattice, overlap),
                     num_period_samples - overlap,
-                    Vec<double, 3>{0, 0, 0});
+                    jams::Vec<double, 3>{0, 0, 0});
       }
     }
   }
@@ -771,7 +771,7 @@ const SpectrumBaseMonitor::CmplxMappedSpectrum& SpectrumBaseMonitor::finalise_pe
   return skw_buffer_;
 }
 
-void SpectrumBaseMonitor::append_sk_sample_for_k_list(const jams::MultiArray<Vec<std::complex<double>, 3>,4> &sk_sample,
+void SpectrumBaseMonitor::append_sk_sample_for_k_list(const jams::MultiArray<jams::Vec<std::complex<double>, 3>,4> &sk_sample,
                                                     const std::vector<jams::HKLIndex> &k_list)
 {
   const auto time_index = static_cast<std::size_t>(periodogram_sample_index_);
@@ -790,7 +790,7 @@ void SpectrumBaseMonitor::append_sk_sample_for_k_list(const jams::MultiArray<Vec
       const auto base =
           (static_cast<std::size_t>(a) * num_k + static_cast<std::size_t>(k)) * stored_channels;
 
-      Vec<std::complex<double>, 3> spin_xyz;
+      jams::Vec<std::complex<double>, 3> spin_xyz;
       if (is_conjugate)
       {
         spin_xyz = basis_phase_factors_(a, k) * jams::conj(sk_sample(idx[0], idx[1], idx[2], a));
@@ -839,20 +839,20 @@ void SpectrumBaseMonitor::store_sublattice_magnetisation_(const jams::MultiArray
   const auto p = periodogram_sample_index();
   for (auto i = 0; i < globals::num_spins; ++i)
   {
-    Vec<double, 3> spin = {spin_state(i, 0), spin_state(i, 1), spin_state(i, 2)};
+    jams::Vec<double, 3> spin = {spin_state(i, 0), spin_state(i, 1), spin_state(i, 2)};
     const auto m = globals::lattice->lattice_site_basis_index(i);
     basis_mag_time_series_(m, p) += spin;
   }
 }
 
-jams::MultiArray<Vec<double, 3>, 1> SpectrumBaseMonitor::compute_mean_basis_mag_directions_()
+jams::MultiArray<jams::Vec<double, 3>, 1> SpectrumBaseMonitor::compute_mean_basis_mag_directions_()
 {
   if (periodogram_window_.empty())
   {
     generate_normalised_window_(periodogram_window_, periodogram_length());
   }
 
-  jams::MultiArray<Vec<double, 3>, 1> mean_directions(num_basis_atoms());
+  jams::MultiArray<jams::Vec<double, 3>, 1> mean_directions(num_basis_atoms());
   zero(mean_directions);
 
   for (auto m = 0; m < num_basis_atoms(); ++m)
@@ -868,9 +868,9 @@ jams::MultiArray<Vec<double, 3>, 1> SpectrumBaseMonitor::compute_mean_basis_mag_
   return mean_directions;
 }
 
-jams::MultiArray<Mat<double, 3, 3>, 1> SpectrumBaseMonitor::generate_sublattice_rotations_()
+jams::MultiArray<jams::Mat<double, 3, 3>, 1> SpectrumBaseMonitor::generate_sublattice_rotations_()
 {
-  jams::MultiArray<Mat<double, 3, 3>, 1> rotations(num_basis_atoms());
+  jams::MultiArray<jams::Mat<double, 3, 3>, 1> rotations(num_basis_atoms());
   for (auto a = 0; a < num_basis_atoms(); ++a)
   {
     rotations(a) = kIdentityMat3;
@@ -885,7 +885,7 @@ jams::MultiArray<Mat<double, 3, 3>, 1> SpectrumBaseMonitor::generate_sublattice_
 
   for (auto m = 0; m < mean_directions.size(); ++m)
   {
-    Vec<double, 3> n_hat = mean_directions(m);
+    jams::Vec<double, 3> n_hat = mean_directions(m);
     const double n_norm = jams::norm(n_hat);
     if (n_norm <= 0.0)
     {
@@ -894,15 +894,15 @@ jams::MultiArray<Mat<double, 3, 3>, 1> SpectrumBaseMonitor::generate_sublattice_
     }
     n_hat *= (1.0 / n_norm);
 
-    const Vec<double, 3> ex{1.0, 0.0, 0.0};
-    const Vec<double, 3> ey{0.0, 1.0, 0.0};
-    const Vec<double, 3> ez{0.0, 0.0, 1.0};
+    const jams::Vec<double, 3> ex{1.0, 0.0, 0.0};
+    const jams::Vec<double, 3> ey{0.0, 1.0, 0.0};
+    const jams::Vec<double, 3> ez{0.0, 0.0, 1.0};
 
     const double ax = std::abs(jams::dot(ex, n_hat));
     const double ay = std::abs(jams::dot(ey, n_hat));
     const double az = std::abs(jams::dot(ez, n_hat));
 
-    Vec<double, 3> r = ex;
+    jams::Vec<double, 3> r = ex;
     double a_min = ax;
     if (ay < a_min)
     {
@@ -915,7 +915,7 @@ jams::MultiArray<Mat<double, 3, 3>, 1> SpectrumBaseMonitor::generate_sublattice_
       a_min = az;
     }
 
-    Vec<double, 3> e1 = r - jams::dot(r, n_hat) * n_hat;
+    jams::Vec<double, 3> e1 = r - jams::dot(r, n_hat) * n_hat;
     const double e1_norm = jams::norm(e1);
     if (e1_norm <= 0.0)
     {
@@ -924,9 +924,9 @@ jams::MultiArray<Mat<double, 3, 3>, 1> SpectrumBaseMonitor::generate_sublattice_
     }
     e1 *= (1.0 / e1_norm);
 
-    Vec<double, 3> e2 = jams::cross(n_hat, e1);
+    jams::Vec<double, 3> e2 = jams::cross(n_hat, e1);
 
-    Mat<double, 3, 3> R = kIdentityMat3;
+    jams::Mat<double, 3, 3> R = kIdentityMat3;
     R[0][0] = e1[0];    R[0][1] = e1[1];    R[0][2] = e1[2];
     R[1][0] = e2[0];    R[1][1] = e2[1];    R[1][2] = e2[2];
     R[2][0] = n_hat[0]; R[2][1] = n_hat[1]; R[2][2] = n_hat[2];
@@ -940,10 +940,10 @@ jams::MultiArray<Mat<double, 3, 3>, 1> SpectrumBaseMonitor::generate_sublattice_
 jams::ComplexHi SpectrumBaseMonitor::map_spin_component_(
     const int basis_index,
     const int channel_index,
-    const Vec<std::complex<double>, 3>& spin_xyz,
-    const jams::MultiArray<Mat<double, 3, 3>, 1>* rotations) const
+    const jams::Vec<std::complex<double>, 3>& spin_xyz,
+    const jams::MultiArray<jams::Mat<double, 3, 3>, 1>* rotations) const
 {
-  Vec<std::complex<double>, 3> s = spin_xyz;
+  jams::Vec<std::complex<double>, 3> s = spin_xyz;
 
   if (rotations)
   {
@@ -961,7 +961,7 @@ jams::ComplexHi SpectrumBaseMonitor::map_spin_component_(
   return w[0] * s[0] + w[1] * s[1] + w[2] * s[2];
 }
 
-Vec<std::complex<double>, 3> SpectrumBaseMonitor::read_cartesian_spin_(const int basis_index,
+jams::Vec<std::complex<double>, 3> SpectrumBaseMonitor::read_cartesian_spin_(const int basis_index,
                                                  const int time_index,
                                                  const int k_index) const
 {
@@ -969,7 +969,7 @@ Vec<std::complex<double>, 3> SpectrumBaseMonitor::read_cartesian_spin_(const int
   const auto sx = sk_time_series_(time_index, basis_index, k_index, 0);
   const auto sy = sk_time_series_(time_index, basis_index, k_index, 1);
   const auto sz = sk_time_series_(time_index, basis_index, k_index, 2);
-  return Vec<std::complex<double>, 3>{
+  return jams::Vec<std::complex<double>, 3>{
       jams::ComplexHi{sx.real(), sx.imag()},
       jams::ComplexHi{sy.real(), sy.imag()},
       jams::ComplexHi{sz.real(), sz.imag()}
@@ -1113,7 +1113,7 @@ void SpectrumBaseMonitor::generate_normalised_dpss_tapers_(
 
 void SpectrumBaseMonitor::generate_phase_factors_(
     jams::MultiArray<jams::ComplexHi, 2>& phase_factors,
-    const std::vector<Vec<double, 3>>& r_frac,
+    const std::vector<jams::Vec<double, 3>>& r_frac,
     const std::vector<jams::HKLIndex>& kpoints)
 {
   if (phase_factors.extent(0) != r_frac.size() || phase_factors.extent(1) != kpoints.size())

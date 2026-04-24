@@ -20,8 +20,8 @@ public:
 
 private:
     int num_slice_points;
-    Vec<double, 3> slice_origin;
-    Vec<double, 3> slice_size;
+    jams::Vec<double, 3> slice_origin;
+    jams::Vec<double, 3> slice_size;
     std::vector<int> slice_spins;
     jams::MultiArray<int, 1> types_binary_data;
     jams::MultiArray<float, 2> points_binary_data;

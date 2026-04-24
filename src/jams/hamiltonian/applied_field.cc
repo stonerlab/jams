@@ -11,14 +11,14 @@ namespace {
 struct StaticField : public AppliedFieldHamiltonian::TimeDependentField {
 public:
     explicit StaticField(const libconfig::Setting &settings)
-    : b_field_(jams::config_required<Vec<jams::Real, 3>>(settings, "field"))
+    : b_field_(jams::config_required<jams::Vec<jams::Real, 3>>(settings, "field"))
     {}
 
-    Vec<jams::Real, 3> field(const jams::Real time) override {
+    jams::Vec<jams::Real, 3> field(const jams::Real time) override {
       return b_field_;
     }
 private:
-    Vec<jams::Real, 3> b_field_ = {0, 0, 0};
+    jams::Vec<jams::Real, 3> b_field_ = {0, 0, 0};
 };
 
 /// Implements an AppliedFieldHamiltonian functional class for the field
@@ -33,16 +33,16 @@ private:
 struct SincField : public AppliedFieldHamiltonian::TimeDependentField {
 public:
     explicit SincField(const libconfig::Setting &settings)
-        : b_field_(jams::config_required<Vec<jams::Real, 3>>(settings, "field"))
+        : b_field_(jams::config_required<jams::Vec<jams::Real, 3>>(settings, "field"))
         , time_center_(jams::config_required<jams::Real>(settings, "time_center") / 1e-12)
         , freq_bandwidth_(jams::config_required<jams::Real>(settings, "freq_bandwidth")  / 1e12) //  Thz
     {}
 
-    Vec<jams::Real, 3> field(const jams::Real time) override {
+    jams::Vec<jams::Real, 3> field(const jams::Real time) override {
       return b_field_ * static_cast<jams::Real>(jams::sinc(kPi * freq_bandwidth_ * (time - time_center_)));
     }
 private:
-    Vec<jams::Real, 3> b_field_ = {0, 0, 0};
+    jams::Vec<jams::Real, 3> b_field_ = {0, 0, 0};
     jams::Real time_center_ = 0.0;
     jams::Real freq_bandwidth_ = 0.0;
 };
@@ -61,18 +61,18 @@ private:
 struct SincCosField : public AppliedFieldHamiltonian::TimeDependentField {
 public:
     explicit SincCosField(const libconfig::Setting &settings)
-        : b_field_(jams::config_required<Vec<jams::Real, 3>>(settings, "field"))
+        : b_field_(jams::config_required<jams::Vec<jams::Real, 3>>(settings, "field"))
           , time_center_(jams::config_required<jams::Real>(settings, "time_center") / 1e-12)
           , freq_bandwidth_(jams::config_required<jams::Real>(settings, "freq_bandwidth")  / 1e12) //  THz
           , freq_center_(jams::config_required<jams::Real>(settings, "freq_center")  / 1e12) //  THz
     {}
 
-    Vec<jams::Real, 3> field(const jams::Real time) override {
+    jams::Vec<jams::Real, 3> field(const jams::Real time) override {
       return b_field_ * static_cast<jams::Real>(jams::sinc(kPi * freq_bandwidth_ * (time - time_center_))
                       * cos(kTwoPi * freq_center_ * (time - time_center_)));
     }
 private:
-    Vec<jams::Real, 3> b_field_ = {0, 0, 0};
+    jams::Vec<jams::Real, 3> b_field_ = {0, 0, 0};
     jams::Real time_center_ = 0.0;
     jams::Real freq_bandwidth_ = 0.0;
     jams::Real freq_center_ = 0.0;
@@ -121,7 +121,7 @@ AppliedFieldHamiltonian::AppliedFieldHamiltonian(
 
 
 
-Vec<jams::Real, 3> AppliedFieldHamiltonian::calculate_field(int i, jams::Real time) {
+jams::Vec<jams::Real, 3> AppliedFieldHamiltonian::calculate_field(int i, jams::Real time) {
   return globals::mus(i) * time_dependent_field_->field(time);
 }
 

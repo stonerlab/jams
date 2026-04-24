@@ -30,7 +30,7 @@ CudaFieldPulseHamiltonian::CudaFieldPulseHamiltonian(
   surface_cutoff_ = jams::config_required<jams::Real>(settings, "surface_cutoff");
   temporal_width_ = jams::config_required<jams::Real>(settings, "temporal_width");
   temporal_center_ = jams::config_required<jams::Real>(settings, "temporal_center");
-  max_field_ = jams::config_required<Vec<jams::Real, 3>>(settings, "field");
+  max_field_ = jams::config_required<jams::Vec<jams::Real, 3>>(settings, "field");
 
   positions_.resize(globals::num_spins, 3);
   for (auto i = 0; i < globals::num_spins; ++i) {
@@ -51,7 +51,7 @@ void CudaFieldPulseHamiltonian::calculate_fields(jams::Real time) {
   dim3 grid_size;
   grid_size.x = (globals::num_spins + block_size.x - 1) / block_size.x;
 
-  Vec<jams::Real, 3> b_field = gaussian(time, temporal_center_, static_cast<jams::Real>(1), temporal_width_) * max_field_;
+  jams::Vec<jams::Real, 3> b_field = gaussian(time, temporal_center_, static_cast<jams::Real>(1), temporal_width_) * max_field_;
   jams::Real3 field = {b_field[0], b_field[1], b_field[2]};
   cuda_field_pulse_surface_kernel<<<grid_size, block_size, 0, cuda_stream_.get() >>>
       (globals::num_spins, surface_cutoff_, globals::mus.device_data(), positions_.device_data(),
@@ -68,7 +68,7 @@ void CudaFieldPulseHamiltonian::output_pulse(std::ofstream& os) {
 
   for (auto i = 0; i < globals::solver->max_steps(); ++i) {
     jams::Real time = i * globals::solver->time_step();
-    Vec<jams::Real, 3> field = gaussian(time, temporal_center_, static_cast<jams::Real>(1), temporal_width_) * max_field_;
+    jams::Vec<jams::Real, 3> field = gaussian(time, temporal_center_, static_cast<jams::Real>(1), temporal_width_) * max_field_;
     os << jams::fmt::sci << time;
     os << jams::fmt::decimal << field[0];
     os << jams::fmt::decimal << field[1];

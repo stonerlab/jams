@@ -29,7 +29,7 @@ MagnetisationRateMonitor::MagnetisationRateMonitor(const libconfig::Setting &set
 }
 
 void MagnetisationRateMonitor::update(Solver& solver) {
-  std::vector<Vec<double, 3>> dm_dt(globals::lattice->num_materials(), {0.0, 0.0, 0.0});
+  std::vector<jams::Vec<double, 3>> dm_dt(globals::lattice->num_materials(), {0.0, 0.0, 0.0});
 
   for (auto i = 0; i < globals::num_spins; ++i) {
     const auto type = globals::lattice->lattice_site_material_id(i);

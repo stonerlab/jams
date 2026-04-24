@@ -96,7 +96,7 @@ SpectrumFourierMonitor::SpectrumFourierMonitor(const libconfig::Setting &setting
   for (int n = 0, nend = cfg_nodes.getLength(); n < nend; ++n) {
 
     // transform into reciprocal lattice vectors
-    Vec<double, 3> cfg_vec = { double(cfg_nodes[n][0]),
+    jams::Vec<double, 3> cfg_vec = { double(cfg_nodes[n][0]),
                      double(cfg_nodes[n][1]),
                      double(cfg_nodes[n][2]) };
 
@@ -128,7 +128,7 @@ SpectrumFourierMonitor::SpectrumFourierMonitor(const libconfig::Setting &setting
 
   bz_points_path_count.push_back(0);
   for (int n = 0, nend = b_uvw_nodes.size()-1; n < nend; ++n) {
-    Vec<int, 3> bz_point, bz_line, bz_line_element;
+    jams::Vec<int, 3> bz_point, bz_line, bz_line_element;
 
 
     // validate the nodes
@@ -388,7 +388,7 @@ void SpectrumFourierMonitor::fft_space() {
 }
 
 void SpectrumFourierMonitor::store_bz_path_data() {
-  Vec<int, 3> size = globals::lattice->kspace_size();
+  jams::Vec<int, 3> size = globals::lattice->kspace_size();
 
   // extra safety in case there is an extra one time point due to floating point maths
   if (time_point_counter_ < sqw_x.extent(1)) {

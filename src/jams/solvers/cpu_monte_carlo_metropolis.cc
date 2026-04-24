@@ -104,8 +104,8 @@ int MetropolisMCSolver::metropolis_algorithm(const MoveFunction& trial_spin_move
 }
 
 double MetropolisMCSolver::energy_difference(const int spin_index,
-                                             const Vec<double, 3> &initial_spin,
-                                             const Vec<double, 3> &final_spin) {
+                                             const jams::Vec<double, 3> &initial_spin,
+                                             const jams::Vec<double, 3> &final_spin) {
   auto energy_difference = 0.0;
   // Calculate the energy difference from all of the Hamiltonian terms
   for (const auto &ham : hamiltonians_) {
@@ -134,8 +134,8 @@ void MetropolisMCSolver::output_move_statistics() {
 }
 
 void
-MetropolisMCSolver::accept_move(const int spin_index, const Vec<double, 3> &initial_spin,
-                                const Vec<double, 3> &final_spin) {
+MetropolisMCSolver::accept_move(const int spin_index, const jams::Vec<double, 3> &initial_spin,
+                                const jams::Vec<double, 3> &final_spin) {
   // The trial move has been accepted so set the spin to the new value
   jams::montecarlo::set_spin(spin_index, final_spin);
 }

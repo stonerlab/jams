@@ -89,8 +89,8 @@ void MetadynamicsMetropolisSolver::run() {
 }
 
 double MetadynamicsMetropolisSolver::energy_difference(const int spin_index,
-                           const Vec<double, 3> &initial_Spin,
-                           const Vec<double, 3> &final_Spin) {
+                           const jams::Vec<double, 3> &initial_Spin,
+                           const jams::Vec<double, 3> &final_Spin) {
 
 // re-define the energy difference for the monte carlo solver
 // so that it uses the metadynamics potential
@@ -99,8 +99,8 @@ return MetropolisMCSolver::energy_difference(spin_index, initial_Spin, final_Spi
 }
 
 void MetadynamicsMetropolisSolver::accept_move(const int spin_index,
-                       const Vec<double, 3> &initial_spin,
-                       const Vec<double, 3> &final_spin) {
+                       const jams::Vec<double, 3> &initial_spin,
+                       const jams::Vec<double, 3> &final_spin) {
 MetropolisMCSolver::accept_move(spin_index, initial_spin, final_spin);
 
 // As well as updating the monte carlo solver we update the collective variable

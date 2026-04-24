@@ -9,7 +9,7 @@
 
 CudaDipoleBruteforceHamiltonian::CudaDipoleBruteforceHamiltonian(const libconfig::Setting &settings, const unsigned int size)
 : Hamiltonian(settings, size) {
-    Vec<jams::Real, 3> super_cell_dim{0, 0, 0};
+    jams::Vec<jams::Real, 3> super_cell_dim{0, 0, 0};
 
     for (int n = 0; n < 3; ++n) {
         super_cell_dim[n] = jams::Real(globals::lattice->size(n)) / 2;
@@ -28,8 +28,8 @@ CudaDipoleBruteforceHamiltonian::CudaDipoleBruteforceHamiltonian(const libconfig
     dipole_prefactor_ = static_cast<jams::Real>(kVacuumPermeabilityIU / (4.0 * kPi * v));
 
     bool super_cell_pbc[3];
-    Mat<jams::Real,3,3> super_unit_cell;
-    Mat<jams::Real,3,3> super_unit_cell_inv;
+    jams::Mat<jams::Real,3,3> super_unit_cell;
+    jams::Mat<jams::Real,3,3> super_unit_cell_inv;
 
     for (int i = 0; i < 3; ++i) {
         super_cell_pbc[i] = ::globals::lattice->is_periodic(i);
@@ -85,17 +85,17 @@ jams::Real CudaDipoleBruteforceHamiltonian::calculate_total_energy(jams::Real ti
     return e_total;
 }
 
-jams::Real CudaDipoleBruteforceHamiltonian::calculate_one_spin_energy(const int i, const Vec<double, 3> &s_i, jams::Real time) {
+jams::Real CudaDipoleBruteforceHamiltonian::calculate_one_spin_energy(const int i, const jams::Vec<double, 3> &s_i, jams::Real time) {
     const auto field = calculate_field(i, time);
     return -jams::dot(s_i, field) / 2;
 }
 
 jams::Real CudaDipoleBruteforceHamiltonian::calculate_energy(const int i, jams::Real time) {
-    Vec<double, 3> s_i = {globals::s(i, 0), globals::s(i, 1), globals::s(i, 2)};
+    jams::Vec<double, 3> s_i = {globals::s(i, 0), globals::s(i, 1), globals::s(i, 2)};
     return calculate_one_spin_energy(i, s_i, time);
 }
 
-jams::Real CudaDipoleBruteforceHamiltonian::calculate_energy_difference(int i, const Vec<double, 3> &spin_initial, const Vec<double, 3> &spin_final, jams::Real time) {
+jams::Real CudaDipoleBruteforceHamiltonian::calculate_energy_difference(int i, const jams::Vec<double, 3> &spin_initial, const jams::Vec<double, 3> &spin_final, jams::Real time) {
     const auto field = calculate_field(i, time);
     double e_initial = -jams::dot(spin_initial, field);
     double e_final = -jams::dot(spin_final, field);
@@ -108,7 +108,7 @@ void CudaDipoleBruteforceHamiltonian::calculate_energies(jams::Real time) {
     }
 }
 
-Vec<jams::Real, 3> CudaDipoleBruteforceHamiltonian::calculate_field(const int i, jams::Real time) {
+jams::Vec<jams::Real, 3> CudaDipoleBruteforceHamiltonian::calculate_field(const int i, jams::Real time) {
   using namespace std::placeholders;
 
 
@@ -118,7 +118,7 @@ Vec<jams::Real, 3> CudaDipoleBruteforceHamiltonian::calculate_field(const int i,
   // (an optimisation). We assert the condition here again for safety.
   assert(r_cutoff_ < globals::lattice->max_interaction_radius());
 
-  auto displacement = [](const int i, const int j)->Vec<double, 3> {
+  auto displacement = [](const int i, const int j)->jams::Vec<double, 3> {
       return jams::minimum_image_smith_method(
           globals::lattice->get_supercell().matrix(),
           globals::lattice->get_supercell().inverse_matrix(),
@@ -137,9 +137,9 @@ Vec<jams::Real, 3> CudaDipoleBruteforceHamiltonian::calculate_field(const int i,
   for (auto j = 0; j < globals::num_spins; ++j) {
     if (j == i) continue;
 
-    const Vec<double, 3> s_j = {globals::s(j,0), globals::s(j,1), globals::s(j,2)};
+    const jams::Vec<double, 3> s_j = {globals::s(j,0), globals::s(j,1), globals::s(j,2)};
 
-    Vec<double, 3> r_ij = displacement(i, j);
+    jams::Vec<double, 3> r_ij = displacement(i, j);
 
     const jams::Real r_abs_sq = jams::norm_squared(r_ij);
 

@@ -37,7 +37,7 @@ public:
 
     void calculate_fields(jams::Real time) override;
 
-    Vec<jams::Real, 3> calculate_field(int i, jams::Real time) override {
+    jams::Vec<jams::Real, 3> calculate_field(int i, jams::Real time) override {
       throw jams::unimplemented_error("CudaFieldPulseHamiltonian::calculate_field is unimplemented");
     }
 
@@ -45,7 +45,7 @@ public:
       throw jams::unimplemented_error("CudaFieldPulseHamiltonian::calculate_energy is unimplemented");
     }
 
-    jams::Real calculate_energy_difference(int i, const Vec<double, 3> &spin_initial, const Vec<double, 3> &spin_final, jams::Real time) override {
+    jams::Real calculate_energy_difference(int i, const jams::Vec<double, 3> &spin_initial, const jams::Vec<double, 3> &spin_final, jams::Real time) override {
       throw jams::unimplemented_error("CudaFieldPulseHamiltonian::calculate_energy_difference is unimplemented");
     }
 
@@ -55,7 +55,7 @@ private:
     jams::Real surface_cutoff_;
     jams::Real temporal_width_;
     jams::Real temporal_center_;
-    Vec<jams::Real, 3> max_field_;
+    jams::Vec<jams::Real, 3> max_field_;
 
     void output_pulse(std::ofstream& pulse_file);
 };

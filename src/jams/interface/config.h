@@ -60,9 +60,9 @@ struct config_required_impl<std::array<T, N>, void> {
 
 // Specialisation for jams::Vec<T, N>
 template<typename T, std::size_t N>
-struct config_required_impl<Vec<T, N>, void> {
-  static Vec<T, N> get(const libconfig::Setting &s, const std::string &name) {
-    return Vec<T, N>{config_required<std::array<T, N>>(s, name)};
+struct config_required_impl<jams::Vec<T, N>, void> {
+  static jams::Vec<T, N> get(const libconfig::Setting &s, const std::string &name) {
+    return jams::Vec<T, N>{config_required<std::array<T, N>>(s, name)};
   }
 };
 
@@ -95,9 +95,9 @@ struct config_required_impl<std::string, void> {
 
 // Specialisation for jams::Mat<T, Rows, Cols>
 template<typename T, std::size_t Rows, std::size_t Cols>
-struct config_required_impl<Mat<T, Rows, Cols>, void> {
-  static Mat<T, Rows, Cols> get(const libconfig::Setting &s, const std::string &name) {
-    return Mat<T, Rows, Cols>{config_required<std::array<std::array<T, Cols>, Rows>>(s, name)};
+struct config_required_impl<jams::Mat<T, Rows, Cols>, void> {
+  static jams::Mat<T, Rows, Cols> get(const libconfig::Setting &s, const std::string &name) {
+    return jams::Mat<T, Rows, Cols>{config_required<std::array<std::array<T, Cols>, Rows>>(s, name)};
   }
 };
 

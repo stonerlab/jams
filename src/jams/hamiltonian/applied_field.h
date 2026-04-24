@@ -20,12 +20,12 @@ public:
     struct TimeDependentField {
     public:
         virtual ~TimeDependentField() = default;
-        virtual Vec<jams::Real, 3> field(const jams::Real time) = 0;
+        virtual jams::Vec<jams::Real, 3> field(const jams::Real time) = 0;
     };
 
     AppliedFieldHamiltonian(const libconfig::Setting &settings, unsigned int size);
 
-    Vec<jams::Real, 3> calculate_field(int i, jams::Real time) override;
+    jams::Vec<jams::Real, 3> calculate_field(int i, jams::Real time) override;
 
     jams::Real calculate_energy(int i, jams::Real time) override;
 

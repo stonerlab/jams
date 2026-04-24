@@ -154,13 +154,13 @@ jams::MetadynamicsPotential::MetadynamicsPotential(
     double range_max = config_required<double>(cvar_settings, "range_max");
     if (cvar_names_[i] == ("skyrmion_coordinate_x") ||
         cvar_names_[i] == ("skyrmion_coordinate_y")) {
-      auto bottom_left = globals::lattice->get_unitcell().matrix() * Vec<double, 3>{0.0, 0.0, 0.0};
+      auto bottom_left = globals::lattice->get_unitcell().matrix() * jams::Vec<double, 3>{0.0, 0.0, 0.0};
       auto bottom_right = globals::lattice->get_unitcell().matrix() *
-                          Vec<double, 3>{double(globals::lattice->size(0)), 0.0, 0.0};
+                          jams::Vec<double, 3>{double(globals::lattice->size(0)), 0.0, 0.0};
       auto top_left = globals::lattice->get_unitcell().matrix() *
-                      Vec<double, 3>{0.0, double(globals::lattice->size(1)), 0.0};
+                      jams::Vec<double, 3>{0.0, double(globals::lattice->size(1)), 0.0};
       auto top_right = globals::lattice->get_unitcell().matrix() *
-                       Vec<double, 3>{double(globals::lattice->size(0)), double(
+                       jams::Vec<double, 3>{double(globals::lattice->size(0)), double(
                            globals::lattice->size(1)),
                             0.0};
       if (cvar_names_[i] == ("skyrmion_coordinate_x")) {
@@ -251,8 +251,8 @@ jams::MetadynamicsPotential::MetadynamicsPotential(
 }
 
 
-void jams::MetadynamicsPotential::spin_update(int i, const Vec<double, 3> &spin_initial,
-                                              const Vec<double, 3> &spin_final) {
+void jams::MetadynamicsPotential::spin_update(int i, const jams::Vec<double, 3> &spin_initial,
+                                              const jams::Vec<double, 3> &spin_final) {
   // Signal to the CollectiveVariables that they should do any internal work
   // needed due to a spin being accepted (usually related to caching).
   for (const auto& cvar : cvars_) {
@@ -262,7 +262,7 @@ void jams::MetadynamicsPotential::spin_update(int i, const Vec<double, 3> &spin_
 
 
 double jams::MetadynamicsPotential::potential_difference(
-    int i, const Vec<double, 3> &spin_initial, const Vec<double, 3> &spin_final) {
+    int i, const jams::Vec<double, 3> &spin_initial, const jams::Vec<double, 3> &spin_final) {
 
   std::array<double,kMaxDimensions> cvar_initial = {0.0, 0.0};
   std::array<double,kMaxDimensions> cvar_trial = {0.0, 0.0};

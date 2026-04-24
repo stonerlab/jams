@@ -237,7 +237,7 @@ vector_field_key_multiply_and_reduce_kernel(const T1 *g_data, const T2 *g_ifacto
 }
 
 
-Vec<double, 3> jams::vector_field_reduce_cuda(const jams::MultiArray<double, 2>& x) {
+jams::Vec<double, 3> jams::vector_field_reduce_cuda(const jams::MultiArray<double, 2>& x) {
   assert(x.extent(1) == 3);
 
   int size = x.extent(0);
@@ -306,7 +306,7 @@ Vec<double, 3> jams::vector_field_reduce_cuda(const jams::MultiArray<double, 2>&
 }
 
 
-Vec<double, 3> jams::vector_field_indexed_reduce_cuda(const jams::MultiArray<double, 2>& x, const jams::MultiArray<int, 1>& indices) {
+jams::Vec<double, 3> jams::vector_field_indexed_reduce_cuda(const jams::MultiArray<double, 2>& x, const jams::MultiArray<int, 1>& indices) {
   assert(x.extent(1) == 3);
 
   int size = indices.size();
@@ -375,7 +375,7 @@ Vec<double, 3> jams::vector_field_indexed_reduce_cuda(const jams::MultiArray<dou
 }
 
 
-Vec<double, 3> jams::vector_field_scale_and_reduce_cuda(const jams::MultiArray<double, 2>& x, const jams::MultiArray<double, 1>& scale_factors) {
+jams::Vec<double, 3> jams::vector_field_scale_and_reduce_cuda(const jams::MultiArray<double, 2>& x, const jams::MultiArray<double, 1>& scale_factors) {
   assert(x.extent(1) == 3);
   assert(x.extent(0) == scale_factors.size());
 
@@ -514,7 +514,7 @@ std::array<X,3> jams::vector_field_indexed_scale_and_reduce_cuda(const jams::Mul
       break;
   }
 
-  return jams::vector_field_reduce(block_sums);
+  return jams::vector_field_reduce(block_sums).storage();
 }
 
 template std::array<double,3> jams::vector_field_indexed_scale_and_reduce_cuda<double,float>(const jams::MultiArray<double, 2>& x, const jams::MultiArray<float, 1>& scale_factors, const jams::MultiArray<int, 1>& indices);

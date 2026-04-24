@@ -263,7 +263,7 @@ CudaDipoleFFTHamiltonian::CudaDipoleFFTHamiltonian(const libconfig::Setting &set
   kspace_tensors_.zero();
   for (int pos_i = 0; pos_i < num_sites; ++pos_i) {
     for (int pos_j = pos_i; pos_j < num_sites; ++pos_j) {
-      std::vector<Vec<double, 3>> generated_positions;
+      std::vector<jams::Vec<double, 3>> generated_positions;
       const int pair = upper_tri_index(pos_i, pos_j, num_sites);
       generate_kspace_dipole_tensor(pos_i, pos_j, pair, generated_positions);
 
@@ -294,7 +294,7 @@ jams::Real CudaDipoleFFTHamiltonian::calculate_total_energy(jams::Real time) {
   return cuda_reduce_array(energy_.device_data(), globals::num_spins, cuda_stream_.get());
 }
 
-jams::Real CudaDipoleFFTHamiltonian::calculate_one_spin_energy(const int i, const Vec<double, 3> &s_i, jams::Real time) {
+jams::Real CudaDipoleFFTHamiltonian::calculate_one_spin_energy(const int i, const jams::Vec<double, 3> &s_i, jams::Real time) {
     throw jams::unimplemented_error("CudaDipoleFFTHamiltonian::calculate_one_spin_energy is not implemented");
 }
 
@@ -303,7 +303,7 @@ jams::Real CudaDipoleFFTHamiltonian::calculate_energy(const int i, jams::Real ti
 }
 
 jams::Real CudaDipoleFFTHamiltonian::calculate_energy_difference(
-    int i, const Vec<double, 3> &spin_initial, const Vec<double, 3> &spin_final, jams::Real time) {
+    int i, const jams::Vec<double, 3> &spin_initial, const jams::Vec<double, 3> &spin_final, jams::Real time) {
   throw jams::unimplemented_error("CudaDipoleFFTHamiltonian::calculate_energy_difference is not implemented");
 }
 
@@ -313,7 +313,7 @@ void CudaDipoleFFTHamiltonian::calculate_energies(jams::Real time) {
   cuda_array_dot_product(globals::num_spins, minus_half, globals::s.device_data(), field_.device_data(), energy_.mutable_device_data(), cuda_stream_.get());
 }
 
-Vec<jams::Real, 3> CudaDipoleFFTHamiltonian::calculate_field(const int i, jams::Real time) {
+jams::Vec<jams::Real, 3> CudaDipoleFFTHamiltonian::calculate_field(const int i, jams::Real time) {
   throw jams::unimplemented_error("CudaDipoleFFTHamiltonian::calculate_field is not implemented");
 }
 
@@ -345,13 +345,13 @@ DEBUG_CHECK_CUDA_ASYNC_STATUS;
 
 // Generates the dipole tensor between unit cell positions i and j and appends
 // the generated positions to a vector
-void CudaDipoleFFTHamiltonian::generate_kspace_dipole_tensor(const int pos_i, const int pos_j, const int pair, std::vector<Vec<double, 3>> &generated_positions) {
+void CudaDipoleFFTHamiltonian::generate_kspace_dipole_tensor(const int pos_i, const int pos_j, const int pair, std::vector<jams::Vec<double, 3>> &generated_positions) {
     using std::pow;
   
-    const Vec<double, 3> r_frac_i = globals::lattice->basis_site_atom(pos_i).position_frac;
-    const Vec<double, 3> r_frac_j = globals::lattice->basis_site_atom(pos_j).position_frac;
+    const jams::Vec<double, 3> r_frac_i = globals::lattice->basis_site_atom(pos_i).position_frac;
+    const jams::Vec<double, 3> r_frac_j = globals::lattice->basis_site_atom(pos_j).position_frac;
 
-    const Vec<double, 3> r_cart_j = globals::lattice->fractional_to_cartesian(r_frac_j);
+    const jams::Vec<double, 3> r_cart_j = globals::lattice->fractional_to_cartesian(r_frac_j);
 
     const int num_kz = kspace_padded_size_[2] / 2 + 1;
     const int num_ky = kspace_padded_size_[1];

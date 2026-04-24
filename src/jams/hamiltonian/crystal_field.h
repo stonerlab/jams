@@ -84,14 +84,14 @@ public:
 
   CrystalFieldHamiltonian(const libconfig::Setting &settings, unsigned int size);
 
-  Vec<jams::Real, 3> calculate_field(int i, jams::Real time) override;
+  jams::Vec<jams::Real, 3> calculate_field(int i, jams::Real time) override;
 
   jams::Real calculate_energy(int i, jams::Real time) override;
 
-  jams::Real calculate_energy_difference(int i, const Vec<double, 3> &spin_initial, const Vec<double, 3> &spin_final, jams::Real time) override;
+  jams::Real calculate_energy_difference(int i, const jams::Vec<double, 3> &spin_initial, const jams::Vec<double, 3> &spin_final, jams::Real time) override;
 
 protected:
-  jams::Real crystal_field_energy(int i, const Vec<double, 3>& s);
+  jams::Real crystal_field_energy(int i, const jams::Vec<double, 3>& s);
 
   // Reads a crystal field coefficient file and returns a SphericalHarmonicCoefficientMap where the key is the pair
   // {l, m} and the value is the complex crystal field coefficient.

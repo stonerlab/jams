@@ -14,10 +14,10 @@
 #include <string>
 #include <fstream>
 
-Vec<double, 3> execute_cuda_thermal_current_kernel(
+jams::Vec<double, 3> execute_cuda_thermal_current_kernel(
     CudaStream &stream,
     const jams::MultiArray<double, 2>& spins,
-    const jams::InteractionMatrix<Vec<double, 3>, double>& interaction_matrix,
+    const jams::InteractionMatrix<jams::Vec<double, 3>, double>& interaction_matrix,
     jams::MultiArray<double, 1>& dev_thermal_current_rx,
     jams::MultiArray<double, 1>& dev_thermal_current_ry,
     jams::MultiArray<double, 1>& dev_thermal_current_rz
@@ -39,13 +39,13 @@ public:
 private:
     CudaStream stream;
 
-    using ThreeSpinList = jams::InteractionList<Vec<double, 3>, 3>;
+    using ThreeSpinList = jams::InteractionList<jams::Vec<double, 3>, 3>;
 
-    ThreeSpinList generate_three_spin_from_two_spin_interactions(const jams::InteractionList<Mat<double, 3, 3>, 2>& nbr_list);
+    ThreeSpinList generate_three_spin_from_two_spin_interactions(const jams::InteractionList<jams::Mat<double, 3, 3>, 2>& nbr_list);
 
     std::ofstream outfile;
 
-    jams::InteractionMatrix<Vec<double, 3>, double> interaction_matrix_;
+    jams::InteractionMatrix<jams::Vec<double, 3>, double> interaction_matrix_;
 
     jams::MultiArray<double, 1> thermal_current_rx_;
     jams::MultiArray<double, 1> thermal_current_ry_;

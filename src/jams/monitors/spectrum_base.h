@@ -68,7 +68,7 @@ public:
     /// Each row corresponds to one output channel. For example:
     /// - Identity → Cartesian channels
     /// - Circular combinations → S⁺, S⁻
-    Mat<std::complex<double>, 3, 3> weights = kIdentityMat3cx;
+    jams::Mat<std::complex<double>, 3, 3> weights = kIdentityMat3cx;
 
     /// If true, spins are first rotated into a local basis reference frame
     /// before applying the channel mapping.
@@ -204,17 +204,17 @@ protected:
   /// @param sk_sample Full k-space field for the current time step (FFT output).
   /// @param k_list List of k-points to extract (path or full grid) including r2c indices.
   void append_sk_sample_for_k_list(
-      const jams::MultiArray<Vec<std::complex<double>, 3>, 4>& sk_sample,
+      const jams::MultiArray<jams::Vec<std::complex<double>, 3>, 4>& sk_sample,
       const std::vector<jams::HKLIndex>& k_list);
 
-  jams::MultiArray<Mat<double, 3, 3>, 1> generate_sublattice_rotations_();
+  jams::MultiArray<jams::Mat<double, 3, 3>, 1> generate_sublattice_rotations_();
 
   std::vector<jams::HKLIndex> k_points_;
   std::vector<int>            k_segment_offsets_;
 
   /// @brief S(k) per basis site from the fourier transform of a single time
   /// @details Layout: sk_grid_(kx, ky, kz, basis_index)
-  jams::MultiArray<Vec<std::complex<double>, 3>, 4> sk_grid_;
+  jams::MultiArray<jams::Vec<std::complex<double>, 3>, 4> sk_grid_;
 
   /// @brief S(k, t) time series where only k along kpath are stored
   /// @details Layout: sk_time_series_(periodogram_index, basis_index, kpath_index, channel)
@@ -242,13 +242,13 @@ private:
 
   // Time-series and mapping helpers.
   void store_sublattice_magnetisation_(const jams::MultiArray<double, 2>& spin_state);
-  jams::MultiArray<Vec<double, 3>, 1> compute_mean_basis_mag_directions_();
+  jams::MultiArray<jams::Vec<double, 3>, 1> compute_mean_basis_mag_directions_();
 
   jams::ComplexHi map_spin_component_(int basis_index,
                                       int channel_index,
-                                      const Vec<std::complex<double>, 3>& spin_xyz,
-                                      const jams::MultiArray<Mat<double, 3, 3>, 1>* rotations) const;
-  Vec<std::complex<double>, 3> read_cartesian_spin_(int basis_index, int time_index, int k_index) const;
+                                      const jams::Vec<std::complex<double>, 3>& spin_xyz,
+                                      const jams::MultiArray<jams::Mat<double, 3, 3>, 1>* rotations) const;
+  jams::Vec<std::complex<double>, 3> read_cartesian_spin_(int basis_index, int time_index, int k_index) const;
   bool needs_local_frame_mapping_() const;
   void ensure_channel_storage_initialised_();
   void resize_channel_storage_();
@@ -271,7 +271,7 @@ private:
   /// and k is a k point.
   static void generate_phase_factors_(
       jams::MultiArray<jams::ComplexHi, 2>& phase_factors,
-      const std::vector<Vec<double, 3>>& r_frac,
+      const std::vector<jams::Vec<double, 3>>& r_frac,
       const std::vector<jams::HKLIndex>& kpoints);
 
   bool keep_negative_frequencies_ = false;
@@ -284,7 +284,7 @@ private:
 
   /// @brief Sublattice magnetisation directions for each basis site at each time sample in the current periodogram
   /// @details Layout: mean_sublattice_directions_(basis_site, periodogram_index)
-  jams::MultiArray<Vec<double, 3>, 2> basis_mag_time_series_;
+  jams::MultiArray<jams::Vec<double, 3>, 2> basis_mag_time_series_;
 
   int stored_channel_count_ = 0;
   bool sk_time_series_storage_initialised_ = false;

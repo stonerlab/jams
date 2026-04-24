@@ -52,7 +52,7 @@ public:
     /// Returns the value of the collective variable after a trial
     /// spin move from spin_initial to spin_final (to be used with Monte Carlo).
     double spin_move_trial_value(
-        int i, const Vec<double, 3> &spin_initial, const Vec<double, 3> &spin_trial) override;
+        int i, const jams::Vec<double, 3> &spin_initial, const jams::Vec<double, 3> &spin_trial) override;
 
     double calculate_expensive_value() override;
 

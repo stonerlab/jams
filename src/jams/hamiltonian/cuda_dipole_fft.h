@@ -19,25 +19,25 @@ class CudaDipoleFFTHamiltonian : public Hamiltonian {
 
         jams::Real calculate_total_energy(jams::Real time) override;
         jams::Real calculate_energy(int i, jams::Real time) override;
-        jams::Real calculate_one_spin_energy(int i, const Vec<double, 3> &s_i, jams::Real time);
-        jams::Real calculate_energy_difference(int i, const Vec<double, 3> &spin_initial, const Vec<double, 3> &spin_final, jams::Real time) override ;
+        jams::Real calculate_one_spin_energy(int i, const jams::Vec<double, 3> &s_i, jams::Real time);
+        jams::Real calculate_energy_difference(int i, const jams::Vec<double, 3> &spin_initial, const jams::Vec<double, 3> &spin_final, jams::Real time) override ;
         void   calculate_energies(jams::Real time) override;
 
-        Vec<jams::Real, 3>   calculate_field(int i, jams::Real time);
+        jams::Vec<jams::Real, 3>   calculate_field(int i, jams::Real time);
         void   calculate_fields(jams::Real time) override;
     private:
         bool debug_ = false;
         bool check_radius_   = true;
         bool check_symmetry_ = true;
 
-        void generate_kspace_dipole_tensor(const int pos_i, const int pos_j, const int pair, std::vector<Vec<double, 3>> &generated_positions);
+        void generate_kspace_dipole_tensor(const int pos_i, const int pos_j, const int pair, std::vector<jams::Vec<double, 3>> &generated_positions);
 
         jams::Real                          r_cutoff_;
         jams::Real                          distance_tolerance_;
 
 
-        Vec<int, 3>                    kspace_size_;
-        Vec<int, 3>                    kspace_padded_size_;
+        jams::Vec<int, 3>                    kspace_size_;
+        jams::Vec<int, 3>                    kspace_padded_size_;
 
         jams::MultiArray<jams::Real, 2> s_float_;
         jams::MultiArray<jams::Real, 1> mus_unitcell_;

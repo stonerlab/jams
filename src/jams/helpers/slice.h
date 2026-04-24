@@ -36,7 +36,7 @@ class Slice {
     std::cout << "  slice size: " << slice_size[0] << " " << slice_size[1] << " " << slice_size[2] << "\n";
 
     for (int i = 0; i < globals::num_spins; ++i) {
-      Vec<double, 3> pos = globals::lattice->lattice_site_position_cart(i);
+      jams::Vec<double, 3> pos = globals::lattice->lattice_site_position_cart(i);
 
             // check if the current spin in inside the slice
       if (definately_greater_than(pos[0], slice_origin[0], jams::defaults::lattice_tolerance) && definately_less_than(pos[0], slice_origin[0] + slice_size[0], jams::defaults::lattice_tolerance)
@@ -75,8 +75,8 @@ class Slice {
 
  private:
     int                 num_slice_points;
-    Vec<double, 3> slice_origin;
-    Vec<double, 3> slice_size;
+    jams::Vec<double, 3> slice_origin;
+    jams::Vec<double, 3> slice_size;
     std::vector<int>    slice_map;
 };
 

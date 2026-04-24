@@ -28,11 +28,11 @@ DipoleNearTreeHamiltonian::DipoleNearTreeHamiltonian(const libconfig::Setting &s
         " (" + std::to_string(globals::lattice->max_interaction_radius()) + ")");
   }
 
-  std::vector<Vec<jams::Real, 3>> positions;
+  std::vector<jams::Vec<jams::Real, 3>> positions;
     positions.reserve(globals::num_spins);
   for (auto i = 0; i < globals::num_spins; ++i)
   {
-      positions.push_back(jams::array_cast<jams::Real>(Vec<double, 3>{globals::positions(i,0), globals::positions(i,1), globals::positions(i,2)}));
+      positions.push_back(jams::array_cast<jams::Real>(jams::Vec<double, 3>{globals::positions(i,0), globals::positions(i,1), globals::positions(i,2)}));
   }
   neartree_.insert_sites(positions);
 
@@ -43,13 +43,13 @@ DipoleNearTreeHamiltonian::DipoleNearTreeHamiltonian(const libconfig::Setting &s
 
 
 jams::Real DipoleNearTreeHamiltonian::calculate_energy(const int i, jams::Real time) {
-    Vec<double, 3> s_i = {{globals::s(i, 0), globals::s(i, 1), globals::s(i, 2)}};
+    jams::Vec<double, 3> s_i = {{globals::s(i, 0), globals::s(i, 1), globals::s(i, 2)}};
     auto field = calculate_field(i, time);
     return -0.5 * jams::dot(s_i, field);
 }
 
 
-jams::Real DipoleNearTreeHamiltonian::calculate_energy_difference(int i, const Vec<double, 3> &spin_initial, const Vec<double, 3> &spin_final, jams::Real time) {
+jams::Real DipoleNearTreeHamiltonian::calculate_energy_difference(int i, const jams::Vec<double, 3> &spin_initial, const jams::Vec<double, 3> &spin_final, jams::Real time) {
     const auto field = calculate_field(i, time);
     const jams::Real e_initial = -jams::dot(spin_initial, field);
     const jams::Real e_final = -jams::dot(spin_final, field);
@@ -58,9 +58,9 @@ jams::Real DipoleNearTreeHamiltonian::calculate_energy_difference(int i, const V
 
 
 [[gnu::hot]]
-Vec<jams::Real, 3> DipoleNearTreeHamiltonian::calculate_field(const int i, jams::Real time)
+jams::Vec<jams::Real, 3> DipoleNearTreeHamiltonian::calculate_field(const int i, jams::Real time)
 {
-  const Vec<jams::Real, 3> r_i = {globals::positions(i, 0), globals::positions(i, 1), globals::positions(i, 2)};
+  const jams::Vec<jams::Real, 3> r_i = {globals::positions(i, 0), globals::positions(i, 1), globals::positions(i, 2)};
 
   const auto neighbours = neartree_.neighbours(r_i, r_cutoff_);
 
@@ -68,13 +68,13 @@ Vec<jams::Real, 3> DipoleNearTreeHamiltonian::calculate_field(const int i, jams:
   // 2020-04-21 Using OMP on this loop gives almost no speedup because the heavy
   // work is already done to find the neighbours.
 
-  Vec<jams::Real, 3> field = {0.0, 0.0, 0.0};
+  jams::Vec<jams::Real, 3> field = {0.0, 0.0, 0.0};
   for (const auto & neighbour : neighbours) {
     const int j = neighbour.second;
     if (j == i) continue;
 
-    const Vec<jams::Real, 3> s_j = jams::array_cast<jams::Real>(Vec<double, 3>{globals::s(j,0), globals::s(j,1), globals::s(j,2)});
-    const Vec<jams::Real, 3> r_ij =  neighbour.first - r_i;
+    const jams::Vec<jams::Real, 3> s_j = jams::array_cast<jams::Real>(jams::Vec<double, 3>{globals::s(j,0), globals::s(j,1), globals::s(j,2)});
+    const jams::Vec<jams::Real, 3> r_ij =  neighbour.first - r_i;
 
     field += w0 * globals::mus(j) * (3.0 * r_ij * jams::dot(s_j, r_ij) -
         jams::norm_squared(r_ij) * s_j) / pow5(jams::norm(r_ij));

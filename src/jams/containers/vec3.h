@@ -24,7 +24,7 @@ namespace jams {
 /// Returns the fused-multiply-add operation elementwise on the vectors a,b and c.
 /// x_k = (a_k * b_k) + c_k
 template <typename T1>
-inline Vec<T1,3> fma(const Vec<T1,3>& a, const Vec<T1,3>& b, const Vec<T1,3>& c) {
+inline jams::Vec<T1,3> fma(const jams::Vec<T1,3>& a, const jams::Vec<T1,3>& b, const jams::Vec<T1,3>& c) {
   return {std::fma(a[0], b[0], c[0]), std::fma(a[1], b[1], c[1]), std::fma(a[2], b[2], c[2])};
 }
 
@@ -32,19 +32,19 @@ inline Vec<T1,3> fma(const Vec<T1,3>& a, const Vec<T1,3>& b, const Vec<T1,3>& c)
 /// a is a scalar, b and c are vectors.
 /// x_k = (a * b_k) + c_k
 template <typename T1>
-inline Vec<T1,3> fma(const T1& a, const Vec<T1,3>& b, const Vec<T1,3>& c) {
+inline jams::Vec<T1,3> fma(const T1& a, const jams::Vec<T1,3>& b, const jams::Vec<T1,3>& c) {
   return {std::fma(a, b[0], c[0]), std::fma(a, b[1], c[1]), std::fma(a, b[2], c[2])};
 }
 
 /// Returns the dot product a . b
 template <typename T1, typename T2>
-inline constexpr auto dot(const Vec<T1,3>& a, const T2 b[3]) -> decltype(a[0] * b[0] + a[1] * b[1] + a[2] * b[2]) {
+inline constexpr auto dot(const jams::Vec<T1,3>& a, const T2 b[3]) -> decltype(a[0] * b[0] + a[1] * b[1] + a[2] * b[2]) {
   return a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
 }
 
 /// Returns the dot product a . b
 template <typename T1, typename T2>
-inline constexpr auto dot(const T1 a[3], const Vec<T2,3>& b) -> decltype(a[0] * b[0] + a[1] * b[1] + a[2] * b[2]) {
+inline constexpr auto dot(const T1 a[3], const jams::Vec<T2,3>& b) -> decltype(a[0] * b[0] + a[1] * b[1] + a[2] * b[2]) {
   return a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
 }
 
@@ -57,13 +57,13 @@ inline constexpr auto dot(const T1 a[3], const T2 b[3]) -> decltype(a[0] * b[0] 
 /// Returns a vector of the absolute values of each component of the argument
 /// vector 'a'.
 template <typename T1>
-inline constexpr auto absolute(const Vec<T1,3>& a) -> Vec<decltype(std::abs(a[0])), 3> {
+inline constexpr auto absolute(const jams::Vec<T1,3>& a) -> jams::Vec<decltype(std::abs(a[0])), 3> {
   return {std::abs(a[0]), std::abs(a[1]), std::abs(a[2])};
 }
 
 /// Returns a Vec from the cross product a x b.
 template <typename T1, typename T2>
-inline constexpr auto cross(const Vec<T1,3>& a, const Vec<T2,3>& b) -> Vec<decltype(a[1]*b[2] - a[2]*b[1]), 3> {
+inline constexpr auto cross(const jams::Vec<T1,3>& a, const jams::Vec<T2,3>& b) -> jams::Vec<decltype(a[1]*b[2] - a[2]*b[1]), 3> {
   return {a[1]*b[2] - a[2]*b[1],
           a[2]*b[0] - a[0]*b[2],
           a[0]*b[1] - a[1]*b[0]};
@@ -72,25 +72,25 @@ inline constexpr auto cross(const Vec<T1,3>& a, const Vec<T2,3>& b) -> Vec<declt
 
 /// Returns the magnitude |a x b|^2 using the identity |a||b| - |a.b|^2
 template <typename T1, typename T2>
-inline constexpr auto cross_norm_squared(const Vec<T1,3>& a, const Vec<T2,3>& b) -> decltype(a[0] * b[0]) {
+inline constexpr auto cross_norm_squared(const jams::Vec<T1,3>& a, const jams::Vec<T2,3>& b) -> decltype(a[0] * b[0]) {
   return norm_squared(a) * norm_squared(b) - dot_squared(a, b);
 }
 
 /// Returns the scalar triple product a . (b x c)
 template <typename T1, typename T2, typename T3>
-inline constexpr auto scalar_triple_product(const Vec<T1,3>& a, const Vec<T2,3>& b, const Vec<T3,3>& c) -> decltype(a[0] * b[0] * c[0]) {
+inline constexpr auto scalar_triple_product(const jams::Vec<T1,3>& a, const jams::Vec<T2,3>& b, const jams::Vec<T3,3>& c) -> decltype(a[0] * b[0] * c[0]) {
   return dot(a, cross(b, c));
 }
 
 /// Returns a Vec from the vector triple product a x (b x c)
 template <typename T1, typename T2, typename T3>
-inline constexpr auto vector_triple_product(const Vec<T1,3>& a, const Vec<T2,3>& b, const Vec<T3,3>& c) -> Vec<decltype(a[0] * b[0] * c[0]), 3> {
+inline constexpr auto vector_triple_product(const jams::Vec<T1,3>& a, const jams::Vec<T2,3>& b, const jams::Vec<T3,3>& c) -> jams::Vec<decltype(a[0] * b[0] * c[0]), 3> {
   return cross(a, cross(b, c));
 }
 
 /// Returns the angle in radians between vector a and b
 template <typename T>
-inline auto angle(const Vec<T,3>& a, const Vec<T,3>& b) -> decltype(std::acos(dot(a,b) / (norm(a) * norm(b)))) {
+inline auto angle(const jams::Vec<T,3>& a, const jams::Vec<T,3>& b) -> decltype(std::acos(dot(a,b) / (norm(a) * norm(b)))) {
   using result_type = decltype(std::acos(dot(a,b) / (norm(a) * norm(b))));
 
   const auto denominator = norm(a) * norm(b);
@@ -102,16 +102,16 @@ inline auto angle(const Vec<T,3>& a, const Vec<T,3>& b) -> decltype(std::acos(do
   return std::acos(std::clamp(cosine, result_type{-1}, result_type{1}));
 }
 
-/// Returns a Vec<double, 3> in cartesian coordinates (x, y, z) from the polar coordinates
+/// Returns a jams::Vec<double, 3> in cartesian coordinates (x, y, z) from the polar coordinates
 /// (r, theta, phi), where theta is the polar angle (from z) and phi is the
 /// azimuthal angle (x-y plane, from x). Angles must be in radians.
-inline Vec<double, 3> spherical_to_cartesian_vector(const double r, const double theta, const double phi) {
+inline jams::Vec<double, 3> spherical_to_cartesian_vector(const double r, const double theta, const double phi) {
   return {r * sin(theta) * cos(phi), r * sin(theta) * sin(phi), r * cos(theta)};
 }
 
 /// Returns the polar angle in radians of the cartesian vector a. The polar
 /// angle is the angle down from the +z axis.
-inline double polar_angle(const Vec<double,3>& a) {
+inline double polar_angle(const jams::Vec<double,3>& a) {
   const auto length = norm(a);
   if (length == 0.0) {
     return 0.0;
@@ -122,21 +122,21 @@ inline double polar_angle(const Vec<double,3>& a) {
 
 /// Returns the azimuthal angle in radians of the cartesian vector a. The
 /// azimuthal angle is the angle in the x-y plane starting from x.
-inline double azimuthal_angle(const Vec<double,3> a) {
+inline double azimuthal_angle(const jams::Vec<double,3> a) {
   return atan2(a[1], a[0]);
 }
 
 /// Returns a unit vector by performing a / |a|. If |a| = 0 the function performs
 /// a zero division and the results will be +infinity.
 template <typename T>
-inline auto normalize(const Vec<T,3>& a) -> Vec<decltype(a[0] / std::abs(a[0])), 3> {
+inline auto normalize(const jams::Vec<T,3>& a) -> jams::Vec<decltype(a[0] / std::abs(a[0])), 3> {
   return a / norm(a);
 }
 
 /// Returns true if all components of a are approximately zero (using a relative
 /// epsilon), false otherwise.
 template <typename T>
-inline bool approximately_zero(const Vec<T,3>& a, const T& epsilon) {
+inline bool approximately_zero(const jams::Vec<T,3>& a, const T& epsilon) {
   for (auto n = 0; n < 3; ++n) {
     if (!::approximately_zero(a[n], epsilon)) {
       return false;
@@ -149,7 +149,7 @@ inline bool approximately_zero(const Vec<T,3>& a, const T& epsilon) {
 /// for equality. Returns true if all components of a are approximately equal to
 /// b (using a relative epsilon), false otherwise.
 template <typename T>
-inline bool approximately_equal(const Vec<T,3>& a, const Vec<T,3>& b, const T& epsilon) {
+inline bool approximately_equal(const jams::Vec<T,3>& a, const jams::Vec<T,3>& b, const T& epsilon) {
   for (auto n = 0; n < 3; ++n) {
     if (!::approximately_equal(a[n], b[n], epsilon)) {
       return false;
@@ -161,7 +161,7 @@ inline bool approximately_equal(const Vec<T,3>& a, const Vec<T,3>& b, const T& e
 // Returns the unit vector of `a`. For vectors with a length less than a small
 // value `epsilon` the original vector is returned.
 template <typename T>
-inline auto unit_vector(const Vec<T, 3> &a, const T& epsilon = std::numeric_limits<T>::epsilon()) -> Vec<decltype(a[0] / std::abs(a[0])), 3> {
+inline auto unit_vector(const jams::Vec<T, 3> &a, const T& epsilon = std::numeric_limits<T>::epsilon()) -> jams::Vec<decltype(a[0] / std::abs(a[0])), 3> {
   const auto length = norm(a);
   if (::approximately_zero(length, epsilon)) {
     return a;
@@ -170,23 +170,23 @@ inline auto unit_vector(const Vec<T, 3> &a, const T& epsilon = std::numeric_limi
   return a / length;
 }
 
-/// Returns a complex Vec<double, 3> with the conjugate of each component of a,
+/// Returns a complex jams::Vec<double, 3> with the conjugate of each component of a,
 /// x_k = conj(a_k)
 template <typename T>
-inline constexpr Vec<std::complex<T>,3> conj(const Vec<std::complex<T>,3>& a) {
+inline constexpr jams::Vec<std::complex<T>,3> conj(const jams::Vec<std::complex<T>,3>& a) {
   return {std::conj(a[0]), std::conj(a[1]), std::conj(a[2])};
 }
 
-/// Returns a complex Vec<double, 3> with each component of a truncated,
+/// Returns a complex jams::Vec<double, 3> with each component of a truncated,
 /// x_k = trunc(a_k)
 template <typename T>
-inline constexpr Vec<T,3> trunc(const Vec<T,3>& a) {
+inline constexpr jams::Vec<T,3> trunc(const jams::Vec<T,3>& a) {
   return {std::trunc(a[0]), std::trunc(a[1]), std::trunc(a[2])};
 }
 
-/// Returns a Vec<double, 3> of doubles static_casted from the vector a
+/// Returns a jams::Vec<double, 3> of doubles static_casted from the vector a
 template <typename T>
-inline constexpr Vec<double,3> to_double(const Vec<T,3>& a) {
+inline constexpr jams::Vec<double,3> to_double(const jams::Vec<T,3>& a) {
   return {
     static_cast<double>(a[0]),
     static_cast<double>(a[1]),
@@ -194,9 +194,9 @@ inline constexpr Vec<double,3> to_double(const Vec<T,3>& a) {
   };
 }
 
-/// Returns a Vec<double, 3> of ints static_casted from the vector a
+/// Returns a jams::Vec<double, 3> of ints static_casted from the vector a
 template <typename T>
-inline constexpr Vec<int,3> to_int(const Vec<T,3>& a) {
+inline constexpr jams::Vec<int,3> to_int(const jams::Vec<T,3>& a) {
   return {
       static_cast<int>(a[0]),
       static_cast<int>(a[1]),
@@ -206,7 +206,7 @@ inline constexpr Vec<int,3> to_int(const Vec<T,3>& a) {
 
 /// Returns the largest absolute value in the array
 template <typename T, std::size_t N>
-auto absolute_max(const Vec<T,N>& x) -> decltype(std::abs(x[0])) {
+auto absolute_max(const jams::Vec<T,N>& x) -> decltype(std::abs(x[0])) {
   static_assert(N > 0, "absolute_max requires a non-empty array");
 
   return std::abs(*std::max_element(x.begin(), x.end(),
@@ -216,14 +216,14 @@ auto absolute_max(const Vec<T,N>& x) -> decltype(std::abs(x[0])) {
 
 template <typename T, std::size_t N>
 auto absolute_max(const std::array<T,N>& x) -> decltype(std::abs(x[0])) {
-  return absolute_max(Vec<T, N>{x});
+  return absolute_max(jams::Vec<T, N>{x});
 }
 
 /// Returns a Vec with each component divided by its magnitude. Components
 /// of zero are left as zero. x_k = a_k / |a_k|
 template <typename T, std::size_t N>
-Vec<T, N> normalize_components(const Vec<T, N>& a) {
-  Vec<T, N> result;
+jams::Vec<T, N> normalize_components(const jams::Vec<T, N>& a) {
+  jams::Vec<T, N> result;
   for (auto i = 0; i < N; ++i) {
     result[i] = (a[i] != 0) ? a[i] / std::abs(a[i]) : 0;
   }
@@ -231,7 +231,7 @@ Vec<T, N> normalize_components(const Vec<T, N>& a) {
 }
 
 template <typename T>
-inline std::ostream& operator<<(std::ostream& os, const Vec<T,3> &a) {
+inline std::ostream& operator<<(std::ostream& os, const jams::Vec<T,3> &a) {
   auto w = os.width();
   auto p = os.precision();
   os << std::right << std::setprecision(p) << std::setw(w) << a[0] << " ";
@@ -244,7 +244,7 @@ inline std::ostream& operator<<(std::ostream& os, const Vec<T,3> &a) {
 
 template <typename T>
 inline std::ostream& operator<<(std::ostream& os, const std::array<T,3> &a) {
-  return os << Vec<T, 3>{a};
+  return os << jams::Vec<T, 3>{a};
 }
 
 #endif //JAMS_VEC3_H

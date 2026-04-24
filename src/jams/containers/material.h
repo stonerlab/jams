@@ -20,8 +20,8 @@ public:
     double    moment = 0.0;
     double     gyro  = jams::defaults::material_gyro;
     double     alpha = jams::defaults::material_alpha;
-    Vec<double, 3>       spin  = jams::defaults::material_spin;
-    Mat<double, 3, 3>   transform = jams::defaults::material_spin_transform;
+    jams::Vec<double, 3>       spin  = jams::defaults::material_spin;
+    jams::Mat<double, 3, 3>   transform = jams::defaults::material_spin_transform;
     bool   randomize = false;
 
     inline Material() = default;
@@ -32,7 +32,7 @@ public:
             moment   (jams::config_required<double>(cfg, "moment") * kBohrMagnetonIU), // input is in multiples of Bohr magneton, internally we use meV T^-1
             gyro     (jams::config_optional<double>(cfg, "gyro", jams::defaults::material_gyro) * kGyromagneticRatioIU), // input is fraction of the gyromagnetic ratio, internally we use rad ps^-1 T^-1
             alpha    (jams::config_optional<double>(cfg, "alpha", jams::defaults::material_alpha)),
-            transform(jams::config_optional<Mat<double, 3, 3>>(cfg, "transform", jams::defaults::material_spin_transform)) {
+            transform(jams::config_optional<jams::Mat<double, 3, 3>>(cfg, "transform", jams::defaults::material_spin_transform)) {
 
       if (cfg.exists("spin")) {
         bool is_array = (cfg["spin"].getType() == libconfig::Setting::TypeArray);
@@ -45,7 +45,7 @@ public:
         if (is_array) {
           auto length = cfg["spin"].getLength();
           if (length == 3) {
-            spin = jams::config_required<Vec<double, 3>>(cfg, "spin");
+            spin = jams::config_required<jams::Vec<double, 3>>(cfg, "spin");
           } else if (length == 2) {
             spin = jams::spherical_to_cartesian_vector(1.0, deg_to_rad(double(cfg["spin"][0])), deg_to_rad(double(cfg["spin"][1])));
           } else {

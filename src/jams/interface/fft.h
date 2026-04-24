@@ -38,7 +38,7 @@ namespace jams {
           return reinterpret_cast<fftw_complex*>(ptr);
         }
 
-        inline fftw_complex* complex_cast(Vec<std::complex<double>, 3>* ptr) {
+        inline fftw_complex* complex_cast(jams::Vec<std::complex<double>, 3>* ptr) {
           return reinterpret_cast<fftw_complex*>(ptr);
         }
     }
@@ -55,23 +55,23 @@ double fft_window_blackman_4(const int n, const int n_total);
 double fft_window_exponential(const int n, const int n_total);
 double fft_window_nuttall(const int n, const int n_total);
 
-fftw_plan fft_plan_rspace_to_kspace(std::complex<double> * rspace, std::complex<double> * kspace, const Vec<int, 3>& kspace_size, const int & motif_size);
+fftw_plan fft_plan_rspace_to_kspace(std::complex<double> * rspace, std::complex<double> * kspace, const jams::Vec<int, 3>& kspace_size, const int & motif_size);
 void apply_kspace_phase_factors(jams::MultiArray<std::complex<double>, 5> &kspace);
 
-void fft_supercell_vector_field_to_kspace(const jams::MultiArray<double, 2>& rspace_data, jams::MultiArray<Vec<std::complex<double>, 3>,4>& kspace_data, const Vec<int, 3>& kspace_size, const Vec<int, 3>& kspace_padded_size, const int & num_sites, int fftw_threads = 1);
-void fft_supercell_scalar_field_to_kspace(const jams::MultiArray<double, 1>& rspace_data, jams::MultiArray<jams::ComplexHi,4>& kspace_data, const Vec<int, 3>& kspace_size, const int & num_sites);
+void fft_supercell_vector_field_to_kspace(const jams::MultiArray<double, 2>& rspace_data, jams::MultiArray<jams::Vec<std::complex<double>, 3>,4>& kspace_data, const jams::Vec<int, 3>& kspace_size, const jams::Vec<int, 3>& kspace_padded_size, const int & num_sites, int fftw_threads = 1);
+void fft_supercell_scalar_field_to_kspace(const jams::MultiArray<double, 1>& rspace_data, jams::MultiArray<jams::ComplexHi,4>& kspace_data, const jams::Vec<int, 3>& kspace_size, const int & num_sites);
 
 /// @brief Struct to store the N dimensional array index of an FFTW frequency and whether the value should
 /// be conjugated for Hermitian symmetry.
 template <std::size_t N>
 struct FFTWHermitianIndex {
-    Vec<int, N> offset;
+    jams::Vec<int, N> offset;
     bool conj;
 };
 
 // returns true if k corresponds to a (virtual) hermitian element
 template <std::size_t N>
-inline bool fftw_r2c_need_hermitian_symmetric_index(Vec<int, N> &k, const Vec<int, N> &n) {
+inline bool fftw_r2c_need_hermitian_symmetric_index(jams::Vec<int, N> &k, const jams::Vec<int, N> &n) {
   return (k[N-1] % n[N-1] + n[N-1]) % n[N-1] >= n[N-1] / 2 + 1;
 }
 
@@ -83,7 +83,7 @@ inline bool fftw_r2c_need_hermitian_symmetric_index(Vec<int, N> &k, const Vec<in
 // the fft_size) to the correct location and sets a bool as to whether the value must
 // be conjugated
 template <std::size_t N>
-inline FFTWHermitianIndex<N> fftw_r2c_index(Vec<int, N> k, const Vec<int, N> &n) {
+inline FFTWHermitianIndex<N> fftw_r2c_index(jams::Vec<int, N> k, const jams::Vec<int, N> &n) {
   if (fftw_r2c_need_hermitian_symmetric_index(k, n)) {
     return FFTWHermitianIndex<N>{(-k % n + n) % n, true};
   }

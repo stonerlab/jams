@@ -13,7 +13,7 @@
 #include "jams/helpers/utils.h"
 
 template <typename T, class RNG>
-inline Vec<T, 3> uniform_random_sphere(RNG &gen) {
+inline jams::Vec<T, 3> uniform_random_sphere(RNG &gen) {
   static_assert(std::is_arithmetic<T>::value,
                  "uniform_random_sphere requires arithmetic T type");
 

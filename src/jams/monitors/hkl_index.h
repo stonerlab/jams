@@ -13,8 +13,8 @@ namespace jams {
 
 /// @brief Reciprocal-space point with FFT index metadata.
 struct HKLIndex {
-  Vec<double, 3> hkl;          ///< Reciprocal lattice point in fractional units.
-  Vec<double, 3> xyz;          ///< Reciprocal lattice point in cartesian units.
+  jams::Vec<double, 3> hkl;          ///< Reciprocal lattice point in fractional units.
+  jams::Vec<double, 3> xyz;          ///< Reciprocal lattice point in cartesian units.
   FFTWHermitianIndex<3> index; ///< FFTW 3D array index and conjugation flag.
 };
 

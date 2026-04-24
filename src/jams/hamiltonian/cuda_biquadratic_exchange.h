@@ -21,11 +21,11 @@ public:
 
     void calculate_fields(jams::Real time) override;
 
-    Vec<jams::Real, 3> calculate_field(int i, jams::Real time) override;
+    jams::Vec<jams::Real, 3> calculate_field(int i, jams::Real time) override;
 
     jams::Real calculate_energy(int i, jams::Real time) override;
 
-    jams::Real calculate_energy_difference(int i, const Vec<double, 3> &spin_initial, const Vec<double, 3> &spin_final, jams::Real time) override;
+    jams::Real calculate_energy_difference(int i, const jams::Vec<double, 3> &spin_initial, const jams::Vec<double, 3> &spin_final, jams::Real time) override;
 
 
 private:
@@ -33,7 +33,7 @@ private:
     double energy_cutoff_; // abs cutoff energy for interaction
     double radius_cutoff_; // cutoff radius for interaction
 
-    jams::InteractionList<Mat<double, 3, 3>, 2> neighbour_list_; // neighbour list
+    jams::InteractionList<jams::Mat<double, 3, 3>, 2> neighbour_list_; // neighbour list
 
     bool is_finalized_ = false; // is the sparse matrix finalized and built
     jams::SparseMatrix<jams::Real>::Builder sparse_matrix_builder_; // helper to build the sparse matrix and output a chosen type

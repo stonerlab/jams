@@ -97,8 +97,8 @@ void TopologicalGeometricalDefMonitor::calculate_elementary_triangles() {
   // + ----+          + ----+
   //
   // So here we detect the square lattice and compensate with a factor 1/2
-  if (jams::approximately_equal(globals::lattice->a1(), Vec<double, 3>{1.0, 0.0, 0.0}, jams::defaults::lattice_tolerance)
-  && jams::approximately_equal(globals::lattice->a2(), Vec<double, 3>{0.0, 1.0, 0.0}, jams::defaults::lattice_tolerance)) {
+  if (jams::approximately_equal(globals::lattice->a1(), jams::Vec<double, 3>{1.0, 0.0, 0.0}, jams::defaults::lattice_tolerance)
+  && jams::approximately_equal(globals::lattice->a2(), jams::Vec<double, 3>{0.0, 1.0, 0.0}, jams::defaults::lattice_tolerance)) {
     triangle_over_counting_ = 2.0;
   }
 
@@ -158,7 +158,7 @@ void TopologicalGeometricalDefMonitor::calculate_elementary_triangles() {
   }
 
 }
-double TopologicalGeometricalDefMonitor::local_topological_charge(const Vec<double, 3> &s_i,const Vec<double, 3> &s_j,const Vec<double, 3> &s_k) const {
+double TopologicalGeometricalDefMonitor::local_topological_charge(const jams::Vec<double, 3> &s_i,const jams::Vec<double, 3> &s_j,const jams::Vec<double, 3> &s_k) const {
   double triple_product = jams::scalar_triple_product(s_i, s_j, s_k);
   double denominator = 1 + jams::dot(s_i, s_j) + jams::dot(s_i, s_k) + jams::dot(s_j, s_k);
 
@@ -166,9 +166,9 @@ double TopologicalGeometricalDefMonitor::local_topological_charge(const Vec<doub
 
 }
 double TopologicalGeometricalDefMonitor::local_topological_charge(const TopologicalGeometricalDefMonitor::Triplet &t) const {
-  Vec<double, 3> s_i = jams::montecarlo::get_spin(t.i);
-  Vec<double, 3> s_j = jams::montecarlo::get_spin(t.j);
-  Vec<double, 3> s_k = jams::montecarlo::get_spin(t.k);
+  jams::Vec<double, 3> s_i = jams::montecarlo::get_spin(t.i);
+  jams::Vec<double, 3> s_j = jams::montecarlo::get_spin(t.j);
+  jams::Vec<double, 3> s_k = jams::montecarlo::get_spin(t.k);
 
   return local_topological_charge(s_i, s_j, s_k);
 }

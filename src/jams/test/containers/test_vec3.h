@@ -8,6 +8,7 @@
 #include <cstdint>
 #include <numeric>
 #include <type_traits>
+#include <utility>
 
 #include "jams/containers/vec3.h"
 
@@ -51,8 +52,8 @@ TEST(VecTest, IsContiguousStandardLayoutStorage) {
 
 TEST(VecTest, SupportsStdArrayCompatibilityAndIteration) {
   jams::Vec<double, 3> from_array{std::array<double, 3>{1.0, 2.0, 3.0}};
-  std::array<double, 3>& as_array = from_array;
-  const std::array<double, 3>& as_const_array = from_array;
+  std::array<double, 3>& as_array = from_array.storage();
+  const std::array<double, 3>& as_const_array = std::as_const(from_array).storage();
 
   EXPECT_EQ(as_array[1], 2.0);
   EXPECT_EQ(as_const_array[2], 3.0);

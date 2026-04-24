@@ -53,10 +53,10 @@ __global__ void thermal_current_kernel
   }
 }
 
-Vec<double, 3> execute_cuda_thermal_current_kernel(
+jams::Vec<double, 3> execute_cuda_thermal_current_kernel(
     CudaStream &stream,
     const jams::MultiArray<double, 2>& spins,
-    const jams::InteractionMatrix<Vec<double, 3>, double>& interaction_matrix,
+    const jams::InteractionMatrix<jams::Vec<double, 3>, double>& interaction_matrix,
     jams::MultiArray<double, 1>& dev_thermal_current_rx,
     jams::MultiArray<double, 1>& dev_thermal_current_ry,
     jams::MultiArray<double, 1>& dev_thermal_current_rz) {

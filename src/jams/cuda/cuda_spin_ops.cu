@@ -43,7 +43,7 @@ __global__ void cuda_rotate_spins_kernel(double* spins, const int* indices, cons
 }
 
 void jams::rotate_spins_cuda(jams::MultiArray<double, 2> &spins,
-                             const Mat<double, 3, 3> &rotation_matrix,
+                             const jams::Mat<double, 3, 3> &rotation_matrix,
                              const jams::MultiArray<int, 1> &indices) {
 
   dim3 block_size;
@@ -135,7 +135,7 @@ __global__ void cuda_add_to_spin_kernel(double* spins, const int* indices, const
 }
 
 void jams::add_to_spin_cuda(jams::MultiArray<double, 2> &spins,
-                                   const Vec<double, 3> &additional_length,
+                                   const jams::Vec<double, 3> &additional_length,
                                    const jams::MultiArray<int, 1> &indices) {
 
   dim3 block_size;
