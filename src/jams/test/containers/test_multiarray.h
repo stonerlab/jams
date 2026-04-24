@@ -8,7 +8,9 @@
 #include <array>
 #include <complex>
 #include <iterator>
+#include <limits>
 #include <sstream>
+#include <stdexcept>
 #include <type_traits>
 #include <vector>
 
@@ -328,6 +330,21 @@ TEST(MultiArrayFinalApiTest, ResizeUsesUniformExtentAndTotalSizeApi) {
   EXPECT_EQ(grid.extent(0), 2u);
   EXPECT_EQ(grid.extent(1), 5u);
   EXPECT_EQ(grid.elements(), 10u);
+}
+
+TEST(MultiArrayFinalApiTest, ShapeConstructionAndResizeCheckExtentOverflow) {
+  using namespace jams;
+
+  EXPECT_THROW((MultiArray<int, 1, int>(-1)), std::length_error);
+  EXPECT_THROW((MultiArray<int, 1, unsigned char>(std::array<unsigned, 1>{300u})), std::overflow_error);
+  EXPECT_THROW((MultiArray<int, 2>(std::numeric_limits<std::size_t>::max(), std::size_t{2})),
+               std::overflow_error);
+
+  MultiArray<int, 2> values(2, 3);
+  EXPECT_THROW(values.resize(std::numeric_limits<std::size_t>::max(), std::size_t{2}),
+               std::overflow_error);
+  EXPECT_EQ(values.shape(), (std::array<MultiArray<int, 2>::size_type, 2>{2, 3}));
+  EXPECT_EQ(values.size(), 6u);
 }
 
 TEST(MultiArrayFinalApiTest, FillZeroAndClearUseUniformApi) {

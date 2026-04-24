@@ -10,7 +10,8 @@
 #include <array>
 #include <algorithm>
 #include <cassert>
-#include <cstring>
+#include <limits>
+#include <stdexcept>
 #include <type_traits>
 #include <utility>
 
@@ -32,6 +33,51 @@ namespace jams {
         constexpr auto array_cast(const std::array<U, i> &a) -> std::array<T, i> {
           // tag dispatch to helper with array indices
           return array_cast_helper<T>(a, build_indices<i>());
+        }
+
+        template<typename To, typename From>
+        constexpr To checked_integral_cast(From value) {
+          static_assert(std::is_integral_v<To>, "target type must be integral");
+          static_assert(std::is_integral_v<From>, "source type must be integral");
+          static_assert(!std::is_same_v<std::remove_cv_t<To>, bool>, "bool extents are not supported");
+          static_assert(!std::is_same_v<std::remove_cv_t<From>, bool>, "bool extents are not supported");
+
+          if constexpr (std::is_signed_v<From>) {
+            if (value < 0) {
+              throw std::length_error("MultiArray extent must be non-negative");
+            }
+          }
+
+          using common_type = std::common_type_t<std::make_unsigned_t<From>, std::make_unsigned_t<To>, std::size_t>;
+          const auto unsigned_value = static_cast<common_type>(value);
+          const auto max_value = static_cast<common_type>(std::numeric_limits<To>::max());
+          if (unsigned_value > max_value) {
+            throw std::overflow_error("MultiArray extent conversion overflow");
+          }
+          return static_cast<To>(value);
+        }
+
+        template<typename T, typename U, size_t i, size_t... Is>
+        constexpr std::array<T, i> checked_array_cast_helper(const std::array<U, i> &a, indices<Is...>) {
+          return {{checked_integral_cast<T>(std::get<Is>(a))...}};
+        }
+
+        template<typename T, typename U, size_t i>
+        constexpr auto checked_array_cast(const std::array<U, i> &a) -> std::array<T, i> {
+          return checked_array_cast_helper<T>(a, build_indices<i>());
+        }
+
+        template<typename T, std::size_t N>
+        constexpr std::size_t checked_product(const std::array<T, N>& v) {
+          std::size_t result = 1;
+          for (const auto value : v) {
+            const auto extent = checked_integral_cast<std::size_t>(value);
+            if (extent != 0 && result > std::numeric_limits<std::size_t>::max() / extent) {
+              throw std::overflow_error("MultiArray shape product overflow");
+            }
+            result *= extent;
+          }
+          return result;
         }
 
         // partial specialization of templates is not possible, so we use structs
@@ -131,6 +177,8 @@ namespace jams {
               "MultiArray<T> requires trivially copyable T for device use");
         static_assert(std::is_integral<Idx_>::value,
               "MultiArray index type must be integral");
+        static_assert(!std::is_same_v<std::remove_cv_t<Idx_>, bool>,
+              "MultiArray index type must not be bool");
 
         MultiArray() noexcept = default;
         ~MultiArray() = default;
@@ -156,17 +204,15 @@ namespace jams {
 
         // construct using dimensions as arguments
         template<typename... Args, typename = std::enable_if_t<(std::conjunction_v<std::is_integral<Args>...> && (sizeof...(Args) == Dim_))>>
-        inline explicit MultiArray(const Args... args) :
-            size_({static_cast<size_type>(args)...}),
-            data_(detail::product(static_cast<size_type>(args)...)) {
+        inline explicit MultiArray(const Args... args)
+            : MultiArray(size_container_type{detail::checked_integral_cast<size_type>(args)...}) {
           static_assert(sizeof...(args) == Dim_,
                         "number of MultiArray indicies in constructor does not match the MultiArray dimension");
         }
 
         template<typename... Args, typename = std::enable_if_t<(std::conjunction_v<std::is_integral<Args>...> && (sizeof...(Args) == Dim_))>>
-        inline explicit MultiArray(const value_type& x, const Args... args):
-            size_({static_cast<size_type>(args)...}),
-            data_(detail::product(static_cast<size_type>(args)...), x) {
+        inline explicit MultiArray(const value_type& x, const Args... args)
+            : MultiArray(x, size_container_type{detail::checked_integral_cast<size_type>(args)...}) {
           static_assert(sizeof...(args) == Dim_,
                         "number of MultiArray indicies in constructor does not match the MultiArray dimension");
         }
@@ -174,13 +220,13 @@ namespace jams {
         // construct using dimensions in array
         template<typename Integral_>
         inline explicit MultiArray(const std::array<Integral_, Dim_> &v) :
-            size_(detail::array_cast<size_type>(v)),
-            data_(detail::vec<std::size_t, Dim_, Dim_>::last_n_product(detail::array_cast<size_type>(v))) {}
+            size_(detail::checked_array_cast<size_type>(v)),
+            data_(detail::checked_product(size_)) {}
 
       template<typename Integral_>
       inline explicit MultiArray(const value_type& x, const std::array<Integral_, Dim_> v) :
-            size_(detail::array_cast<size_type>(v)),
-            data_(detail::vec<std::size_t, Dim_, Dim_>::last_n_product(detail::array_cast<size_type>(v)), x) {}
+            size_(detail::checked_array_cast<size_type>(v)),
+            data_(detail::checked_product(size_), x) {}
 
         template<class InputIt, std::enable_if_t<(Dim_ == 1 && detail::is_iterator<InputIt>::value), bool> = true>
         inline MultiArray(InputIt first, InputIt last)
@@ -356,14 +402,15 @@ namespace jams {
         inline MultiArray& resize(const Args &... args) {
           static_assert(sizeof...(args) == Dim_,
                         "number of MultiArray indicies in resize does not match the MultiArray dimension");
-          size_ = {static_cast<size_type>(args)...};
-          data_.resize(detail::product(static_cast<size_type>(args)...));
+          const size_container_type new_size{detail::checked_integral_cast<size_type>(args)...};
+          data_.resize(detail::checked_product(new_size));
+          size_ = new_size;
           return *this;
         }
 
         inline MultiArray& resize(const std::array<size_type, Dim_> &v) {
+          data_.resize(detail::checked_product(v));
           size_ = v;
-          data_.resize(detail::vec<std::size_t, Dim_, Dim_>::last_n_product(v));
           return *this;
         }
 
