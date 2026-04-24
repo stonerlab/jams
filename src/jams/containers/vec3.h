@@ -5,31 +5,17 @@
 #ifndef JAMS_VEC3_H
 #define JAMS_VEC3_H
 
+#include <algorithm>
 #include <array>
 #include <cmath>
-#include <iosfwd>
-#include <iomanip>
-#include <algorithm>
 #include <complex>
+#include <iomanip>
+#include <iosfwd>
 #include <limits>
 #include <type_traits>
+
+#include "jams/containers/vec.h"
 #include "jams/helpers/maths.h"
-#include "jams/helpers/mixed_precision.h"
-
-template <typename T, std::size_t N>
-using Vec = std::array<T, N>;
-
-using Vec2  = std::array<double, 2>;
-
-using Vec3  = std::array<double, 3>;
-using Vec3f = std::array<float, 3>;
-using Vec3R = std::array<jams::Real, 3>;
-using Vec3b = std::array<bool, 3>;
-using Vec3i = std::array<int, 3>;
-using Vec3cx  = std::array<std::complex<double>, 3>;
-
-using Vec4  = std::array<double, 4>;
-using Vec4i = std::array<int, 4>;
 
 
 
