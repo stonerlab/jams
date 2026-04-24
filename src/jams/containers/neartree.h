@@ -1,12 +1,13 @@
 #ifndef JAMS_CORE_NEARTREE_H
 #define JAMS_CORE_NEARTREE_H
 
+#include <cassert>
 #include <limits>
-#include <stack>
-#include <cfloat>
 #include <algorithm>
 #include <vector>
 #include <random>
+
+#include "jams/helpers/maths.h"
 
 // Toggles whether to do safe floating point comparisons with an 'epslion' or
 // use the trivial >=, <= operators
@@ -183,8 +184,8 @@ namespace jams {
       // do a bit of precomputing if possible so that we can
       // reduce the number of calls to operator norm_functor as much
       // as possible; norm_functor might use square roots
-      DistType tmp_distance_right = (right != nullptr) ? norm_functor(t, *right) : 0.0;
-      DistType tmp_distance_left = (left != nullptr) ? norm_functor(t, *left) : 0.0;
+      DistType tmp_distance_right = (right != nullptr) ? norm_functor(t, *right) : DistType(0);
+      DistType tmp_distance_left = (left != nullptr) ? norm_functor(t, *left) : DistType(0);
 
       if (left == nullptr) {
         left = new T(t);
@@ -264,8 +265,8 @@ namespace jams {
       // first test each of the left and right positions to see
       // if one holds a point nearer than the nearest so far.
 
-      const auto norm_left = left != nullptr ? norm_functor(origin, *left) : 0.0;
-      const auto norm_right = right != nullptr ? norm_functor(origin, *right) : 0.0;
+      const auto norm_left = left != nullptr ? norm_functor(origin, *left) : DistType(0);
+      const auto norm_right = right != nullptr ? norm_functor(origin, *right) : DistType(0);
 
       if ((left != nullptr) &&
           ((tmp_radius = norm_left) <= radius)) {
@@ -302,8 +303,8 @@ namespace jams {
       // first test each of the left and right positions to see
       // if one holds a point nearer than the search radius.
 
-      const auto norm_left = left != nullptr ? norm_functor(origin, *left) : 0.0;
-      const auto norm_right = right != nullptr ? norm_functor(origin, *right) : 0.0;
+      const auto norm_left = left != nullptr ? norm_functor(origin, *left) : DistType(0);
+      const auto norm_right = right != nullptr ? norm_functor(origin, *right) : DistType(0);
 
       #ifdef SAFE_FLOAT_COMPARISON
       if ((left != nullptr) && !definately_greater_than(norm_left, radius, epsilon)) {
