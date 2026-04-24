@@ -17,6 +17,27 @@
 
 namespace jams {
 
+template <typename>
+struct is_mat : std::false_type {};
+
+namespace detail {
+
+template <typename>
+struct is_vec : std::false_type {};
+
+template <typename T, std::size_t N>
+struct is_vec<Vec<T, N>> : std::true_type {};
+
+template <typename T>
+inline constexpr bool is_mat_scalar_v =
+    !is_mat<std::decay_t<T>>::value && !is_vec<std::decay_t<T>>::value;
+
+template <typename T1, typename T2>
+using multiply_accumulate_result_t =
+    decltype(std::declval<T1>() * std::declval<T2>() + std::declval<T1>() * std::declval<T2>());
+
+} // namespace detail
+
 template <typename T, std::size_t Rows, std::size_t Cols>
 struct Mat {
   static_assert(Rows > 0 && Cols > 0, "Mat requires at least one row and column");
@@ -85,9 +106,6 @@ struct Mat {
   }
 };
 
-template <typename>
-struct is_mat : std::false_type {};
-
 template <typename T, std::size_t Rows, std::size_t Cols>
 struct is_mat<Mat<T, Rows, Cols>> : std::true_type {};
 
@@ -132,8 +150,8 @@ constexpr Mat<T, N, N> identity()
 
 template <typename T1, typename T2, std::size_t Rows, std::size_t Cols>
 inline constexpr auto operator*(const Mat<T1, Rows, Cols>& lhs, const Vec<T2, Cols>& rhs)
-    -> Vec<decltype(lhs[0][0] * rhs[0]), Rows> {
-  Vec<decltype(lhs[0][0] * rhs[0]), Rows> result{};
+    -> Vec<detail::multiply_accumulate_result_t<T1, T2>, Rows> {
+  Vec<detail::multiply_accumulate_result_t<T1, T2>, Rows> result{};
   for (std::size_t row = 0; row < Rows; ++row) {
     for (std::size_t col = 0; col < Cols; ++col) {
       result[row] += lhs[row][col] * rhs[col];
@@ -143,13 +161,26 @@ inline constexpr auto operator*(const Mat<T1, Rows, Cols>& lhs, const Vec<T2, Co
 }
 
 template <typename T1, typename T2, std::size_t Rows, std::size_t Cols,
-          typename = std::enable_if_t<!is_mat<std::decay_t<T1>>::value>>
+          typename = std::enable_if_t<detail::is_mat_scalar_v<T1>>>
 inline constexpr auto operator*(const T1& lhs, const Mat<T2, Rows, Cols>& rhs)
     -> Mat<decltype(lhs * rhs[0][0]), Rows, Cols> {
   Mat<decltype(lhs * rhs[0][0]), Rows, Cols> result{};
   for (std::size_t row = 0; row < Rows; ++row) {
     for (std::size_t col = 0; col < Cols; ++col) {
       result[row][col] = lhs * rhs[row][col];
+    }
+  }
+  return result;
+}
+
+template <typename T1, typename T2, std::size_t Rows, std::size_t Cols,
+          typename = std::enable_if_t<detail::is_mat_scalar_v<T2>>>
+inline constexpr auto operator*(const Mat<T1, Rows, Cols>& lhs, const T2& rhs)
+    -> Mat<decltype(lhs[0][0] * rhs), Rows, Cols> {
+  Mat<decltype(lhs[0][0] * rhs), Rows, Cols> result{};
+  for (std::size_t row = 0; row < Rows; ++row) {
+    for (std::size_t col = 0; col < Cols; ++col) {
+      result[row][col] = lhs[row][col] * rhs;
     }
   }
   return result;
@@ -168,6 +199,17 @@ inline constexpr auto operator/(const Mat<T1, Rows, Cols>& lhs, const T2& rhs)
 }
 
 template <typename T1, typename T2, std::size_t Rows, std::size_t Cols>
+inline constexpr Mat<T1, Rows, Cols>& operator+=(Mat<T1, Rows, Cols>& lhs,
+                                                 const Mat<T2, Rows, Cols>& rhs) {
+  for (std::size_t row = 0; row < Rows; ++row) {
+    for (std::size_t col = 0; col < Cols; ++col) {
+      lhs[row][col] += rhs[row][col];
+    }
+  }
+  return lhs;
+}
+
+template <typename T1, typename T2, std::size_t Rows, std::size_t Cols>
 inline constexpr auto operator+(const Mat<T1, Rows, Cols>& lhs, const Mat<T2, Rows, Cols>& rhs)
     -> Mat<decltype(lhs[0][0] + rhs[0][0]), Rows, Cols> {
   Mat<decltype(lhs[0][0] + rhs[0][0]), Rows, Cols> result{};
@@ -180,6 +222,17 @@ inline constexpr auto operator+(const Mat<T1, Rows, Cols>& lhs, const Mat<T2, Ro
 }
 
 template <typename T1, typename T2, std::size_t Rows, std::size_t Cols>
+inline constexpr Mat<T1, Rows, Cols>& operator-=(Mat<T1, Rows, Cols>& lhs,
+                                                 const Mat<T2, Rows, Cols>& rhs) {
+  for (std::size_t row = 0; row < Rows; ++row) {
+    for (std::size_t col = 0; col < Cols; ++col) {
+      lhs[row][col] -= rhs[row][col];
+    }
+  }
+  return lhs;
+}
+
+template <typename T1, typename T2, std::size_t Rows, std::size_t Cols>
 inline constexpr auto operator-(const Mat<T1, Rows, Cols>& lhs, const Mat<T2, Rows, Cols>& rhs)
     -> Mat<decltype(lhs[0][0] - rhs[0][0]), Rows, Cols> {
   Mat<decltype(lhs[0][0] - rhs[0][0]), Rows, Cols> result{};
@@ -189,6 +242,28 @@ inline constexpr auto operator-(const Mat<T1, Rows, Cols>& lhs, const Mat<T2, Ro
     }
   }
   return result;
+}
+
+template <typename T1, typename T2, std::size_t Rows, std::size_t Cols,
+          typename = std::enable_if_t<detail::is_mat_scalar_v<T2>>>
+inline constexpr Mat<T1, Rows, Cols>& operator*=(Mat<T1, Rows, Cols>& lhs, const T2& rhs) {
+  for (std::size_t row = 0; row < Rows; ++row) {
+    for (std::size_t col = 0; col < Cols; ++col) {
+      lhs[row][col] *= rhs;
+    }
+  }
+  return lhs;
+}
+
+template <typename T1, typename T2, std::size_t Rows, std::size_t Cols,
+          typename = std::enable_if_t<detail::is_mat_scalar_v<T2>>>
+inline constexpr Mat<T1, Rows, Cols>& operator/=(Mat<T1, Rows, Cols>& lhs, const T2& rhs) {
+  for (std::size_t row = 0; row < Rows; ++row) {
+    for (std::size_t col = 0; col < Cols; ++col) {
+      lhs[row][col] /= rhs;
+    }
+  }
+  return lhs;
 }
 
 template <typename T, std::size_t Rows, std::size_t Cols>
@@ -204,8 +279,8 @@ inline constexpr auto operator-(const Mat<T, Rows, Cols>& a) -> Mat<decltype(-a[
 
 template <typename T1, typename T2, std::size_t Rows, std::size_t Inner, std::size_t Cols>
 inline constexpr auto operator*(const Mat<T1, Rows, Inner>& lhs, const Mat<T2, Inner, Cols>& rhs)
-    -> Mat<decltype(lhs[0][0] * rhs[0][0]), Rows, Cols> {
-  Mat<decltype(lhs[0][0] * rhs[0][0]), Rows, Cols> result{};
+    -> Mat<detail::multiply_accumulate_result_t<T1, T2>, Rows, Cols> {
+  Mat<detail::multiply_accumulate_result_t<T1, T2>, Rows, Cols> result{};
   for (std::size_t row = 0; row < Rows; ++row) {
     for (std::size_t col = 0; col < Cols; ++col) {
       for (std::size_t k = 0; k < Inner; ++k) {

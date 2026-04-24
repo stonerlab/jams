@@ -7,6 +7,7 @@
 #include "gtest/gtest.h"
 #include "gmock/gmock.h"
 
+#include <cstdint>
 #include <type_traits>
 
 #include "jams/containers/mat3.h"
@@ -44,6 +45,10 @@ TEST(MatTest, SupportsGenericDimensionArithmetic) {
       2, 4,
       6, 8,
       10, 12}));
+  EXPECT_EQ(a * 2, (jams::Mat<int, 3, 2>{
+      2, 4,
+      6, 8,
+      10, 12}));
   EXPECT_EQ((a * jams::Vec<int, 2>{7, 8}), (jams::Vec<int, 3>{23, 53, 83}));
 
   const jams::Mat<int, 2, 4> c{
@@ -54,6 +59,36 @@ TEST(MatTest, SupportsGenericDimensionArithmetic) {
       11, 14, 17, 20,
       23, 30, 37, 44,
       35, 46, 57, 68}));
+}
+
+TEST(MatTest, SupportsCompoundAssignmentAndPromotedMultiplyAccumulateTypes) {
+  static_assert(std::is_same_v<decltype(std::declval<jams::Mat<int, 2, 2>&>() += std::declval<jams::Mat<int, 2, 2>>()),
+                               jams::Mat<int, 2, 2>&>);
+  static_assert(std::is_same_v<decltype(std::declval<jams::Mat<int, 2, 2>&>() -= std::declval<jams::Mat<int, 2, 2>>()),
+                               jams::Mat<int, 2, 2>&>);
+  static_assert(std::is_same_v<decltype(std::declval<jams::Mat<int, 2, 2>&>() *= 2),
+                               jams::Mat<int, 2, 2>&>);
+  static_assert(std::is_same_v<decltype(std::declval<jams::Mat<int, 2, 2>&>() /= 2),
+                               jams::Mat<int, 2, 2>&>);
+  static_assert(std::is_same_v<decltype(std::declval<jams::Mat<std::int8_t, 2, 2>>() * std::declval<jams::Vec<std::int8_t, 2>>()),
+                               jams::Vec<int, 2>>);
+  static_assert(std::is_same_v<decltype(std::declval<jams::Mat<std::int8_t, 2, 2>>() * std::declval<jams::Mat<std::int8_t, 2, 2>>()),
+                               jams::Mat<int, 2, 2>>);
+
+  jams::Mat<int, 2, 2> a{1, 2, 3, 4};
+  const jams::Mat<int, 2, 2> b{5, 6, 7, 8};
+
+  a += b;
+  EXPECT_EQ(a, (jams::Mat<int, 2, 2>{6, 8, 10, 12}));
+
+  a -= b;
+  EXPECT_EQ(a, (jams::Mat<int, 2, 2>{1, 2, 3, 4}));
+
+  a *= 3;
+  EXPECT_EQ(a, (jams::Mat<int, 2, 2>{3, 6, 9, 12}));
+
+  a /= 3;
+  EXPECT_EQ(a, (jams::Mat<int, 2, 2>{1, 2, 3, 4}));
 }
 
 TEST(MatTest, SupportsGenericIdentityAndCast) {
