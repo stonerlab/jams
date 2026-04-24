@@ -27,30 +27,30 @@ TEST(MatTest, IsContiguousStandardLayoutStorage) {
 }
 
 TEST(MatTest, SupportsGenericDimensionArithmetic) {
-  const jams::Mat<int, 2, 3> a{
+  const jams::Mat<int, 3, 2> a{
       1, 2,
       3, 4,
       5, 6};
-  const jams::Mat<int, 2, 3> b{
+  const jams::Mat<int, 3, 2> b{
       6, 5,
       4, 3,
       2, 1};
 
-  EXPECT_EQ(a + b, (jams::Mat<int, 2, 3>{
+  EXPECT_EQ(a + b, (jams::Mat<int, 3, 2>{
       7, 7,
       7, 7,
       7, 7}));
-  EXPECT_EQ(2 * a, (jams::Mat<int, 2, 3>{
+  EXPECT_EQ(2 * a, (jams::Mat<int, 3, 2>{
       2, 4,
       6, 8,
       10, 12}));
   EXPECT_EQ((a * jams::Vec<int, 2>{7, 8}), (jams::Vec<int, 3>{23, 53, 83}));
 
-  const jams::Mat<int, 4, 2> c{
+  const jams::Mat<int, 2, 4> c{
       1, 2, 3, 4,
       5, 6, 7, 8};
 
-  EXPECT_EQ(a * c, (jams::Mat<int, 4, 3>{
+  EXPECT_EQ(a * c, (jams::Mat<int, 3, 4>{
       11, 14, 17, 20,
       23, 30, 37, 44,
       35, 46, 57, 68}));

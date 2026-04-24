@@ -74,17 +74,17 @@ struct config_required_impl<std::string, void> {
   }
 };
 
-  // Specialisation for nested arrays: std::array<std::array<T, N>, M>
-  template<typename T, std::size_t N, std::size_t M>
-  struct config_required_impl<std::array<std::array<T, N>, M>, void> {
-    static std::array<std::array<T, N>, M> get(const libconfig::Setting &s, const std::string &name)
+  // Specialisation for nested arrays: std::array<std::array<T, Cols>, Rows>
+  template<typename T, std::size_t Cols, std::size_t Rows>
+  struct config_required_impl<std::array<std::array<T, Cols>, Rows>, void> {
+    static std::array<std::array<T, Cols>, Rows> get(const libconfig::Setting &s, const std::string &name)
     {
-      std::array<std::array<T, N>, M> out{};
+      std::array<std::array<T, Cols>, Rows> out{};
       const auto &mat = s[name];
 
-      for (std::size_t i = 0; i < M; ++i) {
+      for (std::size_t i = 0; i < Rows; ++i) {
         const auto &row = mat[static_cast<int>(i)];
-        for (std::size_t j = 0; j < N; ++j) {
+        for (std::size_t j = 0; j < Cols; ++j) {
           out[i][j] = static_cast<T>(row[static_cast<int>(j)]);
         }
       }
@@ -93,11 +93,11 @@ struct config_required_impl<std::string, void> {
   }
 };
 
-// Specialisation for jams::Mat<T, M, N>
-template<typename T, std::size_t M, std::size_t N>
-struct config_required_impl<Mat<T, M, N>, void> {
-  static Mat<T, M, N> get(const libconfig::Setting &s, const std::string &name) {
-    return Mat<T, M, N>{config_required<std::array<std::array<T, M>, N>>(s, name)};
+// Specialisation for jams::Mat<T, Rows, Cols>
+template<typename T, std::size_t Rows, std::size_t Cols>
+struct config_required_impl<Mat<T, Rows, Cols>, void> {
+  static Mat<T, Rows, Cols> get(const libconfig::Setting &s, const std::string &name) {
+    return Mat<T, Rows, Cols>{config_required<std::array<std::array<T, Cols>, Rows>>(s, name)};
   }
 };
 
