@@ -3,6 +3,7 @@ include(${PROJECT_SOURCE_DIR}/cmake/Sources.cmake)
 
 add_library(jams_core STATIC "")
 target_sources(jams_core PRIVATE ${JAMS_SOURCES_CXX})
+target_compile_features(jams_core PUBLIC cxx_std_17)
 
 target_include_directories(jams_core
         PUBLIC
