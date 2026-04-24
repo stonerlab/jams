@@ -82,6 +82,7 @@ class CudaGeneralFFTNoiseGenerator : public NoiseGenerator {
   jams::MultiArray<double, 1> white_noise_;
 
   CudaStream curand_stream_{CudaStream::Priority::LOW};
+  cudaEvent_t curand_done_{};
 };
 
 template<typename... Args>

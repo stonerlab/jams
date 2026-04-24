@@ -33,6 +33,9 @@ CudaGeneralFFTNoiseGenerator::CudaGeneralFFTNoiseGenerator(
       filter_temperature_(temperature) {
   std::cout << "\n  initialising general-fft-gpu noise generator\n";
 
+  cudaEventCreateWithFlags(&curand_done_, cudaEventDisableTiming);
+  DEBUG_CHECK_CUDA_ASYNC_STATUS
+
   const auto noise_spectrum_type = lowercase(config.spectrum);
 
   delta_t_ = timestep;
@@ -154,7 +157,8 @@ CudaGeneralFFTNoiseGenerator::CudaGeneralFFTNoiseGenerator(
       white_noise_.size(),
       0.0,
       1.0));
-  curand_stream_.synchronize();
+  cudaEventRecord(curand_done_, curand_stream_.get());
+  DEBUG_CHECK_CUDA_ASYNC_STATUS
 
   if (config.write_diagnostics) {
     output_diagnostics(discrete_psd, memory_kernel);
@@ -177,6 +181,9 @@ void CudaGeneralFFTNoiseGenerator::update() {
   const int grid_size = (noise_.elements() + block_size - 1) / block_size;
   const auto n = pbc(iteration_, (2 * num_trunc_ + 1));
 
+  cudaStreamWaitEvent(cuda_stream_.get(), curand_done_, 0);
+  DEBUG_CHECK_CUDA_ASYNC_STATUS
+
   cuda_thermostat_general_fft_kernel<<<grid_size, block_size, 0, cuda_stream_.get()>>>(
       noise_.device_data(),
       memory_kernel_.device_data(),
@@ -195,11 +202,18 @@ void CudaGeneralFFTNoiseGenerator::update() {
       num_channels_even_,
       0.0,
       1.0));
+  cudaEventRecord(curand_done_, curand_stream_.get());
+  DEBUG_CHECK_CUDA_ASYNC_STATUS
 
   ++iteration_;
 }
 
 CudaGeneralFFTNoiseGenerator::~CudaGeneralFFTNoiseGenerator() {
+  if (curand_done_ != nullptr) {
+    cudaEventDestroy(curand_done_);
+    curand_done_ = nullptr;
+  }
+
 #ifdef PRINT_NOISE
   debug_file_.close();
 #endif
