@@ -233,6 +233,18 @@ TEST(MultiArrayFinalApiTest, OneDimensionalAndMultidimensionalIndexingUseUniform
   EXPECT_EQ(cube(std::array<MultiArray<int, 3>::size_type, 3>{1, 1, 1}), 8);
 }
 
+TEST(MultiArrayFinalApiTest, IndexingSupportsCustomSignedIndexType) {
+  using namespace jams;
+
+  MultiArray<int, 2, int> values(2, 3);
+  values(0, 0) = 1;
+  values(1, 2) = 6;
+
+  EXPECT_EQ(values(0, 0), 1);
+  EXPECT_EQ(values(1, 2), 6);
+  EXPECT_EQ(values(std::array<int, 2>{1, 2}), 6);
+}
+
 TEST(MultiArrayFinalApiTest, OneDimensionalInputIteratorConstructionConsumesSinglePassRangeOnce) {
   using namespace jams;
 

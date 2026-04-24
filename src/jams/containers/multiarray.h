@@ -97,51 +97,20 @@ namespace jams {
             }
         };
 
-        // recursive methods to generate row major arg_indices at compile time
-        template<std::size_t N, std::size_t I>
-        struct arg_indices {
-            template<typename... Args>
-            static constexpr std::size_t
-            row_major(const std::array<std::size_t, N> &dims, const std::size_t &first, const Args &... args) {
-              return first * vec<std::size_t, N, I - 1>::last_n_product(dims) +
-                     arg_indices<N, I - 1>::row_major(dims, args...);
-            }
-        };
-
-        template<std::size_t N>
-        struct arg_indices<N, 1> {
-            static constexpr std::size_t
-            row_major(const std::array<std::size_t, N> &dims, const std::size_t &v) {
-              return v;
-            }
-        };
-
-        template<std::size_t N, std::size_t I>
-        struct arr_indices {
-            static constexpr std::size_t
-            row_major(const std::array<std::size_t, N> &dims, const std::array<std::size_t, N> &idx) {
-              return std::get<I - 1>(idx) + std::get<I - 1>(dims) * arr_indices<N, I - 1>::row_major(dims, idx);
-            }
-        };
-
-        template<std::size_t N>
-        struct arr_indices<N, 1> {
-            static constexpr std::size_t
-            row_major(const std::array<std::size_t, N> &dims, const std::array<std::size_t, N> &idx) {
-              return std::get<0>(idx);
-            }
-        };
-
-        template<std::size_t N, typename... Args>
-        constexpr std::size_t
-        row_major_index(const std::array<std::size_t, N> &dims, const Args &... args) {
-          return arg_indices<N, N>::row_major(dims, args...);
+        template<typename Size, std::size_t N, std::size_t... Is>
+        constexpr std::size_t row_major_index_array_impl(const std::array<Size, N> &dims,
+                                                         const std::array<Size, N> &idx,
+                                                         indices<Is...>) {
+          std::size_t offset = 0;
+          ((offset = offset * static_cast<std::size_t>(std::get<Is>(dims)) +
+                     static_cast<std::size_t>(std::get<Is>(idx))), ...);
+          return offset;
         }
 
-        template<std::size_t N>
-        constexpr std::size_t
-        row_major_index(const std::array<std::size_t, N> &dims, const std::array<std::size_t, N> &idx) {
-          return arr_indices<N, N>::row_major(dims, idx);
+        template<typename Size, std::size_t N>
+        constexpr std::size_t row_major_index(const std::array<Size, N> &dims,
+                                              const std::array<Size, N> &idx) {
+          return row_major_index_array_impl(dims, idx, build_indices<N>());
         }
 
         template<typename T, typename... Args>
@@ -283,25 +252,27 @@ namespace jams {
         inline reference operator()(const Args &... args) {
           static_assert(sizeof...(args) == Dim_,
                         "number of MultiArray indicies does not match the MultiArray dimension");
-          assert(!empty());
-          return data_.mutable_host_data()[detail::row_major_index(size_, static_cast<size_type>(args)...)];
+          const size_container_type indices{static_cast<size_type>(args)...};
+          assert(indices_in_bounds(indices));
+          return data_.mutable_host_data()[detail::row_major_index(size_, indices)];
         }
 
         template<typename... Args>
         inline const_reference operator()(const Args &... args) const {
           static_assert(sizeof...(args) == Dim_,
                         "number of MultiArray indicies does not match the MultiArray dimension");
-          assert(!empty());
-          return data_.host_data()[detail::row_major_index(size_, static_cast<size_type>(args)...)];
+          const size_container_type indices{static_cast<size_type>(args)...};
+          assert(indices_in_bounds(indices));
+          return data_.host_data()[detail::row_major_index(size_, indices)];
         }
 
         inline reference operator()(const std::array<size_type, Dim_> &v) {
-          assert(!empty());
+          assert(indices_in_bounds(v));
           return data_.mutable_host_data()[detail::row_major_index(size_, v)];
         }
 
         inline const_reference operator()(const std::array<size_type, Dim_> &v) const {
-          assert(!empty());
+          assert(indices_in_bounds(v));
           return data_.host_data()[detail::row_major_index(size_, v)];
         }
 
@@ -415,6 +386,21 @@ namespace jams {
         }
 
     private:
+        [[nodiscard]] bool indices_in_bounds(const size_container_type& indices) const noexcept {
+          using unsigned_size_type = std::make_unsigned_t<size_type>;
+          for (dim_type dim = 0; dim < Dim_; ++dim) {
+            if constexpr (std::is_signed_v<size_type>) {
+              if (indices[dim] < 0) {
+                return false;
+              }
+            }
+            if (static_cast<unsigned_size_type>(indices[dim]) >= static_cast<unsigned_size_type>(size_[dim])) {
+              return false;
+            }
+          }
+          return true;
+        }
+
         size_container_type size_ = { {0} };
         SyncedMemory<Tp_> data_;
     };
