@@ -43,26 +43,9 @@ Mat<T,3,3> matrix_from_cols(const Vec<T,3>& a, const Vec<T,3>& b, const Vec<T,3>
 }
 
 template <typename T>
-Mat<T,3,3> diagonal_matrix(const T& a) {
-  return {a, 0, 0, 0, a, 0, 0, 0, a};
-}
-
-template <typename T>
-Vec<T,3> diag(const Mat<T,3,3>& a) {
-  return {a[0][0], a[1][1], a[2][2]};
-}
-
-template <typename T>
 Mat<T,3,3> ssc(const Vec<T,3> &v) {
   // skew symmetric cross product matrix
   return {0, -v[2], v[1], v[2], 0, -v[0], -v[1], v[0], 0};
-}
-
-template <typename T>
-Mat<T,3,3> outer_product(const Vec<T,3> &a, const Vec<T,3> &b) {
-  return {a[0] * b[0], a[0] * b[1], a[0] * b[2],
-          a[1] * b[0], a[1] * b[1], a[1] * b[2],
-          a[2] * b[0], a[2] * b[1], a[2] * b[2],};
 }
 
 template <typename T>
@@ -194,17 +177,6 @@ inline Mat<double, 3, 3> inverse(const Mat<double, 3, 3>& a) {
       A_copy[2], A_copy[5], A_copy[8]
   };
 }
-
-
-template <typename T>
-Mat<T,3,3> transpose(const Mat<T,3,3>& a) {
-  return {
-    a[0][0], a[1][0], a[2][0],
-    a[0][1], a[1][1], a[2][1],
-    a[0][2], a[1][2], a[2][2]
-  };
-}
-
 
 inline Mat<double, 3, 3> rotation_matrix_y(const double& theta) {
   return {

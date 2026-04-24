@@ -107,6 +107,34 @@ TEST(MatTest, SupportsGenericIdentityAndCast) {
   EXPECT_EQ(complexes[1][0], std::complex<double>(3.0, 0.0));
 }
 
+TEST(MatTest, SupportsGenericTransposeDiagonalAndOuterProduct) {
+  const jams::Mat<int, 2, 3> a{
+      1, 2, 3,
+      4, 5, 6};
+
+  EXPECT_EQ(jams::transpose(a), (jams::Mat<int, 3, 2>{
+      1, 4,
+      2, 5,
+      3, 6}));
+
+  const auto diagonal = jams::diagonal_matrix<int, 3>(7);
+  EXPECT_EQ(diagonal, (jams::Mat<int, 3, 3>{
+      7, 0, 0,
+      0, 7, 0,
+      0, 0, 7}));
+
+  const jams::Mat<int, 3, 3> diag_source{
+      1, 2, 3,
+      4, 5, 6,
+      7, 8, 9};
+  EXPECT_EQ(jams::diag(diag_source), (jams::Vec<int, 3>{1, 5, 9}));
+
+  EXPECT_EQ(jams::outer_product(jams::Vec<int, 2>{2, 3}, jams::Vec<int, 3>{4, 5, 6}),
+            (jams::Mat<int, 2, 3>{
+                8, 10, 12,
+                12, 15, 18}));
+}
+
 class Mat3Test : public ::testing::TestWithParam<std::pair<jams::Vec<double, 3>, jams::Vec<double, 3>>> {
     // You can implement all the usual fixture class members here.
     // To access the test parameter, call GetParam() from class

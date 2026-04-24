@@ -154,6 +154,51 @@ constexpr Mat<T, N, N> identity()
   return out;
 }
 
+template <typename T, std::size_t N>
+constexpr Mat<T, N, N> diagonal_matrix(const T& value)
+{
+  Mat<T, N, N> out{};
+  for (std::size_t i = 0; i < N; ++i) {
+    out[i][i] = value;
+  }
+  return out;
+}
+
+template <typename T, std::size_t N>
+constexpr Vec<T, N> diag(const Mat<T, N, N>& matrix)
+{
+  Vec<T, N> out{};
+  for (std::size_t i = 0; i < N; ++i) {
+    out[i] = matrix[i][i];
+  }
+  return out;
+}
+
+template <typename T1, typename T2, std::size_t Rows, std::size_t Cols>
+constexpr Mat<decltype(std::declval<T1>() * std::declval<T2>()), Rows, Cols>
+outer_product(const Vec<T1, Rows>& lhs, const Vec<T2, Cols>& rhs)
+{
+  Mat<decltype(std::declval<T1>() * std::declval<T2>()), Rows, Cols> out{};
+  for (std::size_t row = 0; row < Rows; ++row) {
+    for (std::size_t col = 0; col < Cols; ++col) {
+      out[row][col] = lhs[row] * rhs[col];
+    }
+  }
+  return out;
+}
+
+template <typename T, std::size_t Rows, std::size_t Cols>
+constexpr Mat<T, Cols, Rows> transpose(const Mat<T, Rows, Cols>& matrix)
+{
+  Mat<T, Cols, Rows> out{};
+  for (std::size_t row = 0; row < Rows; ++row) {
+    for (std::size_t col = 0; col < Cols; ++col) {
+      out[col][row] = matrix[row][col];
+    }
+  }
+  return out;
+}
+
 template <typename T1, typename T2, std::size_t Rows, std::size_t Cols>
 inline constexpr auto operator*(const Mat<T1, Rows, Cols>& lhs, const Vec<T2, Cols>& rhs)
     -> Vec<detail::multiply_accumulate_result_t<T1, T2>, Rows> {
