@@ -19,8 +19,8 @@ public:
     void post_process() override {};
 
 private:
-    Vec3 slice_origin;
-    Vec3 slice_size;
+    Vec<double, 3> slice_origin;
+    Vec<double, 3> slice_size;
     std::vector<int> slice_spins;
 };
 

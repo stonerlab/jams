@@ -12,7 +12,7 @@ class ZeemanHamiltonian : public Hamiltonian {
 public:
     ZeemanHamiltonian(const libconfig::Setting &settings, unsigned int size);
 
-    Vec3R calculate_field(int i, jams::Real time) override;
+    Vec<jams::Real, 3> calculate_field(int i, jams::Real time) override;
 
     jams::Real calculate_energy(int i, jams::Real time) override;
 

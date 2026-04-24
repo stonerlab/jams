@@ -15,14 +15,14 @@ class RandomAnisotropyHamiltonian : public Hamiltonian {
 public:
     RandomAnisotropyHamiltonian(const libconfig::Setting &settings, unsigned int size);
 
-    Vec3R calculate_field(int i, jams::Real time) override;
+    Vec<jams::Real, 3> calculate_field(int i, jams::Real time) override;
     jams::Real calculate_energy(int i, jams::Real time) override;
 
 private:
     // write information about the random axes to outfile
     void output_anisotropy_axes(std::ofstream &outfile);
 
-    std::vector<Vec3R> direction_; // local uniaxial anisotropy direction
+    std::vector<Vec<jams::Real, 3>> direction_; // local uniaxial anisotropy direction
     std::vector<jams::Real> magnitude_; // magnitude of local anisotropy
 };
 

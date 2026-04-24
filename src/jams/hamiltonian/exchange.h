@@ -10,10 +10,10 @@ class ExchangeHamiltonian : public SparseInteractionHamiltonian {
 public:
     ExchangeHamiltonian(const libconfig::Setting &settings, unsigned int size);
 
-    const jams::InteractionList<Mat3, 2> &neighbour_list() const;
+    const jams::InteractionList<Mat<double, 3, 3>, 2> &neighbour_list() const;
 
 private:
-    jams::InteractionList<Mat3, 2> neighbour_list_; // neighbour information
+    jams::InteractionList<Mat<double, 3, 3>, 2> neighbour_list_; // neighbour information
     jams::RealHi interaction_prefactor_; // prefactor to multiply interactions by to change between Hamiltonian conventions
     jams::RealHi energy_cutoff_; // abs cutoff energy for interaction
     jams::RealHi radius_cutoff_; // cutoff radius for interaction

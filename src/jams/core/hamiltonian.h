@@ -30,7 +30,7 @@ public:
     static Hamiltonian *create(const libconfig::Setting &settings, unsigned int size, bool is_cuda_solver);
 
     // calculate the field a spin i
-    virtual Vec3R calculate_field(int i, jams::Real time) = 0;
+    virtual Vec<jams::Real, 3> calculate_field(int i, jams::Real time) = 0;
 
     // calculate the energy of spin i
     virtual jams::Real calculate_energy(int i, jams::Real time) = 0;
@@ -45,7 +45,7 @@ public:
     virtual jams::Real calculate_total_energy(jams::Real time);
 
     // calculate the energy difference of spin i in initial and final states
-    virtual jams::Real calculate_energy_difference(int i, const Vec3 &spin_initial, const Vec3 &spin_final, jams::Real time);
+    virtual jams::Real calculate_energy_difference(int i, const Vec<double, 3> &spin_initial, const Vec<double, 3> &spin_final, jams::Real time);
 
 
     inline jams::Real energy(const int i) const {

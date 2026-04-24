@@ -26,18 +26,18 @@ public:
 
     void calculate_fields(jams::Real time) override;
 
-    Vec3R calculate_field(int i, jams::Real time) override;
+    Vec<jams::Real, 3> calculate_field(int i, jams::Real time) override;
 
     jams::Real calculate_energy(int i, jams::Real time) override;
 
-    jams::Real calculate_energy_difference(int i, const Vec3 &spin_initial, const Vec3 &spin_final, jams::Real time) override;
+    jams::Real calculate_energy_difference(int i, const Vec<double, 3> &spin_initial, const Vec<double, 3> &spin_final, jams::Real time) override;
 
 protected:
     // inserts a scalar interaction into the interaction matrix
     void insert_interaction_scalar(int i, int j, const jams::Real &value);
 
     // inserts a tensor interaction block into the interaction matrix
-    void insert_interaction_tensor(int i, int j, const Mat3R &value);
+    void insert_interaction_tensor(int i, int j, const Mat<jams::Real, 3, 3> &value);
 
     // finishes constructing the sparse_matrix_builder_ making the builder
     // emit a matrix for use in calculations

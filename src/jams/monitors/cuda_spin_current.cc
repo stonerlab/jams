@@ -38,7 +38,7 @@ CudaSpinCurrentMonitor::CudaSpinCurrentMonitor(const libconfig::Setting &setting
 
   const auto& exchange_hamiltonian = find_hamiltonian<ExchangeHamiltonian>(::globals::solver->hamiltonians());
 
-  jams::SparseMatrix<Vec3>::Builder sparse_matrix_builder(globals::num_spins, globals::num_spins);
+  jams::SparseMatrix<Vec<double, 3>>::Builder sparse_matrix_builder(globals::num_spins, globals::num_spins);
 
   const auto& nbr_list = exchange_hamiltonian.neighbour_list();
   for (auto n = 0; n < nbr_list.size(); ++n) {
@@ -68,7 +68,7 @@ CudaSpinCurrentMonitor::CudaSpinCurrentMonitor(const libconfig::Setting &setting
 }
 
 void CudaSpinCurrentMonitor::update(Solver& solver) {
-  Vec3 js_z = execute_cuda_spin_current_kernel(
+  Vec<double, 3> js_z = execute_cuda_spin_current_kernel(
           stream,
           globals::num_spins,
           globals::s.device_data(),

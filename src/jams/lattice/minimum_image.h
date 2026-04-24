@@ -48,16 +48,16 @@ namespace jams {
     /// @param a   cell vector a
     /// @param b   cell vector b
     /// @param c   cell vector c
-    /// @param pbc Vec3 of booleans for (a, b ,c), true if lattice direction is
+    /// @param pbc Vec<double, 3> of booleans for (a, b ,c), true if lattice direction is
     /// periodic
-    /// @param r_i Vec3 point i
-    /// @param r_j Vec3 point j
+    /// @param r_i Vec<double, 3> point i
+    /// @param r_j Vec<double, 3> point j
     ///
     /// @return interaction_vector_cart minimum image displacement
     ///
-    Vec3
-    minimum_image(const Vec3 &a, const Vec3 &b, const Vec3 &c, const Vec3b &pbc,
-                  const Vec3 &r_i, const Vec3 &r_j, const double& epsilon);
+    Vec<double, 3>
+    minimum_image(const Vec<double, 3> &a, const Vec<double, 3> &b, const Vec<double, 3> &c, const Vec<bool, 3> &pbc,
+                  const Vec<double, 3> &r_i, const Vec<double, 3> &r_j, const double& epsilon);
 
     /// Bruteforce method to calculate the vector displacement interaction_vector_cart = r_i - r_j
     /// obeying the minimum image convention within a cell defined by vectors a,
@@ -66,10 +66,10 @@ namespace jams {
     /// @param a   cell vector a
     /// @param b   cell vector b
     /// @param c   cell vector c
-    /// @param pbc Vec3 of booleans for (a, b ,c), true if lattice direction is
+    /// @param pbc Vec<double, 3> of booleans for (a, b ,c), true if lattice direction is
     /// periodic
-    /// @param r_i Vec3 point i
-    /// @param r_j Vec3 point j
+    /// @param r_i Vec<double, 3> point i
+    /// @param r_j Vec<double, 3> point j
     ///
     /// @return interaction_vector_cart minimum image displacement
     ///
@@ -81,9 +81,9 @@ namespace jams {
     /// longest diagonal and this must be compared to the height of the
     /// parallelepiped of the cell in each direction.
     ///
-    Vec3 minimum_image_bruteforce(const Vec3 &a, const Vec3 &b, const Vec3 &c,
-                                  const Vec3b &pbc, const Vec3 &r_i,
-                                  const Vec3 &r_j, const double& epsilon);
+    Vec<double, 3> minimum_image_bruteforce(const Vec<double, 3> &a, const Vec<double, 3> &b, const Vec<double, 3> &c,
+                                  const Vec<bool, 3> &pbc, const Vec<double, 3> &r_i,
+                                  const Vec<double, 3> &r_j, const double& epsilon);
 
     /// Bruteforce method to calculate the vector displacement interaction_vector_cart = r_i - r_j
     /// obeying the minimum image convention within a cell defined by vectors a,
@@ -93,11 +93,11 @@ namespace jams {
     /// @param a   cell vector a
     /// @param b   cell vector b
     /// @param c   cell vector c
-    /// @param pbc Vec3 of booleans for (a, b ,c), true if lattice direction is
+    /// @param pbc Vec<double, 3> of booleans for (a, b ,c), true if lattice direction is
     /// periodic
-    /// @param r_i Vec3 point i
-    /// @param r_j Vec3 point j
-    /// @param offset_depth Vec3 of integers giving the search +/- offset depth
+    /// @param r_i Vec<double, 3> point i
+    /// @param r_j Vec<double, 3> point j
+    /// @param offset_depth Vec<double, 3> of integers giving the search +/- offset depth
     /// along (a, b, c)
     ///
     /// @return interaction_vector_cart minimum image displacement
@@ -107,12 +107,12 @@ namespace jams {
     /// the same as the 'minimum_image_bruteforce' function but the offset_depth
     /// is manually specified.
     ///
-    Vec3 minimum_image_bruteforce_explicit_depth(const Vec3 &a, const Vec3 &b,
-                                                 const Vec3 &c,
-                                                 const Vec3b &pbc,
-                                                 const Vec3 &r_i,
-                                                 const Vec3 &r_j,
-                                                 const Vec3i &offset_depth,
+    Vec<double, 3> minimum_image_bruteforce_explicit_depth(const Vec<double, 3> &a, const Vec<double, 3> &b,
+                                                 const Vec<double, 3> &c,
+                                                 const Vec<bool, 3> &pbc,
+                                                 const Vec<double, 3> &r_i,
+                                                 const Vec<double, 3> &r_j,
+                                                 const Vec<int, 3> &offset_depth,
                                                  const double& epsilon);
 
     /// Calculates the vector displacement interaction_vector_cart = r_i - r_j obeying the minimum
@@ -129,10 +129,10 @@ namespace jams {
     /// @param a   cell vector a
     /// @param b   cell vector b
     /// @param c   cell vector c
-    /// @param pbc Vec3 of booleans for (a, b,c), true if lattice direction is
+    /// @param pbc Vec<double, 3> of booleans for (a, b,c), true if lattice direction is
     /// periodic
-    /// @param r_i Vec3 point i
-    /// @param r_j Vec3 point j
+    /// @param r_i Vec<double, 3> point i
+    /// @param r_j Vec<double, 3> point j
     ///
     /// @return interaction_vector_cart minimum image displacement
     ///
@@ -172,9 +172,9 @@ namespace jams {
     ///   }
     /// @endcode
     ///
-    Vec3 minimum_image_smith_method(const Vec3 &a, const Vec3 &b, const Vec3 &c,
-                                    const Vec3b &pbc, const Vec3 &r_i,
-                                    const Vec3 &r_j);
+    Vec<double, 3> minimum_image_smith_method(const Vec<double, 3> &a, const Vec<double, 3> &b, const Vec<double, 3> &c,
+                                    const Vec<bool, 3> &pbc, const Vec<double, 3> &r_i,
+                                    const Vec<double, 3> &r_j);
 
     /// Calculates the vector displacement interaction_vector_cart = r_i - r_j obeying the minimum
     /// image convention using Smith's algorithm within a cell defined by
@@ -187,17 +187,17 @@ namespace jams {
     /// method must be used. This function does not check the inradius
     /// condition.
     ///
-    /// @param cell_matrix Mat3 where columns are (a, b, c) vectors defining the
+    /// @param cell_matrix Mat<double, 3, 3> where columns are (a, b, c) vectors defining the
     /// unit cell
-    /// @param cell_inv_matrix Mat3 inverse of cell_matrix
-    /// @param r_i Vec3 point i
-    /// @param r_j Vec3 point j
+    /// @param cell_inv_matrix Mat<double, 3, 3> inverse of cell_matrix
+    /// @param r_i Vec<double, 3> point i
+    /// @param r_j Vec<double, 3> point j
     ///
     /// @return interaction_vector_cart minimum image displacement
-    Vec3 minimum_image_smith_method(const Mat3 &cell_matrix,
-                                    const Mat3 &cell_inv_matrix,
-                                    const Vec3b &pbc,
-                                    const Vec3 &r_i, const Vec3 &r_j);
+    Vec<double, 3> minimum_image_smith_method(const Mat<double, 3, 3> &cell_matrix,
+                                    const Mat<double, 3, 3> &cell_inv_matrix,
+                                    const Vec<bool, 3> &pbc,
+                                    const Vec<double, 3> &r_i, const Vec<double, 3> &r_j);
 
 }
 

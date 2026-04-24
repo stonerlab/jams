@@ -33,7 +33,7 @@ using std::runtime_error;
 struct AnisotropySetting {
     int      motif_position = -1;
     string   material = "";
-    Vec3R     axis = {0.0, 0.0, 1.0};
+    Vec<jams::Real, 3>     axis = {0.0, 0.0, 1.0};
     jams::Real   energy = 0.0;
 };
 
@@ -62,7 +62,7 @@ AnisotropySetting read_anisotropy_setting(Setting &setting) {
       throw runtime_error("uniaxial anisotropy material is invalid");
     }
   }
-  result.axis = jams::normalize(Vec3R{setting[1][0], setting[1][1], setting[1][2]});
+  result.axis = jams::normalize(Vec<jams::Real, 3>{setting[1][0], setting[1][1], setting[1][2]});
   result.energy = jams::Real(setting[2]);
   return result;
 }
@@ -123,8 +123,8 @@ jams::Real UniaxialAnisotropyHamiltonian::calculate_energy(const int i, jams::Re
   return energy;
 }
 
-jams::Real UniaxialAnisotropyHamiltonian::calculate_energy_difference(int i, const Vec3 &spin_initial,
-                                                                  const Vec3 &spin_final, jams::Real time) {
+jams::Real UniaxialAnisotropyHamiltonian::calculate_energy_difference(int i, const Vec<double, 3> &spin_initial,
+                                                                  const Vec<double, 3> &spin_final, jams::Real time) {
   jams::Real e_initial = 0.0;
   jams::Real e_final = 0.0;
 
@@ -144,10 +144,10 @@ void UniaxialAnisotropyHamiltonian::calculate_energies(jams::Real time) {
   }
 }
 
-Vec3R UniaxialAnisotropyHamiltonian::calculate_field(const int i, jams::Real time) {
+Vec<jams::Real, 3> UniaxialAnisotropyHamiltonian::calculate_field(const int i, jams::Real time) {
   jams::Real dot = (axis_(i,0) * globals::s(i,0) + axis_(i,1) * globals::s(i,1) + axis_(i,2) * globals::s(i,2));
 
-  Vec3R field;
+  Vec<jams::Real, 3> field;
   for (auto j = 0; j < 3; ++j) {
     field[j] = magnitude_(i) * power_ * pow(dot, power_ - 1) * axis_(i,j);
   }

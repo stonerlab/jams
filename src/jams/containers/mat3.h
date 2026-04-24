@@ -13,13 +13,13 @@
 #include "jams/containers/vec3.h"
 
 const Mat<double, 3, 3> kIdentityMat3 = {1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0};
-const Mat3cx kIdentityMat3cx = {1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0};
+const Mat<std::complex<double>, 3, 3> kIdentityMat3cx = {1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0};
 const Mat<double, 3, 3> kZeroMat3 = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
 
 const Mat<jams::Real, 3, 3> kIdentityMat3R = {1, 0, 0, 0, 1, 0, 0, 0, 1};
 const Mat<jams::Real, 3, 3> kZeroMat3R = {0, 0, 0, 0, 0, 0, 0, 0, 0};
 
-// Vec3 specialization
+// Vec<double, 3> specialization
 template <typename T>
 inline bool approximately_equal(const Mat<T,3,3>& a, const Mat<T,3,3>& b, const T& epsilon) {
   for (auto m = 0; m < 3; ++m) {
@@ -206,7 +206,7 @@ Mat<T,3,3> transpose(const Mat<T,3,3>& a) {
 }
 
 
-inline Mat3 rotation_matrix_y(const double& theta) {
+inline Mat<double, 3, 3> rotation_matrix_y(const double& theta) {
   return {
       cos(theta),  0.0, sin(theta),
       0.0,         1.0,        0.0,
@@ -214,7 +214,7 @@ inline Mat3 rotation_matrix_y(const double& theta) {
   };
 }
 
-inline Mat3 rotation_matrix_z(const double& phi) {
+inline Mat<double, 3, 3> rotation_matrix_z(const double& phi) {
   return {
       cos(phi),  -sin(phi), 0.0,
       sin(phi),   cos(phi), 0.0,
@@ -222,13 +222,13 @@ inline Mat3 rotation_matrix_z(const double& phi) {
   };
 }
 
-inline Mat3 rotation_matrix_yz(const double theta, const double phi) {
+inline Mat<double, 3, 3> rotation_matrix_yz(const double theta, const double phi) {
   const double c_t = cos(theta);
   const double c_p = cos(phi);
   const double s_t = sin(theta);
   const double s_p = sin(phi);
 
-  return Mat3 {c_t*c_p, -c_t*s_p, s_t, s_p, c_p, 0, -c_p*s_t, s_t*s_p, c_t};
+  return Mat<double, 3, 3> {c_t*c_p, -c_t*s_p, s_t, s_p, c_p, 0, -c_p*s_t, s_t*s_p, c_t};
 }
 
 template <typename T>
@@ -246,9 +246,9 @@ inline T max_abs(const Mat<T,3,3>& a) {
 
 /// Returns rotation matrix which rotates by an angle theta around the given axis
 /// See: https://en.wikipedia.org/wiki/Rotation_matrix
-inline Mat3 rotation_matrix(const Vec3& axis, const double theta) {
+inline Mat<double, 3, 3> rotation_matrix(const Vec<double, 3>& axis, const double theta) {
   // make sure we have a unit vector
-  const Vec3 u = jams::unit_vector(axis);
+  const Vec<double, 3> u = jams::unit_vector(axis);
   const double c = cos(theta);
   const double s = sin(theta);
   return {
@@ -258,24 +258,24 @@ inline Mat3 rotation_matrix(const Vec3& axis, const double theta) {
 }
 
 
-inline Mat3 rotation_matrix_from_axis_angle(const Vec3& axis, double angle) {
+inline Mat<double, 3, 3> rotation_matrix_from_axis_angle(const Vec<double, 3>& axis, double angle) {
   constexpr double eps_axis = 1e-14;
 
   const double n = jams::norm(axis);
   if (n < eps_axis) return kIdentityMat3;
 
-  const Vec3 u = axis / n;
+  const Vec<double, 3> u = axis / n;
 
   double s = std::sin(angle);
   double c1m = jams::cos1m(angle);
 
-  const Mat3 vx = ssc(u);
-  const Mat3 vx2 = vx * vx;
+  const Mat<double, 3, 3> vx = ssc(u);
+  const Mat<double, 3, 3> vx2 = vx * vx;
 
-  Mat3 R = kIdentityMat3 + s * vx + c1m * vx2;
+  Mat<double, 3, 3> R = kIdentityMat3 + s * vx + c1m * vx2;
 
 #ifndef NDEBUG
-  const Mat3 RtR = transpose(R) * R;
+  const Mat<double, 3, 3> RtR = transpose(R) * R;
   assert(approximately_equal(RtR, kIdentityMat3, 1e-10));
   assert(std::abs(determinant(R) - 1.0) < 1e-10);
 #endif
@@ -283,37 +283,37 @@ inline Mat3 rotation_matrix_from_axis_angle(const Vec3& axis, double angle) {
   return R;
 }
 
-// calculates a rotation matrix from Vec3 a to Vec3 b
-inline Mat3 rotation_matrix_between_vectors(const Vec3& a, const Vec3& b) {
+// calculates a rotation matrix from Vec<double, 3> a to Vec<double, 3> b
+inline Mat<double, 3, 3> rotation_matrix_between_vectors(const Vec<double, 3>& a, const Vec<double, 3>& b) {
   constexpr double eps = 1e-14;      // for norms
   constexpr double eps_s2 = 1e-24;   // for sin^2
 
   const double na = jams::norm(a), nb = jams::norm(b);
   if (na < eps || nb < eps) return kIdentityMat3;
 
-  const Vec3 ua = a / na;
-  const Vec3 ub = b / nb;
+  const Vec<double, 3> ua = a / na;
+  const Vec<double, 3> ub = b / nb;
 
   const double c_raw = jams::dot(ua, ub);
   const double c = std::max(-1.0, std::min(1.0, c_raw));
 
-  Vec3 v = jams::cross(ua, ub);
+  Vec<double, 3> v = jams::cross(ua, ub);
   const double s2 = jams::dot(v, v);
 
   if (s2 < eps_s2) {
     if (c > 0.0) return kIdentityMat3; // parallel
     // antiparallel: pick stable orthogonal axis
-    Vec3 ortho;
+    Vec<double, 3> ortho;
     if (std::abs(ua[0]) <= std::abs(ua[1]) && std::abs(ua[0]) <= std::abs(ua[2])) ortho = {1,0,0};
     else if (std::abs(ua[1]) <= std::abs(ua[2])) ortho = {0,1,0};
     else ortho = {0,0,1};
-    Vec3 axis = jams::unit_vector(jams::cross(ua, ortho));
+    Vec<double, 3> axis = jams::unit_vector(jams::cross(ua, ortho));
     return rotation_matrix_from_axis_angle(axis, kPi);
   }
 
   const double s = std::sqrt(s2);
   const double theta = std::atan2(s, c);
-  const Vec3 axis = v / s;
+  const Vec<double, 3> axis = v / s;
   return rotation_matrix_from_axis_angle(axis, theta);
 }
 

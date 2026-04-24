@@ -176,7 +176,7 @@ namespace jams {
                };
                )");
 
-            std::string config_lattice(const Vec3 &size, const Vec3b &pbc) {
+            std::string config_lattice(const jams::Vec<double, 3> &size, const jams::Vec<bool, 3> &pbc) {
               std::stringstream ss;
               ss << "lattice : {\n";
               ss << "size = [" << size[0] << ", " << size[1] << ", " << size[2] << "];\n";

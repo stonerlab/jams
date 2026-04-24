@@ -12,14 +12,14 @@ public:
     CudaLandauHamiltonian(const libconfig::Setting &settings, const unsigned int size);
 
 
-    inline Vec3R calculate_field(int i, jams::Real time)  override
+    inline Vec<jams::Real, 3> calculate_field(int i, jams::Real time)  override
     { throw jams::unimplemented_error("CudaLandauHamiltonian::calculate_field"); }
 
 
     inline jams::Real calculate_energy(int i, jams::Real time)  override
     { throw jams::unimplemented_error("CudaLandauHamiltonian::calculate_energy"); }
 
-    inline jams::Real calculate_energy_difference(int i, const Vec3 &spin_initial, const Vec3 &spin_final, jams::Real time)  override
+    inline jams::Real calculate_energy_difference(int i, const Vec<double, 3> &spin_initial, const Vec<double, 3> &spin_final, jams::Real time)  override
     { throw jams::unimplemented_error("CudaLandauHamiltonian::calculate_energy_difference"); }
 
     jams::Real calculate_total_energy(jams::Real time) override;

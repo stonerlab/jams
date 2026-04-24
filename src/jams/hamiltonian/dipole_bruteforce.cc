@@ -41,13 +41,13 @@ DipoleBruteforceHamiltonian::DipoleBruteforceHamiltonian(const libconfig::Settin
 }
 
 jams::Real DipoleBruteforceHamiltonian::calculate_energy(const int i, jams::Real time) {
-  Vec3R s_i = jams::array_cast<jams::Real>(Vec3{globals::s(i, 0), globals::s(i, 1), globals::s(i, 2)});
+  Vec<jams::Real, 3> s_i = jams::array_cast<jams::Real>(Vec<double, 3>{globals::s(i, 0), globals::s(i, 1), globals::s(i, 2)});
   auto field = calculate_field(i, time);
   return -0.5 * jams::dot(s_i, field);
 }
 
-jams::Real DipoleBruteforceHamiltonian::calculate_energy_difference(int i, const Vec3 &spin_initial,
-                                                                const Vec3 &spin_final, jams::Real time) {
+jams::Real DipoleBruteforceHamiltonian::calculate_energy_difference(int i, const Vec<double, 3> &spin_initial,
+                                                                const Vec<double, 3> &spin_final, jams::Real time) {
   const auto field = calculate_field(i, time);
   const jams::Real e_initial = -jams::dot(spin_initial, field);
   const jams::Real e_final = -jams::dot(spin_final, field);
@@ -55,7 +55,7 @@ jams::Real DipoleBruteforceHamiltonian::calculate_energy_difference(int i, const
 }
 
 [[gnu::hot]]
-Vec3R DipoleBruteforceHamiltonian::calculate_field(const int i, jams::Real time) {
+Vec<jams::Real, 3> DipoleBruteforceHamiltonian::calculate_field(const int i, jams::Real time) {
   using namespace std::placeholders;
 
 
@@ -84,7 +84,7 @@ Vec3R DipoleBruteforceHamiltonian::calculate_field(const int i, jams::Real time)
   for (auto j = 0; j < globals::num_spins; ++j) {
     if (j == i) continue;
 
-    const auto s_j = jams::array_cast<jams::Real>(Vec3{globals::s(j,0), globals::s(j,1), globals::s(j,2)});
+    const auto s_j = jams::array_cast<jams::Real>(Vec<double, 3>{globals::s(j,0), globals::s(j,1), globals::s(j,2)});
     auto r_ij = jams::array_cast<jams::Real>(displacement(i, j));
 
     const jams::Real r_abs_sq = jams::norm_squared(r_ij);

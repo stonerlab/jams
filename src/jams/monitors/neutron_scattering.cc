@@ -106,7 +106,7 @@ jams::MultiArray<jams::ComplexHi, 2> NeutronScatteringMonitor::calculate_unpolar
 
   for (auto a = 0; a < num_sites; ++a) {
     for (auto b = 0; b < num_sites; ++b) {
-      Vec3 r_ab = globals::lattice->basis_site_atom(b).position_frac - globals::lattice->basis_site_atom(a).position_frac;
+      Vec<double, 3> r_ab = globals::lattice->basis_site_atom(b).position_frac - globals::lattice->basis_site_atom(a).position_frac;
 
       for (auto k = 0; k < num_reciprocal_points; ++k) {
         auto kpoint = k_points_[k];
@@ -117,12 +117,12 @@ jams::MultiArray<jams::ComplexHi, 2> NeutronScatteringMonitor::calculate_unpolar
         auto sf = exp(-kImagTwoPi * jams::dot(q, r_ab));
 
         for (auto f = 0; f < num_freqencies; ++f) {
-          Vec3cx s_a = {
+          Vec<std::complex<double>, 3> s_a = {
               conj(spectrum(a, f, k, 0)),
               conj(spectrum(a, f, k, 1)),
               conj(spectrum(a, f, k, 2))
           };
-          Vec3cx s_b = {
+          Vec<std::complex<double>, 3> s_b = {
               spectrum(b, f, k, 0),
               spectrum(b, f, k, 1),
               spectrum(b, f, k, 2)
@@ -139,7 +139,7 @@ jams::MultiArray<jams::ComplexHi, 2> NeutronScatteringMonitor::calculate_unpolar
   return cross_section;
 }
 
-jams::MultiArray<jams::ComplexHi, 3> NeutronScatteringMonitor::calculate_polarized_cross_sections(const CmplxMappedSpectrum& spectrum, const std::vector<Vec3>& polarizations) {
+jams::MultiArray<jams::ComplexHi, 3> NeutronScatteringMonitor::calculate_polarized_cross_sections(const CmplxMappedSpectrum& spectrum, const std::vector<Vec<double, 3>>& polarizations) {
   const auto num_sites = spectrum.extent(0);
   const auto num_freqencies = spectrum.extent(1);
   const auto num_reciprocal_points = spectrum.extent(2);
@@ -152,7 +152,7 @@ jams::MultiArray<jams::ComplexHi, 3> NeutronScatteringMonitor::calculate_polariz
 
   for (auto a = 0; a < num_sites; ++a) {
     for (auto b = 0; b < num_sites; ++b) {
-      const Vec3 r_ab = globals::lattice->basis_site_atom(b).position_frac - globals::lattice->basis_site_atom(a).position_frac;
+      const Vec<double, 3> r_ab = globals::lattice->basis_site_atom(b).position_frac - globals::lattice->basis_site_atom(a).position_frac;
       for (auto k = 0; k < num_reciprocal_points; ++k) {
         auto kpoint = k_points_[k];
         auto Q = jams::unit_vector(kpoint.xyz);
@@ -162,12 +162,12 @@ jams::MultiArray<jams::ComplexHi, 3> NeutronScatteringMonitor::calculate_polariz
         auto sf = exp(-kImagTwoPi * jams::dot(q, r_ab));
 
         for (auto f = 0; f < num_freqencies; ++f) {
-          Vec3cx s_a = {
+          Vec<std::complex<double>, 3> s_a = {
               conj(spectrum(a, f, k, 0)),
               conj(spectrum(a, f, k, 1)),
               conj(spectrum(a, f, k, 2))
           };
-          Vec3cx s_b = {
+          Vec<std::complex<double>, 3> s_b = {
               spectrum(b, f, k, 0),
               spectrum(b, f, k, 1),
               spectrum(b, f, k, 2)

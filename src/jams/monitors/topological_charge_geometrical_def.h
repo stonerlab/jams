@@ -84,7 +84,7 @@ class TopologicalGeometricalDefMonitor : public Monitor {
   };
 
   void calculate_elementary_triangles();
-  double local_topological_charge(const Vec3& s_i, const Vec3& s_j, const Vec3& s_k) const;
+  double local_topological_charge(const Vec<double, 3>& s_i, const Vec<double, 3>& s_j, const Vec<double, 3>& s_k) const;
   double local_topological_charge(const Triplet &t) const;
 
 

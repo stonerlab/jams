@@ -223,10 +223,6 @@ static_assert(std::is_trivially_copyable_v<Mat<double, 3, 3>>,
 static_assert(std::is_standard_layout_v<Mat<double, 3, 3>>,
               "Mat must use standard layout storage");
 
-using Mat3 = Mat<double, 3, 3>;
-using Mat3R = Mat<Real, 3, 3>;
-using Mat3cx = Mat<std::complex<double>, 3, 3>;
-
 template <typename T, std::size_t M, std::size_t N>
 constexpr bool operator==(const Mat<T, M, N>& lhs, const Mat<T, M, N>& rhs) {
   return lhs.values == rhs.values;
@@ -244,9 +240,5 @@ using Mat = jams::Mat<T, M, N>;
 
 using jams::identity;
 using jams::matrix_cast;
-
-using Mat3 = jams::Mat3;
-using Mat3R = jams::Mat3R;
-using Mat3cx = jams::Mat3cx;
 
 #endif // JAMS_MAT_H

@@ -141,7 +141,7 @@ jams::Real Hamiltonian::calculate_total_energy(jams::Real time)
   return e_total;
 }
 
-jams::Real Hamiltonian::calculate_energy_difference(int i, const Vec3& spin_initial, const Vec3& spin_final,
+jams::Real Hamiltonian::calculate_energy_difference(int i, const Vec<double, 3>& spin_initial, const Vec<double, 3>& spin_final,
   jams::Real time)
 {
   const jams::Real e_initial = -jams::dot(jams::array_cast<jams::Real>(spin_initial), calculate_field(i, time));

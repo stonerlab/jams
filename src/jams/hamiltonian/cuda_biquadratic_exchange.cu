@@ -205,28 +205,28 @@ jams::Real CudaBiquadraticExchangeHamiltonian::calculate_total_energy(jams::Real
   #pragma omp parallel for default(none) shared(num_spins, s, field_) reduction(+:total_energy)
   #endif
   for (auto i = 0; i < globals::num_spins; ++i) {
-    Vec3 s_i = {s(i,0), s(i,1), s(i,2)};
-    Vec3 h_i = {field_(i,0), field_(i, 1), field_(i, 2)};
+    Vec<double, 3> s_i = {s(i,0), s(i,1), s(i,2)};
+    Vec<double, 3> h_i = {field_(i,0), field_(i, 1), field_(i, 2)};
     total_energy += -jams::dot(s_i, 0.5*h_i);
   }
   return 0.5 * total_energy;
 }
 
 
-Vec3R CudaBiquadraticExchangeHamiltonian::calculate_field(int i, jams::Real time) {
+Vec<jams::Real, 3> CudaBiquadraticExchangeHamiltonian::calculate_field(int i, jams::Real time) {
   using namespace globals;
   assert(is_finalized_);
-  Vec3 field;
+  Vec<double, 3> field;
 
   const auto begin = interaction_matrix_.row_data()[i];
   const auto end = interaction_matrix_.row_data()[i+1];
 
-  Vec3 s_i = {s(i,0), s(i,1), s(i,2)};
+  Vec<double, 3> s_i = {s(i,0), s(i,1), s(i,2)};
   for (auto m = begin; m < end; ++m) {
     auto j = interaction_matrix_.col_data()[m];
     double B_ij = interaction_matrix_.val_data()[m];
 
-    Vec3 s_j = {s(j,0), s(j,1), s(j,2)};
+    Vec<double, 3> s_j = {s(j,0), s(j,1), s(j,2)};
 
     for (auto n = 0; n < 3; ++n) {
       field[n] += 2.0 * B_ij * s(j,n) * jams::dot(s_i, s_j);
@@ -240,15 +240,15 @@ Vec3R CudaBiquadraticExchangeHamiltonian::calculate_field(int i, jams::Real time
 jams::Real CudaBiquadraticExchangeHamiltonian::calculate_energy(int i, jams::Real time) {
   using namespace globals;
   assert(is_finalized_);
-  Vec3 s_i = {s(i,0), s(i,1), s(i,2)};
+  Vec<double, 3> s_i = {s(i,0), s(i,1), s(i,2)};
   auto field = calculate_field(i, time);
   return -0.5*jams::dot(s_i, field);
 }
 
 
 jams::Real CudaBiquadraticExchangeHamiltonian::calculate_energy_difference(int i,
-                                                                       const Vec3 &spin_initial,
-                                                                       const Vec3 &spin_final,
+                                                                       const Vec<double, 3> &spin_initial,
+                                                                       const Vec<double, 3> &spin_final,
                                                                        jams::Real time) {
   assert(is_finalized_);
   auto field = calculate_field(i, time);

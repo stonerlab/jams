@@ -76,7 +76,7 @@ public:
 
 private:
     struct PinnedBoundary {
-        Vec3 magnetisation;
+        Vec<double, 3> magnetisation;
         jams::MultiArray<int, 1> indices;
     };
 
@@ -86,10 +86,10 @@ private:
     // `comp(num_pinned_cells, globals::lattice->cell_offset(i), globals::lattice->size())` where true
     // indicates spin i is included in the boundary boundary.
 
-    using BoundaryPredicate = std::function<bool(int, const Vec3i&, const Vec3i&)>;
+    using BoundaryPredicate = std::function<bool(int, const Vec<int, 3>&, const Vec<int, 3>&)>;
     static inline std::unordered_map<std::string, BoundaryPredicate> make_boundary_definitions() {
         auto comp = [](int dim, bool upper) {
-            return [dim, upper](int n, const Vec3i& cell, const Vec3i& size) {
+            return [dim, upper](int n, const Vec<int, 3>& cell, const Vec<int, 3>& size) {
                 return upper ? cell[dim] >= size[dim] - n : cell[dim] < n;
             };
         };

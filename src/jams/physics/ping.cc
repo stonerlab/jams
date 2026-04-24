@@ -31,7 +31,7 @@ PingPhysics::PingPhysics(const libconfig::Setting &settings)
   }
 
   // find theta and phi of magnetisation
-  Vec3 mag = jams::sum_spins_moments(globals::s, globals::mus);
+  Vec<double, 3> mag = jams::sum_spins_moments(globals::s, globals::mus);
 
   init_theta = rad_to_deg(acos(mag[2] / jams::norm(mag)));
   init_phi = rad_to_deg(atan2(mag[1], mag[0]));
@@ -54,9 +54,9 @@ PingPhysics::PingPhysics(const libconfig::Setting &settings)
   const double s_t = sin(deg_to_rad(delta_theta));
   const double s_p = sin(deg_to_rad(delta_phi));
 
-  Mat3 rotation_matrix;
-  Mat3 r_y;
-  Mat3 r_z;
+  Mat<double, 3, 3> rotation_matrix;
+  Mat<double, 3, 3> r_y;
+  Mat<double, 3, 3> r_z;
 
   // first index is row second index is col
   r_y[0][0] =  c_t;  r_y[0][1] =  0.0; r_y[0][2] =  s_t;

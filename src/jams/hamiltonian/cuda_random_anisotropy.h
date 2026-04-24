@@ -21,11 +21,11 @@ class CudaRandomAnisotropyHamiltonian : public RandomAnisotropyHamiltonian {
       void   calculate_fields(jams::Real time) override;
       jams::Real calculate_total_energy(jams::Real time) override;
 
-      Vec3R   calculate_field(const int i, jams::Real time) final {
+      Vec<jams::Real, 3>   calculate_field(const int i, jams::Real time) final {
         JAMS_UNIMPLEMENTED_FUNCTION; }
       jams::Real calculate_energy(const int i, jams::Real time) final {
         JAMS_UNIMPLEMENTED_FUNCTION; }
-      jams::Real calculate_energy_difference(int i, const Vec3 &spin_initial, const Vec3 &spin_final, jams::Real time) final {
+      jams::Real calculate_energy_difference(int i, const Vec<double, 3> &spin_initial, const Vec<double, 3> &spin_final, jams::Real time) final {
         JAMS_UNIMPLEMENTED_FUNCTION;}
 
     private:

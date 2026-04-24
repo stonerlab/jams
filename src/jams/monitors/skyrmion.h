@@ -24,13 +24,13 @@ class SkyrmionMonitor : public Monitor {
     std::string tsv_header();
 
     void create_center_of_mass_mapping();
-    void calc_center_of_mass(std::vector<Vec3 > &r_com, const double &threshold);
+    void calc_center_of_mass(std::vector<Vec<double, 3> > &r_com, const double &threshold);
 
     std::vector<double> type_norms;
     std::vector<double> thresholds;
     std::ofstream outfile;
 
-    std::vector<Vec3 > tube_x, tube_y;
+    std::vector<Vec<double, 3> > tube_x, tube_y;
 };
 
 #endif  // JAMS_MONITOR_SKYRMION_H

@@ -34,8 +34,8 @@ double jams::CVarMagnetisation::calculate_expensive_value() {
 
 
 double
-jams::CVarMagnetisation::spin_move_trial_value(int i, const Vec3 &spin_initial,
-                                               const Vec3 &spin_trial) {
+jams::CVarMagnetisation::spin_move_trial_value(int i, const Vec<double, 3> &spin_initial,
+                                               const Vec<double, 3> &spin_trial) {
 
   // Spin 'i' is of chosen material, or all materials are selected
   if (selected_material_id_ == -1 || globals::lattice->lattice_site_material_id(i) == selected_material_id_) {

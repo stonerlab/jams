@@ -54,9 +54,9 @@ struct InteractionFileDescription {
 struct InteractionData {
   int         basis_site_i = -1; // atom site 'i' in the basis (zero indexed)
   int         basis_site_j = -1; // atom site 'j' in the basis (zero indexed)
-  Vec3        interaction_vector_cart = {0.0, 0.0, 0.0};
-  Mat3        interaction_value_tensor = kZeroMat3;
-  Vec3i       lattice_translation_vector = {0, 0, 0};
+  Vec<double, 3>        interaction_vector_cart = {0.0, 0.0, 0.0};
+  Mat<double, 3, 3>        interaction_value_tensor = kZeroMat3;
+  Vec<int, 3>       lattice_translation_vector = {0, 0, 0};
   std::string type_i = "NOTYPE";
   std::string type_j = "NOTYPE";
 };
@@ -67,10 +67,10 @@ discover_interaction_file_format(std::ifstream &file);
 std::vector<InteractionData>
 interactions_from_file(std::ifstream &file, const InteractionFileDescription& desc);
 
-jams::InteractionList<Mat3, 2>
+jams::InteractionList<Mat<double, 3, 3>, 2>
 neighbour_list_from_interactions(std::vector<InteractionData> &interactions);
 
-jams::InteractionList<Mat3, 2>
+jams::InteractionList<Mat<double, 3, 3>, 2>
 generate_neighbour_list(std::ifstream &file,
                         CoordinateFormat coord_format,
                         bool use_symops,
@@ -79,7 +79,7 @@ generate_neighbour_list(std::ifstream &file,
                         double distance_tolerance,
                         std::vector<InteractionChecks> checks);
 
-jams::InteractionList<Mat3, 2>
+jams::InteractionList<Mat<double, 3, 3>, 2>
 generate_neighbour_list(libconfig::Setting &settings,
                         CoordinateFormat coord_format,
                         bool use_symops,
@@ -101,7 +101,7 @@ write_interaction_data(std::ostream &output, const std::vector<InteractionData> 
                        CoordinateFormat coord_format);
 
 void
-write_neighbour_list(std::ostream &output, const jams::InteractionList<Mat3, 2> &list);
+write_neighbour_list(std::ostream &output, const jams::InteractionList<Mat<double, 3, 3>, 2> &list);
 
 void
 post_process_interactions(std::vector<InteractionData> &interactions, const InteractionFileDescription& desc, CoordinateFormat coord_format, bool use_symops, double energy_cutoff, double radius_cutoff, double distance_tolerance);

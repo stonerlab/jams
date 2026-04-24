@@ -16,7 +16,7 @@ MagnetisationLayersMonitor::MagnetisationLayersMonitor(
     const libconfig::Setting &settings)
     : Monitor(settings) {
 
-  Vec3 layer_normal = jams::config_required<Vec3>(settings, "layer_normal");
+  Vec<double, 3> layer_normal = jams::config_required<Vec<double, 3>>(settings, "layer_normal");
   auto layer_thickness = jams::config_optional<double>(settings, "layer_thickness", 0.0);
   auto distance_tolerance = jams::config_optional<double>(settings, "distance_tolerance", jams::defaults::lattice_tolerance);
 
@@ -83,7 +83,7 @@ MagnetisationLayersMonitor::MagnetisationLayersMonitor(
 
     // construct a rotation matrix which will rotate the system so that the norm
     // is always along z
-    Mat3 rotation_matrix = rotation_matrix_between_vectors(layer_normal, Vec3{0, 0, 1});
+    Mat<double, 3, 3> rotation_matrix = rotation_matrix_between_vectors(layer_normal, Vec<double, 3>{0, 0, 1});
 
     std::vector<double> rotated_z_position(globals::num_spins);
 
@@ -222,7 +222,7 @@ void MagnetisationLayersMonitor::update(Solver& solver) {
 
     // Loop over layers and calculate the magnetisation
     for (auto layer_index = 0; layer_index < group_num_layers_[group_idx]; ++layer_index) {
-      Vec3 mag = jams::sum_spins_moments(globals::s, globals::mus,
+      Vec<double, 3> mag = jams::sum_spins_moments(globals::s, globals::mus,
                                            group_layer_spin_indicies_[group_idx][layer_index]);
 
       // internally we use meV T^-1 for mus so convert back to Bohr magneton

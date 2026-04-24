@@ -17,7 +17,7 @@ CUDA_ONLY_IMPLEMENTATION(
 /// @warning No check is made that rotation_matrix is unitary.
 CUDA_ONLY_IMPLEMENTATION(
     void rotate_spins_cuda(jams::MultiArray<double, 2> &spins,
-                           const Mat3 &rotation_matrix,
+                           const Mat<double, 3, 3> &rotation_matrix,
                            const jams::MultiArray<int, 1> &indices));
 
 
@@ -38,7 +38,7 @@ CUDA_ONLY_IMPLEMENTATION(
 
 CUDA_ONLY_IMPLEMENTATION(
     void add_to_spin_cuda(jams::MultiArray<double, 2> &spins,
-                          const Vec3 &additional_length,
+                          const Vec<double, 3> &additional_length,
                           const jams::MultiArray<int, 1> &indices));
 
 }

@@ -32,17 +32,17 @@ void TorqueMonitor::update(Solver& solver) {
   // Loop over all of the Hamiltonians to calculate the total torque from each
   // Hamiltonian term. Each torque will be expressed as a torque per spin
   // and appended to a std::vector.
-  std::vector<Vec3> torques;
+  std::vector<Vec<double, 3>> torques;
   for (auto &hamiltonian : solver.hamiltonians()) {
     hamiltonian->calculate_fields(solver.time());
 
     // Loop over all spins in the system and sum the torque for the current
     // Hamiltonian
-    Vec3 torque = {0.0, 0.0, 0.0};
+    Vec<double, 3> torque = {0.0, 0.0, 0.0};
     for (auto i = 0; i < globals::num_spins; ++i) {
       // Calculate the local torque on a lattice site (\vec{S} \times \vec{H})
-      const Vec3 spin = {globals::s(i,0), globals::s(i,1), globals::s(i,2)};
-      const Vec3 field = {hamiltonian->field(i, 0), hamiltonian->field(i, 1), hamiltonian->field(i, 2)};
+      const Vec<double, 3> spin = {globals::s(i,0), globals::s(i,1), globals::s(i,2)};
+      const Vec<double, 3> field = {hamiltonian->field(i, 0), hamiltonian->field(i, 1), hamiltonian->field(i, 2)};
 
       torque += jams::cross(spin, field);
     }
@@ -62,7 +62,7 @@ void TorqueMonitor::update(Solver& solver) {
   if (convergence_status_ != Monitor::ConvergenceStatus::kDisabled && solver.time() > convergence_burn_time_) {
     convergence_geweke_diagnostic_ = {100.0, 100.0, 100.0}; // number much larger than 1
 
-    Vec3 total_torque = {0.0, 0.0, 0.0};
+    Vec<double, 3> total_torque = {0.0, 0.0, 0.0};
     for (const auto& torque : torques) {
       total_torque += torque;
     }

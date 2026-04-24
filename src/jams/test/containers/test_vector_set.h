@@ -37,15 +37,15 @@ ASSERT_EQ(vset[1], 1.0);
 ASSERT_EQ(vset[2], 2.0);
 }
 
-TEST(VectorSetTest, Vec3) {
+TEST(VectorSetTest, VecDouble3) {
   using namespace jams;
   using namespace testing;
 
-  Vec3 A = {1.0, 1.0, 0.0};
-  Vec3 B = {1.0, 1.0, -1.0};
-  Vec3 C = {-3.0, 3.0, 1.0};
+  jams::Vec<double, 3> A = {1.0, 1.0, 0.0};
+  jams::Vec<double, 3> B = {1.0, 1.0, -1.0};
+  jams::Vec<double, 3> C = {-3.0, 3.0, 1.0};
 
-  VectorSet<Vec3> vset;
+  VectorSet<jams::Vec<double, 3>> vset;
 
   ASSERT_EQ(vset.size(), 0);
   ASSERT_TRUE(vset.insert(A).second);

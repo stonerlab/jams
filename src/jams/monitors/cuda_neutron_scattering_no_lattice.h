@@ -32,12 +32,12 @@ private:
     void output_spectrum();
 
     bool do_rspace_windowing_ = true;
-    jams::MultiArray<Vec3R, 1>   kspace_path_;
+    jams::MultiArray<Vec<jams::Real, 3>, 1>   kspace_path_;
     jams::MultiArray<double,3> spin_timeseries_;
     jams::MultiArray<std::complex<double>,3> spin_frequencies_;
 
     jams::MultiArray<jams::Real, 2> neutron_form_factors_;
-    std::vector<Vec3>           neutron_polarizations_;
+    std::vector<Vec<double, 3>>           neutron_polarizations_;
     jams::MultiArray<jams::ComplexHi,2> total_unpolarized_neutron_cross_section_;
     jams::MultiArray<jams::ComplexHi,3> total_polarized_neutron_cross_sections_;
 
@@ -47,7 +47,7 @@ private:
 
     jams::Real kmax_ = 50.0;
     int num_k_ = 100;
-    Vec3R kvector_ = {0.0, 0.0, 1.0};
+    Vec<jams::Real, 3> kvector_ = {0.0, 0.0, 1.0};
 
 };
 

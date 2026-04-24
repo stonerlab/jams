@@ -39,7 +39,7 @@ Physics::Physics(const libconfig::Setting &physics_settings) :
   }
 
   // initialise applied field
-  Vec3 field = {0.0, 0.0, 0.0};
+  Vec<double, 3> field = {0.0, 0.0, 0.0};
   if (physics_settings.exists("applied_field")) {
     if (!physics_settings["applied_field"].isArray() || !(physics_settings["applied_field"].getLength() == 3)) {
       throw jams::ConfigException(physics_settings["applied_field"], "must be an array of length 3");
@@ -58,14 +58,14 @@ Physics::Physics(const libconfig::Setting &physics_settings) :
       throw jams::ConfigException(state_settings["origin"], "must be an array of length 3");
     }
 
-    Vec3 origin;
+    Vec<double, 3> origin;
     for (int i = 0; i < 3; ++i) {
       origin[i] = state_settings["origin"][i];
     }
     double radius = state_settings["radius"];
 
     for (int i = 0; i < globals::num_spins; ++i) {
-      Vec3 pos = globals::lattice->displacement(
+      Vec<double, 3> pos = globals::lattice->displacement(
           globals::lattice->lattice_site_position_cart(i), origin);
 
       if (pos[0]*pos[0] + pos[1]*pos[1] < radius*radius) {

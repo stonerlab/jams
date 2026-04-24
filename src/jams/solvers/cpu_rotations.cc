@@ -42,10 +42,10 @@ void RotationSolver::run() {
       for (auto n = 0; n < num_phi_; ++n) {
 
         globals::s = initial_spins;
-        Mat3 rotation = rotation_matrix_z(-phi)*rotation_matrix_y(-theta);
+        Mat<double, 3, 3> rotation = rotation_matrix_z(-phi)*rotation_matrix_y(-theta);
 
         for (auto i = 0; i < globals::num_spins; ++i) {
-          Vec3 spin = {globals::s(i,0), globals::s(i,1), globals::s(i,2)};
+          Vec<double, 3> spin = {globals::s(i,0), globals::s(i,1), globals::s(i,2)};
           spin = rotation * spin;
           for (auto j = 0; j < 3; ++j) {
             globals::s(i, j) = spin[j];
@@ -70,7 +70,7 @@ void RotationSolver::run() {
 
     for (auto i = 0; i < globals::lattice->num_basis_sites(); ++i) {
 
-      Vec3 spin_initial = {globals::s(i, 0), globals::s(i, 1),
+      Vec<double, 3> spin_initial = {globals::s(i, 0), globals::s(i, 1),
                            globals::s(i, 2)};
 
       std::ofstream tsv_file(
@@ -89,7 +89,7 @@ void RotationSolver::run() {
         for (auto n = 0; n < num_phi_; ++n) {
 
           // rotate one spin
-          Vec3 spin = jams::spherical_to_cartesian_vector(1.0, theta, phi);
+          Vec<double, 3> spin = jams::spherical_to_cartesian_vector(1.0, theta, phi);
           for (auto j = 0; j < 3; ++j) {
             globals::s(i, j) = spin[j];
           }

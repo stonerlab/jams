@@ -25,7 +25,7 @@ namespace jams {
       return g;
     }
 
-    double form_factor(const Vec3 &q, const double& lattice_parameter, FormFactorG &g, FormFactorJ &j);
+    double form_factor(const Vec<double, 3> &q, const double& lattice_parameter, FormFactorG &g, FormFactorJ &j);
 
     std::pair<std::vector<FormFactorG>, std::vector<FormFactorJ>> read_form_factor_settings(libconfig::Setting &settings);
 }

@@ -12,13 +12,13 @@ namespace jams {
     namespace montecarlo {
 
         /// Pure virtual base class describing the interface for Monte Carlo
-        /// moves. The class works as a functor which accepts a spin (Vec3) and
-        /// returns an altered (moved) spin (Vec3) which will be used as a trial
+        /// moves. The class works as a functor which accepts a spin (Vec<double, 3>) and
+        /// returns an altered (moved) spin (Vec<double, 3>) which will be used as a trial
         /// change in a Monte Carlo solver. Complicated behaviour can be
         /// achieved through using a constructor and private data members.
         class MonteCarloMove {
         public:
-            virtual Vec3 operator()(const Vec3& spin) = 0;
+            virtual Vec<double, 3> operator()(const Vec<double, 3>& spin) = 0;
         };
 
         /// Implementation of MonteCarloMove which reflects a spin
@@ -33,7 +33,7 @@ namespace jams {
         /// state.
         class MonteCarloReflectionMove : public MonteCarloMove {
         public:
-            inline Vec3 operator()(const Vec3& spin) {
+            inline Vec<double, 3> operator()(const Vec<double, 3>& spin) {
               return -spin;
             }
         };
@@ -51,7 +51,7 @@ namespace jams {
                     gen_(gen)
                     {}
 
-            inline Vec3 operator()(const Vec3& spin) {
+            inline Vec<double, 3> operator()(const Vec<double, 3>& spin) {
               return uniform_random_sphere<double>(*gen_);
             }
 
@@ -82,7 +82,7 @@ namespace jams {
                     gen_(gen),
                     sigma_(sigma){}
 
-            inline Vec3 operator()(const Vec3& spin) {
+            inline Vec<double, 3> operator()(const Vec<double, 3>& spin) {
               return jams::normalize(jams::fma(sigma_, uniform_random_sphere<double>(*gen_), spin));
             }
 
@@ -91,13 +91,13 @@ namespace jams {
             RNG * gen_;
           };
 
-        /// Get spin 'i' from the global spin array as a Vec3
-        inline Vec3 get_spin(int i) {
+        /// Get spin 'i' from the global spin array as a Vec<double, 3>
+        inline Vec<double, 3> get_spin(int i) {
             return {globals::s(i,0), globals::s(i,1), globals::s(i,2)};
         }
 
         /// Set spin 'i' in the global spin array to 'spin'
-        inline void set_spin(const int &i, const Vec3& spin) {
+        inline void set_spin(const int &i, const Vec<double, 3>& spin) {
           globals::s(i, 0) = spin[0];
           globals::s(i, 1) = spin[1];
           globals::s(i, 2) = spin[2];

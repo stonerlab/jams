@@ -18,8 +18,6 @@ class Solver;
 
 class MagnonSpectrumMonitor : public SpectrumBaseMonitor {
 public:
-    using Mat3cx  = std::array<std::array<jams::ComplexHi, 3>, 3>;
-
     explicit MagnonSpectrumMonitor(const libconfig::Setting &settings);
     ~MagnonSpectrumMonitor() override = default;
 
@@ -42,7 +40,7 @@ private:
 
     /// @details cumulative_magnon_spectrum_(motif_index, frequency_index, k_index)[component]
     /// component: 0: +- | 1: -+ | 2: zz
-    jams::MultiArray<Vec3,2> cumulative_magnon_spectrum_;
+    jams::MultiArray<Vec<double, 3>,2> cumulative_magnon_spectrum_;
 };
 
 #endif //JAMS_MAGNON_SPECTRUM_H

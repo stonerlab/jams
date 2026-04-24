@@ -12,12 +12,12 @@
 #include "jams/containers/mat3.h"
 
 TEST(MatTest, IsContiguousStandardLayoutStorage) {
-  static_assert(sizeof(Mat3) == 9 * sizeof(double));
-  static_assert(alignof(Mat3) == alignof(double));
-  static_assert(std::is_trivially_copyable_v<Mat3>);
-  static_assert(std::is_standard_layout_v<Mat3>);
+  static_assert(sizeof(jams::Mat<double, 3, 3>) == 9 * sizeof(double));
+  static_assert(alignof(jams::Mat<double, 3, 3>) == alignof(double));
+  static_assert(std::is_trivially_copyable_v<jams::Mat<double, 3, 3>>);
+  static_assert(std::is_standard_layout_v<jams::Mat<double, 3, 3>>);
 
-  Mat3 m{1.0, 2.0, 3.0,
+  jams::Mat<double, 3, 3> m{1.0, 2.0, 3.0,
          4.0, 5.0, 6.0,
          7.0, 8.0, 9.0};
 
@@ -27,30 +27,30 @@ TEST(MatTest, IsContiguousStandardLayoutStorage) {
 }
 
 TEST(MatTest, SupportsGenericDimensionArithmetic) {
-  const Mat<int, 2, 3> a{
+  const jams::Mat<int, 2, 3> a{
       1, 2,
       3, 4,
       5, 6};
-  const Mat<int, 2, 3> b{
+  const jams::Mat<int, 2, 3> b{
       6, 5,
       4, 3,
       2, 1};
 
-  EXPECT_EQ(a + b, (Mat<int, 2, 3>{
+  EXPECT_EQ(a + b, (jams::Mat<int, 2, 3>{
       7, 7,
       7, 7,
       7, 7}));
-  EXPECT_EQ(2 * a, (Mat<int, 2, 3>{
+  EXPECT_EQ(2 * a, (jams::Mat<int, 2, 3>{
       2, 4,
       6, 8,
       10, 12}));
-  EXPECT_EQ((a * Vec<int, 2>{7, 8}), (Vec<int, 3>{23, 53, 83}));
+  EXPECT_EQ((a * jams::Vec<int, 2>{7, 8}), (jams::Vec<int, 3>{23, 53, 83}));
 
-  const Mat<int, 4, 2> c{
+  const jams::Mat<int, 4, 2> c{
       1, 2, 3, 4,
       5, 6, 7, 8};
 
-  EXPECT_EQ(a * c, (Mat<int, 4, 3>{
+  EXPECT_EQ(a * c, (jams::Mat<int, 4, 3>{
       11, 14, 17, 20,
       23, 30, 37, 44,
       35, 46, 57, 68}));
@@ -62,14 +62,14 @@ TEST(MatTest, SupportsGenericIdentityAndCast) {
   static_assert(id[0][1] == 0);
   static_assert(id[3][3] == 1);
 
-  const Mat<int, 2, 2> ints{1, 2, 3, 4};
+  const jams::Mat<int, 2, 2> ints{1, 2, 3, 4};
   const auto doubles = matrix_cast<double>(ints);
 
-  static_assert(std::is_same_v<decltype(doubles), const Mat<double, 2, 2>>);
+  static_assert(std::is_same_v<decltype(doubles), const jams::Mat<double, 2, 2>>);
   EXPECT_DOUBLE_EQ(doubles[1][0], 3.0);
 }
 
-class Mat3Test : public ::testing::TestWithParam<std::pair<Vec3, Vec3>> {
+class Mat3Test : public ::testing::TestWithParam<std::pair<jams::Vec<double, 3>, jams::Vec<double, 3>>> {
     // You can implement all the usual fixture class members here.
     // To access the test parameter, call GetParam() from class
     // TestWithParam<T>.
@@ -89,52 +89,52 @@ TEST_P(Mat3Test, rotation_matrix_between_vectors) {
 
   const double eps = 1e-12;
   // Call GetParam() here to get the values
-  std::pair<Vec3, Vec3> const& p = GetParam();
+  std::pair<jams::Vec<double, 3>, jams::Vec<double, 3>> const& p = GetParam();
   auto R = rotation_matrix_between_vectors(p.first, p.second);
   auto c = jams::normalize(R * p.first);
   EXPECT_THAT(jams::normalize(p.second), Vec3Eq(c, eps));
 }
 
 INSTANTIATE_TEST_SUITE_P(SpecialVectors, Mat3Test, ::testing::Values(
-    std::pair<Vec3, Vec3>({ 1.0,  0.0,  0.0}, { 1.0,  0.0,  0.0}),  // identity (pole)
-    std::pair<Vec3, Vec3>({ 1.0,  0.0,  0.0}, {-1.0,  0.0,  0.0}),  // reversal (pole)
-    std::pair<Vec3, Vec3>({-1.0,  0.0,  0.0}, {-1.0,  0.0,  0.0}),  // identity (pole)
-    std::pair<Vec3, Vec3>({-1.0,  0.0,  0.0}, { 1.0,  0.0,  0.0}),   // reversal (pole)
-    std::pair<Vec3, Vec3>({ 0.0,  1.0,  0.0}, { 0.0,  1.0,  0.0}),
-    std::pair<Vec3, Vec3>({ 0.0,  1.0,  0.0}, { 0.0, -1.0,  0.0}),
-    std::pair<Vec3, Vec3>({ 0.0, -1.0,  0.0}, { 0.0, -1.0,  0.0}),
-    std::pair<Vec3, Vec3>({ 0.0, -1.0,  0.0}, { 0.0,  1.0,  0.0}),
-    std::pair<Vec3, Vec3>({ 0.0,  0.0,  1.0}, { 0.0,  0.0,  1.0}),
-    std::pair<Vec3, Vec3>({ 0.0,  0.0,  1.0}, { 0.0,  0.0, -1.0}),
-    std::pair<Vec3, Vec3>({ 0.0,  0.0, -1.0}, { 0.0,  0.0, -1.0}),
-    std::pair<Vec3, Vec3>({ 0.0,  0.0, -1.0}, { 0.0,  0.0,  1.0}),
-    std::pair<Vec3, Vec3>({ 1.0,  1.0,  1.0}, { 1.0,  1.0,  1.0}),
-    std::pair<Vec3, Vec3>({-1.0, -1.0, -1.0}, {-1.0, -1.0, -1.0}),
-    std::pair<Vec3, Vec3>({ 1.0,  1.0,  1.0}, {-1.0, -1.0, -1.0}),
-    std::pair<Vec3, Vec3>({ 1.0,  1.0,  0.0}, { 1.0,  1.0,  0.0}),
-    std::pair<Vec3, Vec3>({ 1.0,  1.0,  0.0}, {-1.0, -1.0,  0.0})
+    std::pair<jams::Vec<double, 3>, jams::Vec<double, 3>>({ 1.0,  0.0,  0.0}, { 1.0,  0.0,  0.0}),  // identity (pole)
+    std::pair<jams::Vec<double, 3>, jams::Vec<double, 3>>({ 1.0,  0.0,  0.0}, {-1.0,  0.0,  0.0}),  // reversal (pole)
+    std::pair<jams::Vec<double, 3>, jams::Vec<double, 3>>({-1.0,  0.0,  0.0}, {-1.0,  0.0,  0.0}),  // identity (pole)
+    std::pair<jams::Vec<double, 3>, jams::Vec<double, 3>>({-1.0,  0.0,  0.0}, { 1.0,  0.0,  0.0}),   // reversal (pole)
+    std::pair<jams::Vec<double, 3>, jams::Vec<double, 3>>({ 0.0,  1.0,  0.0}, { 0.0,  1.0,  0.0}),
+    std::pair<jams::Vec<double, 3>, jams::Vec<double, 3>>({ 0.0,  1.0,  0.0}, { 0.0, -1.0,  0.0}),
+    std::pair<jams::Vec<double, 3>, jams::Vec<double, 3>>({ 0.0, -1.0,  0.0}, { 0.0, -1.0,  0.0}),
+    std::pair<jams::Vec<double, 3>, jams::Vec<double, 3>>({ 0.0, -1.0,  0.0}, { 0.0,  1.0,  0.0}),
+    std::pair<jams::Vec<double, 3>, jams::Vec<double, 3>>({ 0.0,  0.0,  1.0}, { 0.0,  0.0,  1.0}),
+    std::pair<jams::Vec<double, 3>, jams::Vec<double, 3>>({ 0.0,  0.0,  1.0}, { 0.0,  0.0, -1.0}),
+    std::pair<jams::Vec<double, 3>, jams::Vec<double, 3>>({ 0.0,  0.0, -1.0}, { 0.0,  0.0, -1.0}),
+    std::pair<jams::Vec<double, 3>, jams::Vec<double, 3>>({ 0.0,  0.0, -1.0}, { 0.0,  0.0,  1.0}),
+    std::pair<jams::Vec<double, 3>, jams::Vec<double, 3>>({ 1.0,  1.0,  1.0}, { 1.0,  1.0,  1.0}),
+    std::pair<jams::Vec<double, 3>, jams::Vec<double, 3>>({-1.0, -1.0, -1.0}, {-1.0, -1.0, -1.0}),
+    std::pair<jams::Vec<double, 3>, jams::Vec<double, 3>>({ 1.0,  1.0,  1.0}, {-1.0, -1.0, -1.0}),
+    std::pair<jams::Vec<double, 3>, jams::Vec<double, 3>>({ 1.0,  1.0,  0.0}, { 1.0,  1.0,  0.0}),
+    std::pair<jams::Vec<double, 3>, jams::Vec<double, 3>>({ 1.0,  1.0,  0.0}, {-1.0, -1.0,  0.0})
 ));
 
 INSTANTIATE_TEST_SUITE_P(RandomVectors, Mat3Test, ::testing::Values(
-    std::pair<Vec3, Vec3>({ 1.0 - 2.0 * rand()/double(RAND_MAX),  1.0 - 2.0 * rand()/double(RAND_MAX),  1.0 - 2.0 * rand()/double(RAND_MAX)},
+    std::pair<jams::Vec<double, 3>, jams::Vec<double, 3>>({ 1.0 - 2.0 * rand()/double(RAND_MAX),  1.0 - 2.0 * rand()/double(RAND_MAX),  1.0 - 2.0 * rand()/double(RAND_MAX)},
                           { 1.0 - 2.0 * rand()/double(RAND_MAX),  1.0 - 2.0 * rand()/double(RAND_MAX),  1.0 - 2.0 * rand()/double(RAND_MAX)}),
-    std::pair<Vec3, Vec3>({ 1.0 - 2.0 * rand()/double(RAND_MAX),  1.0 - 2.0 * rand()/double(RAND_MAX),  1.0 - 2.0 * rand()/double(RAND_MAX)},
+    std::pair<jams::Vec<double, 3>, jams::Vec<double, 3>>({ 1.0 - 2.0 * rand()/double(RAND_MAX),  1.0 - 2.0 * rand()/double(RAND_MAX),  1.0 - 2.0 * rand()/double(RAND_MAX)},
                           { 1.0 - 2.0 * rand()/double(RAND_MAX),  1.0 - 2.0 * rand()/double(RAND_MAX),  1.0 - 2.0 * rand()/double(RAND_MAX)}),
-    std::pair<Vec3, Vec3>({ 1.0 - 2.0 * rand()/double(RAND_MAX),  1.0 - 2.0 * rand()/double(RAND_MAX),  1.0 - 2.0 * rand()/double(RAND_MAX)},
+    std::pair<jams::Vec<double, 3>, jams::Vec<double, 3>>({ 1.0 - 2.0 * rand()/double(RAND_MAX),  1.0 - 2.0 * rand()/double(RAND_MAX),  1.0 - 2.0 * rand()/double(RAND_MAX)},
                           { 1.0 - 2.0 * rand()/double(RAND_MAX),  1.0 - 2.0 * rand()/double(RAND_MAX),  1.0 - 2.0 * rand()/double(RAND_MAX)}),
-    std::pair<Vec3, Vec3>({ 1.0 - 2.0 * rand()/double(RAND_MAX),  1.0 - 2.0 * rand()/double(RAND_MAX),  1.0 - 2.0 * rand()/double(RAND_MAX)},
+    std::pair<jams::Vec<double, 3>, jams::Vec<double, 3>>({ 1.0 - 2.0 * rand()/double(RAND_MAX),  1.0 - 2.0 * rand()/double(RAND_MAX),  1.0 - 2.0 * rand()/double(RAND_MAX)},
                           { 1.0 - 2.0 * rand()/double(RAND_MAX),  1.0 - 2.0 * rand()/double(RAND_MAX),  1.0 - 2.0 * rand()/double(RAND_MAX)}),
-    std::pair<Vec3, Vec3>({ 1.0 - 2.0 * rand()/double(RAND_MAX),  1.0 - 2.0 * rand()/double(RAND_MAX),  1.0 - 2.0 * rand()/double(RAND_MAX)},
+    std::pair<jams::Vec<double, 3>, jams::Vec<double, 3>>({ 1.0 - 2.0 * rand()/double(RAND_MAX),  1.0 - 2.0 * rand()/double(RAND_MAX),  1.0 - 2.0 * rand()/double(RAND_MAX)},
                           { 1.0 - 2.0 * rand()/double(RAND_MAX),  1.0 - 2.0 * rand()/double(RAND_MAX),  1.0 - 2.0 * rand()/double(RAND_MAX)}),
-    std::pair<Vec3, Vec3>({ 1.0 - 2.0 * rand()/double(RAND_MAX),  1.0 - 2.0 * rand()/double(RAND_MAX),  1.0 - 2.0 * rand()/double(RAND_MAX)},
+    std::pair<jams::Vec<double, 3>, jams::Vec<double, 3>>({ 1.0 - 2.0 * rand()/double(RAND_MAX),  1.0 - 2.0 * rand()/double(RAND_MAX),  1.0 - 2.0 * rand()/double(RAND_MAX)},
                           { 1.0 - 2.0 * rand()/double(RAND_MAX),  1.0 - 2.0 * rand()/double(RAND_MAX),  1.0 - 2.0 * rand()/double(RAND_MAX)}),
-    std::pair<Vec3, Vec3>({ 1.0 - 2.0 * rand()/double(RAND_MAX),  1.0 - 2.0 * rand()/double(RAND_MAX),  1.0 - 2.0 * rand()/double(RAND_MAX)},
+    std::pair<jams::Vec<double, 3>, jams::Vec<double, 3>>({ 1.0 - 2.0 * rand()/double(RAND_MAX),  1.0 - 2.0 * rand()/double(RAND_MAX),  1.0 - 2.0 * rand()/double(RAND_MAX)},
                           { 1.0 - 2.0 * rand()/double(RAND_MAX),  1.0 - 2.0 * rand()/double(RAND_MAX),  1.0 - 2.0 * rand()/double(RAND_MAX)}),
-    std::pair<Vec3, Vec3>({ 1.0 - 2.0 * rand()/double(RAND_MAX),  1.0 - 2.0 * rand()/double(RAND_MAX),  1.0 - 2.0 * rand()/double(RAND_MAX)},
+    std::pair<jams::Vec<double, 3>, jams::Vec<double, 3>>({ 1.0 - 2.0 * rand()/double(RAND_MAX),  1.0 - 2.0 * rand()/double(RAND_MAX),  1.0 - 2.0 * rand()/double(RAND_MAX)},
                           { 1.0 - 2.0 * rand()/double(RAND_MAX),  1.0 - 2.0 * rand()/double(RAND_MAX),  1.0 - 2.0 * rand()/double(RAND_MAX)}),
-    std::pair<Vec3, Vec3>({ 1.0 - 2.0 * rand()/double(RAND_MAX),  1.0 - 2.0 * rand()/double(RAND_MAX),  1.0 - 2.0 * rand()/double(RAND_MAX)},
+    std::pair<jams::Vec<double, 3>, jams::Vec<double, 3>>({ 1.0 - 2.0 * rand()/double(RAND_MAX),  1.0 - 2.0 * rand()/double(RAND_MAX),  1.0 - 2.0 * rand()/double(RAND_MAX)},
                           { 1.0 - 2.0 * rand()/double(RAND_MAX),  1.0 - 2.0 * rand()/double(RAND_MAX),  1.0 - 2.0 * rand()/double(RAND_MAX)}),
-    std::pair<Vec3, Vec3>({ 1.0 - 2.0 * rand()/double(RAND_MAX),  1.0 - 2.0 * rand()/double(RAND_MAX),  1.0 - 2.0 * rand()/double(RAND_MAX)},
+    std::pair<jams::Vec<double, 3>, jams::Vec<double, 3>>({ 1.0 - 2.0 * rand()/double(RAND_MAX),  1.0 - 2.0 * rand()/double(RAND_MAX),  1.0 - 2.0 * rand()/double(RAND_MAX)},
                           { 1.0 - 2.0 * rand()/double(RAND_MAX),  1.0 - 2.0 * rand()/double(RAND_MAX),  1.0 - 2.0 * rand()/double(RAND_MAX)})
 ));
 

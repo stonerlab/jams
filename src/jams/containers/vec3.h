@@ -102,10 +102,10 @@ inline auto angle(const Vec<T,3>& a, const Vec<T,3>& b) -> decltype(std::acos(do
   return std::acos(std::clamp(cosine, result_type{-1}, result_type{1}));
 }
 
-/// Returns a Vec3 in cartesian coordinates (x, y, z) from the polar coordinates
+/// Returns a Vec<double, 3> in cartesian coordinates (x, y, z) from the polar coordinates
 /// (r, theta, phi), where theta is the polar angle (from z) and phi is the
 /// azimuthal angle (x-y plane, from x). Angles must be in radians.
-inline Vec3 spherical_to_cartesian_vector(const double r, const double theta, const double phi) {
+inline Vec<double, 3> spherical_to_cartesian_vector(const double r, const double theta, const double phi) {
   return {r * sin(theta) * cos(phi), r * sin(theta) * sin(phi), r * cos(theta)};
 }
 
@@ -170,21 +170,21 @@ inline auto unit_vector(const Vec<T, 3> &a, const T& epsilon = std::numeric_limi
   return a / length;
 }
 
-/// Returns a complex Vec3 with the conjugate of each component of a,
+/// Returns a complex Vec<double, 3> with the conjugate of each component of a,
 /// x_k = conj(a_k)
 template <typename T>
 inline constexpr Vec<std::complex<T>,3> conj(const Vec<std::complex<T>,3>& a) {
   return {std::conj(a[0]), std::conj(a[1]), std::conj(a[2])};
 }
 
-/// Returns a complex Vec3 with each component of a truncated,
+/// Returns a complex Vec<double, 3> with each component of a truncated,
 /// x_k = trunc(a_k)
 template <typename T>
 inline constexpr Vec<T,3> trunc(const Vec<T,3>& a) {
   return {std::trunc(a[0]), std::trunc(a[1]), std::trunc(a[2])};
 }
 
-/// Returns a Vec3 of doubles static_casted from the vector a
+/// Returns a Vec<double, 3> of doubles static_casted from the vector a
 template <typename T>
 inline constexpr Vec<double,3> to_double(const Vec<T,3>& a) {
   return {
@@ -194,7 +194,7 @@ inline constexpr Vec<double,3> to_double(const Vec<T,3>& a) {
   };
 }
 
-/// Returns a Vec3 of ints static_casted from the vector a
+/// Returns a Vec<double, 3> of ints static_casted from the vector a
 template <typename T>
 inline constexpr Vec<int,3> to_int(const Vec<T,3>& a) {
   return {

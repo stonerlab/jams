@@ -12,8 +12,8 @@
 class TemporalFieldPulse {
 public:
     virtual ~TemporalFieldPulse() = default;
-    virtual Vec3R local_field(const jams::Real& time, const Vec3R& r) = 0;
-    virtual Vec3R max_field(const jams::Real& time) = 0;
+    virtual Vec<jams::Real, 3> local_field(const jams::Real& time, const Vec<jams::Real, 3>& r) = 0;
+    virtual Vec<jams::Real, 3> max_field(const jams::Real& time) = 0;
 };
 
 ///
@@ -35,7 +35,7 @@ public:
 
     FieldPulseHamiltonian(const libconfig::Setting &settings, unsigned int size);
 
-    Vec3R calculate_field(int i, jams::Real time) override;
+    Vec<jams::Real, 3> calculate_field(int i, jams::Real time) override;
 
     jams::Real calculate_energy(int i, jams::Real time) override;
 

@@ -19,7 +19,7 @@
 
 class MetropolisMCSolver : public Solver {
 public:
-    using MoveFunction = std::function<Vec3(Vec3)>;
+    using MoveFunction = std::function<Vec<double, 3>(Vec<double, 3>)>;
   
     std::string name() const override { return "monte-carlo-metropolis-cpu"; }
 
@@ -43,8 +43,8 @@ public:
     /// A negative energy difference means the final state is lower in energy
     /// than the initial state.
     virtual double energy_difference(const int spin_index,
-                                     const Vec3 &initial_spin,
-                                     const Vec3 &final_spin);
+                                     const Vec<double, 3> &initial_spin,
+                                     const Vec<double, 3> &final_spin);
 
     /// Performs 'one' Monte Carlo step. We define as one attempted move of
     /// every spin in the system on average. This means we don't guarantee
@@ -64,8 +64,8 @@ public:
     /// Function hook for accepting a Monte Carlo move
     virtual void
     accept_move(const int spin_index,
-                const Vec3 &initial_spin,
-                const Vec3 &final_spin);
+                const Vec<double, 3> &initial_spin,
+                const Vec<double, 3> &final_spin);
 
 private:
     /// Outputs statistics of Monte Carlo move acceptance rates to a file.

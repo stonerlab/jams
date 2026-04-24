@@ -10,7 +10,7 @@ CudaRK4LLGSOTSolver::CudaRK4LLGSOTSolver(const libconfig::Setting &settings)
     : CudaRK4BaseSolver(settings) {
 
 
-  auto spin_polarisation = jams::config_required<Vec3>(settings, "spin_polarisation");
+  auto spin_polarisation = jams::config_required<Vec<double, 3>>(settings, "spin_polarisation");
   spin_polarisation_.resize(globals::num_spins, 3);
   // Assume the charge current is homogeneous. The current here is a dimensionful
   // vector in

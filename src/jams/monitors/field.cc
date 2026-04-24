@@ -22,13 +22,13 @@ FieldMonitor::FieldMonitor(const libconfig::Setting &settings)
 
 void FieldMonitor::update(Solver& solver) {
 
-  std::vector<Vec3> total_field;
+  std::vector<Vec<double, 3>> total_field;
   for (auto &hamiltonian : solver.hamiltonians()) {
     hamiltonian->calculate_fields(solver.time());
 
-    Vec3 field = {0.0, 0.0, 0.0};
+    Vec<double, 3> field = {0.0, 0.0, 0.0};
     for (auto i = 0; i < globals::num_spins; ++i) {
-      field += Vec3{hamiltonian->field(i, 0), hamiltonian->field(i, 1), hamiltonian->field(i, 2)} / globals::mus(i);
+      field += Vec<double, 3>{hamiltonian->field(i, 0), hamiltonian->field(i, 1), hamiltonian->field(i, 2)} / globals::mus(i);
     }
 
     total_field.push_back(field / static_cast<double>(globals::num_spins));

@@ -39,7 +39,7 @@ namespace jams {
 // New cache variables must be set in `spin_move_trial_value()`
 //
 //   double jams::CVarConcrete::spin_move_trial_value(
-//     int i, const Vec3 &spin_initial, const Vec3 &spin_trial) {
+//     int i, const Vec<double, 3> &spin_initial, const Vec<double, 3> &spin_trial) {
 //
 //     const double trial_value = cached_value() + // CHANGE IN VALUE;
 //
@@ -56,19 +56,19 @@ private:
     double cached_value_ = std::numeric_limits<double>::signaling_NaN();
     double cached_trial_value_ = std::numeric_limits<double>::signaling_NaN();
     int cached_i_ = -1;
-    Vec3 cached_spin_initial_ ;
-    Vec3 cached_spin_trial_;
+    Vec<double, 3> cached_spin_initial_ ;
+    Vec<double, 3> cached_spin_trial_;
 
 protected:
     inline bool cache_is_initialised() const;
 
-    inline bool can_use_cache_values(int i, const Vec3 &spin_initial,
-                                     const Vec3 &spin_trial) const;
+    inline bool can_use_cache_values(int i, const Vec<double, 3> &spin_initial,
+                                     const Vec<double, 3> &spin_trial) const;
 
     inline double cached_value();
 
     inline void
-    set_cache_values(int i, const Vec3 &spin_initial, const Vec3 &spin_trial,
+    set_cache_values(int i, const Vec<double, 3> &spin_initial, const Vec<double, 3> &spin_trial,
                      const double value, const double trial_value);
 
 public:
@@ -76,8 +76,8 @@ public:
 
     virtual double calculate_expensive_value() = 0;
 
-    inline void spin_move_accepted(int i, const Vec3 &spin_initial,
-                            const Vec3 &spin_trial) override;
+    inline void spin_move_accepted(int i, const Vec<double, 3> &spin_initial,
+                            const Vec<double, 3> &spin_trial) override;
 
 
 };
@@ -91,8 +91,8 @@ bool jams::CachingCollectiveVariable::cache_is_initialised() const {
 }
 
 bool jams::CachingCollectiveVariable::can_use_cache_values(int i,
-                                                           const Vec3 &spin_initial,
-                                                           const Vec3 &spin_trial) const {
+                                                           const Vec<double, 3> &spin_initial,
+                                                           const Vec<double, 3> &spin_trial) const {
   return cache_initialised_ && i == cached_i_
          && spin_initial == cached_spin_initial_
          && spin_trial == cached_spin_trial_;
@@ -107,8 +107,8 @@ double jams::CachingCollectiveVariable::cached_value() {
 }
 
 void jams::CachingCollectiveVariable::set_cache_values(int i,
-                                                       const Vec3 &spin_initial,
-                                                       const Vec3 &spin_trial,
+                                                       const Vec<double, 3> &spin_initial,
+                                                       const Vec<double, 3> &spin_trial,
                                                        const double value,
                                                        const double trial_value) {
   cached_i_ = i;
@@ -124,8 +124,8 @@ double jams::CachingCollectiveVariable::value() {
 }
 
 void jams::CachingCollectiveVariable::spin_move_accepted(int i,
-                                                         const Vec3 &spin_initial,
-                                                         const Vec3 &spin_trial) {
+                                                         const Vec<double, 3> &spin_initial,
+                                                         const Vec<double, 3> &spin_trial) {
   if (can_use_cache_values(i, spin_initial, spin_trial)) {
     cached_value_ = cached_trial_value_;
   } else {

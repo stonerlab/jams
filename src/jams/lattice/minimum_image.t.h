@@ -8,7 +8,7 @@
 #include <gmock/gmock.h>
 #include <jams/helpers/random.h>
 
-class LatticeMinimumImageTest : public ::testing::TestWithParam<std::tuple<Vec3, Vec3, Vec3>> {
+class LatticeMinimumImageTest : public ::testing::TestWithParam<std::tuple<Vec<double, 3>, Vec<double, 3>, Vec<double, 3>>> {
 protected:
 
     // These positions are in fractional coordinates (they are multiples of
@@ -16,55 +16,55 @@ protected:
     //
     // We include a selection of positions which cover lots of possible edge
     // cases, e.g. the point (0.5, 0.5, 0.5) is generate for cubic cells.
-    std::vector<Vec3> positions = {
+    std::vector<Vec<double, 3>> positions = {
         // origin
-        Vec3{0.0, 0.0, 0.0},
+        Vec<double, 3>{0.0, 0.0, 0.0},
 
         // body center
-        Vec3{0.5, 0.5, 0.5},
+        Vec<double, 3>{0.5, 0.5, 0.5},
 
         // edges
-        Vec3{0.25, 0.0, 0.0},
-        Vec3{0.0, 0.25, 0.0},
-        Vec3{0.0, 0.0, 0.25},
+        Vec<double, 3>{0.25, 0.0, 0.0},
+        Vec<double, 3>{0.0, 0.25, 0.0},
+        Vec<double, 3>{0.0, 0.0, 0.25},
 
-        Vec3{0.5, 0.0, 0.0},
-        Vec3{0.0, 0.5, 0.0},
-        Vec3{0.0, 0.0, 0.5},
+        Vec<double, 3>{0.5, 0.0, 0.0},
+        Vec<double, 3>{0.0, 0.5, 0.0},
+        Vec<double, 3>{0.0, 0.0, 0.5},
 
-        Vec3{0.75, 0.0, 0.0},
-        Vec3{0.0, 0.75, 0.0},
-        Vec3{0.0, 0.0, 0.75},
+        Vec<double, 3>{0.75, 0.0, 0.0},
+        Vec<double, 3>{0.0, 0.75, 0.0},
+        Vec<double, 3>{0.0, 0.0, 0.75},
 
         // faces
-        Vec3{0.0, 0.25, 0.25},
-        Vec3{0.25, 0.0, 0.25},
-        Vec3{0.25, 0.25, 0.0},
-        Vec3{0.25, 0.25, 0.0},
+        Vec<double, 3>{0.0, 0.25, 0.25},
+        Vec<double, 3>{0.25, 0.0, 0.25},
+        Vec<double, 3>{0.25, 0.25, 0.0},
+        Vec<double, 3>{0.25, 0.25, 0.0},
 
-        Vec3{0.0, 0.5, 0.5},
-        Vec3{0.5, 0.0, 0.5},
-        Vec3{0.5, 0.5, 0.0},
-        Vec3{0.5, 0.5, 0.0},
+        Vec<double, 3>{0.0, 0.5, 0.5},
+        Vec<double, 3>{0.5, 0.0, 0.5},
+        Vec<double, 3>{0.5, 0.5, 0.0},
+        Vec<double, 3>{0.5, 0.5, 0.0},
 
-        Vec3{0.0, 0.75, 0.75},
-        Vec3{0.75, 0.0, 0.75},
-        Vec3{0.75, 0.75, 0.0},
-        Vec3{0.75, 0.75, 0.0},
+        Vec<double, 3>{0.0, 0.75, 0.75},
+        Vec<double, 3>{0.75, 0.0, 0.75},
+        Vec<double, 3>{0.75, 0.75, 0.0},
+        Vec<double, 3>{0.75, 0.75, 0.0},
 
         // quadrants
-        Vec3{0.25, 0.25, 0.25},
-        Vec3{0.25, 0.25, 0.75},
-        Vec3{0.25, 0.75, 0.25},
-        Vec3{0.75, 0.25, 0.25},
-        Vec3{0.75, 0.75, 0.25},
-        Vec3{0.75, 0.25, 0.75},
-        Vec3{0.25, 0.75, 0.75},
-        Vec3{0.75, 0.75, 0.75},
+        Vec<double, 3>{0.25, 0.25, 0.25},
+        Vec<double, 3>{0.25, 0.25, 0.75},
+        Vec<double, 3>{0.25, 0.75, 0.25},
+        Vec<double, 3>{0.75, 0.25, 0.25},
+        Vec<double, 3>{0.75, 0.75, 0.25},
+        Vec<double, 3>{0.75, 0.25, 0.75},
+        Vec<double, 3>{0.25, 0.75, 0.75},
+        Vec<double, 3>{0.75, 0.75, 0.75},
 
         // thirds
-        Vec3{1.0/3.0, 1.0/3.0, 1.0/3.0},
-        Vec3{2.0/3.0, 2.0/3.0, 2.0/3.0},
+        Vec<double, 3>{1.0/3.0, 1.0/3.0, 1.0/3.0},
+        Vec<double, 3>{2.0/3.0, 2.0/3.0, 2.0/3.0},
     };
 };
 
@@ -77,18 +77,18 @@ protected:
 TEST_P(LatticeMinimumImageTest, minimum_image_smith_method) {
   const double double_epsilon = 1e-6;
 
-  Vec3 a = std::get<0>(GetParam());
-  Vec3 b = std::get<1>(GetParam());
-  Vec3 c = std::get<2>(GetParam());
+  Vec<double, 3> a = std::get<0>(GetParam());
+  Vec<double, 3> b = std::get<1>(GetParam());
+  Vec<double, 3> c = std::get<2>(GetParam());
 
-  Vec3b pbc = {true, true, true};
+  Vec<bool, 3> pbc = {true, true, true};
 
   for (auto i = 0; i < positions.size(); ++i) {
     for (auto j = 0; j < positions.size(); ++j) {
-      const Vec3 r_i = a * positions[i][0] + b * positions[i][1] + c * positions[i][2];
-      const Vec3 r_j = a * positions[j][0] + b * positions[j][1] + c * positions[j][2];
+      const Vec<double, 3> r_i = a * positions[i][0] + b * positions[i][1] + c * positions[i][2];
+      const Vec<double, 3> r_j = a * positions[j][0] + b * positions[j][1] + c * positions[j][2];
 
-      Vec3 r_ij_smith, r_ij_brute;
+      Vec<double, 3> r_ij_smith, r_ij_brute;
 
       r_ij_smith = jams::minimum_image_smith_method(a, b, c, pbc, r_i, r_j);
       if (!definately_less_than(jams::norm(r_ij_smith),
@@ -133,16 +133,16 @@ TEST_P(LatticeMinimumImageTest, minimum_image_smith_method) {
 TEST_P(LatticeMinimumImageTest, minimum_image) {
   const double double_epsilon = 1e-6;
 
-  Vec3 a = std::get<0>(GetParam());
-  Vec3 b = std::get<1>(GetParam());
-  Vec3 c = std::get<2>(GetParam());
+  Vec<double, 3> a = std::get<0>(GetParam());
+  Vec<double, 3> b = std::get<1>(GetParam());
+  Vec<double, 3> c = std::get<2>(GetParam());
 
-  Vec3b pbc = {true, true, true};
+  Vec<bool, 3> pbc = {true, true, true};
 
   for (auto i = 0; i < positions.size(); ++i) {
     for (auto j = 0; j < positions.size(); ++j) {
-      const Vec3 r_i = a * positions[i][0] + b * positions[i][1] + c * positions[i][2];
-      const Vec3 r_j = a * positions[j][0] + b * positions[j][1] + c * positions[j][2];
+      const Vec<double, 3> r_i = a * positions[i][0] + b * positions[i][1] + c * positions[i][2];
+      const Vec<double, 3> r_j = a * positions[j][0] + b * positions[j][1] + c * positions[j][2];
 
       auto r_ij = jams::minimum_image(a, b, c, pbc, r_i, r_j, double_epsilon);
       auto r_ij_brute = jams::minimum_image_bruteforce_explicit_depth(a, b, c, pbc, r_i, r_j, {9, 9, 9}, double_epsilon);
@@ -167,11 +167,11 @@ TEST_P(LatticeMinimumImageTest, minimum_image) {
 // as test cases.
 INSTANTIATE_TEST_SUITE_P(LatticeTypes, LatticeMinimumImageTest,
                          testing::Values(
-                             std::tuple<Vec3, Vec3, Vec3>({1,0,0}, {0,1,0}, {0,0,1}),             // cubic
-                             std::tuple<Vec3, Vec3, Vec3>({1,0,0}, {0.5,sqrt(3)/2,0}, {0,0,1.2}), // hexagonal
-                             std::tuple<Vec3, Vec3, Vec3>({0.5, -1/(2*sqrt(3)), 1.0/3.0 }, {1, 1/sqrt(3), 1.0/3.0}, {-0.5, -1/(2*sqrt(3)), 1.0/3.0}), // rhombohedral
-                             std::tuple<Vec3, Vec3, Vec3>({1,0,0}, {0,1,0}, {0,0,0.98}),             // tetragonal
-                             std::tuple<Vec3, Vec3, Vec3>({1,0,0}, {0,0.75,0}, {0,0,1.2})             // orthorhombic
+                             std::tuple<Vec<double, 3>, Vec<double, 3>, Vec<double, 3>>({1,0,0}, {0,1,0}, {0,0,1}),             // cubic
+                             std::tuple<Vec<double, 3>, Vec<double, 3>, Vec<double, 3>>({1,0,0}, {0.5,sqrt(3)/2,0}, {0,0,1.2}), // hexagonal
+                             std::tuple<Vec<double, 3>, Vec<double, 3>, Vec<double, 3>>({0.5, -1/(2*sqrt(3)), 1.0/3.0 }, {1, 1/sqrt(3), 1.0/3.0}, {-0.5, -1/(2*sqrt(3)), 1.0/3.0}), // rhombohedral
+                             std::tuple<Vec<double, 3>, Vec<double, 3>, Vec<double, 3>>({1,0,0}, {0,1,0}, {0,0,0.98}),             // tetragonal
+                             std::tuple<Vec<double, 3>, Vec<double, 3>, Vec<double, 3>>({1,0,0}, {0,0.75,0}, {0,0,1.2})             // orthorhombic
                          ));
 
 #endif //JAMS_LATTICE_MINIMUM_IMAGE_TEST_H

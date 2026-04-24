@@ -35,12 +35,12 @@ namespace jams {
 
         constexpr double material_gyro = 1.0;
         constexpr double material_alpha = 0.01;
-        constexpr Vec3   material_spin = {0.0, 0.0, 1.0};
-        constexpr Mat3   material_spin_transform = {1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0};
+        constexpr Vec<double, 3>   material_spin = {0.0, 0.0, 1.0};
+        constexpr Mat<double, 3, 3>   material_spin_transform = {1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0};
 
         constexpr bool   unitcell_symops = true;
 
-        constexpr Vec3b  lattice_periodic_boundaries = {true, true, true};
+        constexpr Vec<bool, 3>  lattice_periodic_boundaries = {true, true, true};
         constexpr double lattice_tolerance = 1e-4; // default tolerance for checking distances in units of lattice constant
 
         constexpr int    warning_unitcell_symops_size = 100;

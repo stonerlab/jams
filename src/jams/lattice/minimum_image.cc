@@ -8,13 +8,13 @@
 
 namespace {
     /// Returns true if all periodic boundaries are false
-    inline bool is_open_system(const Vec3b &pbc) {
+    inline bool is_open_system(const Vec<bool, 3> &pbc) {
       return !pbc[0] && !pbc[1] && !pbc[2];
     }
 };
 
-Vec3 jams::minimum_image(const Vec3 &a, const Vec3 &b, const Vec3 &c,
-                         const Vec3b &pbc, const Vec3 &r_i, const Vec3 &r_j, const double& epsilon) {
+Vec<double, 3> jams::minimum_image(const Vec<double, 3> &a, const Vec<double, 3> &b, const Vec<double, 3> &c,
+                         const Vec<bool, 3> &pbc, const Vec<double, 3> &r_i, const Vec<double, 3> &r_j, const double& epsilon) {
   // If the vectors a, b, c lie in a plane then the minimum image will
   // probably not work
   assert(!::approximately_zero(jams::maths::parallelepiped_volume(a, b, c), epsilon));
@@ -24,7 +24,7 @@ Vec3 jams::minimum_image(const Vec3 &a, const Vec3 &b, const Vec3 &c,
     return r_i - r_j;
   }
 
-  Vec3 r_ij = minimum_image_smith_method(a, b, c, pbc, r_i, r_j);
+  Vec<double, 3> r_ij = minimum_image_smith_method(a, b, c, pbc, r_i, r_j);
 
 //  if ((jams::dot(a, b) == 0 && jams::dot(b, c) == 0 && jams::dot(c, a) == 0) ||
 //      definately_less_than(jams::norm(interaction_vector_cart), maths::parallelepiped_inradius(a, b, c), epsilon)) {
@@ -59,22 +59,22 @@ Vec3 jams::minimum_image(const Vec3 &a, const Vec3 &b, const Vec3 &c,
 }
 
 
-Vec3 jams::minimum_image_bruteforce_explicit_depth(const Vec3 &a, const Vec3 &b,
-                                                   const Vec3 &c,
-                                                   const Vec3b &pbc,
-                                                   const Vec3 &r_i,
-                                                   const Vec3 &r_j,
-                                                   const Vec3i &offset_depth,
+Vec<double, 3> jams::minimum_image_bruteforce_explicit_depth(const Vec<double, 3> &a, const Vec<double, 3> &b,
+                                                   const Vec<double, 3> &c,
+                                                   const Vec<bool, 3> &pbc,
+                                                   const Vec<double, 3> &r_i,
+                                                   const Vec<double, 3> &r_j,
+                                                   const Vec<int, 3> &offset_depth,
                                                    const double& epsilon) {
   // If the cell is not periodic along a vector (a, b or c) then set the
   // offset_depth in that direction to zero
-  const Vec3i N{
+  const Vec<int, 3> N{
       pbc[0] ? offset_depth[0] : 0,
       pbc[1] ? offset_depth[1] : 0,
       pbc[2] ? offset_depth[2] : 0};
 
   // calculate the displacement between r_i and r_j in the central cell
-  Vec3 r_ij = r_i - r_j;
+  Vec<double, 3> r_ij = r_i - r_j;
   // search over repeated offset cells to look for a smaller displacement than
   // the one currently found
 
@@ -95,11 +95,11 @@ Vec3 jams::minimum_image_bruteforce_explicit_depth(const Vec3 &a, const Vec3 &b,
   return r_ij;
 }
 
-Vec3 jams::minimum_image_bruteforce(const Vec3 &a, const Vec3 &b, const Vec3 &c,
-                                    const Vec3b &pbc, const Vec3 &r_i,
-                                    const Vec3 &r_j, const double& epsilon) {
+Vec<double, 3> jams::minimum_image_bruteforce(const Vec<double, 3> &a, const Vec<double, 3> &b, const Vec<double, 3> &c,
+                                    const Vec<bool, 3> &pbc, const Vec<double, 3> &r_i,
+                                    const Vec<double, 3> &r_j, const double& epsilon) {
   // calculate the displacement between r_i and r_j
-  Vec3 r_ij = r_i - r_j;
+  Vec<double, 3> r_ij = r_i - r_j;
 
   // if there are no periodic boundaries then return the only solution
   if (is_open_system(pbc)) {
@@ -121,11 +121,11 @@ Vec3 jams::minimum_image_bruteforce(const Vec3 &a, const Vec3 &b, const Vec3 &c,
                                                  {N_a, N_b, N_c}, epsilon);
 }
 
-Vec3 jams::minimum_image_smith_method(const Mat3 &cell_matrix,
-                                      const Mat3 &cell_inv_matrix,
-                                      const Vec3b &pbc,
-                                      const Vec3 &r_i, const Vec3 &r_j) {
-  Vec3 r_ij = r_i - r_j;
+Vec<double, 3> jams::minimum_image_smith_method(const Mat<double, 3, 3> &cell_matrix,
+                                      const Mat<double, 3, 3> &cell_inv_matrix,
+                                      const Vec<bool, 3> &pbc,
+                                      const Vec<double, 3> &r_i, const Vec<double, 3> &r_j) {
+  Vec<double, 3> r_ij = r_i - r_j;
 
   // if there are no periodic boundaries then return the only solution
   if (is_open_system(pbc)) {
@@ -133,7 +133,7 @@ Vec3 jams::minimum_image_smith_method(const Mat3 &cell_matrix,
   }
 
   // transform the real space interaction_vector_cart into fractional lattice coordinates
-  Vec3 s_ij = cell_inv_matrix * r_ij;
+  Vec<double, 3> s_ij = cell_inv_matrix * r_ij;
 
   // In Smith's paper he uses the function INT(A). Presumably this is the
   // fortran function INT which in gcc is describes as:
@@ -157,11 +157,11 @@ Vec3 jams::minimum_image_smith_method(const Mat3 &cell_matrix,
   return cell_matrix * s_ij;
 }
 
-Vec3 jams::minimum_image_smith_method(const Vec3 &a, const Vec3 &b,
-                                      const Vec3 &c,
-                                      const Vec3b &pbc,
-                                      const Vec3 &r_i,
-                                      const Vec3 &r_j) {
+Vec<double, 3> jams::minimum_image_smith_method(const Vec<double, 3> &a, const Vec<double, 3> &b,
+                                      const Vec<double, 3> &c,
+                                      const Vec<bool, 3> &pbc,
+                                      const Vec<double, 3> &r_i,
+                                      const Vec<double, 3> &r_j) {
   auto T = matrix_from_cols(a, b, c);
   return minimum_image_smith_method(T, inverse(T), pbc, r_i, r_j);
 }

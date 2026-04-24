@@ -5,9 +5,9 @@
 #include "jams/containers/cell.h"
 
 [[gnu::hot]]
-Vec3 minimum_image_orthogonal_basis(const Cell& cell, const Vec3& r_cart_i, const Vec3& r_cart_j) {
+Vec<double, 3> minimum_image_orthogonal_basis(const Cell& cell, const Vec<double, 3>& r_cart_i, const Vec<double, 3>& r_cart_j) {
   //   W. Smith, CCP5 Information Quarterly for Computer Simulation of Condensed Phases (1989).
-  Vec3 dr = cell.inverse_matrix() * (r_cart_j - r_cart_i);
+  Vec<double, 3> dr = cell.inverse_matrix() * (r_cart_j - r_cart_i);
 
   for (auto n = 0; n < 3; ++n) {
     if (cell.periodic(n)) {
@@ -18,14 +18,14 @@ Vec3 minimum_image_orthogonal_basis(const Cell& cell, const Vec3& r_cart_i, cons
 }
 
 [[gnu::hot]]
-Vec3 minimum_image_bruteforce(const Cell& cell, const Vec3& r_i_cart, const Vec3& r_j_cart) {
+Vec<double, 3> minimum_image_bruteforce(const Cell& cell, const Vec<double, 3>& r_i_cart, const Vec<double, 3>& r_j_cart) {
   const auto r_ij = r_j_cart - r_i_cart;
 
   const auto N_a = cell.periodic(0) ? 1 : 0;
   const auto N_b = cell.periodic(1) ? 1 : 0;
   const auto N_c = cell.periodic(2) ? 1 : 0;
 
-  Vec3 r_ij_min = r_ij;
+  Vec<double, 3> r_ij_min = r_ij;
   for (auto h = -N_a; h < N_a + 1; ++h) {
     for (auto k = -N_b; k < N_b + 1; ++k) {
       for (auto l = -N_c; l < N_c + 1; ++l) {
@@ -40,7 +40,7 @@ Vec3 minimum_image_bruteforce(const Cell& cell, const Vec3& r_i_cart, const Vec3
   return r_ij_min;
 }
 
-Vec3 minimum_image(const Cell& cell, const Vec3& r_cart_i, const Vec3& r_cart_j) {
+Vec<double, 3> minimum_image(const Cell& cell, const Vec<double, 3>& r_cart_i, const Vec<double, 3>& r_cart_j) {
   if (cell.has_orthogonal_basis()) {
     return minimum_image_orthogonal_basis(cell, r_cart_i, r_cart_j);
   }
@@ -52,17 +52,17 @@ double volume(const Cell& cell) {
   return std::abs(determinant(cell.matrix()));
 }
 
-Cell scale(const Cell &cell, const Vec3i& size) {
-  Vec3 new_a = cell.a1() * double(size[0]);
-  Vec3 new_b = cell.a2() * double(size[1]);
-  Vec3 new_c = cell.a3() * double(size[2]);
+Cell scale(const Cell &cell, const Vec<int, 3>& size) {
+  Vec<double, 3> new_a = cell.a1() * double(size[0]);
+  Vec<double, 3> new_b = cell.a2() * double(size[1]);
+  Vec<double, 3> new_c = cell.a3() * double(size[2]);
   return Cell(new_a, new_b, new_c, cell.periodic());
 }
 
-Cell rotate(const Cell &cell, const Mat3& rotation_matrix) {
-  Vec3 new_a = rotation_matrix * cell.a1();
-  Vec3 new_b = rotation_matrix * cell.a2();
-  Vec3 new_c = rotation_matrix * cell.a3();
+Cell rotate(const Cell &cell, const Mat<double, 3, 3>& rotation_matrix) {
+  Vec<double, 3> new_a = rotation_matrix * cell.a1();
+  Vec<double, 3> new_b = rotation_matrix * cell.a2();
+  Vec<double, 3> new_c = rotation_matrix * cell.a3();
 
   return Cell(new_a, new_b, new_c, cell.periodic());
 }

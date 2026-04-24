@@ -35,7 +35,7 @@ void CudaAppliedFieldHamiltonian::calculate_fields(jams::Real time) {
   dim3 grid_size;
   grid_size.x = (globals::num_spins + block_size.x - 1) / block_size.x;
 
-  const Vec3R b_field = time_dependent_field_->field(time);
+  const Vec<jams::Real, 3> b_field = time_dependent_field_->field(time);
   cuda_applied_field_kernel<<<grid_size, block_size, 0, cuda_stream_.get() >>>
         (globals::num_spins, globals::mus.device_data(),
          {b_field[0], b_field[1], b_field[2]}, field_.mutable_device_data());
@@ -49,7 +49,7 @@ void CudaAppliedFieldHamiltonian::calculate_energies(jams::Real time) {
   dim3 grid_size;
   grid_size.x = (globals::num_spins + block_size.x - 1) / block_size.x;
 
-  const Vec3R b_field = time_dependent_field_->field(time);
+  const Vec<jams::Real, 3> b_field = time_dependent_field_->field(time);
   cuda_applied_field_energy_kernel<<<grid_size, block_size, 0, cuda_stream_.get() >>>
       (globals::num_spins, globals::s.device_data(), globals::mus.device_data(),
        {b_field[0], b_field[1], b_field[2]}, energy_.mutable_device_data());

@@ -18,11 +18,11 @@ public:
 
     void calculate_fields(jams::Real time) override;
 
-    Vec3R calculate_field(int i, jams::Real time) override;
+    Vec<jams::Real, 3> calculate_field(int i, jams::Real time) override;
 
     jams::Real calculate_energy(int i, jams::Real time) override;
 
-    jams::Real calculate_energy_difference(int i, const Vec3 &spin_initial, const Vec3 &spin_final, jams::Real time) override;
+    jams::Real calculate_energy_difference(int i, const Vec<double, 3> &spin_initial, const Vec<double, 3> &spin_final, jams::Real time) override;
 
 private:
     jams::MultiArray<int, 1> mca_order_; // MCA expressed as a Legendre polynomial

@@ -18,7 +18,7 @@ namespace jams {
     void interaction_calculator(const Cell &unitcell, const std::vector<Atom> &motif, const double r_max,
                                        const double eps) {
       // assumes motif is in fractional coordinates
-      Vec3i num_cells = {
+      Vec<int, 3> num_cells = {
           int(ceil(r_max / jams::maths::parallelepiped_height(unitcell.a2(), unitcell.a3(), unitcell.a1()))),
           int(ceil(r_max / jams::maths::parallelepiped_height(unitcell.a3(), unitcell.a1(), unitcell.a2()))),
           int(ceil(r_max / jams::maths::parallelepiped_height(unitcell.a1(), unitcell.a2(), unitcell.a3())))
@@ -30,7 +30,7 @@ namespace jams {
       for (auto i = -num_cells[0]; i < num_cells[0] + 1; ++i) {
         for (auto j = -num_cells[1]; j < num_cells[1] + 1; ++j) {
           for (auto k = -num_cells[2]; k < num_cells[2] + 1; ++k) {
-            auto cell_offset = Vec3i{{i, j, k}};
+            auto cell_offset = Vec<int, 3>{{i, j, k}};
             for (auto n = 0; n < motif.size(); ++n) {
               auto r = motif[n].position_frac + cell_offset;
               atoms.push_back({counter, motif[n].material_index, n, r});

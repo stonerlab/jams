@@ -23,7 +23,7 @@
 #include <jams/helpers/mixed_precision.h>
 
 namespace {
-    std::vector<jams::ComplexHi> generate_expQR(const std::vector<Vec3> &qvecs, const Vec3& R) {
+    std::vector<jams::ComplexHi> generate_expQR(const std::vector<Vec<double, 3>> &qvecs, const Vec<double, 3>& R) {
       std::vector<jams::ComplexHi> result(qvecs.size());
       for (auto q = 0; q < result.size(); ++q) {
         result[q] = exp(kImagTwoPi * jams::dot(qvecs[q], R));
@@ -129,10 +129,10 @@ SpectrumGeneralMonitor::~SpectrumGeneralMonitor() {
   std::cout << duration_string(start_time, system_clock::now()) << " done" << std::endl;
 
 
-  std::vector<std::vector<Vec3>> qvecs(num_qpoints_);
+  std::vector<std::vector<Vec<double, 3>>> qvecs(num_qpoints_);
   for (auto n = 0; n < num_qvectors_; ++n) {
     auto qvec_rand = qmax_ * uniform_random_sphere<double>(jams::instance().random_generator());
-    std::vector<Vec3> qpoints(num_qvectors_);
+    std::vector<Vec<double, 3>> qpoints(num_qvectors_);
     for (auto i = 0; i < num_qpoints_; ++i){
       qpoints[i] = qvec_rand * (i / double(num_qpoints_-1));
     }

@@ -18,16 +18,16 @@ class Physics : public Base {
   inline double temperature() const { return temperature_; }
   inline void set_temperature(const double t) { temperature_ = t; }
 
-  inline const Vec3& applied_field() const { return applied_field_; }
+  inline const Vec<double, 3>& applied_field() const { return applied_field_; }
   inline double applied_field(const int i) const { return applied_field_[i]; }
 
-  inline void set_applied_field(const Vec3 &field) { applied_field_ = field; }
+  inline void set_applied_field(const Vec<double, 3> &field) { applied_field_ = field; }
 
   static Physics* create(const libconfig::Setting &settings);
 
  protected:
   double  temperature_;
-  Vec3    applied_field_;
+  Vec<double, 3>    applied_field_;
   int     output_step_freq_;
 };
 

@@ -5,7 +5,7 @@
 namespace jams {
 // Calculates the approximate neutron form factor at |q|
 // Approximation and constants from International Tables for Crystallography: Vol. C (pp. 454–461).
-    double form_factor(const Vec3 &q, const double &lattice_parameter, FormFactorG &g, FormFactorJ &j) {
+    double form_factor(const Vec<double, 3> &q, const double &lattice_parameter, FormFactorG &g, FormFactorJ &j) {
       auto s_sq = pow2(jams::norm(q) / (4.0 * kPi * lattice_parameter));
       auto ffq = 0.0;
       for (auto l : {0, 2, 4, 6}) {

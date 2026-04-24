@@ -9,7 +9,7 @@ jams::CVarTopologicalChargeFiniteDiff::CVarTopologicalChargeFiniteDiff(
     const libconfig::Setting &settings) {
 
   // true if a and b are equal to the lattice a and b vectors.
-  auto lattice_equal = [&](Vec3 a, Vec3 b) {
+  auto lattice_equal = [&](Vec<double, 3> a, Vec<double, 3> b) {
     return jams::approximately_equal(globals::lattice->a1(), a, defaults::lattice_tolerance)
     && jams::approximately_equal(globals::lattice->a2(), b, defaults::lattice_tolerance);
   };
@@ -111,48 +111,48 @@ jams::CVarTopologicalChargeFiniteDiff::CVarTopologicalChargeFiniteDiff(
     // first index is interaction vector, second is the +/- sign of the
     // contribution
 
-    std::vector<std::pair<Vec3, double>> dx_interaction_data;
+    std::vector<std::pair<Vec<double, 3>, double>> dx_interaction_data;
 
     if (stencil == FiniteDifferenceStencil::Square8) {
       dx_interaction_data = {
-          {Vec3{ 1, 1, 0}, 1.0/16.0},
-          {Vec3{ 1,-1, 0}, 1.0/16.0},
-          {Vec3{ 1, 0, 0}, 3.0/8.0},
-          {Vec3{-1, 0, 0},-3.0/8.0},
-          {Vec3{-1, 1, 0},-1.0/16.0},
-          {Vec3{-1,-1, 0},-1.0/16.0},
+          {Vec<double, 3>{ 1, 1, 0}, 1.0/16.0},
+          {Vec<double, 3>{ 1,-1, 0}, 1.0/16.0},
+          {Vec<double, 3>{ 1, 0, 0}, 3.0/8.0},
+          {Vec<double, 3>{-1, 0, 0},-3.0/8.0},
+          {Vec<double, 3>{-1, 1, 0},-1.0/16.0},
+          {Vec<double, 3>{-1,-1, 0},-1.0/16.0},
       };
     }
     if (stencil == FiniteDifferenceStencil::Hexagonal4) {
       dx_interaction_data = {
-          {Vec3{ 1,-1, 0}, 1.0/2.0},
-          {Vec3{ 0, 1, 0}, 1.0/2.0},
-          {Vec3{-1, 1, 0},-1.0/2.0},
-          {Vec3{ 0,-1, 0},-1.0/2.0},
+          {Vec<double, 3>{ 1,-1, 0}, 1.0/2.0},
+          {Vec<double, 3>{ 0, 1, 0}, 1.0/2.0},
+          {Vec<double, 3>{-1, 1, 0},-1.0/2.0},
+          {Vec<double, 3>{ 0,-1, 0},-1.0/2.0},
       };
     }
     if (stencil == FiniteDifferenceStencil::Hexagonal6) {
       dx_interaction_data = {
-          {Vec3{ 1, 0, 0}, 1.0/3.0},
-          {Vec3{-1, 0, 0},-1.0/3.0},
-          {Vec3{ 1,-1, 0}, 1.0/6.0},
-          {Vec3{-1, 1, 0},-1.0/6.0},
-          {Vec3{ 0, 1, 0}, 1.0/6.0},
-          {Vec3{ 0,-1, 0},-1.0/6.0}
+          {Vec<double, 3>{ 1, 0, 0}, 1.0/3.0},
+          {Vec<double, 3>{-1, 0, 0},-1.0/3.0},
+          {Vec<double, 3>{ 1,-1, 0}, 1.0/6.0},
+          {Vec<double, 3>{-1, 1, 0},-1.0/6.0},
+          {Vec<double, 3>{ 0, 1, 0}, 1.0/6.0},
+          {Vec<double, 3>{ 0,-1, 0},-1.0/6.0}
       };
     }
     if (stencil == FiniteDifferenceStencil::Hexagonal12) {
       dx_interaction_data = {
-          {Vec3{ 1, 0, 0}, 1.0/2.0}, // F
-          {Vec3{-1, 0, 0},-1.0/2.0}, // G
-          {Vec3{ 1,-1, 0}, 1.0/4.0}, // C
-          {Vec3{-1, 1, 0},-1.0/4.0}, // D
-          {Vec3{ 0, 1, 0}, 1.0/4.0}, // B
-          {Vec3{ 0,-1, 0},-1.0/4.0}, // E
-          {Vec3{ 1, 1, 0},-1.0/12.0},
-          {Vec3{ 2,-1, 0},-1.0/12.0},
-          {Vec3{-2, 1, 0}, 1.0/12.0},
-          {Vec3{-1,-1, 0}, 1.0/12.0}
+          {Vec<double, 3>{ 1, 0, 0}, 1.0/2.0}, // F
+          {Vec<double, 3>{-1, 0, 0},-1.0/2.0}, // G
+          {Vec<double, 3>{ 1,-1, 0}, 1.0/4.0}, // C
+          {Vec<double, 3>{-1, 1, 0},-1.0/4.0}, // D
+          {Vec<double, 3>{ 0, 1, 0}, 1.0/4.0}, // B
+          {Vec<double, 3>{ 0,-1, 0},-1.0/4.0}, // E
+          {Vec<double, 3>{ 1, 1, 0},-1.0/12.0},
+          {Vec<double, 3>{ 2,-1, 0},-1.0/12.0},
+          {Vec<double, 3>{-2, 1, 0}, 1.0/12.0},
+          {Vec<double, 3>{-1,-1, 0}, 1.0/12.0}
       };
     }
 
@@ -172,7 +172,7 @@ jams::CVarTopologicalChargeFiniteDiff::CVarTopologicalChargeFiniteDiff(
 
     post_process_interactions(interaction_template, {InteractionFileFormat::KKR, InteractionType::SCALAR}, CoordinateFormat::CARTESIAN, false, 0.0, 0.0, jams::defaults::lattice_tolerance);
 
-    jams::InteractionList<Mat3,2> nbrs = neighbour_list_from_interactions(interaction_template);
+    jams::InteractionList<Mat<double, 3, 3>,2> nbrs = neighbour_list_from_interactions(interaction_template);
     dx_indices_.resize(globals::num_spins);
     dx_values_.resize(globals::num_spins);
 
@@ -190,46 +190,46 @@ jams::CVarTopologicalChargeFiniteDiff::CVarTopologicalChargeFiniteDiff(
   {
     // first index is interaction vector, second is the +/- sign of the
     // contribution
-    std::vector<std::pair<Vec3, double>> dy_interaction_data;
+    std::vector<std::pair<Vec<double, 3>, double>> dy_interaction_data;
 
     if (stencil == FiniteDifferenceStencil::Square8) {
       dy_interaction_data = {
-          {Vec3{ 1, 1, 0}, 1.0/16.0},
-          {Vec3{-1, 1, 0}, 1.0/16.0},
-          {Vec3{ 0, 1, 0}, 3.0/8.0},
-          {Vec3{ 0,-1, 0},-3.0/8.0},
-          {Vec3{ 1,-1, 0},-1.0/16.0},
-          {Vec3{-1,-1, 0},-1.0/16.0},
+          {Vec<double, 3>{ 1, 1, 0}, 1.0/16.0},
+          {Vec<double, 3>{-1, 1, 0}, 1.0/16.0},
+          {Vec<double, 3>{ 0, 1, 0}, 3.0/8.0},
+          {Vec<double, 3>{ 0,-1, 0},-3.0/8.0},
+          {Vec<double, 3>{ 1,-1, 0},-1.0/16.0},
+          {Vec<double, 3>{-1,-1, 0},-1.0/16.0},
       };
     }
     if (stencil == FiniteDifferenceStencil::Hexagonal4) {
       dy_interaction_data = {
-          {Vec3{-1, 1, 0}, 1.0/(2*sqrt(3.0))},
-          {Vec3{ 0, 1, 0}, 1.0/(2*sqrt(3.0))},
-          {Vec3{ 1,-1, 0},-1.0/(2*sqrt(3.0))},
-          {Vec3{ 0,-1, 0},-1.0/(2*sqrt(3.0))},
+          {Vec<double, 3>{-1, 1, 0}, 1.0/(2*sqrt(3.0))},
+          {Vec<double, 3>{ 0, 1, 0}, 1.0/(2*sqrt(3.0))},
+          {Vec<double, 3>{ 1,-1, 0},-1.0/(2*sqrt(3.0))},
+          {Vec<double, 3>{ 0,-1, 0},-1.0/(2*sqrt(3.0))},
       };
     }
     if (stencil == FiniteDifferenceStencil::Hexagonal6) {
       dy_interaction_data = {
-          {Vec3{ 1,-1, 0},-sqrt(3.0)/6.0},
-          {Vec3{-1, 1, 0}, sqrt(3.0)/6.0},
-          {Vec3{ 0, 1, 0}, sqrt(3.0)/6.0},
-          {Vec3{ 0,-1, 0},-sqrt(3.0)/6.0},
+          {Vec<double, 3>{ 1,-1, 0},-sqrt(3.0)/6.0},
+          {Vec<double, 3>{-1, 1, 0}, sqrt(3.0)/6.0},
+          {Vec<double, 3>{ 0, 1, 0}, sqrt(3.0)/6.0},
+          {Vec<double, 3>{ 0,-1, 0},-sqrt(3.0)/6.0},
       };
     }
     if (stencil == FiniteDifferenceStencil::Hexagonal12) {
       dy_interaction_data = {
-          {Vec3{ 1,-1, 0},-sqrt(3.0)/4.0},
-          {Vec3{-1, 1, 0}, sqrt(3.0)/4.0},
-          {Vec3{ 0, 1, 0}, sqrt(3.0)/4.0},
-          {Vec3{ 0,-1, 0},-sqrt(3.0)/4.0},
-          {Vec3{-1, 2, 0}, -1/(6*sqrt(3))},
-          {Vec3{ 1,-2, 0}, 1/(6*sqrt(3))},
-          {Vec3{ 1, 1, 0},-1.0/(12*sqrt(3))},
-          {Vec3{ 2,-1, 0}, 1.0/(12*sqrt(3))},
-          {Vec3{-2, 1, 0}, -1.0/(12*sqrt(3))},
-          {Vec3{-1,-1, 0}, 1.0/(12*sqrt(3))}
+          {Vec<double, 3>{ 1,-1, 0},-sqrt(3.0)/4.0},
+          {Vec<double, 3>{-1, 1, 0}, sqrt(3.0)/4.0},
+          {Vec<double, 3>{ 0, 1, 0}, sqrt(3.0)/4.0},
+          {Vec<double, 3>{ 0,-1, 0},-sqrt(3.0)/4.0},
+          {Vec<double, 3>{-1, 2, 0}, -1/(6*sqrt(3))},
+          {Vec<double, 3>{ 1,-2, 0}, 1/(6*sqrt(3))},
+          {Vec<double, 3>{ 1, 1, 0},-1.0/(12*sqrt(3))},
+          {Vec<double, 3>{ 2,-1, 0}, 1.0/(12*sqrt(3))},
+          {Vec<double, 3>{-2, 1, 0}, -1.0/(12*sqrt(3))},
+          {Vec<double, 3>{-1,-1, 0}, 1.0/(12*sqrt(3))}
       };
     }
 
@@ -250,7 +250,7 @@ jams::CVarTopologicalChargeFiniteDiff::CVarTopologicalChargeFiniteDiff(
     post_process_interactions(interaction_template, {InteractionFileFormat::KKR, InteractionType::SCALAR}, CoordinateFormat::CARTESIAN, false, 0.0, 0.0, jams::defaults::lattice_tolerance);
 
 
-    jams::InteractionList<Mat3, 2> nbrs = neighbour_list_from_interactions(
+    jams::InteractionList<Mat<double, 3, 3>, 2> nbrs = neighbour_list_from_interactions(
         interaction_template);
     dy_indices_.resize(globals::num_spins);
     dy_values_.resize(globals::num_spins);
@@ -277,8 +277,8 @@ double jams::CVarTopologicalChargeFiniteDiff::value() {
 }
 
 double jams::CVarTopologicalChargeFiniteDiff::spin_move_trial_value(int i,
-                                                                    const Vec3 &spin_initial,
-                                                                    const Vec3 &spin_trial) {
+                                                                    const Vec<double, 3> &spin_initial,
+                                                                    const Vec<double, 3> &spin_trial) {
   const double trial_value = cached_value() + topological_charge_difference(i, spin_initial, spin_trial);
 
   set_cache_values(i, spin_initial, spin_trial, cached_value(), trial_value);
@@ -299,24 +299,24 @@ double jams::CVarTopologicalChargeFiniteDiff::calculate_expensive_value() {
 }
 
 double jams::CVarTopologicalChargeFiniteDiff::local_topological_charge(const int i) const {
-  Vec3 ds_x = {0.0, 0.0, 0.0};
+  Vec<double, 3> ds_x = {0.0, 0.0, 0.0};
   for (auto n = 0; n < dx_indices_[i].size(); ++n) {
     ds_x += dx_values_[i][n] * montecarlo::get_spin(dx_indices_[i][n]);
   }
 
-  Vec3 ds_y = {0.0, 0.0, 0.0};
+  Vec<double, 3> ds_y = {0.0, 0.0, 0.0};
   for (auto n = 0; n < dy_indices_[i].size(); ++n) {
     ds_y += dy_values_[i][n] * montecarlo::get_spin(dy_indices_[i][n]);
   }
 
-  Vec3 s_i = montecarlo::get_spin(i);
+  Vec<double, 3> s_i = montecarlo::get_spin(i);
 
   return jams::dot(s_i, jams::cross(ds_x, ds_y));
 }
 
 double jams::CVarTopologicalChargeFiniteDiff::topological_charge_difference(int index,
-                                                                  const Vec3 &spin_initial,
-                                                                  const Vec3 &spin_final) const {
+                                                                  const Vec<double, 3> &spin_initial,
+                                                                  const Vec<double, 3> &spin_final) const {
   // We calculate the difference in the topological charge between the initial
   // and final spin states. When one spin is changed, the topological charge on
   // all sites connected to it through the finite difference stencil also changes.

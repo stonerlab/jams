@@ -41,15 +41,15 @@ __global__ void minimum_image_smith_method(const int num_spins,
 }
 
 
-void jams::cuda_minimum_image(const Vec3R &a, const Vec3R &b, const Vec3R &c, const Vec3b &pbc,
-                   const Vec3R &r_i, const jams::MultiArray<jams::Real,2>& r, jams::MultiArray<jams::Real,2>& r_ij) {
+void jams::cuda_minimum_image(const Vec<jams::Real, 3> &a, const Vec<jams::Real, 3> &b, const Vec<jams::Real, 3> &c, const Vec<bool, 3> &pbc,
+                   const Vec<jams::Real, 3> &r_i, const jams::MultiArray<jams::Real,2>& r, jams::MultiArray<jams::Real,2>& r_ij) {
   assert(r.extent(1) == 3 && r_ij.extent(1) == 3);
   assert(r.extent(0) == r_ij.extent(0));
 
-  static Vec3R a_cached = {0, 0, 0};
-  static Vec3R b_cached = {0, 0, 0};
-  static Vec3R c_cached = {0, 0, 0};
-  static Vec3b pbc_cached = {false, false, false};
+  static Vec<jams::Real, 3> a_cached = {0, 0, 0};
+  static Vec<jams::Real, 3> b_cached = {0, 0, 0};
+  static Vec<jams::Real, 3> c_cached = {0, 0, 0};
+  static Vec<bool, 3> pbc_cached = {false, false, false};
 
   if (a != a_cached || b != b_cached || c != c_cached || pbc_cached != pbc) {
     auto w = matrix_from_cols(a, b, c);

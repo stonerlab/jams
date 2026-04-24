@@ -85,7 +85,7 @@ void NeutronScatteringNoLatticeMonitor::update(Solver& solver) {
 
 void NeutronScatteringNoLatticeMonitor::configure_kspace_vectors(const libconfig::Setting &settings) {
   kmax_ = jams::config_required<double>(settings, "kmax");
-  kvector_ = jams::config_required<Vec3>(settings, "kvector");
+  kvector_ = jams::config_required<Vec<double, 3>>(settings, "kvector");
   num_k_ = jams::config_required<int>(settings, "num_k");
 
   kspace_path_.resize(num_k_ + 1);
@@ -94,7 +94,7 @@ void NeutronScatteringNoLatticeMonitor::configure_kspace_vectors(const libconfig
   }
 
   rspace_displacement_.resize(globals::s.extent(0));
-  Vec3i lattice_dimensions = ::globals::lattice->size();
+  Vec<int, 3> lattice_dimensions = ::globals::lattice->size();
   for (auto i = 0; i < globals::s.extent(0); ++i) {
     // generalize so that we can impose open boundaries
     rspace_displacement_(i) = globals::lattice->displacement(
@@ -104,7 +104,7 @@ void NeutronScatteringNoLatticeMonitor::configure_kspace_vectors(const libconfig
 }
 
 jams::MultiArray<jams::ComplexHi, 2>
-NeutronScatteringNoLatticeMonitor::calculate_unpolarized_cross_section(const jams::MultiArray<Vec3cx,2> &spectrum) {
+NeutronScatteringNoLatticeMonitor::calculate_unpolarized_cross_section(const jams::MultiArray<Vec<std::complex<double>, 3>,2> &spectrum) {
   const auto num_freqencies = spectrum.extent(0);
   const auto num_reciprocal_points = kspace_path_.size();
 
@@ -129,8 +129,8 @@ NeutronScatteringNoLatticeMonitor::calculate_unpolarized_cross_section(const jam
 }
 
 jams::MultiArray<jams::ComplexHi, 3>
-NeutronScatteringNoLatticeMonitor::calculate_polarized_cross_sections(const jams::MultiArray<Vec3cx, 2> &spectrum,
-    const std::vector<Vec3> &polarizations) {
+NeutronScatteringNoLatticeMonitor::calculate_polarized_cross_sections(const jams::MultiArray<Vec<std::complex<double>, 3>, 2> &spectrum,
+    const std::vector<Vec<double, 3>> &polarizations) {
   const auto num_freqencies = spectrum.extent(0);
   const auto num_reciprocal_points = kspace_path_.size();
 
@@ -161,8 +161,8 @@ NeutronScatteringNoLatticeMonitor::calculate_polarized_cross_sections(const jams
   return convolved;
 }
 
-jams::MultiArray<Vec3cx,2> NeutronScatteringNoLatticeMonitor::periodogram() {
-  jams::MultiArray<Vec3cx,2> spectrum(kspace_spins_timeseries_);
+jams::MultiArray<Vec<std::complex<double>, 3>,2> NeutronScatteringNoLatticeMonitor::periodogram() {
+  jams::MultiArray<Vec<std::complex<double>, 3>,2> spectrum(kspace_spins_timeseries_);
 
   const int num_time_samples  = spectrum.extent(0);
   const int num_kspace_samples = spectrum.extent(1);
@@ -181,7 +181,7 @@ jams::MultiArray<Vec3cx,2> NeutronScatteringNoLatticeMonitor::periodogram() {
 
   assert(fft_plan);
 
-  jams::MultiArray<Vec3cx, 1> static_spectrum(num_kspace_samples);
+  jams::MultiArray<Vec<std::complex<double>, 3>, 1> static_spectrum(num_kspace_samples);
   zero(static_spectrum);
   for (auto i = 0; i < num_time_samples; ++i) {
     for (auto j = 0; j < num_kspace_samples; ++j) {
@@ -294,12 +294,12 @@ void NeutronScatteringNoLatticeMonitor::output_neutron_cross_section() {
 void NeutronScatteringNoLatticeMonitor::store_kspace_data_on_path() {
   auto i = periodogram_index_;
 
-  fill(&kspace_spins_timeseries_(i,0), &kspace_spins_timeseries_(i,0) + kspace_path_.size(), Vec3cx{0.0});
+  fill(&kspace_spins_timeseries_(i,0), &kspace_spins_timeseries_(i,0) + kspace_path_.size(), Vec<std::complex<double>, 3>{0.0});
 
   for (auto n = 0; n < globals::num_spins; ++n) {
-    Vec3 spin = {globals::s(n,0), globals::s(n,1), globals::s(n,2)};
+    Vec<double, 3> spin = {globals::s(n,0), globals::s(n,1), globals::s(n,2)};
 
-    Vec3 r = rspace_displacement_(n);
+    Vec<double, 3> r = rspace_displacement_(n);
 
     // this is effectively a window in rspace
     if (jams::norm(r) >= globals::lattice->max_interaction_radius()) continue;
@@ -358,10 +358,10 @@ void NeutronScatteringNoLatticeMonitor::configure_form_factors(libconfig::Settin
   }
 }
 
-jams::MultiArray<Vec3cx,1> NeutronScatteringNoLatticeMonitor::calculate_static_structure_factor() {
+jams::MultiArray<Vec<std::complex<double>, 3>,1> NeutronScatteringNoLatticeMonitor::calculate_static_structure_factor() {
   const auto num_time_points = kspace_spins_timeseries_.extent(0);
   const auto num_k_points = kspace_spins_timeseries_.extent(1);
-  jams::MultiArray<Vec3cx,1> static_structure_factor(num_k_points);
+  jams::MultiArray<Vec<std::complex<double>, 3>,1> static_structure_factor(num_k_points);
   zero(static_structure_factor);
   for (auto i = 0; i < num_time_points; ++i) {
     for (auto j = 0; j < num_k_points; ++j) {
@@ -477,7 +477,7 @@ void NeutronScatteringNoLatticeMonitor::output_fixed_spectrum() {
     // i > j
     for (auto j = i+1; j < globals::num_spins; ++j) {
 
-      const Vec3 r_ij =  globals::lattice->displacement(i, j);
+      const Vec<double, 3> r_ij =  globals::lattice->displacement(i, j);
 
       zero(sw_i);
       zero(sw_j);

@@ -33,13 +33,13 @@ private:
     jams::MultiArray<std::complex<double>, 5> s_kspace;
 
     bool output_sublattice_enabled_ = false;
-    std::vector<Mat3> spin_transformations;
+    std::vector<Mat<double, 3, 3>> spin_transformations;
     jams::MultiArray<std::complex<double>, 2> transformed_spins;
     jams::MultiArray<std::complex<double>, 3> sqw_x;
     jams::MultiArray<std::complex<double>, 3> sqw_y;
     jams::MultiArray<std::complex<double>, 3> sqw_z;
-    std::vector<Vec3i> b_uvw_nodes;
-    std::vector<Vec3i> b_uvw_points;
+    std::vector<Vec<int, 3>> b_uvw_nodes;
+    std::vector<Vec<int, 3>> b_uvw_points;
     std::vector<int> bz_points_path_count;
     std::vector<double> bz_lengths;
     double freq_delta;

@@ -47,7 +47,7 @@ using libconfig::Config;
 
 namespace {
     /// Return fractional coordinate normalised to the range [0,1)
-    Vec3 normalise_fractional_coordinate(Vec3 r_frac, const double eps = jams::defaults::lattice_tolerance) {
+    Vec<double, 3> normalise_fractional_coordinate(Vec<double, 3> r_frac, const double eps = jams::defaults::lattice_tolerance) {
       for (auto n = 0; n < 3; ++n) {
         if (r_frac[n] < 0.0) {
           r_frac[n] = r_frac[n] + 1.0;
@@ -64,7 +64,7 @@ namespace {
     }
 
     /// Returns true if the fractional coordinate is correctly normalised in the range [0, 1)
-    bool is_fractional_coordinate_normalised(const Vec3 &r_frac, const double eps = jams::defaults::lattice_tolerance) {
+    bool is_fractional_coordinate_normalised(const Vec<double, 3> &r_frac, const double eps = jams::defaults::lattice_tolerance) {
       // check fractional coordinates are in the range 0 <= r_frac[n] < 1
       for (auto n = 0; n < 3; ++n) {
         if (r_frac[n] < 0.0 || r_frac[n] > 1.0 || approximately_equal(r_frac[n], 1.0, eps)) {
@@ -113,7 +113,7 @@ int Lattice::size(int dimension) const {
   return lattice_dimensions_[dimension];
 }
 
-Vec3i Lattice::size() const {
+Vec<int, 3> Lattice::size() const {
   return lattice_dimensions_;
 }
 
@@ -121,15 +121,15 @@ int Lattice::num_basis_sites() const {
   return basis_sites_.size();
 }
 
-Vec3 Lattice::a1() const {
+Vec<double, 3> Lattice::a1() const {
   return unitcell.a1();
 }
 
-Vec3 Lattice::a2() const {
+Vec<double, 3> Lattice::a2() const {
   return unitcell.a2();
 }
 
-Vec3 Lattice::a3() const {
+Vec<double, 3> Lattice::a3() const {
   return unitcell.a3();
 }
 
@@ -160,35 +160,35 @@ Lattice::lattice_site_material_name(int lattice_site_index) const {
   return material_name(lattice_site_material_id(lattice_site_index));
 }
 
-const Vec3 &
+const Vec<double, 3> &
 Lattice::lattice_site_position_cart(int lattice_site_index) const {
   return lattice_site_positions_cart_[lattice_site_index];
 }
 
-Vec3
-Lattice::displacement(const Vec3 &position_i_cart, const Vec3 &position_j_cart) const {
+Vec<double, 3>
+Lattice::displacement(const Vec<double, 3> &position_i_cart, const Vec<double, 3> &position_j_cart) const {
   return jams::minimum_image(supercell.a1(),
                              supercell.a2(),
                              supercell.a3(), supercell.periodic(), position_i_cart, position_j_cart, jams::defaults::lattice_tolerance);
 }
 
-Vec3 Lattice::displacement(const unsigned &lattice_site_i, const unsigned &lattice_site_j) const {
+Vec<double, 3> Lattice::displacement(const unsigned &lattice_site_i, const unsigned &lattice_site_j) const {
   return jams::minimum_image(supercell.a1(),
                              supercell.a2(),
                              supercell.a3(), supercell.periodic(), lattice_sites_[lattice_site_i].position_frac, lattice_sites_[lattice_site_j].position_frac, jams::defaults::lattice_tolerance);
 }
 
-Vec3
-Lattice::cartesian_to_fractional(const Vec3 &r_cart) const {
+Vec<double, 3>
+Lattice::cartesian_to_fractional(const Vec<double, 3> &r_cart) const {
   return unitcell.inverse_matrix() * r_cart;
 }
 
-Vec3
-Lattice::fractional_to_cartesian(const Vec3 &r_frac) const {
+Vec<double, 3>
+Lattice::fractional_to_cartesian(const Vec<double, 3> &r_frac) const {
   return unitcell.matrix() * r_frac;
 }
 
-const Vec3 &
+const Vec<double, 3> &
 Lattice::rmax() const {
   return rmax_;
 };
@@ -210,11 +210,11 @@ bool Lattice::is_periodic(int dimension) const {
   return lattice_periodic[dimension];
 }
 
-const Vec3b & Lattice::periodic_boundaries() const {
+const Vec<bool, 3> & Lattice::periodic_boundaries() const {
   return lattice_periodic;
 }
 
-const Vec3i &Lattice::kspace_size() const {
+const Vec<int, 3> &Lattice::kspace_size() const {
   return kspace_size_;
 }
 
@@ -361,7 +361,7 @@ void Lattice::read_unitcell_from_config(const libconfig::Setting &settings) {
   // a_z  b_z  c_z
   //
   // this is consistent with the definition used by spglib
-  auto basis = jams::config_required<Mat3>(settings, "basis");
+  auto basis = jams::config_required<Mat<double, 3, 3>>(settings, "basis");
   lattice_parameter  = jams::config_required<double>(settings, "parameter");
 
   unitcell = Cell(basis);
@@ -410,8 +410,8 @@ void Lattice::read_unitcell_from_config(const libconfig::Setting &settings) {
 }
 
 void Lattice::read_lattice_from_config(const libconfig::Setting &settings) {
-  lattice_periodic = jams::config_optional<Vec3b>(settings, "periodic", jams::defaults::lattice_periodic_boundaries);
-  lattice_dimensions_ = jams::config_required<Vec3i>(settings, "size");
+  lattice_periodic = jams::config_optional<Vec<bool, 3>>(settings, "periodic", jams::defaults::lattice_periodic_boundaries);
+  lattice_dimensions_ = jams::config_required<Vec<int, 3>>(settings, "size");
 
   supercell = scale(Cell(unitcell.matrix(), lattice_periodic), lattice_dimensions_);
 
@@ -439,12 +439,12 @@ void Lattice::init_unit_cell(const libconfig::Setting &lattice_settings, const l
     if (lattice_settings.exists("orientation_lattice_vector") && lattice_settings.exists("orientation_cartesian_vector")) {
       throw jams::ConfigException(lattice_settings, "Only one of 'orientation_lattice_vector' or 'orientation_cartesian_vector' can be defined");
     }
-    auto reference_axis = jams::config_required<Vec3>(lattice_settings, "orientation_axis");
+    auto reference_axis = jams::config_required<Vec<double, 3>>(lattice_settings, "orientation_axis");
     if (lattice_settings.exists("orientation_lattice_vector")) {
-      auto lattice_vector = jams::config_required<Vec3>(lattice_settings, "orientation_lattice_vector");
+      auto lattice_vector = jams::config_required<Vec<double, 3>>(lattice_settings, "orientation_lattice_vector");
       global_reorientation(reference_axis, lattice_vector);
     } else if (lattice_settings.exists("orientation_cartesian_vector")) {
-      auto lattice_vector = jams::config_required<Vec3>(lattice_settings, "orientation_cartesian_vector");
+      auto lattice_vector = jams::config_required<Vec<double, 3>>(lattice_settings, "orientation_cartesian_vector");
       global_reorientation(reference_axis, cartesian_to_fractional(lattice_vector));
     }
   }
@@ -512,7 +512,7 @@ void Lattice::init_unit_cell(const libconfig::Setting &lattice_settings, const l
 
 }
 
-void Lattice::global_rotation(const Mat3& rotation_matrix) {
+void Lattice::global_rotation(const Mat<double, 3, 3>& rotation_matrix) {
   auto volume_before = ::volume(unitcell);
 
   unitcell = rotate(unitcell, rotation_matrix);
@@ -532,9 +532,9 @@ void Lattice::global_rotation(const Mat3& rotation_matrix) {
   cout << "\n";
 }
 
-void Lattice::global_reorientation(const Vec3 &reference, const Vec3 &vector) {
+void Lattice::global_reorientation(const Vec<double, 3> &reference, const Vec<double, 3> &vector) {
 
-  Vec3 orientation_cartesian_vector = jams::normalize(unitcell.matrix() * vector);
+  Vec<double, 3> orientation_cartesian_vector = jams::normalize(unitcell.matrix() * vector);
 
   cout << "  orientation_axis " << reference << "\n";
   cout << "  orientation_lattice_vector " << vector << "\n";
@@ -548,7 +548,7 @@ void Lattice::global_reorientation(const Vec3 &reference, const Vec3 &vector) {
   cout << "    " << global_orientation_matrix_[2] << "\n";
   cout << "\n";
 
-  Vec3 rotated_orientation_vector = global_orientation_matrix_ * orientation_cartesian_vector;
+  Vec<double, 3> rotated_orientation_vector = global_orientation_matrix_ * orientation_cartesian_vector;
 
   if (verbose_is_enabled()) {
     cout << "  rotated_orientation_vector\n";
@@ -576,7 +576,7 @@ void Lattice::global_reorientation(const Vec3 &reference, const Vec3 &vector) {
 
 void Lattice::generate_supercell(const libconfig::Setting &lattice_settings)
 {
-  Vec3i kmesh_size = {lattice_dimensions_[0], lattice_dimensions_[1], lattice_dimensions_[2]};
+  Vec<int, 3> kmesh_size = {lattice_dimensions_[0], lattice_dimensions_[1], lattice_dimensions_[2]};
 
   if (!lattice_periodic[0] || !lattice_periodic[1] || !lattice_periodic[2]) {
     cout << "\nzero padding non-periodic dimensions\n";
@@ -622,9 +622,9 @@ void Lattice::generate_supercell(const libconfig::Setting &lattice_settings)
   for (auto i = 0; i < lattice_dimensions_[0]; ++i) {
     for (auto j = 0; j < lattice_dimensions_[1]; ++j) {
       for (auto k = 0; k < lattice_dimensions_[2]; ++k) {
-        auto cell_offset = Vec3i{{i, j, k}};
+        auto cell_offset = Vec<int, 3>{{i, j, k}};
         cell_offsets_.push_back(cell_offset);
-        cell_centers_.push_back(generate_cartesian_lattice_position_from_fractional(Vec3{0.5,0.5,0.5}, cell_offset));
+        cell_centers_.push_back(generate_cartesian_lattice_position_from_fractional(Vec<double, 3>{0.5,0.5,0.5}, cell_offset));
 
         for (auto m = 0; m < basis_sites_.size(); ++m) {
           auto position    = generate_cartesian_lattice_position_from_fractional(basis_sites_[m].position_frac, cell_offset);
@@ -666,7 +666,7 @@ void Lattice::generate_supercell(const libconfig::Setting &lattice_settings)
   }
 
   // this is the top right hand corner of the top right unit cell in the super cell
-  rmax_ = generate_cartesian_lattice_position_from_fractional(Vec3{0.0, 0.0, 0.0}, lattice_dimensions_);
+  rmax_ = generate_cartesian_lattice_position_from_fractional(Vec<double, 3>{0.0, 0.0, 0.0}, lattice_dimensions_);
 
   globals::num_spins = atom_counter;
   globals::num_spins3 = 3*atom_counter;
@@ -712,7 +712,7 @@ void Lattice::generate_supercell(const libconfig::Setting &lattice_settings)
       globals::gyro(i) = jams::landau_lifshitz_gyro_prefactor(material.gyro, material.alpha, material.moment);
     }
 
-    Vec3 spin = material.spin;
+    Vec<double, 3> spin = material.spin;
 
     if (material.randomize) {
       spin = uniform_random_sphere<double>(rng);
@@ -720,7 +720,7 @@ void Lattice::generate_supercell(const libconfig::Setting &lattice_settings)
 
     // lattice vacancies have a moment of zero and a spin vector of zero
     if (material.moment == 0.0) {
-      spin = Vec3{0.0, 0.0, 0.0};
+      spin = Vec<double, 3>{0.0, 0.0, 0.0};
     }
 
     if (normalise_spins) {
@@ -748,19 +748,19 @@ void Lattice::generate_supercell(const libconfig::Setting &lattice_settings)
   }
 }
 
-Vec3 Lattice::generate_cartesian_lattice_position_from_fractional(
-    const Vec3 &basis_site_position_frac,
-    const Vec3i &lattice_translation_vector) const
+Vec<double, 3> Lattice::generate_cartesian_lattice_position_from_fractional(
+    const Vec<double, 3> &basis_site_position_frac,
+    const Vec<int, 3> &lattice_translation_vector) const
 {
   return unitcell.matrix() * (basis_site_position_frac + lattice_translation_vector);
 }
 
 // generate a position within a periodic image of the entire system
-Vec3 Lattice::generate_image_position(
-        const Vec3 &unit_cell_cart_pos,
-        const Vec3i &image_vector) const
+Vec<double, 3> Lattice::generate_image_position(
+        const Vec<double, 3> &unit_cell_cart_pos,
+        const Vec<int, 3> &image_vector) const
 {
-  Vec3 frac_pos = cartesian_to_fractional(unit_cell_cart_pos);
+  Vec<double, 3> frac_pos = cartesian_to_fractional(unit_cell_cart_pos);
   for (int n = 0; n < 3; ++n) {
     if (is_periodic(n)) {
       frac_pos[n] = frac_pos[n] + image_vector[n] * lattice_dimensions_[n];
@@ -935,9 +935,9 @@ void Lattice::calc_symmetry_operations() {
   cout << "\n";
   cout << "    num symops " << spglib_dataset_->n_operations << "\n";
 
-  Mat3 rot;
-  Vec3 trans;
-  Mat3 id = {1, 0, 0, 0, 1, 0, 0, 0, 1};
+  Mat<double, 3, 3> rot;
+  Vec<double, 3> trans;
+  Mat<double, 3, 3> id = {1, 0, 0, 0, 1, 0, 0, 0, 1};
 
   for (auto n = 0; n < spglib_dataset_->n_operations; ++n) {
 
@@ -973,7 +973,7 @@ void Lattice::calc_symmetry_operations() {
 // reads an position in the fast integer space and applies the periodic boundaries
 // if there are not periodic boundaries and this position is outside of the finite
 // lattice then the function returns false
-bool Lattice::apply_boundary_conditions(Vec3i& pos) const {
+bool Lattice::apply_boundary_conditions(Vec<int, 3>& pos) const {
     for (int l = 0; l < 3; ++l) {
       if (!is_periodic(l) && (pos[l] < 0 || pos[l] >= globals::lattice->size(l))) {
         return false;
@@ -1012,10 +1012,10 @@ double Lattice::max_interaction_radius() const {
 
 // generate a vector of points which are symmetric to r_cart under the crystal symmetry
 // the tolerance is used to determine if two points are equivalent
-std::vector<Vec3> Lattice::generate_symmetric_points(int basis_site_index, const Vec3 &r_cart, const double &tolerance = jams::defaults::lattice_tolerance) {
+std::vector<Vec<double, 3>> Lattice::generate_symmetric_points(int basis_site_index, const Vec<double, 3> &r_cart, const double &tolerance = jams::defaults::lattice_tolerance) {
 
   const auto r_frac = cartesian_to_fractional(r_cart);
-  std::vector<Vec3> symmetric_points;
+  std::vector<Vec<double, 3>> symmetric_points;
 
   // store the original point
   symmetric_points.push_back(r_cart);
@@ -1034,7 +1034,7 @@ std::vector<Vec3> Lattice::generate_symmetric_points(int basis_site_index, const
   return symmetric_points;
 }
 
-bool Lattice::is_a_symmetry_complete_set(const int motif_index, const std::vector<Vec3> &points, const double &tolerance = jams::defaults::lattice_tolerance) {
+bool Lattice::is_a_symmetry_complete_set(const int motif_index, const std::vector<Vec<double, 3>> &points, const double &tolerance = jams::defaults::lattice_tolerance) {
   // loop over the collection of points
   for (const auto r : points) {
     // for each point generate the symmetric points according to the the crystal symmetry
@@ -1066,7 +1066,7 @@ const Cell &Lattice::get_unitcell() {
   return unitcell;
 }
 
-const Mat3 &Lattice::get_global_rotation_matrix() {
+const Mat<double, 3, 3> &Lattice::get_global_rotation_matrix() {
   return global_orientation_matrix_;
 }
 
@@ -1116,15 +1116,15 @@ bool Lattice::has_impurities() const {
     return !impurity_map_.empty();
 }
 
-const Vec3 &Lattice::lattice_site_vector_frac(int lattice_site_index) const {
+const Vec<double, 3> &Lattice::lattice_site_vector_frac(int lattice_site_index) const {
   return lattice_site_positions_frac_[lattice_site_index];
 }
 
-const std::vector<Vec3> &Lattice::lattice_site_positions_cart() const {
+const std::vector<Vec<double, 3>> &Lattice::lattice_site_positions_cart() const {
   return lattice_site_positions_cart_;
 }
 
-const std::vector<Mat3> &Lattice::lattice_site_point_group_symops(int lattice_site_index) {
+const std::vector<Mat<double, 3, 3>> &Lattice::lattice_site_point_group_symops(int lattice_site_index) {
     assert(lattice_site_index >= 0);
     assert(lattice_site_index < num_basis_sites());
     // Pre-calculate the symops the first time the function is called
@@ -1152,11 +1152,11 @@ const std::vector<Mat3> &Lattice::lattice_site_point_group_symops(int lattice_si
     return basis_site_point_group_symops_[lattice_site_index];
 }
 
-double jams::maximum_interaction_length(const Vec3 &a1, const Vec3 &a2, const Vec3 &a3, const Vec3b& periodic_boundaries) {
+double jams::maximum_interaction_length(const Vec<double, 3> &a1, const Vec<double, 3> &a2, const Vec<double, 3> &a3, const Vec<bool, 3>& periodic_boundaries) {
   // 3D periodic
   // -----------
   // This must be the inradius of the parellelepiped
-  if (periodic_boundaries == Vec3b{true, true, true}) {
+  if (periodic_boundaries == Vec<bool, 3>{true, true, true}) {
     return jams::maths::parallelepiped_inradius(a1, a2, a3);
   }
 
@@ -1166,13 +1166,13 @@ double jams::maximum_interaction_length(const Vec3 &a1, const Vec3 &a2, const Ve
   // 'open' direction it doesn't matter what the interaction length is because
   // there will not be any atoms to interact with beyond the boundary.
   // Which plane to use is defined by which of the two dimensions are periodic.
-  if (periodic_boundaries == Vec3b{true, true, false}) {
+  if (periodic_boundaries == Vec<bool, 3>{true, true, false}) {
     return jams::maths::parallelogram_inradius(a1, a2);
   }
-  if (periodic_boundaries == Vec3b{true, false, true}) {
+  if (periodic_boundaries == Vec<bool, 3>{true, false, true}) {
     return jams::maths::parallelogram_inradius(a1, a3);
   }
-  if (periodic_boundaries == Vec3b{false, true, true}) {
+  if (periodic_boundaries == Vec<bool, 3>{false, true, true}) {
     return jams::maths::parallelogram_inradius(a2, a3);
   }
 
@@ -1181,13 +1181,13 @@ double jams::maximum_interaction_length(const Vec3 &a1, const Vec3 &a2, const Ve
   // As with 2D, we only care about the interaction along 1 dimension for the
   // purposes of self interaction. Here is simply half the length along that
   // dimension.
-  if (periodic_boundaries == Vec3b{true, false, false}) {
+  if (periodic_boundaries == Vec<bool, 3>{true, false, false}) {
     return 0.5 * jams::norm(a1);
   }
-  if (periodic_boundaries == Vec3b{false, true, false}) {
+  if (periodic_boundaries == Vec<bool, 3>{false, true, false}) {
     return 0.5 * jams::norm(a2);
   }
-  if (periodic_boundaries == Vec3b{false, false, true}) {
+  if (periodic_boundaries == Vec<bool, 3>{false, false, true}) {
     return 0.5 * jams::norm(a3);
   }
 

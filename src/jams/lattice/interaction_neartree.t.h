@@ -19,7 +19,7 @@ protected:
 
     ~InteractionNeartreeTest() = default;
 
-    void init_test(const Vec3& a, const Vec3& b, const Vec3& c, const Vec3b& pbc, const int& supercell_size, const double& r_cutoff, const double& epsilon) {
+    void init_test(const Vec<double, 3>& a, const Vec<double, 3>& b, const Vec<double, 3>& c, const Vec<bool, 3>& pbc, const int& supercell_size, const double& r_cutoff, const double& epsilon) {
 
       a_ = a; b_ = b; c_ = c;
       pbc_ = pbc;
@@ -38,7 +38,7 @@ protected:
 
       near_tree_ = std::make_unique<NearTree>(supercell_size*a, supercell_size*b, supercell_size*c, pbc, r_cutoff, epsilon);
 
-      std::vector<Vec3> sites;
+      std::vector<Vec<double, 3>> sites;
       int count = 0;
       for (auto i = 0; i < supercell_size_; ++i) {
         for (auto j = 0; j < supercell_size_; ++j) {
@@ -86,10 +86,10 @@ protected:
     }
 
 
-    Vec3 a_;
-    Vec3 b_;
-    Vec3 c_;
-    Vec3b pbc_;
+    Vec<double, 3> a_;
+    Vec<double, 3> b_;
+    Vec<double, 3> c_;
+    Vec<bool, 3> pbc_;
     int supercell_size_;
     double r_cutoff_;
     double epsilon_;
@@ -108,10 +108,10 @@ protected:
 TEST_F(InteractionNeartreeTest, neighbours_no_pbc_simple) {
   using namespace testing;
 
-  Vec3 a = {1.0, 0.0, 0.0};
-  Vec3 b = {0.0, 1.0, 0.0};
-  Vec3 c = {0.0, 0.0, 1.0};
-  Vec3b pbc = {false, false, false};
+  Vec<double, 3> a = {1.0, 0.0, 0.0};
+  Vec<double, 3> b = {0.0, 1.0, 0.0};
+  Vec<double, 3> c = {0.0, 0.0, 1.0};
+  Vec<bool, 3> pbc = {false, false, false};
   int superlattice_size = 5;
   double r_cutoff = 2.0;
   const double epsilon = 1e-5;
@@ -124,10 +124,10 @@ TEST_F(InteractionNeartreeTest, neighbours_no_pbc_simple) {
 TEST_F(InteractionNeartreeTest, neighbours_pbc_simple) {
   using namespace testing;
 
-  Vec3 a = {1.0, 0.0, 0.0};
-  Vec3 b = {0.0, 1.0, 0.0};
-  Vec3 c = {0.0, 0.0, 1.0};
-  Vec3b pbc = {true, true, true};
+  Vec<double, 3> a = {1.0, 0.0, 0.0};
+  Vec<double, 3> b = {0.0, 1.0, 0.0};
+  Vec<double, 3> c = {0.0, 0.0, 1.0};
+  Vec<bool, 3> pbc = {true, true, true};
   int superlattice_size = 5;
   double r_cutoff = 2.0;
   const double epsilon = 1e-5;
@@ -140,10 +140,10 @@ TEST_F(InteractionNeartreeTest, neighbours_pbc_simple) {
 TEST_F(InteractionNeartreeTest, neighbours_no_pbc_complicated) {
   using namespace testing;
 
-  Vec3 a = {0.5, 0.0, 0.0};
-  Vec3 b = {-0.25, 0.4330127019, 0.0};
-  Vec3 c = {0.0, 0.2886751346, 0.4082482905};
-  Vec3b pbc = {false, false, false};
+  Vec<double, 3> a = {0.5, 0.0, 0.0};
+  Vec<double, 3> b = {-0.25, 0.4330127019, 0.0};
+  Vec<double, 3> c = {0.0, 0.2886751346, 0.4082482905};
+  Vec<bool, 3> pbc = {false, false, false};
   int superlattice_size = 5;
   double r_cutoff = 2.0;
   const double epsilon = 1e-5;
@@ -156,10 +156,10 @@ TEST_F(InteractionNeartreeTest, neighbours_no_pbc_complicated) {
 TEST_F(InteractionNeartreeTest, neighbours_pbc_complicated) {
   using namespace testing;
 
-  Vec3 a = {0.5, 0.0, 0.0};
-  Vec3 b = {-0.25, 0.4330127019, 0.0};
-  Vec3 c = {0.0, 0.2886751346, 0.4082482905};
-  Vec3b pbc = {true, true, true};
+  Vec<double, 3> a = {0.5, 0.0, 0.0};
+  Vec<double, 3> b = {-0.25, 0.4330127019, 0.0};
+  Vec<double, 3> c = {0.0, 0.2886751346, 0.4082482905};
+  Vec<bool, 3> pbc = {true, true, true};
   int superlattice_size = 12;
   double r_cutoff = 2.0;
   const double epsilon = 1e-5;
