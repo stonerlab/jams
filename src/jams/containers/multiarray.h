@@ -217,10 +217,6 @@ namespace jams {
           return size_[n];
         }
 
-        [[nodiscard]] inline constexpr size_type size(const size_type n) const noexcept {
-          return extent(n);
-        }
-
         [[nodiscard]] inline const size_container_type& shape() const noexcept {
           return size_;
         }
@@ -231,10 +227,6 @@ namespace jams {
 
         [[nodiscard]] inline constexpr size_type elements() const noexcept {
           return data_.size();
-        }
-
-        [[nodiscard]] inline constexpr dim_type dimension() const noexcept {
-          return rank();
         }
 
         [[nodiscard]] inline constexpr dim_type rank() const noexcept {
