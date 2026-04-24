@@ -5,8 +5,9 @@
 #include <limits>
 #include <memory>
 #include <algorithm>
-#include <vector>
 #include <random>
+#include <utility>
+#include <vector>
 
 #include "jams/helpers/maths.h"
 
@@ -67,6 +68,10 @@ namespace jams {
         ~NearTree();
 
         void insert(const T &t);
+        void insert(T&& t);
+
+        template<typename... Args>
+        void emplace(Args&&... args);
 
         void insert(const std::vector<T>& items, bool randomize = true);
         void insert(std::vector<T>&& items, bool randomize = true);
@@ -129,6 +134,9 @@ namespace jams {
                    const T &origin, const DistType &epsilon) const;
 
         bool nearest(DistType &radius, T &closest, const T &origin) const;
+
+        template<typename U>
+        void insert_impl(U&& t);
     };
 
     //
@@ -209,8 +217,8 @@ namespace jams {
         std::mt19937 rng(rd());
         std::shuffle(items.begin(), items.end(), rng);
       }
-      for (const auto& x : items) {
-        insert(x);
+      for (auto& x : items) {
+        insert(std::move(x));
       }
     }
 
@@ -241,31 +249,50 @@ namespace jams {
     //
     template<typename T, typename FuncType, typename DistType>
     void NearTree<T, FuncType, DistType>::insert(const T &t) {
+      insert_impl(t);
+    }
+
+    template<typename T, typename FuncType, typename DistType>
+    void NearTree<T, FuncType, DistType>::insert(T&& t) {
+      insert_impl(std::move(t));
+    }
+
+    template<typename T, typename FuncType, typename DistType>
+    template<typename... Args>
+    void NearTree<T, FuncType, DistType>::emplace(Args&&... args) {
+      T value(std::forward<Args>(args)...);
+      insert(std::move(value));
+    }
+
+    template<typename T, typename FuncType, typename DistType>
+    template<typename U>
+    void NearTree<T, FuncType, DistType>::insert_impl(U&& t) {
       ++size_;
       // do a bit of precomputing if possible so that we can
       // reduce the number of calls to operator norm_functor as much
       // as possible; norm_functor might use square roots
-      DistType tmp_distance_right = (right != nullptr) ? distance(t, *right) : DistType(0);
-      DistType tmp_distance_left = (left != nullptr) ? distance(t, *left) : DistType(0);
+      const T& value = t;
+      DistType tmp_distance_right = (right != nullptr) ? distance(value, *right) : DistType(0);
+      DistType tmp_distance_left = (left != nullptr) ? distance(value, *left) : DistType(0);
 
       if (left == nullptr) {
-        left = new T(t);
+        left = new T(std::forward<U>(t));
       } else if (right == nullptr) {
-        right = new T(t);
+        right = new T(std::forward<U>(t));
       } else if (tmp_distance_left > tmp_distance_right) {
         if (right_branch == nullptr) {
           right_branch = new NearTree(norm_functor);
         }
         // assumes that max_distance_right is negative for a new node
         max_distance_right = std::max(max_distance_right, tmp_distance_right);
-        right_branch->insert(t);
+        right_branch->insert_impl(std::forward<U>(t));
       } else {
         if (left_branch == nullptr) {
           left_branch = new NearTree(norm_functor);
         }
         // assumes that max_distance_left is negative for a new node
         max_distance_left = std::max(max_distance_left, tmp_distance_left);
-        left_branch->insert(t);
+        left_branch->insert_impl(std::forward<U>(t));
       }
     }
 
