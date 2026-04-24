@@ -41,17 +41,13 @@ namespace jams {
     class NearTree {
     public:
 
-        template<typename FType, class FFuncType>
-        friend void swap(NearTree<FType, FFuncType>& first, NearTree<FType, FFuncType>& second);
+        template<typename FType, class FFuncType, class FDistType>
+        friend void swap(NearTree<FType, FFuncType, FDistType>& first,
+                         NearTree<FType, FFuncType, FDistType>& second);
 
 
         NearTree(const NearTree&) = delete;
         NearTree& operator=(const NearTree&) = delete;
-
-        NearTree& operator=(NearTree other) {
-          swap(*this, other);
-          return *this;
-        }
 
         NearTree(NearTree&& other) noexcept
         : left(nullptr), right(nullptr), left_branch(nullptr), right_branch(nullptr),
