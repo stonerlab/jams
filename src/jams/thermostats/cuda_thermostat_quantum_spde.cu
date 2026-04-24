@@ -192,7 +192,8 @@ CudaQuantumSpdeNoiseGenerator::CudaQuantumSpdeNoiseGenerator(
 
   if (do_zero_point_) {
     zero(zeta0_.resize(4 * num_channels_));
-    zero(eta0_.resize(4 * num_channels_));
+    zero(eta0a_.resize(4 * num_channels_));
+    zero(eta0b_.resize(4 * num_channels_));
   }
 
   std::cout << "    omega_max (THz) " << omega_max_ / kTwoPi << "\n";
@@ -208,10 +209,14 @@ CudaQuantumSpdeNoiseGenerator::CudaQuantumSpdeNoiseGenerator(
   if (do_zero_point_) {
 #ifdef DO_MIXED_PRECISION
     CHECK_CURAND_STATUS(curandGenerateNormal(
-        jams::instance().curand_generator(), eta0_.device_data(), eta0_.size(), 0.0f, 1.0f));
+        jams::instance().curand_generator(), eta0a_.device_data(), eta0a_.size(), 0.0f, 1.0f));
+    CHECK_CURAND_STATUS(curandGenerateNormal(
+        jams::instance().curand_generator(), eta0b_.device_data(), eta0b_.size(), 0.0f, 1.0f));
 #else
     CHECK_CURAND_STATUS(curandGenerateNormalDouble(
-        jams::instance().curand_generator(), eta0_.device_data(), eta0_.size(), 0.0, 1.0));
+        jams::instance().curand_generator(), eta0a_.device_data(), eta0a_.size(), 0.0, 1.0));
+    CHECK_CURAND_STATUS(curandGenerateNormalDouble(
+        jams::instance().curand_generator(), eta0b_.device_data(), eta0b_.size(), 0.0, 1.0));
 #endif
   }
 
@@ -303,6 +308,9 @@ void CudaQuantumSpdeNoiseGenerator::update() {
   const jams::Real temperature = this->temperature();
 
   swap(eta1a_, eta1b_);
+  if (do_zero_point_) {
+    swap(eta0a_, eta0b_);
+  }
 
   cudaStreamWaitEvent(cuda_stream_.get(), curand_done_, 0);
   cuda_thermostat_quantum_spde_no_zero_kernel<<<grid_size, block_size, 0, cuda_stream_.get()>>>(
@@ -333,7 +341,7 @@ void CudaQuantumSpdeNoiseGenerator::update() {
     cuda_thermostat_quantum_spde_zero_point_kernel<<<grid_size, block_size, 0, cuda_stream_.get()>>>(
         noise_.device_data(),
         zeta0_.device_data(),
-        eta0_.device_data(),
+        eta0b_.device_data(),
         reduced_delta_tau,
         temperature,
         reduced_omega_max,
@@ -343,10 +351,10 @@ void CudaQuantumSpdeNoiseGenerator::update() {
     CHECK_CURAND_STATUS(curandSetStream(jams::instance().curand_generator(), curand_stream_.get()));
 #ifdef DO_MIXED_PRECISION
     CHECK_CURAND_STATUS(curandGenerateNormal(
-        jams::instance().curand_generator(), eta0_.device_data(), eta0_.size(), 0.0f, 1.0f));
+        jams::instance().curand_generator(), eta0a_.device_data(), eta0a_.size(), 0.0f, 1.0f));
 #else
     CHECK_CURAND_STATUS(curandGenerateNormalDouble(
-        jams::instance().curand_generator(), eta0_.device_data(), eta0_.size(), 0.0, 1.0));
+        jams::instance().curand_generator(), eta0a_.device_data(), eta0a_.size(), 0.0, 1.0));
 #endif
 
     cudaEventRecord(curand_done_, curand_stream_.get());
