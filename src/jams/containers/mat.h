@@ -36,6 +36,14 @@ template <typename T1, typename T2>
 using multiply_accumulate_result_t =
     decltype(std::declval<T1>() * std::declval<T2>() + std::declval<T1>() * std::declval<T2>());
 
+template <typename To, typename From, typename = void>
+struct is_static_castable : std::false_type {};
+
+template <typename To, typename From>
+struct is_static_castable<To, From,
+                          std::void_t<decltype(static_cast<To>(std::declval<From>()))>>
+    : std::true_type {};
+
 } // namespace detail
 
 template <typename T, std::size_t Rows, std::size_t Cols>
@@ -116,10 +124,8 @@ matrix_cast(const Mat<From, Rows, Cols>& in)
   if constexpr (std::is_same_v<To, From>) {
     return in;
   } else {
-    static_assert(std::is_arithmetic_v<To>,
-                  "matrix_cast requires arithmetic To type");
-    static_assert(std::is_arithmetic_v<From>,
-                  "matrix_cast requires arithmetic From type");
+    static_assert(detail::is_static_castable<To, From>::value,
+                  "matrix_cast requires component-wise static_cast support");
 
     Mat<To, Rows, Cols> out{};
     for (std::size_t row = 0; row < Rows; ++row) {

@@ -99,9 +99,12 @@ TEST(MatTest, SupportsGenericIdentityAndCast) {
 
   const jams::Mat<int, 2, 2> ints{1, 2, 3, 4};
   const auto doubles = matrix_cast<double>(ints);
+  const auto complexes = matrix_cast<std::complex<double>>(ints);
 
   static_assert(std::is_same_v<decltype(doubles), const jams::Mat<double, 2, 2>>);
+  static_assert(std::is_same_v<decltype(complexes), const jams::Mat<std::complex<double>, 2, 2>>);
   EXPECT_DOUBLE_EQ(doubles[1][0], 3.0);
+  EXPECT_EQ(complexes[1][0], std::complex<double>(3.0, 0.0));
 }
 
 class Mat3Test : public ::testing::TestWithParam<std::pair<jams::Vec<double, 3>, jams::Vec<double, 3>>> {
