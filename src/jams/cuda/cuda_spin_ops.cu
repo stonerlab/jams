@@ -17,13 +17,18 @@ __global__ void cuda_normalise_spins_kernel(double * spins, const unsigned size)
 }
 
 void jams::normalise_spins_cuda(jams::MultiArray<double, 2> &spins) {
+  normalise_spins_cuda(spins, nullptr);
+}
+
+void jams::normalise_spins_cuda(jams::MultiArray<double, 2> &spins, cudaStream_t stream) {
   dim3 block_size;
   block_size.x = 128;
 
   dim3 grid_size;
   grid_size.x = (spins.size(0) + block_size.x - 1) / block_size.x;
 
-  cuda_normalise_spins_kernel<<<grid_size, block_size>>>(spins.device_data(), spins.size(0));
+  cuda_normalise_spins_kernel<<<grid_size, block_size, 0, stream>>>(
+      spins.device_data(), spins.size(0));
 }
 
 __global__ void cuda_rotate_spins_kernel(double* spins, const int* indices, const unsigned size,

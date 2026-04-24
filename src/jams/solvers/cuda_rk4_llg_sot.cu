@@ -1,4 +1,5 @@
 #include <jams/solvers/cuda_rk4_llg_sot.h>
+#include <jams/common.h>
 #include <jams/core/globals.h>
 #include <jams/core/lattice.h>
 #include <jams/interface/config.h>
@@ -94,15 +95,15 @@ CudaRK4LLGSOTSolver::CudaRK4LLGSOTSolver(const libconfig::Setting &settings)
 void CudaRK4LLGSOTSolver::function_kernel(jams::MultiArray<double, 2> &spins,
                                           jams::MultiArray<double, 2> &k) {
 
-  jams::normalise_spins_cuda(spins);
+  jams::normalise_spins_cuda(spins, jams::instance().cuda_master_stream().get());
+  record_spin_barrier_event();
 
   compute_fields();
 
   const dim3 block_size = {64, 1, 1};
   auto grid_size = cuda_grid_size(block_size, {static_cast<unsigned int>(globals::num_spins), 1, 1});
 
-  // using default stream blocks all streams until complete to force synchronisation
-  cuda_rk4_llg_sot_kernel<<<grid_size, block_size>>>
+  cuda_rk4_llg_sot_kernel<<<grid_size, block_size, 0, jams::instance().cuda_master_stream().get()>>>
       (spins.device_data(), k.device_data(),
        globals::h.device_data(), spin_polarisation_.device_data(),
        sot_coefficient_.device_data(), thermostat_->device_data(),
@@ -113,5 +114,5 @@ void CudaRK4LLGSOTSolver::function_kernel(jams::MultiArray<double, 2> &spins,
 
 
 void CudaRK4LLGSOTSolver::post_step(jams::MultiArray<double, 2> &spins) {
-  jams::normalise_spins_cuda(spins);
+  jams::normalise_spins_cuda(spins, jams::instance().cuda_master_stream().get());
 }

@@ -25,6 +25,8 @@
 namespace {
   void cuda_rk4_internal_timestep(double* x, const double* x_old, const double* x_k, const int size, const double step) {
     // does an internal rk4 step by producing x = x_old + step * x_k
+    CHECK_CUBLAS_STATUS(cublasSetStream(
+        jams::instance().cublas_handle(), jams::instance().cuda_master_stream().get()));
     CHECK_CUBLAS_STATUS(cublasDcopy(jams::instance().cublas_handle(), size, x_old, 1, x, 1));
     CHECK_CUBLAS_STATUS(cublasDaxpy(jams::instance().cublas_handle(), size, &step, x_k, 1, x, 1));
   }
@@ -133,7 +135,7 @@ void CUDALLLorentzianRK4Solver::run()
   compute_fields();
 
   // k1
-  cuda_ll_lorentzian_rk4_kernel<<<grid_size, block_size>>>(
+  cuda_ll_lorentzian_rk4_kernel<<<grid_size, block_size, 0, jams::instance().cuda_master_stream().get()>>>(
       s_k1_.device_data(),
       w_memory_process_k1_.device_data(),
       v_memory_process_k1_.device_data(),
@@ -156,7 +158,7 @@ void CUDALLLorentzianRK4Solver::run()
   compute_fields();
 
   // k2
-  cuda_ll_lorentzian_rk4_kernel<<<grid_size, block_size>>>(
+  cuda_ll_lorentzian_rk4_kernel<<<grid_size, block_size, 0, jams::instance().cuda_master_stream().get()>>>(
       s_k2_.device_data(),
       w_memory_process_k2_.device_data(),
       v_memory_process_k2_.device_data(),
@@ -179,7 +181,7 @@ void CUDALLLorentzianRK4Solver::run()
   compute_fields();
 
   // k3
-  cuda_ll_lorentzian_rk4_kernel<<<grid_size, block_size>>>(
+  cuda_ll_lorentzian_rk4_kernel<<<grid_size, block_size, 0, jams::instance().cuda_master_stream().get()>>>(
       s_k3_.device_data(),
       w_memory_process_k3_.device_data(),
       v_memory_process_k3_.device_data(),
@@ -202,7 +204,7 @@ void CUDALLLorentzianRK4Solver::run()
   compute_fields();
 
   // k4
-  cuda_ll_lorentzian_rk4_kernel<<<grid_size, block_size>>>(
+  cuda_ll_lorentzian_rk4_kernel<<<grid_size, block_size, 0, jams::instance().cuda_master_stream().get()>>>(
       s_k4_.device_data(),
       w_memory_process_k4_.device_data(),
       v_memory_process_k4_.device_data(),
@@ -215,7 +217,7 @@ void CUDALLLorentzianRK4Solver::run()
       globals::num_spins);
   DEBUG_CHECK_CUDA_ASYNC_STATUS
 
-  cuda_ll_lorentzian_rk4_combination_normalize_kernel<<<grid_size, block_size>>>
+  cuda_ll_lorentzian_rk4_combination_normalize_kernel<<<grid_size, block_size, 0, jams::instance().cuda_master_stream().get()>>>
       (globals::s.device_data(), s_old_.device_data(),
        s_k1_.device_data(), s_k2_.device_data(), s_k3_.device_data(),
        s_k4_.device_data(),
@@ -224,7 +226,7 @@ void CUDALLLorentzianRK4Solver::run()
 
   auto grid_size3 = cuda_grid_size(block_size, {static_cast<unsigned int>(globals::num_spins3), 1, 1});
 
-  cuda_ll_lorentzian_rk4_combination_kernel<<<grid_size3, block_size>>>(
+  cuda_ll_lorentzian_rk4_combination_kernel<<<grid_size3, block_size, 0, jams::instance().cuda_master_stream().get()>>>(
       w_memory_process_.device_data(),
       w_memory_process_old_.device_data(),
       w_memory_process_k1_.device_data(),
@@ -234,7 +236,7 @@ void CUDALLLorentzianRK4Solver::run()
       step_size_, globals::num_spins3);
   DEBUG_CHECK_CUDA_ASYNC_STATUS
 
-  cuda_ll_lorentzian_rk4_combination_kernel<<<grid_size3, block_size>>>(
+  cuda_ll_lorentzian_rk4_combination_kernel<<<grid_size3, block_size, 0, jams::instance().cuda_master_stream().get()>>>(
       v_memory_process_.device_data(),
       v_memory_process_old_.device_data(),
       v_memory_process_k1_.device_data(),
@@ -247,4 +249,3 @@ void CUDALLLorentzianRK4Solver::run()
   iteration_++;
   time_ = iteration_ * step_size_;
 }
-

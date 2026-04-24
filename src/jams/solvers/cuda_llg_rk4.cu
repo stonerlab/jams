@@ -3,6 +3,8 @@
 
 #include "jams/solvers/cuda_llg_rk4.h"
 
+#include <jams/common.h>
+
 #include <cuda_runtime.h>
 
 #include "jams/core/globals.h"
@@ -28,8 +30,7 @@ void CUDALLGRK4Solver::function_kernel(jams::MultiArray<double, 2>& spins, jams:
   const dim3 block_size = {64, 1, 1};
   auto grid_size = cuda_grid_size(block_size, {static_cast<unsigned int>(globals::num_spins), 1, 1});
 
-  // using default stream blocks all streams until complete to force synchronisation
-  cuda_llg_rk4_kernel<<<grid_size, block_size>>>
+  cuda_llg_rk4_kernel<<<grid_size, block_size, 0, jams::instance().cuda_master_stream().get()>>>
       (spins.device_data(), k.device_data(),
        globals::h.device_data(), thermostat_->device_data(), extra_torque_.device_data(),
        globals::gyro.device_data(), globals::mus.device_data(),
@@ -39,5 +40,5 @@ void CUDALLGRK4Solver::function_kernel(jams::MultiArray<double, 2>& spins, jams:
 
 
 void CUDALLGRK4Solver::post_step(jams::MultiArray<double, 2> &spins) {
-  jams::normalise_spins_cuda(spins);
+  jams::normalise_spins_cuda(spins, jams::instance().cuda_master_stream().get());
 }

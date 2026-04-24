@@ -2,6 +2,10 @@
 #ifndef INCLUDED_JAMS_CUDA_SPIN_OPS
 #define INCLUDED_JAMS_CUDA_SPIN_OPS
 
+#if HAS_CUDA
+#include <cuda_runtime.h>
+#endif
+
 #include <jams/containers/multiarray.h>
 #include <jams/containers/mat3.h>
 #include <jams/cuda/cuda_only_implementation_macro.h>
@@ -11,6 +15,10 @@ namespace jams {
 /// Normalise spins to unit vectors
 CUDA_ONLY_IMPLEMENTATION(
     void normalise_spins_cuda(jams::MultiArray<double, 2> &spins));
+
+#if HAS_CUDA
+void normalise_spins_cuda(jams::MultiArray<double, 2> &spins, cudaStream_t stream);
+#endif
 
 /// Rotate spins with given indices by the rotation matrix
 ///
