@@ -37,6 +37,7 @@
 
 #include <algorithm>
 #include <cassert>
+#include <complex>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
@@ -95,6 +96,16 @@ struct is_iterator<T, std::void_t<
 
 template <class T>
 inline constexpr bool is_iterator_v = is_iterator<T>::value;
+
+template<class T>
+struct is_std_complex : std::false_type { };
+
+template<class T>
+struct is_std_complex<std::complex<T>> : std::true_type { };
+
+template<class T>
+inline constexpr bool synced_memory_byte_zeroable_v =
+    std::is_arithmetic_v<T> || is_std_complex<T>::value;
 } // namespace jams::detail
 
 #if HAS_CUDA
@@ -301,12 +312,19 @@ SyncedMemory<T>::SyncedMemory(SyncedMemory::size_type size) noexcept
 template<class T>
 SyncedMemory<T>::SyncedMemory(SyncedMemory::size_type size, const T &x)
     : size_(size) {
-  if (x == T{0}) {
-    zero();
-  } else {
-    pointer p = mutable_host_data();
-    std::fill(p, p + size_, x);
+  if (size_ == 0) {
+    return;
   }
+
+  if constexpr (detail::synced_memory_byte_zeroable_v<T>) {
+    if (x == T{}) {
+      zero();
+      return;
+    }
+  }
+
+  pointer p = mutable_host_data();
+  std::fill(p, p + size_, x);
 }
 
 
@@ -629,7 +647,13 @@ void SyncedMemory<T>::zero_device() const {
     detail::print_synced_memory_event("device zero");
   }
   assert(device_ptr_);
-  SYNCED_MEMORY_CHECK_CUDA_STATUS(cudaMemset(device_ptr_, 0, bytes(size_)));
+  if constexpr (detail::synced_memory_byte_zeroable_v<T>) {
+    SYNCED_MEMORY_CHECK_CUDA_STATUS(cudaMemset(device_ptr_, 0, bytes(size_)));
+  } else {
+    const std::vector<T> zeros(size_, T{});
+    SYNCED_MEMORY_CHECK_CUDA_STATUS(cudaMemcpy(device_ptr_, zeros.data(), bytes(size_),
+                                               cudaMemcpyHostToDevice));
+  }
 #endif
 }
 
@@ -643,7 +667,11 @@ void SyncedMemory<T>::zero_host() const {
     detail::print_synced_memory_event("host zero");
   }
   assert(host_ptr_);
-  memset(host_ptr_, 0, bytes(size_));
+  if constexpr (detail::synced_memory_byte_zeroable_v<T>) {
+    memset(host_ptr_, 0, bytes(size_));
+  } else {
+    std::fill_n(host_ptr_, size_, T{});
+  }
 }
 
 
@@ -658,7 +686,21 @@ void SyncedMemory<T>::zero() {
   }
   #if HAS_CUDA
   if (device_ptr_) {
-    zero_device();
+    if constexpr (detail::synced_memory_byte_zeroable_v<T>) {
+      zero_device();
+    } else {
+      if (!host_ptr_) {
+        allocate_host_memory(size_);
+      }
+      zero_host();
+      add_valid(Validity::host);
+      if constexpr (detail::synced_memory_print_memcpy) {
+        detail::print_synced_memory_event("cudaMemcpyHostToDevice");
+      }
+      assert(host_ptr_);
+      SYNCED_MEMORY_CHECK_CUDA_STATUS(cudaMemcpy(device_ptr_, host_ptr_, bytes(size_),
+                                                 cudaMemcpyHostToDevice));
+    }
     add_valid(Validity::device);
   }
   #endif

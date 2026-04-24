@@ -21,6 +21,13 @@
 #endif
 
 namespace {
+struct SyncedMemoryRecord {
+  int id;
+  char tag;
+};
+
+static_assert(std::is_trivially_copyable<SyncedMemoryRecord>::value, "");
+
 bool synced_memory_cuda_device_available() {
 #if HAS_CUDA
   int device_count = 0;
@@ -127,6 +134,29 @@ TEST(SyncedMemoryApiTest, BytesThrowsOnSizeOverflow) {
   const auto max_elements = std::numeric_limits<std::size_t>::max() / sizeof(int);
   EXPECT_EQ(Memory::bytes(max_elements), max_elements * sizeof(int));
   EXPECT_THROW(Memory::bytes(max_elements + 1), std::overflow_error);
+}
+
+TEST(SyncedMemoryApiTest, ZeroValueInitializesNonNumericHostValues) {
+  using namespace jams;
+
+  const SyncedMemoryRecord value{42, 'x'};
+  SyncedMemory<SyncedMemoryRecord> memory(3, value);
+
+  const SyncedMemoryRecord* before = memory.host_data();
+  ASSERT_NE(before, nullptr);
+  EXPECT_EQ(before[0].id, 42);
+  EXPECT_EQ(before[0].tag, 'x');
+
+  memory.zero();
+
+  const SyncedMemoryRecord* after = memory.host_data();
+  ASSERT_NE(after, nullptr);
+  EXPECT_EQ(after[0].id, SyncedMemoryRecord{}.id);
+  EXPECT_EQ(after[0].tag, SyncedMemoryRecord{}.tag);
+  EXPECT_EQ(after[2].id, SyncedMemoryRecord{}.id);
+  EXPECT_EQ(after[2].tag, SyncedMemoryRecord{}.tag);
+  EXPECT_TRUE(memory.host_valid());
+  EXPECT_FALSE(memory.device_valid());
 }
 
 TEST(SyncedMemoryApiTest, DefaultAndSizedConstructionAreLazy) {
@@ -640,5 +670,34 @@ TEST(SyncedMemoryApiTest, ZeroKeepsOnlyAllocatedCurrentMemorySpacesCurrent) {
   }
 #endif
 }
+
+#if HAS_CUDA
+TEST(SyncedMemoryApiTest, ZeroValueInitializesNonNumericDeviceValues) {
+  using namespace jams;
+
+  if (!synced_memory_cuda_device_available()) {
+    GTEST_SKIP() << "CUDA runtime is enabled but no CUDA device is available";
+  }
+
+  const SyncedMemoryRecord value{43, 'y'};
+  SyncedMemory<SyncedMemoryRecord> memory(2, value);
+  ASSERT_NE(memory.device_data(), nullptr);
+  memory.release_stale_host();
+  EXPECT_FALSE(memory.host_valid());
+  EXPECT_TRUE(memory.device_valid());
+
+  memory.zero();
+  EXPECT_TRUE(memory.host_valid());
+  EXPECT_TRUE(memory.device_valid());
+
+  SyncedMemoryRecord copied[2] = {};
+  ASSERT_EQ(cudaMemcpy(copied, memory.device_data(), sizeof(copied), cudaMemcpyDeviceToHost),
+            cudaSuccess);
+  EXPECT_EQ(copied[0].id, SyncedMemoryRecord{}.id);
+  EXPECT_EQ(copied[0].tag, SyncedMemoryRecord{}.tag);
+  EXPECT_EQ(copied[1].id, SyncedMemoryRecord{}.id);
+  EXPECT_EQ(copied[1].tag, SyncedMemoryRecord{}.tag);
+}
+#endif
 
 #endif //JAMS_TEST_SYNCED_MEMORY_H
