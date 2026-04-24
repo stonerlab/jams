@@ -82,9 +82,7 @@ namespace jams {
 
         inline std::size_t size() const noexcept { return size_; };
 
-        inline std::size_t memory() const {
-          return size_ * (2 * sizeof(T *) + 2 * sizeof(NearTree *) + 2 * sizeof(DistType));
-        };
+        std::size_t memory() const noexcept;
 
     private:
         T *left = nullptr;  // left object stored in this node
@@ -170,6 +168,24 @@ namespace jams {
       for (auto &x : items) {
         insert(x);
       }
+    }
+
+    template<typename T, typename FuncType, typename DistType>
+    std::size_t NearTree<T, FuncType, DistType>::memory() const noexcept {
+      std::size_t bytes = 0;
+      if (left != nullptr) {
+        bytes += sizeof(T);
+      }
+      if (right != nullptr) {
+        bytes += sizeof(T);
+      }
+      if (left_branch != nullptr) {
+        bytes += sizeof(NearTree) + left_branch->memory();
+      }
+      if (right_branch != nullptr) {
+        bytes += sizeof(NearTree) + right_branch->memory();
+      }
+      return bytes;
     }
 
     //
