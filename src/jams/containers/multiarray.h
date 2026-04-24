@@ -133,10 +133,8 @@ namespace jams {
         : size_(rhs.size_), data_(rhs.data_) {}
 
         MultiArray(MultiArray&& rhs) noexcept
-        : size_(std::move(rhs.size_)),
-          data_(std::move(rhs.data_)) {
-          rhs.size_.fill(0);
-        }
+        : size_(std::exchange(rhs.size_, {})),
+          data_(std::move(rhs.data_)) {}
 
         MultiArray& operator=(const MultiArray& rhs) & {
           data_ = rhs.data_;
@@ -146,9 +144,8 @@ namespace jams {
 
         MultiArray& operator=(MultiArray&& rhs) & noexcept {
           if (this != &rhs) {
-            size_ = std::move(rhs.size_);
+            size_ = std::exchange(rhs.size_, {});
             data_ = std::move(rhs.data_);
-            rhs.size_.fill(0);
           }
           return *this;
         }
