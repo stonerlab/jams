@@ -226,7 +226,7 @@ namespace jams {
         inline reference operator()(const Args &... args) {
           static_assert(sizeof...(args) == Dim_,
                         "number of MultiArray indicies does not match the MultiArray dimension");
-          const auto indices = detail::make_size_container<size_type, Dim_>(args...);
+          const size_container_type indices{static_cast<size_type>(args)...};
           assert(indices_in_bounds(indices));
           return data_.mutable_host_data()[detail::row_major_index(size_, indices)];
         }
@@ -235,7 +235,7 @@ namespace jams {
         inline const_reference operator()(const Args &... args) const {
           static_assert(sizeof...(args) == Dim_,
                         "number of MultiArray indicies does not match the MultiArray dimension");
-          const auto indices = detail::make_size_container<size_type, Dim_>(args...);
+          const size_container_type indices{static_cast<size_type>(args)...};
           assert(indices_in_bounds(indices));
           return data_.host_data()[detail::row_major_index(size_, indices)];
         }
