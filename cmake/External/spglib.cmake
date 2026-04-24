@@ -22,6 +22,20 @@ if (DEFINED JAMS_SPGLIB_VERSION)
         )
     endif()
 
+    # spglib v1.16.5 registers spglibtest unconditionally; keep vendored tests out of JAMS ctest.
+    set(_jams_spglib_cmakelists "${spglib_SOURCE_DIR}/CMakeLists.txt")
+    file(READ "${_jams_spglib_cmakelists}" _jams_spglib_cmakelists_contents)
+    if (_jams_spglib_cmakelists_contents MATCHES "\nadd_test\\(spglibtest spglibtest\\)")
+        string(REPLACE
+                "\nadd_test(spglibtest spglibtest)"
+                "\n# JAMS disables vendored spglib ctest registration.\n# add_test(spglibtest spglibtest)"
+                _jams_spglib_cmakelists_contents
+                "${_jams_spglib_cmakelists_contents}")
+        file(WRITE "${_jams_spglib_cmakelists}" "${_jams_spglib_cmakelists_contents}")
+    endif()
+    unset(_jams_spglib_cmakelists)
+    unset(_jams_spglib_cmakelists_contents)
+
     if (DEFINED CMAKE_POLICY_VERSION_MINIMUM)
         set(_jams_policy_minimum_backup "${CMAKE_POLICY_VERSION_MINIMUM}")
     endif()
