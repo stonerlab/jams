@@ -39,6 +39,7 @@
 #include <cassert>
 #include <cstdlib>
 #include <cstring>
+#include <iostream>
 #include <iterator>
 #include <limits>
 #include <new>
@@ -48,40 +49,25 @@
 #include <utility>
 #include <vector>
 
-// toggle printing all host/device synchronization calls to cout
-#define SYNCED_MEMORY_PRINT_MEMCPY 0
+namespace jams::detail {
+inline constexpr bool synced_memory_print_memcpy = false;
+inline constexpr bool synced_memory_print_memset = false;
+inline constexpr bool synced_memory_zero_on_allocation = false;
+inline constexpr std::size_t synced_memory_host_alignment = 64;
 
-// toggle printing all host/device memset calls to cout
-#define SYNCED_MEMORY_PRINT_MEMSET 0
+// If SyncedMemory is used in a global context then free() can call CUDA
+// routines after the CUDA context has been unloaded.
+inline constexpr bool synced_memory_allow_global = true;
 
-// only include <iostream> if we actually use it
-#if SYNCED_MEMORY_PRINT_MEMCPY || SYNCED_MEMORY_PRINT_MEMSET
-#include <iostream>
+#if HAS_CUDA
+inline void check_cuda_status(cudaError_t status, const char* file, int line) {
+  if (status != cudaSuccess) {
+    throw std::runtime_error(std::string(file) + ":" + std::to_string(line) +
+                             " CUDA error: " + cudaGetErrorString(status));
+  }
+}
 #endif
 
-// toggles support for using SyncedMemory in the global namespace
-#define SYNCED_MEMORY_ALLOW_GLOBAL 1
-//
-// If SyncedMemory is used in a global context then free()
-// calls CUDA routines after the CUDA context has been unloaded.
-// The calls then return cudaErrorCudartUnloading as the status.
-// This flag avoids checking the return status in free().
-
-// toggle zeroing of host/device memory immediately after allocation
-#define SYNCED_MEMORY_ZERO_ON_ALLOCATION 0
-
-// memory alignment for host memory (if supported)
-#define SYNCED_MEMORY_HOST_ALIGNMENT 64
-
-#define SYNCED_MEMORY_CHECK_CUDA_STATUS(x) \
-{ \
-  cudaError_t stat; \
-  if ((stat = (x)) != cudaSuccess) { \
-    throw std::runtime_error(__FILE__ ":" + std::to_string(__LINE__) + " CUDA error: " + cudaGetErrorString(stat)); \
-  } \
-}
-
-namespace jams::detail {
 template <class T, class = void>
 struct is_iterator : std::false_type { };
 
@@ -93,6 +79,10 @@ struct is_iterator<T, std::void_t<
 template <class T>
 inline constexpr bool is_iterator_v = is_iterator<T>::value;
 } // namespace jams::detail
+
+#if HAS_CUDA
+#define SYNCED_MEMORY_CHECK_CUDA_STATUS(x) ::jams::detail::check_cuda_status((x), __FILE__, __LINE__)
+#endif
 
 namespace jams {
 
@@ -326,9 +316,9 @@ SyncedMemory<T>::SyncedMemory(const SyncedMemory &rhs)
 #if HAS_CUDA
   if (rhs.device_valid()) {
     allocate_device_memory(size_);
-#if SYNCED_MEMORY_PRINT_MEMCPY
-    std::cout << "INFO(SyncedMemory): cudaMemcpyDeviceToDevice" << std::endl;
-#endif
+    if constexpr (detail::synced_memory_print_memcpy) {
+      std::cout << "INFO(SyncedMemory): cudaMemcpyDeviceToDevice" << std::endl;
+    }
     SYNCED_MEMORY_CHECK_CUDA_STATUS(cudaMemcpy(device_ptr_, rhs.device_ptr_, bytes(size_), cudaMemcpyDeviceToDevice));
     set_valid(Validity::device);
   }
@@ -377,9 +367,9 @@ SyncedMemory<T> &SyncedMemory<T>::operator=(const SyncedMemory& rhs) &{
         allocate_device_memory(size_);
       }
       set_valid(Validity::none);
-#if SYNCED_MEMORY_PRINT_MEMCPY
-      std::cout << "INFO(SyncedMemory): cudaMemcpyDeviceToDevice" << std::endl;
-#endif
+      if constexpr (detail::synced_memory_print_memcpy) {
+        std::cout << "INFO(SyncedMemory): cudaMemcpyDeviceToDevice" << std::endl;
+      }
       SYNCED_MEMORY_CHECK_CUDA_STATUS(cudaMemcpy(device_ptr_, rhs.device_ptr_, bytes(size_), cudaMemcpyDeviceToDevice));
       set_valid(Validity::device);
       return *this;
@@ -453,9 +443,10 @@ void SyncedMemory<T>::allocate_host_memory(const SyncedMemory::size_type size) c
 
   // Ensure the returned pointer satisfies alignment requirements for T.
   // posix_memalign requires alignment to be a power of two and a multiple of sizeof(void*).
-  const std::size_t alignment = std::max<std::size_t>(SYNCED_MEMORY_HOST_ALIGNMENT, alignof(T));
-  static_assert((SYNCED_MEMORY_HOST_ALIGNMENT & (SYNCED_MEMORY_HOST_ALIGNMENT - 1)) == 0,
-                "SYNCED_MEMORY_HOST_ALIGNMENT must be a power of two");
+  constexpr std::size_t host_alignment = detail::synced_memory_host_alignment;
+  const std::size_t alignment = std::max<std::size_t>(host_alignment, alignof(T));
+  static_assert((host_alignment & (host_alignment - 1)) == 0,
+                "synced_memory_host_alignment must be a power of two");
 
   void* raw = nullptr;
   if (posix_memalign(&raw, alignment, bytes(size)) != 0) {
@@ -532,9 +523,9 @@ void SyncedMemory<T>::ensure_host_current() const {
     if (!host_ptr_) {
       allocate_host_memory(size_);
     }
-#if SYNCED_MEMORY_PRINT_MEMCPY
-    std::cout << "INFO(SyncedMemory): cudaMemcpyDeviceToHost" << std::endl;
-#endif
+    if constexpr (detail::synced_memory_print_memcpy) {
+      std::cout << "INFO(SyncedMemory): cudaMemcpyDeviceToHost" << std::endl;
+    }
     assert(device_ptr_ && host_ptr_);
     SYNCED_MEMORY_CHECK_CUDA_STATUS(cudaMemcpy(host_ptr_, device_ptr_, bytes(size_), cudaMemcpyDeviceToHost));
     add_valid(Validity::host);
@@ -545,11 +536,11 @@ void SyncedMemory<T>::ensure_host_current() const {
   if (!host_ptr_) {
     allocate_host_memory(size_);
   }
-#if SYNCED_MEMORY_ZERO_ON_ALLOCATION
-  if (host_ptr_) {
-    zero_host();
+  if constexpr (detail::synced_memory_zero_on_allocation) {
+    if (host_ptr_) {
+      zero_host();
+    }
   }
-#endif
   if (host_ptr_) {
     add_valid(Validity::host);
   }
@@ -572,9 +563,9 @@ void SyncedMemory<T>::ensure_device_current() const {
   }
 
   if (host_valid()) {
-#if SYNCED_MEMORY_PRINT_MEMCPY
-    std::cout << "INFO(SyncedMemory): cudaMemcpyHostToDevice" << std::endl;
-#endif
+    if constexpr (detail::synced_memory_print_memcpy) {
+      std::cout << "INFO(SyncedMemory): cudaMemcpyHostToDevice" << std::endl;
+    }
     assert(device_ptr_ && host_ptr_);
     SYNCED_MEMORY_CHECK_CUDA_STATUS(cudaMemcpy(device_ptr_, host_ptr_, bytes(size_),
                                                cudaMemcpyHostToDevice));
@@ -582,9 +573,9 @@ void SyncedMemory<T>::ensure_device_current() const {
     return;
   }
 
-#if SYNCED_MEMORY_ZERO_ON_ALLOCATION
-  zero_device();
-#endif
+  if constexpr (detail::synced_memory_zero_on_allocation) {
+    zero_device();
+  }
   if (device_ptr_) {
     add_valid(Validity::device);
   }
@@ -621,13 +612,13 @@ inline
 void SyncedMemory<T>::zero_device() const {
   if (size_ == 0) return;
 
-  #if HAS_CUDA
-  #if SYNCED_MEMORY_PRINT_MEMSET
-  std::cout << "INFO(SyncedMemory): device zero" << std::endl;
-  #endif
-assert(device_ptr_);
-SYNCED_MEMORY_CHECK_CUDA_STATUS(cudaMemset(device_ptr_, 0, bytes(size_)));
-  #endif
+#if HAS_CUDA
+  if constexpr (detail::synced_memory_print_memset) {
+    std::cout << "INFO(SyncedMemory): device zero" << std::endl;
+  }
+  assert(device_ptr_);
+  SYNCED_MEMORY_CHECK_CUDA_STATUS(cudaMemset(device_ptr_, 0, bytes(size_)));
+#endif
 }
 
 
@@ -636,9 +627,9 @@ inline
 void SyncedMemory<T>::zero_host() const {
   if (size_ == 0) return;
 
-  #if SYNCED_MEMORY_PRINT_MEMSET
+  if constexpr (detail::synced_memory_print_memset) {
     std::cout << "INFO(SyncedMemory): host zero" << std::endl;
-  #endif
+  }
   assert(host_ptr_);
   memset(host_ptr_, 0, bytes(size_));
 }
@@ -763,11 +754,10 @@ constexpr unsigned SyncedMemory<T>::bits(Validity validity) noexcept {
 #if HAS_CUDA
 template<class T>
 bool SyncedMemory<T>::is_acceptable_free_status(cudaError_t status) noexcept {
-#if SYNCED_MEMORY_ALLOW_GLOBAL
-  return status == cudaSuccess || status == cudaErrorCudartUnloading;
-#else
+  if constexpr (detail::synced_memory_allow_global) {
+    return status == cudaSuccess || status == cudaErrorCudartUnloading;
+  }
   return status == cudaSuccess;
-#endif
 }
 #endif
 
@@ -873,11 +863,6 @@ void SyncedMemory<T>::assign_from_forward_range(ForwardIt first, ForwardIt last)
 } // namespace jams
 
 
-#undef SYNCED_MEMORY_PRINT_MEMCPY
-#undef SYNCED_MEMORY_PRINT_MEMSET
-#undef SYNCED_MEMORY_ALLOW_GLOBAL
-#undef SYNCED_MEMORY_ZERO_ON_ALLOCATION
-#undef SYNCED_MEMORY_HOST_ALIGNMENT
 #undef SYNCED_MEMORY_CHECK_CUDA_STATUS
 
 #endif
