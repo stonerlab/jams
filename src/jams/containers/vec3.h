@@ -410,7 +410,7 @@ template <typename T, std::size_t N>
 Vec<T, N> normalize_components(const Vec<T, N>& a) {
   Vec<T, N> result;
   for (auto i = 0; i < N; ++i) {
-    a[i] != 0 ? result[i] = a[i]/abs(a[i]) : result[i] = 0;
+    result[i] = (a[i] != 0) ? a[i] / std::abs(a[i]) : 0;
   }
   return result;
 }

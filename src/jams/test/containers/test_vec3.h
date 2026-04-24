@@ -60,6 +60,11 @@ TEST(Vec3Test, AbsoluteMaxReturnsAbsoluteValueType) {
   EXPECT_DOUBLE_EQ(jams::absolute_max(values), 5.0);
 }
 
+TEST(Vec3Test, NormalizeComponentsUsesComponentMagnitude) {
+  EXPECT_EQ(jams::normalize_components(Vec3{-2.0, 0.0, 4.0}), (Vec3{-1.0, 0.0, 1.0}));
+  EXPECT_EQ(jams::normalize_components(Vec3i{-2, 0, 4}), (Vec3i{-1, 0, 1}));
+}
+
 TEST(Vec3Test, CompoundAssignmentReturnsMutatedVectorReference) {
   static_assert(std::is_same_v<decltype(std::declval<Vec3&>() += 1.0), Vec3&>);
   static_assert(std::is_same_v<decltype(std::declval<Vec3&>() += std::declval<Vec3>()), Vec3&>);
