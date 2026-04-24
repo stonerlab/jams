@@ -17,13 +17,6 @@
 
 namespace jams {
     namespace detail {
-        template <std::size_t... Is>
-        struct indices {};
-        template <std::size_t N, std::size_t... Is>
-        struct build_indices: build_indices<N-1, N-1, Is...> {};
-        template <std::size_t... Is>
-        struct build_indices<0, Is...>: indices<Is...> {};
-
         template<typename To, typename From>
         constexpr To checked_integral_cast(From value) {
           static_assert(std::is_integral_v<To>, "target type must be integral");
@@ -47,13 +40,13 @@ namespace jams {
         }
 
         template<typename T, typename U, size_t i, size_t... Is>
-        constexpr std::array<T, i> checked_array_cast_helper(const std::array<U, i> &a, indices<Is...>) {
+        constexpr std::array<T, i> checked_array_cast_helper(const std::array<U, i> &a, std::index_sequence<Is...>) {
           return {{checked_integral_cast<T>(std::get<Is>(a))...}};
         }
 
         template<typename T, typename U, size_t i>
         constexpr auto checked_array_cast(const std::array<U, i> &a) -> std::array<T, i> {
-          return checked_array_cast_helper<T>(a, build_indices<i>());
+          return checked_array_cast_helper<T>(a, std::make_index_sequence<i>{});
         }
 
         template<typename T, std::size_t N>
@@ -76,7 +69,7 @@ namespace jams {
         template<typename Size, std::size_t N, std::size_t... Is>
         constexpr std::size_t row_major_index_array_impl(const std::array<Size, N> &dims,
                                                          const std::array<Size, N> &idx,
-                                                         indices<Is...>) {
+                                                         std::index_sequence<Is...>) {
           std::size_t offset = 0;
           ((offset = offset * static_cast<std::size_t>(std::get<Is>(dims)) +
                      static_cast<std::size_t>(std::get<Is>(idx))), ...);
@@ -86,7 +79,7 @@ namespace jams {
         template<typename Size, std::size_t N>
         constexpr std::size_t row_major_index(const std::array<Size, N> &dims,
                                               const std::array<Size, N> &idx) {
-          return row_major_index_array_impl(dims, idx, build_indices<N>());
+          return row_major_index_array_impl(dims, idx, std::make_index_sequence<N>{});
         }
     }
 
