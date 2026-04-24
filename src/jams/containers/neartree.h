@@ -52,7 +52,7 @@ namespace jams {
 
         NearTree(NearTree&& other) noexcept
         : left(nullptr), right(nullptr), left_branch(nullptr), right_branch(nullptr),
-          max_distance_left(empty_distance()), max_distance_right(empty_distance()),
+          max_distance_left(empty_distance()), max_distance_right(empty_distance()), size_(0),
           norm_functor(std::move(other.norm_functor)) {
           swap(*this, other);
         }
@@ -80,10 +80,10 @@ namespace jams {
 
         std::vector<T> find_in_annulus(const DistType &inner_radius, const DistType &outer_radius, const T &origin, const DistType &epsilon) const;
 
-        inline std::size_t size() const { return node_count(); };
+        inline std::size_t size() const noexcept { return size_; };
 
         inline std::size_t memory() const {
-          return node_count() * (2 * sizeof(T *) + 2 * sizeof(NearTree *) + 2 * sizeof(DistType));
+          return size_ * (2 * sizeof(T *) + 2 * sizeof(NearTree *) + 2 * sizeof(DistType));
         };
 
     private:
@@ -95,6 +95,7 @@ namespace jams {
 
         DistType max_distance_left = empty_distance();  // longest distance from the left object to anything below it in the tree
         DistType max_distance_right = empty_distance(); // longest distance from the right object to anything below it in the tree
+        std::size_t size_ = 0;
 
         FuncType norm_functor;  // functor to calculate distance
 
@@ -111,8 +112,6 @@ namespace jams {
                    const T &origin, const DistType &epsilon) const;
 
         bool nearest(DistType &radius, T &closest, const T &origin) const;
-
-        std::size_t node_count() const;
     };
 
     //
@@ -155,6 +154,7 @@ namespace jams {
 
       max_distance_left = empty_distance();
       max_distance_right = empty_distance();
+      size_ = 0;
     }
 
     template<typename T, typename FuncType, typename  DistType>
@@ -181,6 +181,7 @@ namespace jams {
     //
     template<typename T, typename FuncType, typename DistType>
     void NearTree<T, FuncType, DistType>::insert(const T &t) {
+      ++size_;
       // do a bit of precomputing if possible so that we can
       // reduce the number of calls to operator norm_functor as much
       // as possible; norm_functor might use square roots
@@ -383,25 +384,6 @@ namespace jams {
     }
 
     template<typename T, typename FuncType, typename DistType>
-    std::size_t NearTree<T, FuncType, DistType>::node_count() const {
-      std::size_t count = 0;
-      if ((left != nullptr)) {
-        count++;
-      }
-      if ((right != nullptr)) {
-        count++;
-      }
-
-      if ((left_branch != nullptr)) {
-        count += left_branch->node_count();
-      }
-      if ((right_branch != nullptr)) {
-        count += right_branch->node_count();
-      }
-      return count;
-    }
-
-    template<typename T, typename FuncType, typename DistType>
     int NearTree<T, FuncType, DistType>::num_neighbours_in_radius(const DistType &radius, const T &origin,
                                                         const DistType &epsilon) const {
       int num_neighbours = 0;
@@ -460,6 +442,7 @@ namespace jams {
       swap(first.right_branch, second.right_branch);
       swap(first.max_distance_left, second.max_distance_left);
       swap(first.max_distance_right, second.max_distance_right);
+      swap(first.size_, second.size_);
       swap(first.norm_functor, second.norm_functor);
     }
 }
