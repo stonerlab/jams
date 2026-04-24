@@ -425,4 +425,27 @@ TEST(MultiArrayFinalApiTest, CopyMoveAndSwapPreserveLogicalValues) {
   EXPECT_THAT(std::vector<int>(other.data(), other.data() + other.size()), ElementsAre(7, 8, 9));
 }
 
+TEST(MultiArrayFinalApiTest, MoveOperationsLeaveSourceShapeEmpty) {
+  using namespace jams;
+
+  MultiArray<int, 2> source(2, 3);
+  MultiArray<int, 2> moved(std::move(source));
+  EXPECT_TRUE(source.empty());
+  EXPECT_EQ(source.size(), 0u);
+  EXPECT_EQ(source.extent(0), 0u);
+  EXPECT_EQ(source.extent(1), 0u);
+  EXPECT_EQ(moved.shape(), (std::array<MultiArray<int, 2>::size_type, 2>{2, 3}));
+
+  MultiArray<int, 2> assigned;
+  assigned = std::move(moved);
+  EXPECT_TRUE(moved.empty());
+  EXPECT_EQ(moved.size(), 0u);
+  EXPECT_EQ(moved.extent(0), 0u);
+  EXPECT_EQ(moved.extent(1), 0u);
+  EXPECT_EQ(assigned.shape(), (std::array<MultiArray<int, 2>::size_type, 2>{2, 3}));
+
+  assigned = std::move(assigned);
+  EXPECT_EQ(assigned.shape(), (std::array<MultiArray<int, 2>::size_type, 2>{2, 3}));
+}
+
 #endif //JAMS_TEST_MULTIARRAY_H
