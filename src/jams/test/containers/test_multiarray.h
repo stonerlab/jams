@@ -112,7 +112,7 @@ TEST(MultiArrayFinalApiTest, ConstAccessorsAreLogicallyConstAndMaySynchronize) {
   static_assert(noexcept(std::declval<const Array&>().empty()), "");
   static_assert(noexcept(std::declval<const Array&>().size()), "");
   static_assert(noexcept(std::declval<const Array&>().shape()), "");
-  static_assert(noexcept(std::declval<const Array&>().bytes()), "");
+  static_assert(!noexcept(std::declval<const Array&>().bytes()), "");
   static_assert(noexcept(std::declval<const Array&>().elements()), "");
   static_assert(noexcept(std::declval<const Array&>().dimension()), "");
   static_assert(!noexcept(std::declval<const Array&>().max_size()), "");

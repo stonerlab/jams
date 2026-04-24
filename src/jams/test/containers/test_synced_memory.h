@@ -105,7 +105,8 @@ TEST(SyncedMemoryApiTest, TraitsAndNoexceptContract) {
   static_assert(noexcept(swap(std::declval<Memory&>(), std::declval<Memory&>())), "");
   static_assert(noexcept(std::declval<const Memory&>().empty()), "");
   static_assert(noexcept(std::declval<const Memory&>().size()), "");
-  static_assert(noexcept(std::declval<const Memory&>().bytes()), "");
+  static_assert(!noexcept(std::declval<const Memory&>().bytes()), "");
+  static_assert(!noexcept(Memory::bytes(0)), "");
   static_assert(noexcept(std::declval<const Memory&>().host_valid()), "");
   static_assert(noexcept(std::declval<const Memory&>().device_valid()), "");
   static_assert(!noexcept(std::declval<const Memory&>().max_size()), "");
@@ -116,6 +117,14 @@ TEST(SyncedMemoryApiTest, TraitsAndNoexceptContract) {
   static_assert(noexcept(std::declval<Memory&>().clear()), "");
   static_assert(noexcept(std::declval<Memory&>().resize(0)), "");
   static_assert(!noexcept(std::declval<Memory&>().zero()), "");
+}
+
+TEST(SyncedMemoryApiTest, BytesThrowsOnSizeOverflow) {
+  using Memory = jams::SyncedMemory<int>;
+
+  const auto max_elements = std::numeric_limits<std::size_t>::max() / sizeof(int);
+  EXPECT_EQ(Memory::bytes(max_elements), max_elements * sizeof(int));
+  EXPECT_THROW(Memory::bytes(max_elements + 1), std::overflow_error);
 }
 
 TEST(SyncedMemoryApiTest, DefaultAndSizedConstructionAreLazy) {

@@ -164,10 +164,10 @@ public:
 
     /// Return the size of the memory allocated of a single buffer (host or GPU)
     /// in bytes.
-    [[nodiscard]] constexpr std::size_t bytes() const noexcept;
+    [[nodiscard]] constexpr std::size_t bytes() const;
 
     /// Compiler time helper for calculating bytes required for n elements of T
-    static constexpr std::size_t bytes(size_type n) noexcept;
+    static constexpr std::size_t bytes(size_type n);
 
     /// Return the maximum allocatable size in number of elements of type 'T'.
     [[nodiscard]] size_type max_size() const;
@@ -817,13 +817,16 @@ constexpr bool SyncedMemory<T>::empty() const noexcept {
 
 
 template<class T>
-constexpr std::size_t SyncedMemory<T>::bytes() const noexcept {
+constexpr std::size_t SyncedMemory<T>::bytes() const {
   return bytes(size_);
 }
 
 
 template<class T>
-constexpr std::size_t SyncedMemory<T>::bytes(size_type n) noexcept {
+constexpr std::size_t SyncedMemory<T>::bytes(size_type n) {
+  if (n > std::numeric_limits<std::size_t>::max() / sizeof(value_type)) {
+    throw std::overflow_error("SyncedMemory::bytes size overflow");
+  }
   return n * sizeof(value_type);
 }
 

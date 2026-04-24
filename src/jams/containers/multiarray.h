@@ -195,7 +195,7 @@ namespace jams {
           return size_;
         }
 
-        [[nodiscard]] inline constexpr std::size_t bytes() const noexcept {
+        [[nodiscard]] inline constexpr std::size_t bytes() const {
           return data_.bytes();
         }
 
@@ -413,7 +413,7 @@ namespace jams {
           return size_;
         }
 
-        [[nodiscard]] inline constexpr std::size_t bytes() const noexcept {
+        [[nodiscard]] inline constexpr std::size_t bytes() const {
           return data_.bytes();
         }
 
