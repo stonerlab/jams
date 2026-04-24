@@ -45,6 +45,11 @@ TEST(Vec3Test, PolarAngleHandlesZeroVectorAndClampsAxisVectors) {
   EXPECT_DOUBLE_EQ(jams::polar_angle(Vec3{0.0, 0.0, -1.0}), M_PI);
 }
 
+TEST(Vec3Test, UnitVectorDefaultEpsilonIsTypeAware) {
+  EXPECT_EQ(jams::unit_vector(Vec3{0.0, 0.0, 0.0}), (Vec3{0.0, 0.0, 0.0}));
+  EXPECT_EQ(jams::unit_vector(Vec3f{0.0f, 0.0f, 0.0f}), (Vec3f{0.0f, 0.0f, 0.0f}));
+}
+
 TEST(Vec3Test, CompoundAssignmentReturnsMutatedVectorReference) {
   static_assert(std::is_same_v<decltype(std::declval<Vec3&>() += 1.0), Vec3&>);
   static_assert(std::is_same_v<decltype(std::declval<Vec3&>() += std::declval<Vec3>()), Vec3&>);
