@@ -717,16 +717,13 @@ void SyncedMemory<T>::resize(SyncedMemory::size_type new_size) noexcept {
 
 // max_size is for returning the maximum theoretical size a container can be,
 // i.e. it is still possible that we cannot allocate this amount of memory.
-// For CUDA we are interpreting this as the maximum x-dimension of a grid of
-// thread blocks
 template<class T>
 typename SyncedMemory<T>::size_type SyncedMemory<T>::max_size_device() const {
   #if HAS_CUDA
-  int dev = 0;
-  SYNCED_MEMORY_CHECK_CUDA_STATUS(cudaGetDevice(&dev));
-  cudaDeviceProp prop;
-  SYNCED_MEMORY_CHECK_CUDA_STATUS(cudaGetDeviceProperties(&prop, dev));
-  return prop.maxGridSize[0];
+  std::size_t free_bytes = 0;
+  std::size_t total_bytes = 0;
+  SYNCED_MEMORY_CHECK_CUDA_STATUS(cudaMemGetInfo(&free_bytes, &total_bytes));
+  return std::min(max_size_host(), free_bytes / sizeof(value_type));
   #else
   return 0;
   #endif
