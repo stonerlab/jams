@@ -1,6 +1,33 @@
 //
 // Created by Joseph Barker on 2019-04-05.
 //
+// MultiArray is a fixed-rank, row-major array owning SyncedMemory storage.
+//
+// The public API separates logical reads from writes:
+//   - const accessors and host_view() synchronize data to the host but do not
+//     mark host storage modified.
+//   - mutable_host_data(), mutable_host_view(), non-const begin(), and
+//     non-const operator() expose writable host storage and mark device storage
+//     stale through SyncedMemory.
+//   - device_data() returns a const device pointer; device writes must use
+//     mutable_device_data().
+//
+// Prefer operator() for concise scalar access and host views for tight loops.
+// A host view captures the synchronized host pointer, shape, and row-major
+// strides once:
+//
+//   const auto s = spins.host_view();
+//   for (std::size_t i = 0; i < s.extent(0); ++i) {
+//     const auto* row = s.row_data(i);
+//     // read row[0], row[1], ...
+//   }
+//
+//   auto out = field.mutable_host_view();
+//   out(i, j) = value;
+//
+// Construction and resize validate extents and total element count. Element
+// access is assert-only for speed: out-of-bounds access is undefined in release
+// builds.
 
 #ifndef JAMS_MULTIARRAY_H
 #define JAMS_MULTIARRAY_H
@@ -125,15 +152,43 @@ namespace jams {
         }
     }
 
+    /**
+     * Lightweight row-major view of MultiArray host storage.
+     *
+     * MultiArrayHostView does not own memory. It stores a pointer, the shape,
+     * row-major strides, and total element count captured when it is created by
+     * MultiArray::host_view() or MultiArray::mutable_host_view().
+     *
+     * Use host_view() for read-only host access. It is available on both const
+     * and non-const MultiArray objects and does not mark host storage modified.
+     * Use mutable_host_view() when writing on the host; it marks device storage
+     * stale once when the view is created instead of once per scalar access.
+     *
+     * Views are invalidated by operations that can replace or resize the owning
+     * MultiArray storage, including resize(), clear(), move assignment, and
+     * destruction of the owner. They are also only coherent with the memory side
+     * they were created for; do not keep a view across later host/device
+     * mutations of the owning MultiArray.
+     *
+     * Bounds checking is assert-only. In release builds operator() and
+     * row_data() assume valid indices.
+     */
     template<class Tp_, std::size_t Dim_, class Idx_ = std::size_t>
     class MultiArrayHostView {
     public:
+        /// Element type without cv-qualification.
         using value_type = std::remove_const_t<Tp_>;
+        /// Integral type used for extents and indices.
         using size_type = Idx_;
+        /// Type used for dimension numbers.
         using dim_type = std::size_t;
+        /// Fixed-size shape container, one extent per dimension.
         using size_container_type = std::array<size_type, Dim_>;
+        /// Fixed-size row-major stride container, one stride per dimension.
         using stride_container_type = std::array<std::size_t, Dim_>;
+        /// Pointer to host data. Const views expose const pointers.
         using pointer = Tp_*;
+        /// Reference to a host element. Const views expose const references.
         using reference = Tp_&;
 
         static_assert(Dim_ > 0, "MultiArrayHostView dimension must be greater than zero");
@@ -147,36 +202,44 @@ namespace jams {
               strides_(detail::row_major_strides(shape)),
               elements_(elements) {}
 
+        /// Return the captured host pointer. May be nullptr for an empty view.
         [[nodiscard]] constexpr pointer data() const noexcept {
           return data_;
         }
 
+        /// Return the total number of elements.
         [[nodiscard]] constexpr size_type size() const noexcept {
           return elements_;
         }
 
+        /// Return the total number of elements.
         [[nodiscard]] constexpr size_type elements() const noexcept {
           return elements_;
         }
 
+        /// Return true when the view contains no elements.
         [[nodiscard]] constexpr bool empty() const noexcept {
           return elements_ == 0;
         }
 
+        /// Return the extent of dimension n.
         [[nodiscard]] constexpr size_type extent(const dim_type n) const noexcept {
           assert(n < Dim_);
           return shape_[n];
         }
 
+        /// Return all extents.
         [[nodiscard]] constexpr const size_container_type& shape() const noexcept {
           return shape_;
         }
 
+        /// Return the row-major stride of dimension n, in elements.
         [[nodiscard]] constexpr std::size_t stride(const dim_type n) const noexcept {
           assert(n < Dim_);
           return strides_[n];
         }
 
+        /// Return a reference to an element using Dim_ indices.
         template<typename... Args>
         [[nodiscard]] constexpr reference operator()(const Args&... args) const noexcept {
           static_assert(sizeof...(args) == Dim_,
@@ -186,11 +249,18 @@ namespace jams {
           return data_[detail::row_major_index_from_strides(strides_, indices)];
         }
 
+        /// Return a reference to an element using an index array.
         [[nodiscard]] constexpr reference operator()(const size_container_type& indices) const noexcept {
           assert(indices_in_bounds(indices));
           return data_[detail::row_major_index_from_strides(strides_, indices)];
         }
 
+        /**
+         * Return a pointer to the first element at index n in dimension 0.
+         *
+         * For a 2D row-major array this is the start of row n. For higher-rank
+         * arrays it is the start of the contiguous block with first index n.
+         */
         [[nodiscard]] constexpr pointer row_data(const size_type n) const noexcept {
           static_assert(Dim_ >= 1, "row_data requires at least one dimension");
           assert(index_in_bounds(n, shape_[0]));
@@ -223,6 +293,41 @@ namespace jams {
         size_type elements_ = 0;
     };
 
+    /**
+     * Fixed-rank row-major array with synchronized host/device storage.
+     *
+     * MultiArray owns a contiguous SyncedMemory<T> buffer and a fixed-size shape
+     * array. The rank is part of the type, while extents are runtime values.
+     * Element type T must be trivially copyable because storage may be copied to
+     * and from CUDA device memory.
+     *
+     * Indexing order is row-major:
+     *
+     *   offset = (((i0 * extent(1) + i1) * extent(2) + i2) ...)
+     *
+     * Common usage:
+     *
+     *   jams::MultiArray<double, 2> a(num_spins, 3);
+     *   a(i, 0) = sx;
+     *
+     * For repeated host access, prefer views:
+     *
+     *   auto a_host = a.mutable_host_view();
+     *   auto* row = a_host.row_data(i);
+     *   row[0] = sx;
+     *
+     * The scalar operator() path is intentionally lightweight. It performs
+     * assert-only bounds checks and does not throw on invalid indices in release
+     * builds. Construction and resize do validate extents and total size.
+     *
+     * Synchronization model:
+     *   - host_data(), data(), begin() const, and host_view() read host storage.
+     *   - host_data() const and host_view() may copy from device to host.
+     *   - mutable_host_data(), mutable_host_view(), non-const begin(), and
+     *     non-const operator() mark host storage modified.
+     *   - device_data() reads device storage and returns a const pointer.
+     *   - mutable_device_data() marks device storage modified.
+     */
     template<class Tp_, std::size_t Dim_, class Idx_ = std::size_t>
     class MultiArray {
     public:
@@ -276,7 +381,7 @@ namespace jams {
           return *this;
         }
 
-        // construct using dimensions as arguments
+        // Construct using dimensions as arguments.
         template<typename... Args, std::enable_if_t<detail::valid_extent_args_v<Dim_, Args...>, int> = 0>
         inline explicit MultiArray(const Args... args)
             : MultiArray(detail::make_size_container<size_type, Dim_>(args...)) {
@@ -291,7 +396,7 @@ namespace jams {
                         "number of MultiArray indicies in constructor does not match the MultiArray dimension");
         }
 
-        // construct using dimensions in array
+        // Construct using dimensions in an array.
         template<typename Integral_>
         inline explicit MultiArray(const std::array<Integral_, Dim_> &v) :
             size_(detail::make_size_container<size_type>(v)),
@@ -308,7 +413,7 @@ namespace jams {
           size_ = {detail::checked_integral_cast<size_type>(data_.size())};
         }
 
-        // capacity
+        // Capacity and shape.
         [[nodiscard]] inline constexpr bool empty() const noexcept {
           return data_.size() == 0;
         }
@@ -345,9 +450,7 @@ namespace jams {
           return static_cast<size_type>(max_count);
         }
 
-        // operations
-
-        // element access
+        // Element access.
         template<typename... Args>
         inline reference operator()(const Args &... args) {
           static_assert(sizeof...(args) == Dim_,
@@ -392,14 +495,32 @@ namespace jams {
           return data_.host_data();
         }
 
+        /**
+         * Return a read-only host view.
+         *
+         * This may synchronize device data to host memory. It does not mark host
+         * storage modified, even when called on a non-const MultiArray.
+         */
         inline const_host_view_type host_view() {
           return const_host_view_type(data_.host_data(), size_, data_.size());
         }
 
+        /**
+         * Return a read-only host view.
+         *
+         * This may synchronize device data to host memory. It does not mark host
+         * storage modified.
+         */
         inline const_host_view_type host_view() const {
           return const_host_view_type(data_.host_data(), size_, data_.size());
         }
 
+        /**
+         * Return a writable host view.
+         *
+         * This marks host storage modified and device storage stale once when
+         * the view is created.
+         */
         inline host_view_type mutable_host_view() {
           return host_view_type(data_.mutable_host_data(), size_, data_.size());
         }
