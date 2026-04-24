@@ -12,6 +12,7 @@
 #include <type_traits>
 #include <utility>
 
+#include "jams/containers/vec.h"
 #include "jams/helpers/mixed_precision.h"
 
 namespace jams {
@@ -84,6 +85,137 @@ struct Mat {
   }
 };
 
+template <typename>
+struct is_mat : std::false_type {};
+
+template <typename T, std::size_t M, std::size_t N>
+struct is_mat<Mat<T, M, N>> : std::true_type {};
+
+template <typename To, typename From, std::size_t M, std::size_t N>
+constexpr Mat<To, M, N>
+matrix_cast(const Mat<From, M, N>& in)
+{
+  if constexpr (std::is_same_v<To, From>) {
+    return in;
+  } else {
+    static_assert(std::is_arithmetic_v<To>,
+                  "matrix_cast requires arithmetic To type");
+    static_assert(std::is_arithmetic_v<From>,
+                  "matrix_cast requires arithmetic From type");
+
+    Mat<To, M, N> out{};
+    for (std::size_t row = 0; row < N; ++row) {
+      for (std::size_t col = 0; col < M; ++col) {
+        out[row][col] = static_cast<To>(in[row][col]);
+      }
+    }
+    return out;
+  }
+}
+
+template <typename To, typename From, std::size_t M, std::size_t N>
+constexpr Mat<To, M, N>
+matrix_cast(const std::array<std::array<From, M>, N>& in)
+{
+  return matrix_cast<To>(Mat<From, M, N>{in});
+}
+
+template <typename T, std::size_t N>
+constexpr Mat<T, N, N> identity()
+{
+  Mat<T, N, N> out{};
+  for (std::size_t i = 0; i < N; ++i) {
+    out[i][i] = T{1};
+  }
+  return out;
+}
+
+template <typename T1, typename T2, std::size_t M, std::size_t N>
+inline constexpr auto operator*(const Mat<T1, M, N>& lhs, const Vec<T2, M>& rhs)
+    -> Vec<decltype(lhs[0][0] * rhs[0]), N> {
+  Vec<decltype(lhs[0][0] * rhs[0]), N> result{};
+  for (std::size_t row = 0; row < N; ++row) {
+    for (std::size_t col = 0; col < M; ++col) {
+      result[row] += lhs[row][col] * rhs[col];
+    }
+  }
+  return result;
+}
+
+template <typename T1, typename T2, std::size_t M, std::size_t N,
+          typename = std::enable_if_t<!is_mat<std::decay_t<T1>>::value>>
+inline constexpr auto operator*(const T1& lhs, const Mat<T2, M, N>& rhs)
+    -> Mat<decltype(lhs * rhs[0][0]), M, N> {
+  Mat<decltype(lhs * rhs[0][0]), M, N> result{};
+  for (std::size_t row = 0; row < N; ++row) {
+    for (std::size_t col = 0; col < M; ++col) {
+      result[row][col] = lhs * rhs[row][col];
+    }
+  }
+  return result;
+}
+
+template <typename T1, typename T2, std::size_t M, std::size_t N>
+inline constexpr auto operator/(const Mat<T1, M, N>& lhs, const T2& rhs)
+    -> Mat<decltype(lhs[0][0] / rhs), M, N> {
+  Mat<decltype(lhs[0][0] / rhs), M, N> result{};
+  for (std::size_t row = 0; row < N; ++row) {
+    for (std::size_t col = 0; col < M; ++col) {
+      result[row][col] = lhs[row][col] / rhs;
+    }
+  }
+  return result;
+}
+
+template <typename T1, typename T2, std::size_t M, std::size_t N>
+inline constexpr auto operator+(const Mat<T1, M, N>& lhs, const Mat<T2, M, N>& rhs)
+    -> Mat<decltype(lhs[0][0] + rhs[0][0]), M, N> {
+  Mat<decltype(lhs[0][0] + rhs[0][0]), M, N> result{};
+  for (std::size_t row = 0; row < N; ++row) {
+    for (std::size_t col = 0; col < M; ++col) {
+      result[row][col] = lhs[row][col] + rhs[row][col];
+    }
+  }
+  return result;
+}
+
+template <typename T1, typename T2, std::size_t M, std::size_t N>
+inline constexpr auto operator-(const Mat<T1, M, N>& lhs, const Mat<T2, M, N>& rhs)
+    -> Mat<decltype(lhs[0][0] - rhs[0][0]), M, N> {
+  Mat<decltype(lhs[0][0] - rhs[0][0]), M, N> result{};
+  for (std::size_t row = 0; row < N; ++row) {
+    for (std::size_t col = 0; col < M; ++col) {
+      result[row][col] = lhs[row][col] - rhs[row][col];
+    }
+  }
+  return result;
+}
+
+template <typename T, std::size_t M, std::size_t N>
+inline constexpr auto operator-(const Mat<T, M, N>& a) -> Mat<decltype(-a[0][0]), M, N> {
+  Mat<decltype(-a[0][0]), M, N> result{};
+  for (std::size_t row = 0; row < N; ++row) {
+    for (std::size_t col = 0; col < M; ++col) {
+      result[row][col] = -a[row][col];
+    }
+  }
+  return result;
+}
+
+template <typename T1, typename T2, std::size_t M, std::size_t N, std::size_t P>
+inline constexpr auto operator*(const Mat<T1, M, N>& lhs, const Mat<T2, P, M>& rhs)
+    -> Mat<decltype(lhs[0][0] * rhs[0][0]), P, N> {
+  Mat<decltype(lhs[0][0] * rhs[0][0]), P, N> result{};
+  for (std::size_t row = 0; row < N; ++row) {
+    for (std::size_t col = 0; col < P; ++col) {
+      for (std::size_t k = 0; k < M; ++k) {
+        result[row][col] += lhs[row][k] * rhs[k][col];
+      }
+    }
+  }
+  return result;
+}
+
 static_assert(sizeof(Mat<double, 3, 3>) == sizeof(double) * 9,
               "Mat must not add storage padding");
 static_assert(std::is_trivially_copyable_v<Mat<double, 3, 3>>,
@@ -109,6 +241,9 @@ constexpr bool operator!=(const Mat<T, M, N>& lhs, const Mat<T, M, N>& rhs) {
 
 template <typename T, std::size_t M, std::size_t N>
 using Mat = jams::Mat<T, M, N>;
+
+using jams::identity;
+using jams::matrix_cast;
 
 using Mat3 = jams::Mat3;
 using Mat3R = jams::Mat3R;
