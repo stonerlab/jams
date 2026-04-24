@@ -250,7 +250,7 @@ inline constexpr auto hadamard_product(const Vec<T1,3>& a, const Vec<T2,3>& b) -
 /// Returns the angle in radians between vector a and b
 template <typename T>
 inline constexpr T angle(const Vec<T,3>& a, const Vec<T,3>& b) {
-  return acos(dot(a,b) / (norm(a), norm(b)));
+  return std::acos(dot(a,b) / (norm(a) * norm(b)));
 }
 
 /// Returns a Vec3 in cartesian coordinates (x, y, z) from the polar coordinates

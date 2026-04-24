@@ -5,6 +5,7 @@
 #include "jams/test/containers/test_unordered_vector_set.h"
 #include "jams/test/containers/test_neartree.h"
 #include "jams/test/containers/test_cell.h"
+#include "jams/test/containers/test_vec3.h"
 #include <jams/lattice/minimum_image.t.h>
 #include <jams/lattice/interaction_neartree.t.h>
 
