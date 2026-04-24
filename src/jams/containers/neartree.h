@@ -9,10 +9,6 @@
 
 #include "jams/helpers/maths.h"
 
-// Toggles whether to do safe floating point comparisons with an 'epslion' or
-// use the trivial >=, <= operators
-#define SAFE_FLOAT_COMPARISON 1
-
 namespace jams {
     // A class implementing a fast method of finding neighbours in a set of items
     //
@@ -101,6 +97,18 @@ namespace jams {
 
         static constexpr DistType empty_distance() noexcept {
           return std::numeric_limits<DistType>::lowest();
+        }
+
+        static constexpr bool use_safe_float_comparison() noexcept {
+          return true;
+        }
+
+        static bool less_equal(const DistType& lhs, const DistType& rhs, const DistType& epsilon) {
+          if constexpr (use_safe_float_comparison()) {
+            return !definately_greater_than(lhs, rhs, epsilon);
+          } else {
+            return lhs <= rhs;
+          }
         }
 
         void
@@ -343,45 +351,25 @@ namespace jams {
       const auto norm_left = left != nullptr ? norm_functor(origin, *left) : DistType(0);
       const auto norm_right = right != nullptr ? norm_functor(origin, *right) : DistType(0);
 
-      #ifdef SAFE_FLOAT_COMPARISON
-      if ((left != nullptr) && !definately_greater_than(norm_left, radius, epsilon)) {
+      if ((left != nullptr) && less_equal(norm_left, radius, epsilon)) {
         closest.push_back(*left); // It's a keeper
       }
-      if ((right != nullptr) && !definately_greater_than(norm_right, radius, epsilon)) {
+      if ((right != nullptr) && less_equal(norm_right, radius, epsilon)) {
         closest.push_back(*right); // It's a keeper
       }
-      #else
-      if ((left != nullptr) && (norm_left <= radius)) {
-        closest.push_back(*left); // It's a keeper
-      }
-      if ((right != nullptr) && (norm_right <= radius)) {
-        closest.push_back(*right); // It's a keeper
-      }
-      #endif
       //
       // Now we test to see if the branches below might hold an
       // object nearer than the search radius. The triangle rule
       // is used to test whether it's even necessary to descend.
       //
-      #ifdef SAFE_FLOAT_COMPARISON
       if ((left_branch != nullptr) &&
-          !definately_greater_than(norm_left, (radius + max_distance_left), epsilon)) {
+          less_equal(norm_left, (radius + max_distance_left), epsilon)) {
         left_branch->in_radius(radius, closest, origin, epsilon);
       }
       if ((right_branch != nullptr) &&
-          !definately_greater_than(norm_right, (radius + max_distance_right), epsilon)) {
+          less_equal(norm_right, (radius + max_distance_right), epsilon)) {
         right_branch->in_radius(radius, closest, origin, epsilon);
       }
-      #else
-      if ((left_branch != nullptr) &&
-          (radius + max_distance_left) >= norm_left) {
-        left_branch->in_radius(radius, closest, origin, epsilon);
-      }
-      if ((right_branch != nullptr) &&
-          (radius + max_distance_right) >= norm_right) {
-        right_branch->in_radius(radius, closest, origin, epsilon);
-      }
-      #endif
     }
 
     template<typename T, typename FuncType, typename DistType>
@@ -426,45 +414,28 @@ namespace jams {
       // first test each of the left and right positions to see
       // if one holds a point nearer than the search radius.
 
-      #ifdef SAFE_FLOAT_COMPARISON
-      if ((left != nullptr) && !definately_greater_than(norm_functor(origin, *left), radius, epsilon)) {
+      const auto norm_left = left != nullptr ? norm_functor(origin, *left) : DistType(0);
+      const auto norm_right = right != nullptr ? norm_functor(origin, *right) : DistType(0);
+
+      if ((left != nullptr) && less_equal(norm_left, radius, epsilon)) {
         num_neighbours++;
       }
-      if ((right != nullptr) && !definately_greater_than(norm_functor(origin, *right), radius, epsilon)) {
+      if ((right != nullptr) && less_equal(norm_right, radius, epsilon)) {
         num_neighbours++;
       }
-      #else
-      if ((left != nullptr) && (norm_functor(origin, *left) <= radius)) {
-        num_neighbours++;
-      }
-      if ((right != nullptr) && (norm_functor(origin, *right) <= radius)) {
-        num_neighbours++;
-      }
-      #endif
       //
       // Now we test to see if the branches below might hold an
       // object nearer than the search radius. The triangle rule
       // is used to test whether it's even necessary to descend.
       //
-      #ifdef SAFE_FLOAT_COMPARISON
       if ((left_branch != nullptr) &&
-        !definately_greater_than(norm_functor(origin, *left), (radius + max_distance_left), epsilon)) {
+        less_equal(norm_left, (radius + max_distance_left), epsilon)) {
         num_neighbours += left_branch->num_neighbours_in_radius(radius, origin, epsilon);
       }
       if ((right_branch != nullptr) &&
-        !definately_greater_than(norm_functor(origin, *right), (radius + max_distance_right), epsilon)) {
+        less_equal(norm_right, (radius + max_distance_right), epsilon)) {
         num_neighbours += right_branch->num_neighbours_in_radius(radius, origin, epsilon);
       }
-      #else
-      if ((left_branch != nullptr) &&
-          (radius + max_distance_left) >= norm_functor(origin, *left)) {
-        num_neighbours += left_branch->num_neighbours_in_radius(radius, origin, epsilon);
-      }
-      if ((right_branch != nullptr) &&
-          (radius + max_distance_right) >= norm_functor(origin, *right)) {
-        num_neighbours += right_branch->num_neighbours_in_radius(radius, origin, epsilon);
-      }
-      #endif
       return num_neighbours;
     }
 
