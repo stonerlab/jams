@@ -77,9 +77,9 @@ void CudaSpinCurrentMonitor::update(Solver& solver) {
           reinterpret_cast<const double*>(interaction_matrix_.val_device_data()),
           interaction_matrix_.row_device_data(),
           interaction_matrix_.col_device_data(),
-          spin_current_rx_z.device_data(),
-          spin_current_ry_z.device_data(),
-          spin_current_rz_z.device_data()
+          spin_current_rx_z.mutable_device_data(),
+          spin_current_ry_z.mutable_device_data(),
+          spin_current_rz_z.mutable_device_data()
   );
 
   // The calculation is in JAMS internal units. We want to convert to SI for

@@ -161,6 +161,6 @@ void CudaDipoleBruteforceHamiltonian::calculate_fields(jams::Real time) {
     CudaStream stream;
 
     DipoleBruteforceKernel<<<(globals::num_spins + block_size - 1)/block_size, block_size, 0, stream.get() >>>
-        (globals::s.device_data(), r_float_.device_data(), mus_float_.device_data(), globals::num_spins, field_.device_data());
+        (globals::s.device_data(), r_float_.device_data(), mus_float_.device_data(), globals::num_spins, field_.mutable_device_data());
     DEBUG_CHECK_CUDA_ASYNC_STATUS;
 }

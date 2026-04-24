@@ -72,9 +72,9 @@ Vec3 execute_cuda_thermal_current_kernel(
       interaction_matrix.row_device_data(),
       interaction_matrix.index_device_data(),
       interaction_matrix.val_device_data(),
-      dev_thermal_current_rx.device_data(),
-      dev_thermal_current_ry.device_data(),
-      dev_thermal_current_rz.device_data());
+      dev_thermal_current_rx.mutable_device_data(),
+      dev_thermal_current_ry.mutable_device_data(),
+      dev_thermal_current_rz.mutable_device_data());
   DEBUG_CHECK_CUDA_ASYNC_STATUS;
 
   // triple counting in the sum
@@ -84,4 +84,3 @@ Vec3 execute_cuda_thermal_current_kernel(
 
   return {j_rx, j_ry, j_rz};
 }
-

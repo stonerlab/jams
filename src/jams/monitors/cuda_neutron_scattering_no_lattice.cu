@@ -109,7 +109,9 @@ void CudaNeutronScatteringNoLatticeMonitor::output_spectrum() {
   }
 
   CHECK_CUFFT_STATUS(
-    cufftExecD2Z(fft_plan, reinterpret_cast<cufftDoubleReal*>(windowed_timeseries.device_data()),  reinterpret_cast<cufftDoubleComplex*>(spin_frequencies_.device_data())));
+    cufftExecD2Z(fft_plan,
+                 const_cast<cufftDoubleReal*>(reinterpret_cast<const cufftDoubleReal*>(windowed_timeseries.device_data())),
+                 reinterpret_cast<cufftDoubleComplex*>(spin_frequencies_.mutable_device_data())));
 
   CHECK_CUFFT_STATUS(
       cufftDestroy(fft_plan));
@@ -154,9 +156,9 @@ void CudaNeutronScatteringNoLatticeMonitor::output_spectrum() {
       spectrum_r_ij<<<grid_size, block_size>>>(
           i, globals::num_spins, num_k, num_freq, unit_q[0], unit_q[1], unit_q[2],
           r_ij.device_data(),
-          reinterpret_cast<jams::Real*>(kspace_path_.device_data()),
+          reinterpret_cast<const jams::Real*>(kspace_path_.device_data()),
           reinterpret_cast<const cufftDoubleComplex*>(spin_frequencies_.device_data()),
-          reinterpret_cast<cufftDoubleComplex*>(total_unpolarized_neutron_cross_section_.device_data()));
+          reinterpret_cast<cufftDoubleComplex*>(total_unpolarized_neutron_cross_section_.mutable_device_data()));
       DEBUG_CHECK_CUDA_ASYNC_STATUS;
   }
 
@@ -215,7 +217,7 @@ void CudaNeutronScatteringNoLatticeMonitor::store_spin_data() {
 
   auto ptr_offset = t * globals::num_spins3;
 
-  cudaMemcpy(spin_timeseries_.device_data() + ptr_offset,
+  cudaMemcpy(spin_timeseries_.mutable_device_data() + ptr_offset,
              globals::s.device_data(),
              globals::num_spins3*sizeof(double), cudaMemcpyDeviceToDevice);
 }

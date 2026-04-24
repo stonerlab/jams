@@ -149,7 +149,7 @@ void CUDALLGSemiImplictSolver::run()
   thermostat_->wait_on(jams::instance().cuda_master_stream().get());
 
   cuda_llg_noise_step_cayley_kernel<<<grid_size, block_size, 0,  jams::instance().cuda_master_stream().get()>>>(
-  globals::s.device_data(),
+  globals::s.mutable_device_data(),
   thermostat_->device_data(),
   globals::gyro.device_data(),
   globals::alpha.device_data(),
@@ -157,7 +157,7 @@ void CUDALLGSemiImplictSolver::run()
   DEBUG_CHECK_CUDA_ASYNC_STATUS
   record_spin_barrier_event();
 
-  cudaMemcpyAsync(s_init_.device_data(),           // void *               dst
+  cudaMemcpyAsync(s_init_.mutable_device_data(),           // void *               dst
                 globals::s.device_data(),               // const void *         src
                 globals::s.bytes(),   // size_t               count
                 cudaMemcpyDeviceToDevice,    // enum cudaMemcpyKind  kind
@@ -167,7 +167,7 @@ void CUDALLGSemiImplictSolver::run()
   compute_fields();
 
   cuda_llg_semi_implicit_pred_kernel<<<grid_size, block_size, 0, jams::instance().cuda_master_stream().get()>>>(
-    globals::s.device_data(),
+    globals::s.mutable_device_data(),
     globals::h.device_data(),
     dt_gyro_mu_.device_data(),
     globals::alpha.device_data(),
@@ -181,7 +181,7 @@ void CUDALLGSemiImplictSolver::run()
   compute_fields();
 
   cuda_llg_semi_implicit_corr_kernel<<<grid_size, block_size, 0, jams::instance().cuda_master_stream().get()>>>(
-  globals::s.device_data(),
+  globals::s.mutable_device_data(),
   s_init_.device_data(),
     globals::h.device_data(),
     dt_gyro_mu_.device_data(),
@@ -195,7 +195,7 @@ void CUDALLGSemiImplictSolver::run()
   thermostat_->wait_on(jams::instance().cuda_master_stream().get());
 
   cuda_llg_noise_step_cayley_kernel<<<grid_size, block_size, 0,  jams::instance().cuda_master_stream().get()>>>(
-  globals::s.device_data(),
+  globals::s.mutable_device_data(),
   thermostat_->device_data(),
   globals::gyro.device_data(),
   globals::alpha.device_data(),

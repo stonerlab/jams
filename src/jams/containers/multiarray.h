@@ -260,8 +260,8 @@ namespace jams {
           return data_.host_data();
         }
 
-        inline pointer device_data() {
-          return mutable_device_data();
+        inline const_pointer device_data() {
+          return data_.device_data();
         }
 
         inline const_pointer device_data() const {

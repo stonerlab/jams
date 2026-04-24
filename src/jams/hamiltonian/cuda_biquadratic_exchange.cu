@@ -189,7 +189,7 @@ void CudaBiquadraticExchangeHamiltonian::calculate_fields(jams::Real time) {
   cuda_biquadratic_exchange_field_kernel<<<grid_size, block_size>>>
       (globals::num_spins, globals::s.device_data(), interaction_matrix_.row_device_data(),
        interaction_matrix_.col_device_data(), interaction_matrix_.val_device_data(),
-       field_.device_data());
+       field_.mutable_device_data());
   DEBUG_CHECK_CUDA_ASYNC_STATUS
 
 }
@@ -256,6 +256,5 @@ jams::Real CudaBiquadraticExchangeHamiltonian::calculate_energy_difference(int i
   auto e_final = -jams::dot(spin_final, 0.5*field);
   return static_cast<jams::Real>(e_final - e_initial);
 }
-
 
 

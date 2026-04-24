@@ -197,7 +197,7 @@ CudaThermostatGeneralFFT::CudaThermostatGeneralFFT(const jams::Real &temperature
   white_noise_.resize(num_spins3_even_ * (2 * num_trunc_ + 1));
   CHECK_CURAND_STATUS(
       curandGenerateNormalDouble(jams::instance().curand_generator(),
-                                 white_noise_.device_data(),
+                                 white_noise_.mutable_device_data(),
                                  white_noise_.size(), 0.0, 1.0));
 
 
@@ -249,7 +249,7 @@ void CudaThermostatGeneralFFT::update() {
 
   const auto n = pbc(globals::solver->iteration(), (2 * num_trunc_ + 1));
   cuda_thermostat_general_fft_kernel<<<grid_size, block_size, 0, dev_stream_ >>>(
-      noise_.device_data(),
+      noise_.mutable_device_data(),
       memory_kernel_.device_data(),
       white_noise_.device_data(),
       n,
@@ -258,8 +258,8 @@ void CudaThermostatGeneralFFT::update() {
   DEBUG_CHECK_CUDA_ASYNC_STATUS;
 
   // scale the noise by the prefactor sigma
-  cuda_array_elementwise_scale(globals::num_spins, 3, sigma_.device_data(), 1.0, noise_.device_data(), 1,
-                               noise_.device_data(), 1, dev_stream_);
+  cuda_array_elementwise_scale(globals::num_spins, 3, sigma_.device_data(), 1.0, noise_.mutable_device_data(), 1,
+                               noise_.mutable_device_data(), 1, dev_stream_);
 
   // generate new random numbers ready for the next round
   auto start_index = num_spins3_even_ * pbc(
@@ -267,7 +267,7 @@ void CudaThermostatGeneralFFT::update() {
   CHECK_CURAND_STATUS(
       curandGenerateNormalDouble(
           jams::instance().curand_generator(),
-           white_noise_.device_data() + start_index, num_spins3_even_, 0.0, 1.0));
+           white_noise_.mutable_device_data() + start_index, num_spins3_even_, 0.0, 1.0));
 
   #ifdef PRINT_NOISE
   debug_file_ << solver->iteration() * delta_t_ << " " << noise_(0, 0)

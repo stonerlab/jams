@@ -65,10 +65,10 @@ CudaThermostatQuantumSpde::CudaThermostatQuantumSpde(const jams::Real &temperatu
 
 
    if (do_zero_point_) {
-     CHECK_CURAND_STATUS(curandGenerateNormal(jams::instance().curand_generator(), eta0_.device_data(), eta0_.size(), 0.0, 1.0));
+     CHECK_CURAND_STATUS(curandGenerateNormal(jams::instance().curand_generator(), eta0_.mutable_device_data(), eta0_.size(), 0.0, 1.0));
    }
-   CHECK_CURAND_STATUS(curandGenerateNormal(jams::instance().curand_generator(), eta1a_.device_data(), eta1a_.size(), 0.0, 1.0));
-   CHECK_CURAND_STATUS(curandGenerateNormal(jams::instance().curand_generator(), eta1b_.device_data(), eta1b_.size(), 0.0, 1.0));
+   CHECK_CURAND_STATUS(curandGenerateNormal(jams::instance().curand_generator(), eta1a_.mutable_device_data(), eta1a_.size(), 0.0, 1.0));
+   CHECK_CURAND_STATUS(curandGenerateNormal(jams::instance().curand_generator(), eta1b_.mutable_device_data(), eta1b_.size(), 0.0, 1.0));
 
   cudaEventRecord(curand_done_, curand_stream_.get());
 
@@ -89,7 +89,7 @@ CudaThermostatQuantumSpde::CudaThermostatQuantumSpde(const jams::Real &temperatu
 
 void CudaThermostatQuantumSpde::update() {
   if (this->temperature() == 0) {
-    CHECK_CUDA_STATUS(cudaMemsetAsync(noise_.device_data(), 0, noise_.bytes(), cuda_stream_.get()));
+    CHECK_CUDA_STATUS(cudaMemsetAsync(noise_.mutable_device_data(), 0, noise_.bytes(), cuda_stream_.get()));
     return;
   }
 
@@ -107,15 +107,15 @@ void CudaThermostatQuantumSpde::update() {
 
   cudaStreamWaitEvent(cuda_stream_.get(), curand_done_, 0);
   cuda_thermostat_quantum_spde_no_zero_kernel<<<grid_size, block_size, 0, cuda_stream_.get() >>> (
-    noise_.device_data(), zeta5_.device_data(), zeta5p_.device_data(), zeta6_.device_data(), zeta6p_.device_data(),
+    noise_.mutable_device_data(), zeta5_.mutable_device_data(), zeta5p_.mutable_device_data(), zeta6_.mutable_device_data(), zeta6p_.mutable_device_data(),
     eta1b_.device_data(), sigma_.device_data(), reduced_delta_tau, temperature, globals::num_spins3);
   DEBUG_CHECK_CUDA_ASYNC_STATUS;
 
   CHECK_CURAND_STATUS(curandSetStream(jams::instance().curand_generator(), curand_stream_.get()));
 #ifdef DO_MIXED_PRECISION
-  CHECK_CURAND_STATUS(curandGenerateNormal(jams::instance().curand_generator(), eta1a_.device_data(), eta1a_.size(), 0.0, 1.0));
+  CHECK_CURAND_STATUS(curandGenerateNormal(jams::instance().curand_generator(), eta1a_.mutable_device_data(), eta1a_.size(), 0.0, 1.0));
 #else
-  CHECK_CURAND_STATUS(curandGenerateNormalDouble(jams::instance().curand_generator(), eta1a_.device_data(), eta1a_.size(), 0.0, 1.0));
+  CHECK_CURAND_STATUS(curandGenerateNormalDouble(jams::instance().curand_generator(), eta1a_.mutable_device_data(), eta1a_.size(), 0.0, 1.0));
 #endif
 
   cudaEventRecord(curand_done_, curand_stream_.get());
@@ -124,15 +124,15 @@ void CudaThermostatQuantumSpde::update() {
 
   if (do_zero_point_) {
     cuda_thermostat_quantum_spde_zero_point_kernel <<< grid_size, block_size, 0, cuda_stream_.get() >>> (
-        noise_.device_data(), zeta0_.device_data(), eta0_.device_data(), sigma_.device_data(), reduced_delta_tau,
+        noise_.mutable_device_data(), zeta0_.mutable_device_data(), eta0_.device_data(), sigma_.device_data(), reduced_delta_tau,
         temperature, reduced_omega_max, globals::num_spins3);
     DEBUG_CHECK_CUDA_ASYNC_STATUS;
 
     CHECK_CURAND_STATUS(curandSetStream(jams::instance().curand_generator(), curand_stream_.get()));
 #ifdef DO_MIXED_PRECISION
-    CHECK_CURAND_STATUS(curandGenerateNormal(jams::instance().curand_generator(), eta0_.device_data(), eta0_.size(), 0.0, 1.0));
+    CHECK_CURAND_STATUS(curandGenerateNormal(jams::instance().curand_generator(), eta0_.mutable_device_data(), eta0_.size(), 0.0, 1.0));
 #else
-    CHECK_CURAND_STATUS(curandGenerateNormalDouble(jams::instance().curand_generator(), eta0_.device_data(), eta0_.size(), 0.0, 1.0));
+    CHECK_CURAND_STATUS(curandGenerateNormalDouble(jams::instance().curand_generator(), eta0_.mutable_device_data(), eta0_.size(), 0.0, 1.0));
 #endif
 
     cudaEventRecord(curand_done_, curand_stream_.get());

@@ -42,7 +42,7 @@ void SparseInteractionHamiltonian::calculate_fields(jams::Real time) {
   #if HAS_CUDA
     if (jams::instance().mode() == jams::Mode::GPU) {
 #if DO_MIXED_PRECISION
-      cuda_array_double_to_float(globals::s.elements(), globals::s.device_data(), s_float_.device_data(), cuda_stream_.get());
+      cuda_array_double_to_float(globals::s.elements(), globals::s.device_data(), s_float_.mutable_device_data(), cuda_stream_.get());
       interaction_matrix_.multiply_gpu(s_float_, field_, jams::instance().cusparse_handle(), cuda_stream_.get());
 #else
       interaction_matrix_.multiply_gpu(globals::s, field_, jams::instance().cusparse_handle(), cuda_stream_.get());
@@ -71,7 +71,7 @@ void SparseInteractionHamiltonian::calculate_energies(jams::Real time) {
   #if HAS_CUDA
   if (jams::instance().mode() == jams::Mode::GPU) {
     calculate_fields(time);
-    cuda_array_dot_product(globals::num_spins, jams::Real(-0.5), globals::s.device_data(), field_.device_data(), energy_.device_data(), cuda_stream_.get());
+    cuda_array_dot_product(globals::num_spins, jams::Real(-0.5), globals::s.device_data(), field_.device_data(), energy_.mutable_device_data(), cuda_stream_.get());
     return;
   }
   #endif

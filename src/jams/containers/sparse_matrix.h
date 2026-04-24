@@ -402,9 +402,9 @@ void SparseMatrix<T>::multiply(const MultiArray<X, N> &vector_x, MultiArray<Y, N
                 num_rows_,
                 num_cols_,
                 num_non_zero_,
-                row_.device_data(),
-                col_.device_data(),
-                val_.device_data(),
+                const_cast<index_type*>(row_.device_data()),
+                const_cast<index_type*>(col_.device_data()),
+                const_cast<T*>(val_.device_data()),
                 cuda::get_cusparse_index_type<index_type>(),
                 cuda::get_cusparse_index_type<index_type>(),
                 CUSPARSE_INDEX_BASE_ZERO,
@@ -435,10 +435,10 @@ void SparseMatrix<T>::multiply(const MultiArray<X, N> &vector_x, MultiArray<Y, N
             CHECK_CUSPARSE_STATUS(cusparseCreateDnVec(
                 &cusparse_vector_y_handle_,
                 vector_y.elements(),
-                (void*)vector_y.device_data(),
+                vector_y.mutable_device_data(),
                 cuda::get_cuda_data_type<U>()));
           }
-          CHECK_CUSPARSE_STATUS(cusparseDnVecSetValues(cusparse_vector_y_handle_, (void*)vector_y.device_data()));
+          CHECK_CUSPARSE_STATUS(cusparseDnVecSetValues(cusparse_vector_y_handle_, vector_y.mutable_device_data()));
 
           const cudaDataType compute_type = cuda::get_cuda_data_type<U>();
           const cusparseSpMVAlg_t alg = CUSPARSE_SPMV_ALG_DEFAULT;

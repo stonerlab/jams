@@ -55,7 +55,7 @@ void CudaFieldPulseHamiltonian::calculate_fields(jams::Real time) {
   jams::Real3 field = {b_field[0], b_field[1], b_field[2]};
   cuda_field_pulse_surface_kernel<<<grid_size, block_size, 0, cuda_stream_.get() >>>
       (globals::num_spins, surface_cutoff_, globals::mus.device_data(), positions_.device_data(),
-       field, field_.device_data());
+       field, field_.mutable_device_data());
   DEBUG_CHECK_CUDA_ASYNC_STATUS;
 }
 

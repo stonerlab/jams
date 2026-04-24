@@ -262,43 +262,43 @@ Vec3 jams::vector_field_reduce_cuda(const jams::MultiArray<double, 2>& x) {
   switch (threads)
   {
     case 512:
-      vector_field_reduce_kernel<512><<< dimGrid, dimBlock, smemSize >>>(x.device_data(), block_sums.device_data(), size);
+      vector_field_reduce_kernel<512><<< dimGrid, dimBlock, smemSize >>>(x.device_data(), block_sums.mutable_device_data(), size);
       break;
 
     case 256:
-      vector_field_reduce_kernel<256><<< dimGrid, dimBlock, smemSize >>>(x.device_data(), block_sums.device_data(), size);
+      vector_field_reduce_kernel<256><<< dimGrid, dimBlock, smemSize >>>(x.device_data(), block_sums.mutable_device_data(), size);
       break;
 
     case 128:
-      vector_field_reduce_kernel<128><<< dimGrid, dimBlock, smemSize >>>(x.device_data(), block_sums.device_data(), size);
+      vector_field_reduce_kernel<128><<< dimGrid, dimBlock, smemSize >>>(x.device_data(), block_sums.mutable_device_data(), size);
       break;
 
     case 64:
-      vector_field_reduce_kernel< 64><<< dimGrid, dimBlock, smemSize >>>(x.device_data(), block_sums.device_data(), size);
+      vector_field_reduce_kernel< 64><<< dimGrid, dimBlock, smemSize >>>(x.device_data(), block_sums.mutable_device_data(), size);
       break;
 
     case 32:
-      vector_field_reduce_kernel< 32><<< dimGrid, dimBlock, smemSize >>>(x.device_data(), block_sums.device_data(), size);
+      vector_field_reduce_kernel< 32><<< dimGrid, dimBlock, smemSize >>>(x.device_data(), block_sums.mutable_device_data(), size);
       break;
 
     case 16:
-      vector_field_reduce_kernel< 16><<< dimGrid, dimBlock, smemSize >>>(x.device_data(), block_sums.device_data(), size);
+      vector_field_reduce_kernel< 16><<< dimGrid, dimBlock, smemSize >>>(x.device_data(), block_sums.mutable_device_data(), size);
       break;
 
     case  8:
-      vector_field_reduce_kernel<  8><<< dimGrid, dimBlock, smemSize >>>(x.device_data(), block_sums.device_data(), size);
+      vector_field_reduce_kernel<  8><<< dimGrid, dimBlock, smemSize >>>(x.device_data(), block_sums.mutable_device_data(), size);
       break;
 
     case  4:
-      vector_field_reduce_kernel<  4><<< dimGrid, dimBlock, smemSize >>>(x.device_data(), block_sums.device_data(), size);
+      vector_field_reduce_kernel<  4><<< dimGrid, dimBlock, smemSize >>>(x.device_data(), block_sums.mutable_device_data(), size);
       break;
 
     case  2:
-      vector_field_reduce_kernel<  2><<< dimGrid, dimBlock, smemSize >>>(x.device_data(), block_sums.device_data(), size);
+      vector_field_reduce_kernel<  2><<< dimGrid, dimBlock, smemSize >>>(x.device_data(), block_sums.mutable_device_data(), size);
       break;
 
     case  1:
-      vector_field_reduce_kernel<  1><<< dimGrid, dimBlock, smemSize >>>(x.device_data(), block_sums.device_data(), size);
+      vector_field_reduce_kernel<  1><<< dimGrid, dimBlock, smemSize >>>(x.device_data(), block_sums.mutable_device_data(), size);
       break;
   }
 
@@ -331,43 +331,43 @@ Vec3 jams::vector_field_indexed_reduce_cuda(const jams::MultiArray<double, 2>& x
   switch (threads)
   {
     case 512:
-      vector_field_indexed_reduce_kernel<512><<< dimGrid, dimBlock, smemSize >>>(x.device_data(), indices.device_data(), block_sums.device_data(), size);
+      vector_field_indexed_reduce_kernel<512><<< dimGrid, dimBlock, smemSize >>>(x.device_data(), indices.device_data(), block_sums.mutable_device_data(), size);
       break;
 
     case 256:
-      vector_field_indexed_reduce_kernel<256><<< dimGrid, dimBlock, smemSize >>>(x.device_data(), indices.device_data(), block_sums.device_data(), size);
+      vector_field_indexed_reduce_kernel<256><<< dimGrid, dimBlock, smemSize >>>(x.device_data(), indices.device_data(), block_sums.mutable_device_data(), size);
       break;
 
     case 128:
-      vector_field_indexed_reduce_kernel<128><<< dimGrid, dimBlock, smemSize >>>(x.device_data(), indices.device_data(), block_sums.device_data(), size);
+      vector_field_indexed_reduce_kernel<128><<< dimGrid, dimBlock, smemSize >>>(x.device_data(), indices.device_data(), block_sums.mutable_device_data(), size);
       break;
 
     case 64:
-      vector_field_indexed_reduce_kernel< 64><<< dimGrid, dimBlock, smemSize >>>(x.device_data(), indices.device_data(), block_sums.device_data(), size);
+      vector_field_indexed_reduce_kernel< 64><<< dimGrid, dimBlock, smemSize >>>(x.device_data(), indices.device_data(), block_sums.mutable_device_data(), size);
       break;
 
     case 32:
-      vector_field_indexed_reduce_kernel< 32><<< dimGrid, dimBlock, smemSize >>>(x.device_data(), indices.device_data(), block_sums.device_data(), size);
+      vector_field_indexed_reduce_kernel< 32><<< dimGrid, dimBlock, smemSize >>>(x.device_data(), indices.device_data(), block_sums.mutable_device_data(), size);
       break;
 
     case 16:
-      vector_field_indexed_reduce_kernel< 16><<< dimGrid, dimBlock, smemSize >>>(x.device_data(), indices.device_data(), block_sums.device_data(), size);
+      vector_field_indexed_reduce_kernel< 16><<< dimGrid, dimBlock, smemSize >>>(x.device_data(), indices.device_data(), block_sums.mutable_device_data(), size);
       break;
 
     case  8:
-      vector_field_indexed_reduce_kernel<  8><<< dimGrid, dimBlock, smemSize >>>(x.device_data(), indices.device_data(), block_sums.device_data(), size);
+      vector_field_indexed_reduce_kernel<  8><<< dimGrid, dimBlock, smemSize >>>(x.device_data(), indices.device_data(), block_sums.mutable_device_data(), size);
       break;
 
     case  4:
-      vector_field_indexed_reduce_kernel<  4><<< dimGrid, dimBlock, smemSize >>>(x.device_data(), indices.device_data(), block_sums.device_data(), size);
+      vector_field_indexed_reduce_kernel<  4><<< dimGrid, dimBlock, smemSize >>>(x.device_data(), indices.device_data(), block_sums.mutable_device_data(), size);
       break;
 
     case  2:
-      vector_field_indexed_reduce_kernel<  2><<< dimGrid, dimBlock, smemSize >>>(x.device_data(), indices.device_data(), block_sums.device_data(), size);
+      vector_field_indexed_reduce_kernel<  2><<< dimGrid, dimBlock, smemSize >>>(x.device_data(), indices.device_data(), block_sums.mutable_device_data(), size);
       break;
 
     case  1:
-      vector_field_indexed_reduce_kernel<  1><<< dimGrid, dimBlock, smemSize >>>(x.device_data(), indices.device_data(), block_sums.device_data(), size);
+      vector_field_indexed_reduce_kernel<  1><<< dimGrid, dimBlock, smemSize >>>(x.device_data(), indices.device_data(), block_sums.mutable_device_data(), size);
       break;
   }
 
@@ -401,43 +401,43 @@ Vec3 jams::vector_field_scale_and_reduce_cuda(const jams::MultiArray<double, 2>&
   switch (threads)
   {
     case 512:
-      vector_field_multiply_and_reduce_kernel<512><<< dimGrid, dimBlock, smemSize >>>(x.device_data(), scale_factors.device_data(), block_sums.device_data(), size);
+      vector_field_multiply_and_reduce_kernel<512><<< dimGrid, dimBlock, smemSize >>>(x.device_data(), scale_factors.device_data(), block_sums.mutable_device_data(), size);
       break;
 
     case 256:
-      vector_field_multiply_and_reduce_kernel<256><<< dimGrid, dimBlock, smemSize >>>(x.device_data(), scale_factors.device_data(), block_sums.device_data(), size);
+      vector_field_multiply_and_reduce_kernel<256><<< dimGrid, dimBlock, smemSize >>>(x.device_data(), scale_factors.device_data(), block_sums.mutable_device_data(), size);
       break;
 
     case 128:
-      vector_field_multiply_and_reduce_kernel<128><<< dimGrid, dimBlock, smemSize >>>(x.device_data(), scale_factors.device_data(), block_sums.device_data(), size);
+      vector_field_multiply_and_reduce_kernel<128><<< dimGrid, dimBlock, smemSize >>>(x.device_data(), scale_factors.device_data(), block_sums.mutable_device_data(), size);
       break;
 
     case 64:
-      vector_field_multiply_and_reduce_kernel< 64><<< dimGrid, dimBlock, smemSize >>>(x.device_data(), scale_factors.device_data(), block_sums.device_data(), size);
+      vector_field_multiply_and_reduce_kernel< 64><<< dimGrid, dimBlock, smemSize >>>(x.device_data(), scale_factors.device_data(), block_sums.mutable_device_data(), size);
       break;
 
     case 32:
-      vector_field_multiply_and_reduce_kernel< 32><<< dimGrid, dimBlock, smemSize >>>(x.device_data(), scale_factors.device_data(), block_sums.device_data(), size);
+      vector_field_multiply_and_reduce_kernel< 32><<< dimGrid, dimBlock, smemSize >>>(x.device_data(), scale_factors.device_data(), block_sums.mutable_device_data(), size);
       break;
 
     case 16:
-      vector_field_multiply_and_reduce_kernel< 16><<< dimGrid, dimBlock, smemSize >>>(x.device_data(), scale_factors.device_data(), block_sums.device_data(), size);
+      vector_field_multiply_and_reduce_kernel< 16><<< dimGrid, dimBlock, smemSize >>>(x.device_data(), scale_factors.device_data(), block_sums.mutable_device_data(), size);
       break;
 
     case  8:
-      vector_field_multiply_and_reduce_kernel<  8><<< dimGrid, dimBlock, smemSize >>>(x.device_data(), scale_factors.device_data(), block_sums.device_data(), size);
+      vector_field_multiply_and_reduce_kernel<  8><<< dimGrid, dimBlock, smemSize >>>(x.device_data(), scale_factors.device_data(), block_sums.mutable_device_data(), size);
       break;
 
     case  4:
-      vector_field_multiply_and_reduce_kernel<  4><<< dimGrid, dimBlock, smemSize >>>(x.device_data(), scale_factors.device_data(), block_sums.device_data(), size);
+      vector_field_multiply_and_reduce_kernel<  4><<< dimGrid, dimBlock, smemSize >>>(x.device_data(), scale_factors.device_data(), block_sums.mutable_device_data(), size);
       break;
 
     case  2:
-      vector_field_multiply_and_reduce_kernel<  2><<< dimGrid, dimBlock, smemSize >>>(x.device_data(), scale_factors.device_data(), block_sums.device_data(), size);
+      vector_field_multiply_and_reduce_kernel<  2><<< dimGrid, dimBlock, smemSize >>>(x.device_data(), scale_factors.device_data(), block_sums.mutable_device_data(), size);
       break;
 
     case  1:
-      vector_field_multiply_and_reduce_kernel<  1><<< dimGrid, dimBlock, smemSize >>>(x.device_data(), scale_factors.device_data(), block_sums.device_data(), size);
+      vector_field_multiply_and_reduce_kernel<  1><<< dimGrid, dimBlock, smemSize >>>(x.device_data(), scale_factors.device_data(), block_sums.mutable_device_data(), size);
       break;
   }
 
@@ -474,43 +474,43 @@ std::array<X,3> jams::vector_field_indexed_scale_and_reduce_cuda(const jams::Mul
   switch (threads)
   {
     case 512:
-      vector_field_key_multiply_and_reduce_kernel<512><<< dimGrid, dimBlock, smemSize >>>(x.device_data(), scale_factors.device_data(), indices.device_data(), block_sums.device_data(), size);
+      vector_field_key_multiply_and_reduce_kernel<512><<< dimGrid, dimBlock, smemSize >>>(x.device_data(), scale_factors.device_data(), indices.device_data(), block_sums.mutable_device_data(), size);
       break;
 
     case 256:
-      vector_field_key_multiply_and_reduce_kernel<256><<< dimGrid, dimBlock, smemSize >>>(x.device_data(), scale_factors.device_data(), indices.device_data(), block_sums.device_data(), size);
+      vector_field_key_multiply_and_reduce_kernel<256><<< dimGrid, dimBlock, smemSize >>>(x.device_data(), scale_factors.device_data(), indices.device_data(), block_sums.mutable_device_data(), size);
       break;
 
     case 128:
-      vector_field_key_multiply_and_reduce_kernel<128><<< dimGrid, dimBlock, smemSize >>>(x.device_data(), scale_factors.device_data(), indices.device_data(), block_sums.device_data(), size);
+      vector_field_key_multiply_and_reduce_kernel<128><<< dimGrid, dimBlock, smemSize >>>(x.device_data(), scale_factors.device_data(), indices.device_data(), block_sums.mutable_device_data(), size);
       break;
 
     case 64:
-      vector_field_key_multiply_and_reduce_kernel< 64><<< dimGrid, dimBlock, smemSize >>>(x.device_data(), scale_factors.device_data(), indices.device_data(), block_sums.device_data(), size);
+      vector_field_key_multiply_and_reduce_kernel< 64><<< dimGrid, dimBlock, smemSize >>>(x.device_data(), scale_factors.device_data(), indices.device_data(), block_sums.mutable_device_data(), size);
       break;
 
     case 32:
-      vector_field_key_multiply_and_reduce_kernel< 32><<< dimGrid, dimBlock, smemSize >>>(x.device_data(), scale_factors.device_data(), indices.device_data(), block_sums.device_data(), size);
+      vector_field_key_multiply_and_reduce_kernel< 32><<< dimGrid, dimBlock, smemSize >>>(x.device_data(), scale_factors.device_data(), indices.device_data(), block_sums.mutable_device_data(), size);
       break;
 
     case 16:
-      vector_field_key_multiply_and_reduce_kernel< 16><<< dimGrid, dimBlock, smemSize >>>(x.device_data(), scale_factors.device_data(), indices.device_data(), block_sums.device_data(), size);
+      vector_field_key_multiply_and_reduce_kernel< 16><<< dimGrid, dimBlock, smemSize >>>(x.device_data(), scale_factors.device_data(), indices.device_data(), block_sums.mutable_device_data(), size);
       break;
 
     case  8:
-      vector_field_key_multiply_and_reduce_kernel<  8><<< dimGrid, dimBlock, smemSize >>>(x.device_data(), scale_factors.device_data(), indices.device_data(), block_sums.device_data(), size);
+      vector_field_key_multiply_and_reduce_kernel<  8><<< dimGrid, dimBlock, smemSize >>>(x.device_data(), scale_factors.device_data(), indices.device_data(), block_sums.mutable_device_data(), size);
       break;
 
     case  4:
-      vector_field_key_multiply_and_reduce_kernel<  4><<< dimGrid, dimBlock, smemSize >>>(x.device_data(), scale_factors.device_data(), indices.device_data(), block_sums.device_data(), size);
+      vector_field_key_multiply_and_reduce_kernel<  4><<< dimGrid, dimBlock, smemSize >>>(x.device_data(), scale_factors.device_data(), indices.device_data(), block_sums.mutable_device_data(), size);
       break;
 
     case  2:
-      vector_field_key_multiply_and_reduce_kernel<  2><<< dimGrid, dimBlock, smemSize >>>(x.device_data(), scale_factors.device_data(), indices.device_data(), block_sums.device_data(), size);
+      vector_field_key_multiply_and_reduce_kernel<  2><<< dimGrid, dimBlock, smemSize >>>(x.device_data(), scale_factors.device_data(), indices.device_data(), block_sums.mutable_device_data(), size);
       break;
 
     case  1:
-      vector_field_key_multiply_and_reduce_kernel<  1><<< dimGrid, dimBlock, smemSize >>>(x.device_data(), scale_factors.device_data(), indices.device_data(), block_sums.device_data(), size);
+      vector_field_key_multiply_and_reduce_kernel<  1><<< dimGrid, dimBlock, smemSize >>>(x.device_data(), scale_factors.device_data(), indices.device_data(), block_sums.mutable_device_data(), size);
       break;
   }
 

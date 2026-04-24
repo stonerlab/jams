@@ -66,7 +66,7 @@ void CudaRandomAnisotropyHamiltonian::calculate_fields(jams::Real time) {
           globals::s.device_data(),
           dev_direction_.data().get(),
           dev_magnitude_.data().get(),
-          field_.device_data()
+          field_.mutable_device_data()
           );
   DEBUG_CHECK_CUDA_ASYNC_STATUS;
 }
@@ -78,7 +78,7 @@ void CudaRandomAnisotropyHamiltonian::calculate_energies(jams::Real time) {
           globals::s.device_data(),
           dev_direction_.data().get(),
           dev_magnitude_.data().get(),
-          energy_.device_data());
+          energy_.mutable_device_data());
   DEBUG_CHECK_CUDA_ASYNC_STATUS;
 }
 

@@ -44,12 +44,12 @@ jams::Real CudaUniaxialAnisotropyHamiltonian::calculate_total_energy(jams::Real 
 
 void CudaUniaxialAnisotropyHamiltonian::calculate_energies(jams::Real time) {
   cuda_uniaxial_energy_kernel<<<(globals::num_spins+dev_blocksize_-1)/dev_blocksize_, dev_blocksize_, 0, cuda_stream_.get()>>>
-  (globals::num_spins, power_, magnitude_.device_data(), axis_.device_data(), globals::s.device_data(), energy_.device_data());
+  (globals::num_spins, power_, magnitude_.device_data(), axis_.device_data(), globals::s.device_data(), energy_.mutable_device_data());
   DEBUG_CHECK_CUDA_ASYNC_STATUS;
 }
 
 void CudaUniaxialAnisotropyHamiltonian::calculate_fields(jams::Real time) {
   cuda_uniaxial_field_kernel<<<(globals::num_spins+dev_blocksize_-1)/dev_blocksize_, dev_blocksize_, 0, cuda_stream_.get()>>>
-            (globals::num_spins, power_, magnitude_.device_data(), axis_.device_data(), globals::s.device_data(), field_.device_data());
+            (globals::num_spins, power_, magnitude_.device_data(), axis_.device_data(), globals::s.device_data(), field_.mutable_device_data());
   DEBUG_CHECK_CUDA_ASYNC_STATUS;
 }

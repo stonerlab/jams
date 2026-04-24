@@ -62,7 +62,7 @@ public:
     // raw pointer to field data on cuda device
     jams::Real *dev_ptr_field() {
       #if HAS_CUDA
-      return field_.device_data();
+      return field_.mutable_device_data();
       #else
       return nullptr;
       #endif

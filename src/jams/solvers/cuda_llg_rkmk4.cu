@@ -296,7 +296,7 @@ void CUDALLGRKMK4Solver::run()
   thermostat_->wait_on(jams::instance().cuda_master_stream().get());
 
   cuda_llg_noise_step_rodrigues_kernel<<<grid_size, block_size, 0, jams::instance().cuda_master_stream().get()>>>(
-    globals::s.device_data(),
+    globals::s.mutable_device_data(),
     thermostat_->device_data(),
     globals::gyro.device_data(),
     globals::alpha.device_data(),
@@ -304,7 +304,7 @@ void CUDALLGRKMK4Solver::run()
   DEBUG_CHECK_CUDA_ASYNC_STATUS
   record_spin_barrier_event();
 
-  cudaMemcpyAsync(s_init_.device_data(),
+  cudaMemcpyAsync(s_init_.mutable_device_data(),
                 globals::s.device_data(),
                 globals::s.bytes(),
                 cudaMemcpyDeviceToDevice,
@@ -315,8 +315,8 @@ void CUDALLGRKMK4Solver::run()
 
   cuda_llg_rkmk4_kernel_step_1<<<grid_size, block_size, 0, jams::instance().cuda_master_stream().get()>>>(
     s_init_.device_data(),
-    k1_.device_data(),
-    globals::s.device_data(),
+    k1_.mutable_device_data(),
+    globals::s.mutable_device_data(),
     globals::h.device_data(),
     globals::gyro.device_data(),
     globals::mus.device_data(),
@@ -331,10 +331,10 @@ void CUDALLGRKMK4Solver::run()
 
   cuda_llg_rkmk4_kernel_step_2<<<grid_size, block_size, 0, jams::instance().cuda_master_stream().get()>>>(
     s_init_.device_data(),
-    globals::s.device_data(),
+    globals::s.mutable_device_data(),
     k1_.device_data(),
-    k2_.device_data(),
-    globals::s.device_data(),
+    k2_.mutable_device_data(),
+    globals::s.mutable_device_data(),
     globals::h.device_data(),
     globals::gyro.device_data(),
     globals::mus.device_data(),
@@ -350,8 +350,8 @@ void CUDALLGRKMK4Solver::run()
     s_init_.device_data(),
     globals::s.device_data(),
     k2_.device_data(),
-    k3_.device_data(),
-    globals::s.device_data(),
+    k3_.mutable_device_data(),
+    globals::s.mutable_device_data(),
     globals::h.device_data(),
     globals::gyro.device_data(),
     globals::mus.device_data(),
@@ -366,11 +366,11 @@ void CUDALLGRKMK4Solver::run()
 
   cuda_llg_rkmk4_kernel_step_4<<<grid_size, block_size, 0, jams::instance().cuda_master_stream().get()>>>(
     s_init_.device_data(),
-    globals::s.device_data(),
+    globals::s.mutable_device_data(),
     k1_.device_data(),
     k2_.device_data(),
     k3_.device_data(),
-    globals::s.device_data(),
+    globals::s.mutable_device_data(),
     globals::h.device_data(),
     globals::gyro.device_data(),
     globals::mus.device_data(),
@@ -385,7 +385,7 @@ void CUDALLGRKMK4Solver::run()
 
 
   cuda_llg_noise_step_rodrigues_kernel<<<grid_size, block_size, 0,  jams::instance().cuda_master_stream().get()>>>(
-    globals::s.device_data(),
+    globals::s.mutable_device_data(),
     thermostat_->device_data(),
     globals::gyro.device_data(),
     globals::alpha.device_data(),

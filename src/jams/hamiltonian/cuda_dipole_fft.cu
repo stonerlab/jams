@@ -310,7 +310,7 @@ jams::Real CudaDipoleFFTHamiltonian::calculate_energy_difference(
 void CudaDipoleFFTHamiltonian::calculate_energies(jams::Real time) {
   calculate_fields(time);
   const auto minus_half = static_cast<jams::Real>(-0.5);
-  cuda_array_dot_product(globals::num_spins, minus_half, globals::s.device_data(), field_.device_data(), energy_.device_data(), cuda_stream_.get());
+  cuda_array_dot_product(globals::num_spins, minus_half, globals::s.device_data(), field_.device_data(), energy_.mutable_device_data(), cuda_stream_.get());
 }
 
 Vec3R CudaDipoleFFTHamiltonian::calculate_field(const int i, jams::Real time) {
@@ -320,10 +320,10 @@ Vec3R CudaDipoleFFTHamiltonian::calculate_field(const int i, jams::Real time) {
 void CudaDipoleFFTHamiltonian::calculate_fields(jams::Real time) {
 
 #if DO_MIXED_PRECISION
-  cuda_array_double_to_float(globals::s.elements(), globals::s.device_data(), s_float_.device_data(), cuda_stream_.get());
-  CHECK_CUFFT_STATUS(cufftExecR2C(cuda_fft_s_rspace_to_kspace, reinterpret_cast<cufftReal*>(s_float_.device_data()), kspace_s_.device_data()));
+  cuda_array_double_to_float(globals::s.elements(), globals::s.device_data(), s_float_.mutable_device_data(), cuda_stream_.get());
+  CHECK_CUFFT_STATUS(cufftExecR2C(cuda_fft_s_rspace_to_kspace, const_cast<cufftReal*>(reinterpret_cast<const cufftReal*>(s_float_.device_data())), kspace_s_.mutable_device_data()));
 #else
-  CHECK_CUFFT_STATUS(cufftExecD2Z(cuda_fft_s_rspace_to_kspace, reinterpret_cast<cufftDoubleReal*>(globals::s.device_data()), kspace_s_.device_data()));
+  CHECK_CUFFT_STATUS(cufftExecD2Z(cuda_fft_s_rspace_to_kspace, const_cast<cufftDoubleReal*>(reinterpret_cast<const cufftDoubleReal*>(globals::s.device_data())), kspace_s_.mutable_device_data()));
 #endif
 
   unsigned int num_pos = globals::lattice->num_basis_sites();
@@ -332,13 +332,13 @@ const dim3 block_size = {64, 1, 1};
 const dim3 grid_size = cuda_grid_size(block_size, {fft_size, num_pos, 1});
 
 
-cuda_dipole_convolution<<<grid_size, block_size, 0, cuda_stream_.get()>>>(fft_size, num_pos, kspace_s_.device_data(), kspace_tensors_.device_data(), kspace_h_.device_data());
+cuda_dipole_convolution<<<grid_size, block_size, 0, cuda_stream_.get()>>>(fft_size, num_pos, kspace_s_.device_data(), kspace_tensors_.device_data(), kspace_h_.mutable_device_data());
 DEBUG_CHECK_CUDA_ASYNC_STATUS;
 
 #ifdef DO_MIXED_PRECISION
-  CHECK_CUFFT_STATUS(cufftExecC2R(cuda_fft_h_kspace_to_rspace, kspace_h_.device_data(), reinterpret_cast<cufftReal*>(field_.device_data())));
+  CHECK_CUFFT_STATUS(cufftExecC2R(cuda_fft_h_kspace_to_rspace, const_cast<cufftComplex*>(kspace_h_.device_data()), reinterpret_cast<cufftReal*>(field_.mutable_device_data())));
 #else
-  CHECK_CUFFT_STATUS(cufftExecZ2D(cuda_fft_h_kspace_to_rspace, kspace_h_.device_data(), reinterpret_cast<cufftDoubleReal*>(field_.device_data())));
+  CHECK_CUFFT_STATUS(cufftExecZ2D(cuda_fft_h_kspace_to_rspace, const_cast<cufftDoubleComplex*>(kspace_h_.device_data()), reinterpret_cast<cufftDoubleReal*>(field_.mutable_device_data())));
 #endif
 
 }

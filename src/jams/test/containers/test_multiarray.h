@@ -87,7 +87,7 @@ TEST(MultiArrayFinalApiTest, ConstAccessorsAreLogicallyConstAndMaySynchronize) {
   static_assert(std::is_same<decltype(std::declval<const Array&>().data()), const int*>::value, "");
   static_assert(std::is_same<decltype(std::declval<Array&>().host_data()), int*>::value, "");
   static_assert(std::is_same<decltype(std::declval<const Array&>().host_data()), const int*>::value, "");
-  static_assert(std::is_same<decltype(std::declval<Array&>().device_data()), int*>::value, "");
+  static_assert(std::is_same<decltype(std::declval<Array&>().device_data()), const int*>::value, "");
   static_assert(std::is_same<decltype(std::declval<const Array&>().device_data()), const int*>::value, "");
   static_assert(std::is_same<decltype(std::declval<Array&>().mutable_device_data()), int*>::value, "");
   static_assert(std::is_nothrow_default_constructible<Array>::value, "");
@@ -382,7 +382,7 @@ TEST(MultiArrayFinalApiTest, ReleaseStaleStorageForwardsToSyncedMemory) {
   values(1) = 22;
   values(2) = 23;
 
-  ASSERT_NE(values.device_data(), nullptr);
+  ASSERT_NE(values.mutable_device_data(), nullptr);
   values.release_stale_host();
 
   const int* host = values.data();
