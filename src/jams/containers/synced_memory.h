@@ -409,16 +409,18 @@ SyncedMemory<T>::allocate_device_memory(const SyncedMemory::size_type size) cons
 #if HAS_CUDA
   if (size == 0) return;
 
-  if (size > max_size_device()) {
-    throw std::bad_alloc();
-  }
+  const std::size_t allocation_bytes = bytes(size);
 
   // Compile-time check for alignment guarantee of cudaMalloc.
   static_assert(alignof(T) <= 256,
                 "SyncedMemory<T>: alignof(T) > 256 may not be satisfied by cudaMalloc alignment");
 
   assert(!device_ptr_);
-  SYNCED_MEMORY_CHECK_CUDA_STATUS(cudaMalloc(reinterpret_cast<void**>(&device_ptr_), bytes(size)));
+  const cudaError_t status = cudaMalloc(reinterpret_cast<void**>(&device_ptr_), allocation_bytes);
+  if (status == cudaErrorMemoryAllocation) {
+    throw std::bad_alloc();
+  }
+  SYNCED_MEMORY_CHECK_CUDA_STATUS(status);
   assert(device_ptr_);
 #else
   if (size != 0) {
