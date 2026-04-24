@@ -200,3 +200,16 @@ Hamiltonian::Hamiltonian(const libconfig::Setting &settings, const unsigned int 
 #endif
 
 }
+
+Hamiltonian::~Hamiltonian() {
+#ifdef HAS_CUDA
+  if (cuda_stream_) {
+    cuda_stream_.synchronize();
+  }
+
+  if (done_ != nullptr) {
+    cudaEventDestroy(done_);
+    done_ = nullptr;
+  }
+#endif
+}

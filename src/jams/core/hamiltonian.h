@@ -24,7 +24,7 @@ public:
 
     Hamiltonian() = default;
 
-    virtual ~Hamiltonian() = default;
+    virtual ~Hamiltonian();
 
     // factory to create a Hamiltonian from a libconfig::Setting
     static Hamiltonian *create(const libconfig::Setting &settings, unsigned int size, bool is_cuda_solver);
