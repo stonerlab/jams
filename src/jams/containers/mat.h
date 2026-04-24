@@ -6,14 +6,12 @@
 #define JAMS_MAT_H
 
 #include <array>
-#include <complex>
 #include <cstddef>
 #include <tuple>
 #include <type_traits>
 #include <utility>
 
 #include "jams/containers/vec.h"
-#include "jams/helpers/mixed_precision.h"
 
 namespace jams {
 
@@ -80,8 +78,20 @@ struct Mat {
       : values(make_storage(std::forward_as_tuple(std::forward<Args>(args)...),
                             std::make_index_sequence<Rows>{})) {}
 
+  // Row-major element access: matrix[row][col].
   constexpr reference operator[](size_type i) noexcept { return values[i]; }
   constexpr const_reference operator[](size_type i) const noexcept { return values[i]; }
+
+  constexpr reference row(size_type i) noexcept { return values[i]; }
+  constexpr const_reference row(size_type i) const noexcept { return values[i]; }
+
+  constexpr Vec<T, Rows> column(size_type j) const noexcept {
+    Vec<T, Rows> out{};
+    for (size_type i = 0; i < Rows; ++i) {
+      out[i] = values[i][j];
+    }
+    return out;
+  }
 
   constexpr pointer data() noexcept { return values[0].data(); }
   constexpr const_pointer data() const noexcept { return values[0].data(); }
@@ -96,6 +106,8 @@ struct Mat {
 
   static constexpr size_type rows() noexcept { return Rows; }
   static constexpr size_type cols() noexcept { return Cols; }
+  static constexpr size_type element_count() noexcept { return Rows * Cols; }
+  // size() follows the existing container convention of returning the row count.
   static constexpr size_type size() noexcept { return Rows; }
   static constexpr bool empty() noexcept { return false; }
 

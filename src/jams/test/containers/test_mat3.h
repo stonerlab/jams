@@ -17,6 +17,7 @@ TEST(MatTest, IsContiguousStandardLayoutStorage) {
   static_assert(alignof(jams::Mat<double, 3, 3>) == alignof(double));
   static_assert(std::is_trivially_copyable_v<jams::Mat<double, 3, 3>>);
   static_assert(std::is_standard_layout_v<jams::Mat<double, 3, 3>>);
+  static_assert(jams::Mat<double, 3, 3>::element_count() == 9);
 
   jams::Mat<double, 3, 3> m{1.0, 2.0, 3.0,
          4.0, 5.0, 6.0,
@@ -25,6 +26,8 @@ TEST(MatTest, IsContiguousStandardLayoutStorage) {
   EXPECT_EQ(m.data(), &m[0][0]);
   EXPECT_EQ(m.data() + 4, &m[1][1]);
   EXPECT_EQ(m.data() + 8, &m[2][2]);
+  EXPECT_EQ(m.row(1), (jams::Mat<double, 3, 3>::row_type{4.0, 5.0, 6.0}));
+  EXPECT_EQ(m.column(2), (jams::Vec<double, 3>{3.0, 6.0, 9.0}));
 }
 
 TEST(MatTest, SupportsGenericDimensionArithmetic) {
