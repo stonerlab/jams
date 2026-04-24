@@ -118,4 +118,11 @@ TEST(Vec3Test, DotReturnTypeUsesFullSumExpression) {
       DotSum>);
 }
 
+TEST(Vec3Test, DotSquaredUsesSquaredDotProductType) {
+  const Vec<std::int8_t, 3> a{10, 0, 0};
+
+  static_assert(std::is_same_v<decltype(jams::dot_squared(a, a)), int>);
+  EXPECT_EQ(jams::dot_squared(a, a), 10000);
+}
+
 #endif // JAMS_TEST_VEC3_H

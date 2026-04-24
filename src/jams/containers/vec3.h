@@ -209,7 +209,7 @@ inline constexpr auto dot(const T1 a[3], const T2 b[3]) -> decltype(a[0] * b[0] 
 
 /// Returns the dot product of a and b, which is then squared.
 template <typename T1, typename T2>
-inline constexpr auto dot_squared(const Vec<T1,3>& a, const Vec<T2,3>& b) -> decltype(a[0] * b[0]) {
+inline constexpr auto dot_squared(const Vec<T1,3>& a, const Vec<T2,3>& b) -> decltype(pow2(dot(a,b))) {
   return pow2(dot(a,b));
 }
 
