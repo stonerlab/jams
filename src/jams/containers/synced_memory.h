@@ -259,11 +259,11 @@ private:
     /// Theoretical maximum number of elements which can be allocated on the device
     [[nodiscard]] size_type max_size_device() const;
 
-    /// Free memory allocated on the host
-    void free_host_memory() const noexcept;
+    /// Release memory allocated on the host
+    void release_host_memory() const noexcept;
 
-    /// Free memory allocated on the device
-    void free_device_memory() const noexcept;
+    /// Release memory allocated on the device
+    void release_device_memory() const noexcept;
 
 #if HAS_CUDA
     static bool is_acceptable_free_status(cudaError_t status) noexcept;
@@ -276,6 +276,8 @@ private:
     void set_valid(Validity validity) const noexcept;
 
     void add_valid(Validity validity) const noexcept;
+
+    void remove_valid(Validity validity) const noexcept;
 
     template<class InputIt>
     void assign_from_input_range(InputIt first, InputIt last);
@@ -352,8 +354,8 @@ SyncedMemory<T>::SyncedMemory(SyncedMemory &&rhs) noexcept
 
 template<class T>
 SyncedMemory<T>::~SyncedMemory() noexcept {
-  free_host_memory();
-  free_device_memory();
+  release_host_memory();
+  release_device_memory();
 }
 
 
@@ -378,7 +380,7 @@ SyncedMemory<T> &SyncedMemory<T>::operator=(const SyncedMemory& rhs) &{
 #if HAS_CUDA
     if (rhs.device_valid()) {
       SyncedMemory tmp(rhs);
-      free_device_memory();
+      release_device_memory();
       device_ptr_ = std::exchange(tmp.device_ptr_, nullptr);
       set_valid(Validity::device);
       return *this;
@@ -397,8 +399,8 @@ SyncedMemory<T> &SyncedMemory<T>::operator=(SyncedMemory &&rhs) & noexcept {
     return *this;
   }
 
-  free_host_memory();
-  free_device_memory();
+  release_host_memory();
+  release_device_memory();
 
   size_ = std::exchange(rhs.size_, 0);
   host_ptr_ = std::exchange(rhs.host_ptr_, nullptr);
@@ -675,7 +677,7 @@ void SyncedMemory<T>::zero() {
 
 
 template<class T>
-void SyncedMemory<T>::free_host_memory() const noexcept {
+void SyncedMemory<T>::release_host_memory() const noexcept {
   if (host_ptr_) {
 #if HAS_CUDA
     if (host_cuda_malloc_) {
@@ -685,6 +687,7 @@ void SyncedMemory<T>::free_host_memory() const noexcept {
       }
       host_ptr_ = nullptr;
       host_cuda_malloc_ = false;
+      remove_valid(Validity::host);
       return;
     }
     #endif
@@ -692,11 +695,12 @@ void SyncedMemory<T>::free_host_memory() const noexcept {
     host_ptr_ = nullptr;
   }
   host_cuda_malloc_ = false;
+  remove_valid(Validity::host);
 }
 
 
 template<class T>
-void SyncedMemory<T>::free_device_memory() const noexcept{
+void SyncedMemory<T>::release_device_memory() const noexcept{
   #if HAS_CUDA
   if (device_ptr_) {
     if (auto status = cudaFree(device_ptr_); !is_acceptable_free_status(status)) {
@@ -706,6 +710,7 @@ void SyncedMemory<T>::free_device_memory() const noexcept{
   }
   #endif
   device_ptr_ = nullptr;
+  remove_valid(Validity::device);
 }
 
 
@@ -727,8 +732,8 @@ void SyncedMemory<T>::resize(SyncedMemory::size_type new_size) noexcept {
   if (size_ == new_size) return;
 
   size_ = new_size;
-  free_host_memory();
-  free_device_memory();
+  release_host_memory();
+  release_device_memory();
   valid_ = Validity::none;
 }
 
@@ -797,6 +802,12 @@ void SyncedMemory<T>::set_valid(Validity validity) const noexcept {
 template<class T>
 void SyncedMemory<T>::add_valid(Validity validity) const noexcept {
   valid_ = static_cast<Validity>(bits(valid_) | bits(validity));
+}
+
+
+template<class T>
+void SyncedMemory<T>::remove_valid(Validity validity) const noexcept {
+  valid_ = static_cast<Validity>(bits(valid_) & ~bits(validity));
 }
 
 
