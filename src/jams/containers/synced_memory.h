@@ -731,7 +731,7 @@ typename SyncedMemory<T>::size_type SyncedMemory<T>::max_size_device() const {
 template<class T>
 constexpr typename SyncedMemory<T>::size_type
 SyncedMemory<T>::max_size_host() const noexcept {
-  return std::numeric_limits<size_type>::max();
+  return std::numeric_limits<size_type>::max() / sizeof(value_type);
 }
 
 
