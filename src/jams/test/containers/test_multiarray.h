@@ -103,12 +103,27 @@ TEST(MultiArrayFinalApiTest, ConstAccessorsAreLogicallyConstAndMaySynchronize) {
   static_assert(std::is_same<decltype(std::declval<const Array&>().data()), const int*>::value, "");
   static_assert(std::is_same<decltype(std::declval<Array&>().device_data()), int*>::value, "");
   static_assert(std::is_same<decltype(std::declval<const Array&>().device_data()), const int*>::value, "");
+  static_assert(std::is_nothrow_default_constructible<Array>::value, "");
+  static_assert(std::is_nothrow_move_constructible<Array>::value, "");
+  static_assert(std::is_nothrow_move_assignable<Array>::value, "");
+  static_assert(noexcept(std::declval<Array&>().clear()), "");
+  static_assert(noexcept(std::declval<Array&>().swap(std::declval<Array&>())), "");
+  static_assert(noexcept(swap(std::declval<Array&>(), std::declval<Array&>())), "");
+  static_assert(noexcept(std::declval<const Array&>().empty()), "");
+  static_assert(noexcept(std::declval<const Array&>().size()), "");
+  static_assert(noexcept(std::declval<const Array&>().shape()), "");
+  static_assert(noexcept(std::declval<const Array&>().bytes()), "");
+  static_assert(noexcept(std::declval<const Array&>().elements()), "");
+  static_assert(noexcept(std::declval<const Array&>().dimension()), "");
+  static_assert(!noexcept(std::declval<const Array&>().max_size()), "");
   static_assert(!noexcept(std::declval<Array&>().data()), "");
   static_assert(!noexcept(std::declval<const Array&>().data()), "");
   static_assert(!noexcept(std::declval<Array&>().device_data()), "");
   static_assert(!noexcept(std::declval<const Array&>().device_data()), "");
   static_assert(!noexcept(std::declval<Array&>().begin()), "");
   static_assert(!noexcept(std::declval<const Array&>().begin()), "");
+  static_assert(!noexcept(std::declval<Array&>().end()), "");
+  static_assert(!noexcept(std::declval<const Array&>().end()), "");
   static_assert(!noexcept(std::declval<Array&>().zero()), "");
 
   Array values(4);

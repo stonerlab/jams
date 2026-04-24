@@ -113,6 +113,9 @@ TEST(SyncedMemoryApiTest, TraitsAndNoexceptContract) {
   static_assert(!noexcept(std::declval<const Memory&>().device_data()), "");
   static_assert(!noexcept(std::declval<Memory&>().mutable_host_data()), "");
   static_assert(!noexcept(std::declval<Memory&>().mutable_device_data()), "");
+  static_assert(noexcept(std::declval<Memory&>().clear()), "");
+  static_assert(noexcept(std::declval<Memory&>().resize(0)), "");
+  static_assert(!noexcept(std::declval<Memory&>().zero()), "");
 }
 
 TEST(SyncedMemoryApiTest, DefaultAndSizedConstructionAreLazy) {

@@ -12,6 +12,7 @@
 #include <cassert>
 #include <cstring>
 #include <type_traits>
+#include <utility>
 
 namespace jams {
     namespace detail {
@@ -112,7 +113,7 @@ namespace jams {
     class MultiArray {
     public:
         template<class FTp_, std::size_t FDim_, class FIdx_>
-        friend void swap(MultiArray<FTp_, FDim_, FIdx_>& lhs, MultiArray<FTp_, FDim_, FIdx_>& rhs);
+        friend void swap(MultiArray<FTp_, FDim_, FIdx_>& lhs, MultiArray<FTp_, FDim_, FIdx_>& rhs) noexcept;
 
         using value_type = Tp_;
         using size_type  = Idx_;
@@ -128,6 +129,8 @@ namespace jams {
 
         static_assert(std::is_trivially_copyable<Tp_>::value,
               "MultiArray<T> requires trivially copyable T for device use");
+        static_assert(std::is_integral<Idx_>::value,
+              "MultiArray index type must be integral");
 
         MultiArray() noexcept = default;
         ~MultiArray() = default;
@@ -340,7 +343,12 @@ namespace jams {
         using const_iterator = const_pointer;
 
         template<class FTp_, std::size_t FDim_, class FIdx_>
-        friend void swap(MultiArray<FTp_, FDim_, FIdx_>& lhs, MultiArray<FTp_, FDim_, FIdx_>& rhs);
+        friend void swap(MultiArray<FTp_, FDim_, FIdx_>& lhs, MultiArray<FTp_, FDim_, FIdx_>& rhs) noexcept;
+
+        static_assert(std::is_trivially_copyable<Tp_>::value,
+              "MultiArray<T> requires trivially copyable T for device use");
+        static_assert(std::is_integral<Idx_>::value,
+              "MultiArray index type must be integral");
 
         MultiArray() noexcept = default;
         ~MultiArray() = default;
@@ -547,7 +555,7 @@ namespace jams {
     }
 
     template<class FTp_, std::size_t FDim_, class FIdx_>
-    void swap(MultiArray<FTp_, FDim_, FIdx_>& lhs, MultiArray<FTp_, FDim_, FIdx_>& rhs) {
+    void swap(MultiArray<FTp_, FDim_, FIdx_>& lhs, MultiArray<FTp_, FDim_, FIdx_>& rhs) noexcept {
       using std::swap;
       swap(lhs.size_, rhs.size_);
       swap(lhs.data_, rhs.data_);
