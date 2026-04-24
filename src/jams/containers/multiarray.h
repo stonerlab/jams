@@ -128,8 +128,8 @@ namespace jams {
           data_(std::move(rhs.data_)) {}
 
         MultiArray& operator=(const MultiArray& rhs) & {
-          size_ = rhs.size_;
           data_ = rhs.data_;
+          size_ = rhs.size_;
           return *this;
         }
 
