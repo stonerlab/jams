@@ -78,6 +78,7 @@ CudaThermostatQuantumSpde::CudaThermostatQuantumSpde(const jams::Real &temperatu
    std::cout << "    delta tau " << delta_tau_ << "\n";
 
 
+   CHECK_CURAND_STATUS(curandSetStream(jams::instance().curand_generator(), curand_stream_.get()));
    if (do_zero_point_) {
      generate_normal(eta0_);
    }
