@@ -22,25 +22,25 @@ public:
   void append_full_k_grid(
       std::vector<jams::HKLIndex>& k_points,
       std::vector<int>& k_segment_offsets,
-      const Vec3i& kspace_size) const;
+      const jams::Vec<int, 3>& kspace_size) const;
 
   void append_k_path_segment(
       std::vector<jams::HKLIndex>& k_points,
       std::vector<int>& k_segment_offsets,
       libconfig::Setting& settings,
-      const Vec3i& kspace_size) const;
+      const jams::Vec<int, 3>& kspace_size) const;
 
   /// @return True if at least one full Brillouin-zone grid was appended.
   bool configure_k_list(
       std::vector<jams::HKLIndex>& k_points,
       std::vector<int>& k_segment_offsets,
       libconfig::Setting& settings,
-      const Vec3i& kspace_size) const;
+      const jams::Vec<int, 3>& kspace_size) const;
 
 private:
   void make_hkl_path(
-      const std::vector<Vec3>& hkl_nodes,
-      const Vec3i& kspace_size,
+      const std::vector<jams::Vec<double, 3>>& hkl_nodes,
+      const jams::Vec<int, 3>& kspace_size,
       std::vector<jams::HKLIndex>& hkl_path) const;
 
   Lattice& lattice_;

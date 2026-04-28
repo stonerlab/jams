@@ -71,15 +71,15 @@ public:
 
     // Overrides the energy_difference function of MetropolisMCSolver
     // to also include the contribution from the CV potential landscape
-    double energy_difference(const int spin_index, const Vec3 &initial_Spin,
-                             const Vec3 &final_Spin) override;
+    double energy_difference(const int spin_index, const jams::Vec<double, 3> &initial_Spin,
+                             const jams::Vec<double, 3> &final_Spin) override;
 
     // Overrides the accept_move function of MetropolisMCSolver to also update
     // the CV object. This is because CVs are often expensive to recalculate
     // so the algorithm can be optimised by only recalculating if a spin has
     // been accepted.
-    void accept_move(const int spin_index, const Vec3 &initial_spin,
-                     const Vec3 &final_spin) override;
+    void accept_move(const int spin_index, const jams::Vec<double, 3> &initial_spin,
+                     const jams::Vec<double, 3> &final_spin) override;
 };
 
 #endif //INCLUDED_JAMS_SOLVERS_CPU_METADYNAMICS_METROPOLIS_SOLVER

@@ -61,8 +61,8 @@ double fft_window_nuttall(const int n, const int n_total) {
 
 // Precalculates the phase factors within the brilluoin zone and returns then as array
 void precalculate_kspace_phase_factors(
-        const Vec3i &kspace_size,
-        const Vec3 &r_cart,
+        const jams::Vec<int, 3> &kspace_size,
+        const jams::Vec<double, 3> &r_cart,
         vector<complex<double>> &phase_x,
         vector<complex<double>> &phase_y,
         vector<complex<double>> &phase_z) {
@@ -109,9 +109,9 @@ void apply_kspace_phase_factors(jams::MultiArray<std::complex<double>, 5> &kspac
 
     precalculate_kspace_phase_factors(globals::lattice->kspace_size(), r_cart, exp_phase_x, exp_phase_y, exp_phase_z);
 
-    for (auto i = 0; i < kspace.size(0); ++i) {
-      for (auto j = 0; j < kspace.size(1); ++j) {
-        for (auto k = 0; k < kspace.size(2); ++k) {
+    for (auto i = 0; i < kspace.extent(0); ++i) {
+      for (auto j = 0; j < kspace.extent(1); ++j) {
+        for (auto k = 0; k < kspace.extent(2); ++k) {
           std::complex<double> phase = exp_phase_x[i] * exp_phase_y[j] * exp_phase_z[k];
           for (auto n = 0; n < 3; ++n) {
             kspace(i, j, k, m, n) = kspace(i, j, k, m, n) * phase;
@@ -122,7 +122,7 @@ void apply_kspace_phase_factors(jams::MultiArray<std::complex<double>, 5> &kspac
   }
 }
 
-fftw_plan fft_plan_rspace_to_kspace(std::complex<double> * rspace, std::complex<double> * kspace, const Vec3i& kspace_size, const int & motif_size) {
+fftw_plan fft_plan_rspace_to_kspace(std::complex<double> * rspace, std::complex<double> * kspace, const jams::Vec<int, 3>& kspace_size, const int & motif_size) {
   assert(rspace != nullptr);
   assert(kspace != nullptr);
   assert(jams::sum(kspace_size) > 0);
@@ -151,7 +151,7 @@ fftw_plan fft_plan_rspace_to_kspace(std::complex<double> * rspace, std::complex<
           FFTW_PATIENT | FFTW_PRESERVE_INPUT);
 }
 
-jams::MultiArray<double, 5> fft_zero_pad_kspace(const jams::MultiArray<double, 2>& rspace_data, const Vec3i& kspace_size, const Vec3i& kspace_padded_size, const int & num_sites) {
+jams::MultiArray<double, 5> fft_zero_pad_kspace(const jams::MultiArray<double, 2>& rspace_data, const jams::Vec<int, 3>& kspace_size, const jams::Vec<int, 3>& kspace_padded_size, const int & num_sites) {
   jams::MultiArray<double, 5> padded_rspace_data(kspace_padded_size[0], kspace_padded_size[1], kspace_padded_size[2],
                                                  num_sites, 3);
   zero(padded_rspace_data);
@@ -172,7 +172,7 @@ jams::MultiArray<double, 5> fft_zero_pad_kspace(const jams::MultiArray<double, 2
   return padded_rspace_data;
 }
 
-void fft_supercell_vector_field_to_kspace(const jams::MultiArray<double, 2>& rspace_data, jams::MultiArray<Vec3cx,4>& kspace_data,  const Vec3i& kspace_size, const Vec3i& kspace_padded_size, const int & num_sites, int fftw_threads) {
+void fft_supercell_vector_field_to_kspace(const jams::MultiArray<double, 2>& rspace_data, jams::MultiArray<jams::Vec<std::complex<double>, 3>,4>& kspace_data,  const jams::Vec<int, 3>& kspace_size, const jams::Vec<int, 3>& kspace_padded_size, const int & num_sites, int fftw_threads) {
   assert(rspace_data.elements() == 3 * num_sites * jams::product(kspace_size));
 
   kspace_data.resize(kspace_padded_size[0], kspace_padded_size[1], kspace_padded_size[2]/2 + 1, num_sites);
@@ -224,7 +224,7 @@ void fft_supercell_vector_field_to_kspace(const jams::MultiArray<double, 2>& rsp
   }
 }
 
-void fft_supercell_scalar_field_to_kspace(const jams::MultiArray<double, 1>& rspace_data, jams::MultiArray<jams::ComplexHi,4>& kspace_data, const Vec3i& kspace_size, const int & num_sites) {
+void fft_supercell_scalar_field_to_kspace(const jams::MultiArray<double, 1>& rspace_data, jams::MultiArray<jams::ComplexHi,4>& kspace_data, const jams::Vec<int, 3>& kspace_size, const int & num_sites) {
   assert(rspace_data.elements() == jams::product(kspace_size));
 
   // assuming this is not a costly operation because .resize() already checks if it is the same size

@@ -33,7 +33,7 @@ private:
     std::string   tsv_header();
 
     std::array<Stats, 3> torque_stats_;
-    Vec3 convergence_geweke_diagnostic_;
+    jams::Vec<double, 3> convergence_geweke_diagnostic_;
 };
 
 #endif  // JAMS_MONITOR_TORQUE_H

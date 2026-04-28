@@ -50,7 +50,7 @@ struct Atom {
     int  id;
     int  material_index;
     int  basis_site_index;
-    Vec3 position_frac;
+    jams::Vec<double, 3> position_frac;
 };
 
 template <typename T, typename Idx = int>

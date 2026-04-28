@@ -38,7 +38,7 @@ CudaSpinCurrentMonitor::CudaSpinCurrentMonitor(const libconfig::Setting &setting
 
   const auto& exchange_hamiltonian = find_hamiltonian<ExchangeHamiltonian>(::globals::solver->hamiltonians());
 
-  jams::SparseMatrix<Vec3>::Builder sparse_matrix_builder(globals::num_spins, globals::num_spins);
+  jams::SparseMatrix<jams::Vec<double, 3>>::Builder sparse_matrix_builder(globals::num_spins, globals::num_spins);
 
   const auto& nbr_list = exchange_hamiltonian.neighbour_list();
   for (auto n = 0; n < nbr_list.size(); ++n) {
@@ -68,7 +68,7 @@ CudaSpinCurrentMonitor::CudaSpinCurrentMonitor(const libconfig::Setting &setting
 }
 
 void CudaSpinCurrentMonitor::update(Solver& solver) {
-  Vec3 js_z = execute_cuda_spin_current_kernel(
+  jams::Vec<double, 3> js_z = execute_cuda_spin_current_kernel(
           stream,
           globals::num_spins,
           globals::s.device_data(),
@@ -77,9 +77,9 @@ void CudaSpinCurrentMonitor::update(Solver& solver) {
           reinterpret_cast<const double*>(interaction_matrix_.val_device_data()),
           interaction_matrix_.row_device_data(),
           interaction_matrix_.col_device_data(),
-          spin_current_rx_z.device_data(),
-          spin_current_ry_z.device_data(),
-          spin_current_rz_z.device_data()
+          spin_current_rx_z.mutable_device_data(),
+          spin_current_ry_z.mutable_device_data(),
+          spin_current_rz_z.mutable_device_data()
   );
 
   // The calculation is in JAMS internal units. We want to convert to SI for

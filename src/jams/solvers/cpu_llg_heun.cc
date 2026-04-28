@@ -78,10 +78,10 @@ void HeunLLGSolver::run() {
   }
 
   for (auto i = 0; i < globals::num_spins; ++i) {
-    Vec3 spin = {globals::s(i,0), globals::s(i,1), globals::s(i,2)};
-    Vec3 field = {globals::h(i,0), globals::h(i,1), globals::h(i,2)};
+    jams::Vec<double, 3> spin = {globals::s(i,0), globals::s(i,1), globals::s(i,2)};
+    jams::Vec<double, 3> field = {globals::h(i,0), globals::h(i,1), globals::h(i,2)};
 
-    Vec3 rhs = -globals::gyro(i) * (jams::cross(spin, field) + globals::alpha(i) * jams::cross(spin, (jams::cross(spin, field))));
+    jams::Vec<double, 3> rhs = -globals::gyro(i) * (jams::cross(spin, field) + globals::alpha(i) * jams::cross(spin, (jams::cross(spin, field))));
 
     for (auto j = 0; j < 3; ++j) {
       globals::ds_dt(i, j) = 0.5 * rhs[j];
@@ -115,17 +115,17 @@ void HeunLLGSolver::run() {
   }
 
   for (auto i = 0; i < globals::num_spins; ++i) {
-    Vec3 spin = {globals::s(i,0), globals::s(i,1), globals::s(i,2)};
-    Vec3 spin_old = {s_old_(i,0), s_old_(i,1), s_old_(i,2)};
+    jams::Vec<double, 3> spin = {globals::s(i,0), globals::s(i,1), globals::s(i,2)};
+    jams::Vec<double, 3> spin_old = {s_old_(i,0), s_old_(i,1), s_old_(i,2)};
 
-    Vec3 field = {globals::h(i,0), globals::h(i,1), globals::h(i,2)};
-    Vec3 rhs = -globals::gyro(i) * (jams::cross(spin, field) + globals::alpha(i) * jams::cross(spin, (jams::cross(spin, field))));
+    jams::Vec<double, 3> field = {globals::h(i,0), globals::h(i,1), globals::h(i,2)};
+    jams::Vec<double, 3> rhs = -globals::gyro(i) * (jams::cross(spin, field) + globals::alpha(i) * jams::cross(spin, (jams::cross(spin, field))));
 
     for (auto j = 0; j < 3; ++j) {
       globals::ds_dt(i, j) = globals::ds_dt(i, j) + 0.5 * rhs[j];
     }
 
-    Vec3 ds = {globals::ds_dt(i, 0), globals::ds_dt(i, 1) , globals::ds_dt(i, 2)};
+    jams::Vec<double, 3> ds = {globals::ds_dt(i, 0), globals::ds_dt(i, 1) , globals::ds_dt(i, 2)};
 
     spin = jams::unit_vector(spin_old + step_size_ * ds);
 

@@ -17,30 +17,30 @@ class UnitCell {
 public:
     UnitCell() = default;
 
-    explicit UnitCell(Mat3 vectors,
-                    std::vector<Vec3> positions = std::vector<Vec3>(),
+    explicit UnitCell(jams::Mat<double, 3, 3> vectors,
+                    std::vector<jams::Vec<double, 3>> positions = std::vector<jams::Vec<double, 3>>(),
                     std::vector<Type> types = std::vector<Type>());
 
-    UnitCell(const Vec3 &a, const Vec3 &b, const Vec3 &c, std::vector<Vec3> &positions,
+    UnitCell(const jams::Vec<double, 3> &a, const jams::Vec<double, 3> &b, const jams::Vec<double, 3> &c, std::vector<jams::Vec<double, 3>> &positions,
              std::vector<Type> &types);
 
-    void insert(const Type &type, const Vec3 &position);
+    void insert(const Type &type, const jams::Vec<double, 3> &position);
 
-    Vec3 a() const;
-    Vec3 b() const;
-    Vec3 c() const;
+    jams::Vec<double, 3> a() const;
+    jams::Vec<double, 3> b() const;
+    jams::Vec<double, 3> c() const;
 
     size_t num_atoms() const;
 
-    const Mat3& vectors() const;
-    const Mat3& inverse_vectors() const;
-    const std::vector<Vec3>& positions() const;
+    const jams::Mat<double, 3, 3>& vectors() const;
+    const jams::Mat<double, 3, 3>& inverse_vectors() const;
+    const std::vector<jams::Vec<double, 3>>& positions() const;
     const std::vector<Type>& types() const;
 
 protected:
-    Mat3  matrix_ = {1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0};
-    Mat3  inverse_matrix_ = {1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0};
-    std::vector<Vec3> positions_;
+    jams::Mat<double, 3, 3>  matrix_ = {1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0};
+    jams::Mat<double, 3, 3>  inverse_matrix_ = {1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0};
+    std::vector<jams::Vec<double, 3>> positions_;
     std::vector<Type> types_;
 };
 
@@ -49,7 +49,7 @@ double volume(const UnitCell<Type>& unitcell);
 
 
 template<class Type>
-UnitCell<Type>::UnitCell(Mat3 vectors, std::vector<Vec3> positions, std::vector<Type> types)
+UnitCell<Type>::UnitCell(jams::Mat<double, 3, 3> vectors, std::vector<jams::Vec<double, 3>> positions, std::vector<Type> types)
 : matrix_(vectors),
   inverse_matrix_(inverse(matrix_)),
   positions_(std::move(positions)),
@@ -59,27 +59,27 @@ UnitCell<Type>::UnitCell(Mat3 vectors, std::vector<Vec3> positions, std::vector<
 }
 
 template<class Type>
-UnitCell<Type>::UnitCell(const Vec3 &a, const Vec3 &b, const Vec3 &c, std::vector<Vec3> &positions,
+UnitCell<Type>::UnitCell(const jams::Vec<double, 3> &a, const jams::Vec<double, 3> &b, const jams::Vec<double, 3> &c, std::vector<jams::Vec<double, 3>> &positions,
                          std::vector<Type> &types) : UnitCell(matrix_from_cols(a, b, c), positions,types) {};
 
 template<class Type>
-void UnitCell<Type>::insert(const Type &type, const Vec3 &position) {
+void UnitCell<Type>::insert(const Type &type, const jams::Vec<double, 3> &position) {
   positions_.emplace_back(position);
   types_.emplace_back(type);
 }
 
 template<class Type>
-Vec3 UnitCell<Type>::a() const {
+jams::Vec<double, 3> UnitCell<Type>::a() const {
   return {matrix_[0][0], matrix_[1][0], matrix_[2][0]};
 }
 
 template<class Type>
-Vec3 UnitCell<Type>::b() const {
+jams::Vec<double, 3> UnitCell<Type>::b() const {
   return {matrix_[0][1], matrix_[1][1], matrix_[2][1]};
 }
 
 template<class Type>
-Vec3 UnitCell<Type>::c() const {
+jams::Vec<double, 3> UnitCell<Type>::c() const {
   return {matrix_[0][2], matrix_[1][2], matrix_[2][2]};
 }
 
@@ -89,7 +89,7 @@ size_t UnitCell<Type>::num_atoms() const {
 }
 
 template<class Type>
-const std::vector<Vec3>& UnitCell<Type>::positions() const {
+const std::vector<jams::Vec<double, 3>>& UnitCell<Type>::positions() const {
   return positions_;
 }
 
@@ -99,12 +99,12 @@ const std::vector<Type>& UnitCell<Type>::types() const {
 }
 
 template<class Type>
-const Mat3& UnitCell<Type>::vectors() const {
+const jams::Mat<double, 3, 3>& UnitCell<Type>::vectors() const {
   return matrix_;
 }
 
 template<class Type>
-const Mat3 &UnitCell<Type>::inverse_vectors() const {
+const jams::Mat<double, 3, 3> &UnitCell<Type>::inverse_vectors() const {
   return inverse_matrix_;
 }
 

@@ -41,8 +41,8 @@ TEST(CudaArrayReductionTest, vector_field_reduce_cuda) {
     }
   }
 
-  Vec3 cpu_result = jams::vector_field_reduce(x);
-  Vec3 gpu_result = jams::vector_field_reduce_cuda(x);
+  jams::Vec<double, 3> cpu_result = jams::vector_field_reduce(x);
+  jams::Vec<double, 3> gpu_result = jams::vector_field_reduce_cuda(x);
 
   EXPECT_DOUBLE_EQ(cpu_result[0], gpu_result[0]);
   EXPECT_DOUBLE_EQ(cpu_result[1], gpu_result[1]);
@@ -90,8 +90,8 @@ TEST(CudaArrayReductionTest, vector_field_indexed_reduce_cuda) {
     indices(i) = int_dist(rng);
   }
 
-  Vec3 cpu_result = jams::vector_field_indexed_reduce(x, indices);
-  Vec3 gpu_result = jams::vector_field_indexed_reduce_cuda(x, indices);
+  jams::Vec<double, 3> cpu_result = jams::vector_field_indexed_reduce(x, indices);
+  jams::Vec<double, 3> gpu_result = jams::vector_field_indexed_reduce_cuda(x, indices);
 
   EXPECT_DOUBLE_EQ(cpu_result[0], gpu_result[0]);
   EXPECT_DOUBLE_EQ(cpu_result[1], gpu_result[1]);

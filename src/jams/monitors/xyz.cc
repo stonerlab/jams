@@ -34,7 +34,7 @@ XyzMonitor::XyzMonitor(const libconfig::Setting &settings)
     }
     // check which spins are inside the slice
     for (int i = 0; i < globals::num_spins; ++i) {
-      Vec3 pos = globals::lattice->lattice_site_position_cart(i);
+      jams::Vec<double, 3> pos = globals::lattice->lattice_site_position_cart(i);
 
       // check if the current spin in inside the slice
       if (definately_greater_than(pos[0], slice_origin[0], jams::defaults::lattice_tolerance) && definately_less_than(pos[0], slice_origin[0] + slice_size[0], jams::defaults::lattice_tolerance)

@@ -50,7 +50,7 @@ __global__ void spin_current_kernel
   }
 }
 
-Vec3 execute_cuda_spin_current_kernel(
+jams::Vec<double, 3> execute_cuda_spin_current_kernel(
         CudaStream &stream,
         const int num_spins,
         const double *dev_spins,

@@ -23,7 +23,7 @@
 #include <jams/helpers/mixed_precision.h>
 
 namespace {
-    std::vector<jams::ComplexHi> generate_expQR(const std::vector<Vec3> &qvecs, const Vec3& R) {
+    std::vector<jams::ComplexHi> generate_expQR(const std::vector<jams::Vec<double, 3>> &qvecs, const jams::Vec<double, 3>& R) {
       std::vector<jams::ComplexHi> result(qvecs.size());
       for (auto q = 0; q < result.size(); ++q) {
         result[q] = exp(kImagTwoPi * jams::dot(qvecs[q], R));
@@ -76,7 +76,7 @@ void SpectrumGeneralMonitor::update(Solver& solver) {
 void SpectrumGeneralMonitor::apply_time_fourier_transform() {
 
   // window the data in time space
-  for (auto i = 0; i < spin_data_.size(0); ++i) {
+  for (auto i = 0; i < spin_data_.extent(0); ++i) {
     for (auto n = 0; n < num_samples_; ++n) {
       spin_data_(i, n) *= fft_window_exponential(n, num_samples_);
     }
@@ -87,7 +87,7 @@ void SpectrumGeneralMonitor::apply_time_fourier_transform() {
   int rank            = 1;
   int stride          = 1;
   int dist            = (int) padded_size_; // num_samples
-  int num_transforms  = (int) spin_data_.size(0); // num_spins
+  int num_transforms  = (int) spin_data_.extent(0); // num_spins
   int transform_size[1]  = {(int) padded_size_};
 
   int * nembed = nullptr;
@@ -129,10 +129,10 @@ SpectrumGeneralMonitor::~SpectrumGeneralMonitor() {
   std::cout << duration_string(start_time, system_clock::now()) << " done" << std::endl;
 
 
-  std::vector<std::vector<Vec3>> qvecs(num_qpoints_);
+  std::vector<std::vector<jams::Vec<double, 3>>> qvecs(num_qpoints_);
   for (auto n = 0; n < num_qvectors_; ++n) {
     auto qvec_rand = qmax_ * uniform_random_sphere<double>(jams::instance().random_generator());
-    std::vector<Vec3> qpoints(num_qvectors_);
+    std::vector<jams::Vec<double, 3>> qpoints(num_qvectors_);
     for (auto i = 0; i < num_qpoints_; ++i){
       qpoints[i] = qvec_rand * (i / double(num_qpoints_-1));
     }

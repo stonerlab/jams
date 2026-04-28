@@ -55,7 +55,7 @@ void CudaNeutronScatteringNoLatticeMonitor::configure_periodogram(libconfig::Set
 
 void CudaNeutronScatteringNoLatticeMonitor::configure_kspace_vectors(const libconfig::Setting &settings) {
   kmax_ = jams::config_required<double>(settings, "kmax");
-  kvector_ = jams::config_required<Vec3R>(settings, "kvector");
+  kvector_ = jams::config_required<jams::Vec<jams::Real, 3>>(settings, "kvector");
   num_k_ = jams::config_required<int>(settings, "num_k");
 
   kspace_path_.resize(num_k_ + 1);
@@ -109,7 +109,9 @@ void CudaNeutronScatteringNoLatticeMonitor::output_spectrum() {
   }
 
   CHECK_CUFFT_STATUS(
-    cufftExecD2Z(fft_plan, reinterpret_cast<cufftDoubleReal*>(windowed_timeseries.device_data()),  reinterpret_cast<cufftDoubleComplex*>(spin_frequencies_.device_data())));
+    cufftExecD2Z(fft_plan,
+                 const_cast<cufftDoubleReal*>(reinterpret_cast<const cufftDoubleReal*>(windowed_timeseries.device_data())),
+                 reinterpret_cast<cufftDoubleComplex*>(spin_frequencies_.mutable_device_data())));
 
   CHECK_CUFFT_STATUS(
       cufftDestroy(fft_plan));
@@ -141,7 +143,7 @@ void CudaNeutronScatteringNoLatticeMonitor::output_spectrum() {
   for (auto i = 0; i < globals::num_spins; ++i) {
 
     // find all r_ij for current i using the minimum image convention.
-    Vec3R r_i = {globals::positions(i, 0), globals::positions(i, 1), globals::positions(i, 2)};
+    jams::Vec<jams::Real, 3> r_i = {globals::positions(i, 0), globals::positions(i, 1), globals::positions(i, 2)};
 
     // **ASSUMPTION** the system is cubic so that Smith's method for minimum
     // image works for all distances, not just the in-sphere.
@@ -154,9 +156,9 @@ void CudaNeutronScatteringNoLatticeMonitor::output_spectrum() {
       spectrum_r_ij<<<grid_size, block_size>>>(
           i, globals::num_spins, num_k, num_freq, unit_q[0], unit_q[1], unit_q[2],
           r_ij.device_data(),
-          reinterpret_cast<jams::Real*>(kspace_path_.device_data()),
+          reinterpret_cast<const jams::Real*>(kspace_path_.device_data()),
           reinterpret_cast<const cufftDoubleComplex*>(spin_frequencies_.device_data()),
-          reinterpret_cast<cufftDoubleComplex*>(total_unpolarized_neutron_cross_section_.device_data()));
+          reinterpret_cast<cufftDoubleComplex*>(total_unpolarized_neutron_cross_section_.mutable_device_data()));
       DEBUG_CHECK_CUDA_ASYNC_STATUS;
   }
 
@@ -215,7 +217,7 @@ void CudaNeutronScatteringNoLatticeMonitor::store_spin_data() {
 
   auto ptr_offset = t * globals::num_spins3;
 
-  cudaMemcpy(spin_timeseries_.device_data() + ptr_offset,
+  cudaMemcpy(spin_timeseries_.mutable_device_data() + ptr_offset,
              globals::s.device_data(),
              globals::num_spins3*sizeof(double), cudaMemcpyDeviceToDevice);
 }
@@ -229,10 +231,10 @@ void CudaNeutronScatteringNoLatticeMonitor::shift_periodogram_overlap() {
 
   // shift overlap data to the start of the range
   for (auto t = 0; t < periodogram_props_.overlap; ++t) {
-    for (auto i = 0; i < spin_timeseries_.size(1); ++i) {
-      for (auto j = 0; j < spin_timeseries_.size(2); ++j) {
+    for (auto i = 0; i < spin_timeseries_.extent(1); ++i) {
+      for (auto j = 0; j < spin_timeseries_.extent(2); ++j) {
         spin_timeseries_(t, i, j) = spin_timeseries_(
-            spin_timeseries_.size(0) - periodogram_props_.overlap + t, i, j);
+            spin_timeseries_.extent(0) - periodogram_props_.overlap + t, i, j);
       }
     }
   }

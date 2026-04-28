@@ -22,7 +22,7 @@ void CUDALLGRK4Solver::function_kernel(jams::MultiArray<double, 2>& spins, jams:
 
   // using default stream blocks all streams until complete to force synchronisation
   cuda_llg_rk4_kernel<<<grid_size, block_size>>>
-      (spins.device_data(), k.device_data(),
+      (spins.device_data(), k.mutable_device_data(),
        globals::h.device_data(), thermostat_->device_data(),
        globals::gyro.device_data(), globals::mus.device_data(),
        globals::alpha.device_data(), globals::num_spins);

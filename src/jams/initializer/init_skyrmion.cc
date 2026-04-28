@@ -17,21 +17,21 @@ void jams::InitSkyrmion::execute(const libconfig::Setting &settings) {
   // We need to use some extra code below to ensure that the default center (if
   // none is specified in the config) for both fractional and cartesian
   // coordinates is the same (the center of the x-y plane).
-  Vec2 center;
+  jams::Vec<double, 2> center;
   switch (coordinate_format) {
     case CoordinateFormat::FRACTIONAL: {
-      center = jams::config_optional<Vec2>(settings, "center", Vec2{0.5, 0.5});
+      center = jams::config_optional<jams::Vec<double, 2>>(settings, "center", jams::Vec<double, 2>{0.5, 0.5});
       auto frac_center = globals::lattice->fractional_to_cartesian(
           {center[0] * globals::lattice->size(0), center[1] * globals::lattice->size(1),
            center[1] * globals::lattice->size(1)});
-      center = Vec2{frac_center[0], frac_center[1]};
+      center = jams::Vec<double, 2>{frac_center[0], frac_center[1]};
       }
       break;
     case CoordinateFormat::CARTESIAN: {
       auto frac_center = globals::lattice->fractional_to_cartesian(
           {0.5 * globals::lattice->size(0), 0.5 * globals::lattice->size(1), 0.0});
-      center = jams::config_optional<Vec2>(settings, "center",
-                                           Vec2{frac_center[0],
+      center = jams::config_optional<jams::Vec<double, 2>>(settings, "center",
+                                           jams::Vec<double, 2>{frac_center[0],
                                                 frac_center[1]});
       }
       break;

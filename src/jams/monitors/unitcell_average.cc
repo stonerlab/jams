@@ -77,7 +77,7 @@ void UnitcellAverageMonitor::update(Solver& solver) {
   cell_neel_.zero();
   for (auto i = 0; i < globals::num_spins; ++i) {
     auto cell = globals::lattice->cell_containing_atom(i);
-    auto s_transformed = spin_transformations_[i] * Vec3{{globals::s(i,0), globals::s(i,1), globals::s(i,2)}};
+    auto s_transformed = spin_transformations_[i] * jams::Vec<double, 3>{{globals::s(i,0), globals::s(i,1), globals::s(i,2)}};
     for (auto j = 0; j < 3; ++j) {
       cell_neel_(cell, j) += globals::mus(i)*s_transformed[j] * moment_IU_factor;
     }

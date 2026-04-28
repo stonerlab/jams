@@ -33,9 +33,9 @@ using std::runtime_error;
 struct CubicAnisotropySetting {
     unsigned order = 1;
     double energy = 0.0;
-    Vec3 u = {1.0, 0.0, 0.0};
-    Vec3 v = {0.0, 1.0, 0.0};
-    Vec3 w = {0.0, 0.0, 1.0};
+    jams::Vec<double, 3> u = {1.0, 0.0, 0.0};
+    jams::Vec<double, 3> v = {0.0, 1.0, 0.0};
+    jams::Vec<double, 3> w = {0.0, 0.0, 1.0};
 };
 
 CubicAnisotropySetting read_anisotropy_setting_cube(Setting &setting, std::string order_name) {
@@ -52,9 +52,9 @@ CubicAnisotropySetting read_anisotropy_setting_cube(Setting &setting, std::strin
 
     if (setting.isList()) {
         result.energy = setting[0];
-        result.u = jams::normalize(Vec3{setting[1][0], setting[1][1], setting[1][2]});
-        result.v = jams::normalize(Vec3{setting[2][0], setting[2][1], setting[2][2]});
-        result.w = jams::normalize(Vec3{setting[3][0], setting[3][1], setting[3][2]});
+        result.u = jams::normalize(jams::Vec<double, 3>{setting[1][0], setting[1][1], setting[1][2]});
+        result.v = jams::normalize(jams::Vec<double, 3>{setting[2][0], setting[2][1], setting[2][2]});
+        result.w = jams::normalize(jams::Vec<double, 3>{setting[3][0], setting[3][1], setting[3][2]});
     } else if (setting.isScalar()) {
         result.energy = setting;
     } else {
@@ -128,10 +128,10 @@ CubicAnisotropyHamiltonian::CubicAnisotropyHamiltonian(const Setting &settings, 
 jams::Real CubicAnisotropyHamiltonian::calculate_energy(const int i, jams::Real time) {
     double energy = 0.0;
 
-    Vec3 spin = Vec3{globals::s(i, 0), globals::s(i, 1), globals::s(i, 2)};
-    Vec3 u = {u_axes_(i, 0), u_axes_(i, 1), u_axes_(i, 2)};
-    Vec3 v = {v_axes_(i, 0), v_axes_(i, 1), v_axes_(i, 2)};
-    Vec3 w = {w_axes_(i, 0), w_axes_(i, 1), w_axes_(i, 2)};
+    jams::Vec<double, 3> spin = jams::Vec<double, 3>{globals::s(i, 0), globals::s(i, 1), globals::s(i, 2)};
+    jams::Vec<double, 3> u = {u_axes_(i, 0), u_axes_(i, 1), u_axes_(i, 2)};
+    jams::Vec<double, 3> v = {v_axes_(i, 0), v_axes_(i, 1), v_axes_(i, 2)};
+    jams::Vec<double, 3> w = {w_axes_(i, 0), w_axes_(i, 1), w_axes_(i, 2)};
 
     double Su2 = jams::dot_squared(spin, u);
     double Sv2 = jams::dot_squared(spin, v);
@@ -148,14 +148,14 @@ jams::Real CubicAnisotropyHamiltonian::calculate_energy(const int i, jams::Real 
     return static_cast<jams::Real>(energy);
 }
 
-jams::Real CubicAnisotropyHamiltonian::calculate_energy_difference(int i, const Vec3 &spin_initial,
-                                                               const Vec3 &spin_final, jams::Real time) {
+jams::Real CubicAnisotropyHamiltonian::calculate_energy_difference(int i, const jams::Vec<double, 3> &spin_initial,
+                                                               const jams::Vec<double, 3> &spin_final, jams::Real time) {
     double e_initial = 0.0;
     double e_final = 0.0;
 
-    Vec3 u = {u_axes_(i, 0), u_axes_(i, 1), u_axes_(i, 2)};
-    Vec3 v = {v_axes_(i, 0), v_axes_(i, 1), v_axes_(i, 2)};
-    Vec3 w = {w_axes_(i, 0), w_axes_(i, 1), w_axes_(i, 2)};
+    jams::Vec<double, 3> u = {u_axes_(i, 0), u_axes_(i, 1), u_axes_(i, 2)};
+    jams::Vec<double, 3> v = {v_axes_(i, 0), v_axes_(i, 1), v_axes_(i, 2)};
+    jams::Vec<double, 3> w = {w_axes_(i, 0), w_axes_(i, 1), w_axes_(i, 2)};
 
     double Su2_initial = jams::dot_squared(spin_initial, u);
     double Sv2_initial = jams::dot_squared(spin_initial, v);
@@ -182,14 +182,14 @@ jams::Real CubicAnisotropyHamiltonian::calculate_energy_difference(int i, const 
 }
 
 
-Vec3R CubicAnisotropyHamiltonian::calculate_field(const int i, jams::Real time) {
-  Vec3 field = {0.0, 0.0, 0.0};
+jams::Vec<jams::Real, 3> CubicAnisotropyHamiltonian::calculate_field(const int i, jams::Real time) {
+  jams::Vec<double, 3> field = {0.0, 0.0, 0.0};
 
-    Vec3 spin = {globals::s(i, 0), globals::s(i, 1), globals::s(i, 2)};
+    jams::Vec<double, 3> spin = {globals::s(i, 0), globals::s(i, 1), globals::s(i, 2)};
 
-    Vec3 u = {u_axes_(i, 0), u_axes_(i, 1), u_axes_(i, 2)};
-    Vec3 v = {v_axes_(i, 0), v_axes_(i, 1), v_axes_(i, 2)};
-    Vec3 w = {w_axes_(i, 0), w_axes_(i, 1), w_axes_(i, 2)};
+    jams::Vec<double, 3> u = {u_axes_(i, 0), u_axes_(i, 1), u_axes_(i, 2)};
+    jams::Vec<double, 3> v = {v_axes_(i, 0), v_axes_(i, 1), v_axes_(i, 2)};
+    jams::Vec<double, 3> w = {w_axes_(i, 0), w_axes_(i, 1), w_axes_(i, 2)};
 
     double Su = jams::dot(spin, u);
     double Sv = jams::dot(spin, v);

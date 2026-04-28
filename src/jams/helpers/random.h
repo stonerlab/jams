@@ -3,14 +3,17 @@
 #ifndef JAMS_CORE_RAND_H
 #define JAMS_CORE_RAND_H
 
+#include <cmath>
 #include <random>
-#include <array>
+#include <type_traits>
+
 #include <pcg_random.hpp>
 #include <sstream>
+#include "jams/containers/vec.h"
 #include "jams/helpers/utils.h"
 
 template <typename T, class RNG>
-inline std::array<T, 3> uniform_random_sphere(RNG &gen) {
+inline jams::Vec<T, 3> uniform_random_sphere(RNG &gen) {
   static_assert(std::is_arithmetic<T>::value,
                  "uniform_random_sphere requires arithmetic T type");
 

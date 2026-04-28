@@ -10,7 +10,7 @@ CudaRK4LLGSOTSolver::CudaRK4LLGSOTSolver(const libconfig::Setting &settings)
     : CudaRK4BaseSolver(settings) {
 
 
-  auto spin_polarisation = jams::config_required<Vec3>(settings, "spin_polarisation");
+  auto spin_polarisation = jams::config_required<jams::Vec<double, 3>>(settings, "spin_polarisation");
   spin_polarisation_.resize(globals::num_spins, 3);
   // Assume the charge current is homogeneous. The current here is a dimensionful
   // vector in
@@ -103,7 +103,7 @@ void CudaRK4LLGSOTSolver::function_kernel(jams::MultiArray<double, 2> &spins,
 
   // using default stream blocks all streams until complete to force synchronisation
   cuda_rk4_llg_sot_kernel<<<grid_size, block_size>>>
-      (spins.device_data(), k.device_data(),
+      (spins.device_data(), k.mutable_device_data(),
        globals::h.device_data(), spin_polarisation_.device_data(),
        sot_coefficient_.device_data(), thermostat_->device_data(),
        globals::gyro.device_data(), globals::mus.device_data(),

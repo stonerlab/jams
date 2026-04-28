@@ -14,7 +14,7 @@
 
 class Solver;
 
-Vec3 execute_cuda_spin_current_kernel(
+jams::Vec<double, 3> execute_cuda_spin_current_kernel(
         CudaStream &stream,
         const int num_spins,
         const double *dev_spins,
@@ -91,7 +91,7 @@ private:
 
     std::ofstream outfile;
 
-    jams::SparseMatrix<Vec3> interaction_matrix_;
+    jams::SparseMatrix<jams::Vec<double, 3>> interaction_matrix_;
 
     jams::MultiArray<double, 1> spin_current_rx_z;
     jams::MultiArray<double, 1> spin_current_ry_z;

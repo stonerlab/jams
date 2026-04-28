@@ -88,13 +88,12 @@ jams::Real CudaLandauHamiltonian::calculate_total_energy(jams::Real time) {
 
 void CudaLandauHamiltonian::calculate_energies(jams::Real time) {
   cuda_landau_energy_kernel<<<(globals::num_spins+dev_blocksize_-1)/dev_blocksize_, dev_blocksize_, 0, cuda_stream_.get()>>>
-      (globals::num_spins, globals::s.device_data(), landau_A_.device_data(), landau_B_.device_data(), landau_C_.device_data(), energy_.device_data());
+      (globals::num_spins, globals::s.device_data(), landau_A_.device_data(), landau_B_.device_data(), landau_C_.device_data(), energy_.mutable_device_data());
   DEBUG_CHECK_CUDA_ASYNC_STATUS;
 }
 
 void CudaLandauHamiltonian::calculate_fields(jams::Real time) {
   cuda_landau_field_kernel<<<(globals::num_spins+dev_blocksize_-1)/dev_blocksize_, dev_blocksize_, 0, cuda_stream_.get()>>>
-      (globals::num_spins, globals::s.device_data(), landau_A_.device_data(), landau_B_.device_data(), landau_C_.device_data(), field_.device_data());
+      (globals::num_spins, globals::s.device_data(), landau_A_.device_data(), landau_B_.device_data(), landau_C_.device_data(), field_.mutable_device_data());
   DEBUG_CHECK_CUDA_ASYNC_STATUS;
 }
-

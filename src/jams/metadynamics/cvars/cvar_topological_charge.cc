@@ -128,7 +128,7 @@ void jams::CVarTopologicalCharge::calculate_elementary_triangles(){
 // If the denominator (1  + s_i.s_j + s_i.s_k + s_j.s_k) <= 0 then the equation
 // is undefined for the topological charge (basically the texture must then
 // not be smooth and the denominator changes the sign of q_ijk)
-double jams::CVarTopologicalCharge::local_topological_charge(const Vec3& s_i, const Vec3& s_j, const Vec3& s_k) const {
+double jams::CVarTopologicalCharge::local_topological_charge(const jams::Vec<double, 3>& s_i, const jams::Vec<double, 3>& s_j, const jams::Vec<double, 3>& s_k) const {
   double triple_product = jams::scalar_triple_product(s_i, s_j, s_k);
   double denominator = 1 + jams::dot(s_i, s_j) + jams::dot(s_i, s_k) + jams::dot(s_j, s_k);
 
@@ -148,9 +148,9 @@ double jams::CVarTopologicalCharge::local_topological_charge(const Vec3& s_i, co
 //          / (1  + s_i.s_j + s_i.s_k + s_j.s_k)
 //
 double jams::CVarTopologicalCharge::local_topological_charge(const Triplet &t) const {
-  Vec3 s_i = montecarlo::get_spin(t.i);
-  Vec3 s_j = montecarlo::get_spin(t.j);
-  Vec3 s_k = montecarlo::get_spin(t.k);
+  jams::Vec<double, 3> s_i = montecarlo::get_spin(t.i);
+  jams::Vec<double, 3> s_j = montecarlo::get_spin(t.j);
+  jams::Vec<double, 3> s_k = montecarlo::get_spin(t.k);
 
   return local_topological_charge(s_i, s_j, s_k);
 }
@@ -183,8 +183,8 @@ std::string jams::CVarTopologicalCharge::name() {
 
 
 double jams::CVarTopologicalCharge::spin_move_trial_value(int i,
-                                                          const Vec3 &spin_initial,
-                                                          const Vec3 &spin_trial) {
+                                                          const jams::Vec<double, 3> &spin_initial,
+                                                          const jams::Vec<double, 3> &spin_trial) {
   const double trial_value = cached_value() + topological_charge_difference(i, spin_initial, spin_trial);
 
   set_cache_values(i, spin_initial, spin_trial, cached_value(), trial_value);
@@ -194,8 +194,8 @@ double jams::CVarTopologicalCharge::spin_move_trial_value(int i,
 
 
 double jams::CVarTopologicalCharge::topological_charge_difference(int index,
-                                                                  const Vec3 &spin_initial,
-                                                                  const Vec3 &spin_final) const {
+                                                                  const jams::Vec<double, 3> &spin_initial,
+                                                                  const jams::Vec<double, 3> &spin_final) const {
   double q_ijk_initial = 0.0;
   double q_ijk_final = 0.0;
 
@@ -203,9 +203,9 @@ double jams::CVarTopologicalCharge::topological_charge_difference(int index,
     auto t = triangle_indices_[n];
 
     // The 'index' spin could be any one of i,j,k so we need to check them all
-    Vec3 s_i = t.i == index ? spin_initial : jams::montecarlo::get_spin(t.i);
-    Vec3 s_j = t.j == index ? spin_initial : jams::montecarlo::get_spin(t.j);
-    Vec3 s_k = t.k == index ? spin_initial : jams::montecarlo::get_spin(t.k);
+    jams::Vec<double, 3> s_i = t.i == index ? spin_initial : jams::montecarlo::get_spin(t.i);
+    jams::Vec<double, 3> s_j = t.j == index ? spin_initial : jams::montecarlo::get_spin(t.j);
+    jams::Vec<double, 3> s_k = t.k == index ? spin_initial : jams::montecarlo::get_spin(t.k);
 
     q_ijk_initial += local_topological_charge(s_i, s_j, s_k);
 

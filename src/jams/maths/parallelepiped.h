@@ -18,7 +18,7 @@ namespace maths {
     /// Returns the area of the parallelogram defined by the vectors a and b
     ///
     template <typename T>
-    inline T parallelogram_area(const Vec<T,3>& a, const Vec<T,3>& b)
+    inline T parallelogram_area(const jams::Vec<T,3>& a, const jams::Vec<T,3>& b)
     {
         require_fp<T>();
         return jams::norm(jams::cross(a, b));
@@ -38,7 +38,7 @@ namespace maths {
     ///        a
     /// \endverbatim
     template <typename T>
-    inline T parallelogram_height(const Vec<T,3>& a, const Vec<T,3>& b)
+    inline T parallelogram_height(const jams::Vec<T,3>& a, const jams::Vec<T,3>& b)
     {
         require_fp<T>();
         return parallelogram_area(a, b) / jams::norm(b);
@@ -54,7 +54,7 @@ namespace maths {
     /// general parallelogram the circle will not touch all of the edges.
     ///
     template <typename T>
-    inline T parallelogram_inradius(const Vec<T,3>& a, const Vec<T,3>& b)
+    inline T parallelogram_inradius(const jams::Vec<T,3>& a, const jams::Vec<T,3>& b)
     {
         require_fp<T>();
         return T(0.5) * std::min(parallelogram_height(a, b),
@@ -66,9 +66,9 @@ namespace maths {
     /// a, b and c.
     ///
     template <typename T>
-    inline T parallelepiped_volume(const Vec<T,3>& a,
-                                   const Vec<T,3>& b,
-                                   const Vec<T,3>& c)
+    inline T parallelepiped_volume(const jams::Vec<T,3>& a,
+                                   const jams::Vec<T,3>& b,
+                                   const jams::Vec<T,3>& c)
     {
         require_fp<T>();
         return std::abs(jams::dot(jams::cross(a, b), c));
@@ -91,9 +91,9 @@ namespace maths {
     ///            a
     /// \endverbatim
     template <typename T>
-    inline T parallelepiped_height(const Vec<T,3>& a,
-                                   const Vec<T,3>& b,
-                                   const Vec<T,3>& c)
+    inline T parallelepiped_height(const jams::Vec<T,3>& a,
+                                   const jams::Vec<T,3>& b,
+                                   const jams::Vec<T,3>& c)
     {
         require_fp<T>();
         return parallelepiped_volume(a, b, c) / jams::norm(jams::cross(a, b));
@@ -111,9 +111,9 @@ namespace maths {
     /// of the edges.
     ///
     template <typename T>
-    inline T parallelepiped_inradius(const Vec<T,3>& a,
-                                     const Vec<T,3>& b,
-                                     const Vec<T,3>& c)
+    inline T parallelepiped_inradius(const jams::Vec<T,3>& a,
+                                     const jams::Vec<T,3>& b,
+                                     const jams::Vec<T,3>& c)
     {
         require_fp<T>();
         return T(0.5) * std::min({
@@ -129,9 +129,9 @@ namespace maths {
     /// vectors a, b and c
     ///
     template <typename T>
-    inline T parallelepiped_longest_diagonal(const Vec<T,3>& a,
-                                             const Vec<T,3>& b,
-                                             const Vec<T,3>& c)
+    inline T parallelepiped_longest_diagonal(const jams::Vec<T,3>& a,
+                                             const jams::Vec<T,3>& b,
+                                             const jams::Vec<T,3>& c)
     {
         require_fp<T>();
         return std::max({

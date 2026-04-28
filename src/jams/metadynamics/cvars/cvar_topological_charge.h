@@ -94,7 +94,7 @@ public:
     /// Returns the value of the collective variable after a trial
     /// spin move from spin_initial to spin_final (to be used with Monte Carlo).
     double spin_move_trial_value(
-        int i, const Vec3 &spin_initial, const Vec3 &spin_trial) override;
+        int i, const jams::Vec<double, 3> &spin_initial, const jams::Vec<double, 3> &spin_trial) override;
 
     double calculate_expensive_value() override;
 
@@ -103,10 +103,10 @@ private:
 
     void calculate_elementary_triangles();
 
-    double local_topological_charge(const Vec3& s_i, const Vec3& s_j, const Vec3& s_k) const;
+    double local_topological_charge(const jams::Vec<double, 3>& s_i, const jams::Vec<double, 3>& s_j, const jams::Vec<double, 3>& s_k) const;
     double local_topological_charge(const Triplet &t) const;
 
-    double topological_charge_difference(int index, const Vec3 &spin_initial, const Vec3 &spin_final) const;
+    double topological_charge_difference(int index, const jams::Vec<double, 3> &spin_initial, const jams::Vec<double, 3> &spin_final) const;
 
 
     double total_topological_charge() const;

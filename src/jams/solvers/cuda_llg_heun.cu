@@ -56,7 +56,7 @@ void CUDAHeunLLGSolver::run()
   const dim3 block_size = {84, 3, 1};
   auto grid_size = cuda_grid_size(block_size, {static_cast<unsigned int>(globals::num_spins), 3, 1});
 
-  cudaMemcpyAsync(s_old_.device_data(),           // void *               dst
+  cudaMemcpyAsync(s_old_.mutable_device_data(),           // void *               dst
                   globals::s.device_data(),               // const void *         src
                   globals::num_spins3*sizeof(double),   // size_t               count
              cudaMemcpyDeviceToDevice,    // enum cudaMemcpyKind  kind
@@ -72,7 +72,7 @@ void CUDAHeunLLGSolver::run()
 
 
   cuda_heun_llg_kernelA<<<grid_size, block_size, 0, jams::instance().cuda_master_stream().get()>>>
-    (globals::s.device_data(), globals::ds_dt.device_data(), s_old_.device_data(),
+    (globals::s.mutable_device_data(), globals::ds_dt.mutable_device_data(), s_old_.device_data(),
      globals::h.device_data(), thermostat_->device_data(),
      globals::gyro.device_data(), globals::mus.device_data(), globals::alpha.device_data(),
        step_size_, globals::num_spins);
@@ -86,7 +86,7 @@ void CUDAHeunLLGSolver::run()
   compute_fields();
 
   cuda_heun_llg_kernelB<<<grid_size, block_size, 0, jams::instance().cuda_master_stream().get()>>>
-    (globals::s.device_data(), globals::ds_dt.device_data(), s_old_.device_data(),
+    (globals::s.mutable_device_data(), globals::ds_dt.mutable_device_data(), s_old_.device_data(),
       globals::h.device_data(), thermostat_->device_data(),
       globals::gyro.device_data(), globals::mus.device_data(), globals::alpha.device_data(),
       step_size_, globals::num_spins);
@@ -96,4 +96,3 @@ void CUDAHeunLLGSolver::run()
   iteration_++;
   time_ = iteration_ * step_size_;
 }
-

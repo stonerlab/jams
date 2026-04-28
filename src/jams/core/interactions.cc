@@ -18,7 +18,7 @@
 #include "jams/helpers/exception.h"
 
 
-void neighbour_list_checks(const jams::InteractionList<Mat3, 2>& list, const std::vector<InteractionChecks>& checks);
+void neighbour_list_checks(const jams::InteractionList<jams::Mat<double, 3, 3>, 2>& list, const std::vector<InteractionChecks>& checks);
 
 namespace { //anon
     void apply_symops(std::vector<InteractionData>& interactions) {
@@ -41,7 +41,7 @@ namespace { //anon
           globals::lattice->basis_site_atom(unit_cell_pos).material_index);
     }
 
-    std::optional<int> find_basis_site_index(const Vec3 &offset, const double tolerance) {
+    std::optional<int> find_basis_site_index(const jams::Vec<double, 3> &offset, const double tolerance) {
       // find which basis site this offset corresponds to. It is possible that it does not correspond to a position in
       // which case the optional return is falsey.
       for (int k = 0; k < globals::lattice->num_basis_sites(); ++k) {
@@ -55,13 +55,13 @@ namespace { //anon
 
     /// Returns the integer lattice translation vector T of an arbitrary vector r accounting for difficulties
     /// in the precision at the edges and corners of the cell.
-    Vec3 lattice_translation_vector(const Vec3& r_frac, const double tolerance) {
+    jams::Vec<double, 3> lattice_translation_vector(const jams::Vec<double, 3>& r_frac, const double tolerance) {
       // If we are very close to the origin or edge of a cell then rounding with floor() to find the cell translation
       // vector can be tricky because smaller errors due to floating point precision (not least from the user input)
       // could put us in the wrong cell. Therefore we first check for the case that we are very close (within
       // tolerance) of a cell origin, in which case we round to that origin. Otherwise we use
       // floor() in the usual way.
-      Vec3 T;
+      jams::Vec<double, 3> T;
       for (auto n = 0; n < 3; ++n) {
         double nearest_integer = std::nearbyint(r_frac[n]);
         double floored_value = std::floor(r_frac[n]);
@@ -75,13 +75,13 @@ namespace { //anon
       return T;
     }
 
-    std::optional<int> find_unitcell_partner(int i, Vec3 r_ij, double tolerance) {
+    std::optional<int> find_unitcell_partner(int i, jams::Vec<double, 3> r_ij, double tolerance) {
       // returns -1 if no partner is found
 
-      Vec3 p_i_frac = globals::lattice->basis_site_atom(i).position_frac;
-      Vec3 r_ij_frac = globals::lattice->cartesian_to_fractional(r_ij);
+      jams::Vec<double, 3> p_i_frac = globals::lattice->basis_site_atom(i).position_frac;
+      jams::Vec<double, 3> r_ij_frac = globals::lattice->cartesian_to_fractional(r_ij);
       // fractional interaction vector shifted by motif position
-      Vec3 q_ij = r_ij_frac + p_i_frac;
+      jams::Vec<double, 3> q_ij = r_ij_frac + p_i_frac;
 
       return find_basis_site_index(q_ij - lattice_translation_vector(q_ij, tolerance), tolerance);
     }
@@ -331,10 +331,10 @@ post_process_interactions(std::vector<InteractionData> &interactions, const Inte
 
   // calculate the lattice translation vectors
   apply_transform(interactions, [&](InteractionData J) -> InteractionData {
-    Vec3 p_i_frac = globals::lattice->basis_site_atom(J.basis_site_i).position_frac;
-    Vec3 p_j_frac = globals::lattice->basis_site_atom(J.basis_site_j).position_frac;
-    Vec3 r_ij_frac = globals::lattice->cartesian_to_fractional(J.interaction_vector_cart);
-    Vec3 T = lattice_translation_vector(r_ij_frac + p_i_frac - p_j_frac, distance_tolerance);
+    jams::Vec<double, 3> p_i_frac = globals::lattice->basis_site_atom(J.basis_site_i).position_frac;
+    jams::Vec<double, 3> p_j_frac = globals::lattice->basis_site_atom(J.basis_site_j).position_frac;
+    jams::Vec<double, 3> r_ij_frac = globals::lattice->cartesian_to_fractional(J.interaction_vector_cart);
+    jams::Vec<double, 3> T = lattice_translation_vector(r_ij_frac + p_i_frac - p_j_frac, distance_tolerance);
 
     // If r_ij_frac + p_i_frac - p_j_frac is not a cell translation vector then there is a problem with the inputted
     // exchange vectors.
@@ -346,9 +346,9 @@ post_process_interactions(std::vector<InteractionData> &interactions, const Inte
 
 }
 
-jams::InteractionList<Mat3, 2>
+jams::InteractionList<jams::Mat<double, 3, 3>, 2>
 neighbour_list_from_interactions(std::vector<InteractionData> &interactions) {
-  jams::InteractionList<Mat3, 2> nbr_list;
+  jams::InteractionList<jams::Mat<double, 3, 3>, 2> nbr_list;
 
   // loop over the translation vectors for lattice size
   for (int i = 0; i < globals::lattice->size(0); ++i) {
@@ -360,7 +360,7 @@ neighbour_list_from_interactions(std::vector<InteractionData> &interactions) {
 
           int local_site = globals::lattice->site_index_by_unit_cell(i, j, k, m);
 
-          Vec3i d_unit_cell = Vec3i{i, j, k} + I.lattice_translation_vector;
+          jams::Vec<int, 3> d_unit_cell = jams::Vec<int, 3>{i, j, k} + I.lattice_translation_vector;
 
           // check if interaction goes outside of an open boundary
           if (globals::lattice->apply_boundary_conditions(d_unit_cell[0], d_unit_cell[1], d_unit_cell[2]) == false) {
@@ -394,7 +394,7 @@ neighbour_list_from_interactions(std::vector<InteractionData> &interactions) {
   return nbr_list;
 }
 
-jams::InteractionList<Mat3, 2>
+jams::InteractionList<jams::Mat<double, 3, 3>, 2>
 generate_neighbour_list(std::ifstream &file,
                         CoordinateFormat coord_format,
                         bool use_symops,
@@ -419,7 +419,7 @@ generate_neighbour_list(std::ifstream &file,
   return nbrs;
 }
 
-jams::InteractionList<Mat3, 2>
+jams::InteractionList<jams::Mat<double, 3, 3>, 2>
 generate_neighbour_list(libconfig::Setting &setting,
                         CoordinateFormat coord_format,
                         bool use_symops,
@@ -443,7 +443,7 @@ generate_neighbour_list(libconfig::Setting &setting,
   return nbrs;
 }
 
-void neighbour_list_checks(const jams::InteractionList<Mat3, 2>& list, const std::vector<InteractionChecks>& checks) {
+void neighbour_list_checks(const jams::InteractionList<jams::Mat<double, 3, 3>, 2>& list, const std::vector<InteractionChecks>& checks) {
   for (const auto& check : checks) {
     switch (check) {
       case InteractionChecks::kNoZeroMotifNeighbourCount:
@@ -475,12 +475,12 @@ void neighbour_list_checks(const jams::InteractionList<Mat3, 2>& list, const std
       if (globals::lattice->is_periodic(0) && globals::lattice->is_periodic(1) && globals::lattice->is_periodic(2)) {
 
           // check diagonal part of J0 is the same for each motif position
-          auto lambda = [](const Mat3 &prev,
-                           const jams::InteractionList<Mat3, 2>::pair_type &next) {
+          auto lambda = [](const jams::Mat<double, 3, 3> &prev,
+                           const jams::InteractionList<jams::Mat<double, 3, 3>, 2>::pair_type &next) {
               return prev + next.second;
           };
 
-        std::vector<Mat3> motif_position_total_exchange(globals::lattice->num_basis_sites(),
+        std::vector<jams::Mat<double, 3, 3>> motif_position_total_exchange(globals::lattice->num_basis_sites(),
                                                      kZeroMat3);
           for (auto i = 0; i < globals::lattice->num_basis_sites(); ++i) {
             auto neighbour_list = list.interactions_of(i);
@@ -494,7 +494,7 @@ void neighbour_list_checks(const jams::InteractionList<Mat3, 2>& list, const std
 
             auto pos = globals::lattice->lattice_site_basis_index(i);
 
-            Mat3 J0 = std::accumulate(neighbour_list.begin(),
+            jams::Mat<double, 3, 3> J0 = std::accumulate(neighbour_list.begin(),
                                       neighbour_list.end(), kZeroMat3, lambda);
 
             if (!jams::approximately_equal(diag(J0),
@@ -588,7 +588,7 @@ write_interaction_data(std::ostream &output, const std::vector<InteractionData> 
   }
 }
 void
-write_neighbour_list(std::ostream &output, const jams::InteractionList<Mat3,2> &list) {
+write_neighbour_list(std::ostream &output, const jams::InteractionList<jams::Mat<double, 3, 3>,2> &list) {
   output << "#";
   output << jams::fmt::integer << "i";
   output << jams::fmt::integer << "j";

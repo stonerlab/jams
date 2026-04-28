@@ -28,7 +28,7 @@ private:
     bool         compression_enabled_ = true;
     Slice        slice_;
     FILE*        xdmf_file_;
-    std::vector<Mat3> spin_transformations_;
+    std::vector<jams::Mat<double, 3, 3>> spin_transformations_;
     jams::MultiArray<double, 2> cell_centers_;
     jams::MultiArray<double, 2> cell_mag_;
     jams::MultiArray<double, 2> cell_neel_;

@@ -171,6 +171,6 @@ ExchangeHamiltonian::ExchangeHamiltonian(const libconfig::Setting &settings, con
   finalize(sparse_matrix_checks);
 }
 
-const jams::InteractionList<Mat3,2> &ExchangeHamiltonian::neighbour_list() const {
+const jams::InteractionList<jams::Mat<double, 3, 3>,2> &ExchangeHamiltonian::neighbour_list() const {
   return neighbour_list_;
 }

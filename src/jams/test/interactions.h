@@ -95,8 +95,8 @@ TEST(interactions_from_file, jams_scalar) {
   InteractionFileDescription desc = discover_interaction_file_format(file);
   auto interactions = interactions_from_file(file, desc);
 
-  Vec3 zero_r = {0.0, 0.0, 1.0};
-  Mat3 zero_J = {1e-21, 0.0, 0.0, 0.0, 1e-21, 0.0, 0.0, 0.0, 1e-21};
+  jams::Vec<double, 3> zero_r = {0.0, 0.0, 1.0};
+  jams::Mat<double, 3, 3> zero_J = {1e-21, 0.0, 0.0, 0.0, 1e-21, 0.0, 0.0, 0.0, 1e-21};
   EXPECT_EQ(interactions[0].type_i, "A");
   EXPECT_EQ(interactions[0].type_j, "A");
   EXPECT_EQ(interactions[0].unit_cell_pos_i, -1);
@@ -104,8 +104,8 @@ TEST(interactions_from_file, jams_scalar) {
   EXPECT_EQ(interactions[0].r_ij, zero_r);
   EXPECT_EQ(interactions[0].J_ij, zero_J);
 
-  Vec3 one_r = {0.0, 0.0, 2.0};
-  Mat3 one_J = {2e-21, 0.0, 0.0, 0.0, 2e-21, 0.0, 0.0, 0.0, 2e-21};
+  jams::Vec<double, 3> one_r = {0.0, 0.0, 2.0};
+  jams::Mat<double, 3, 3> one_J = {2e-21, 0.0, 0.0, 0.0, 2e-21, 0.0, 0.0, 0.0, 2e-21};
   EXPECT_EQ(interactions[1].type_i, "B");
   EXPECT_EQ(interactions[1].type_j, "A");
   EXPECT_EQ(interactions[1].unit_cell_pos_i, -1);
@@ -121,8 +121,8 @@ TEST(interactions_from_file, jams_tensor) {
   InteractionFileDescription desc = discover_interaction_file_format(file);
   auto interactions = interactions_from_file(file, desc);
 
-  Vec3 zero_r = {0.0, 0.0, 1.0};
-  Mat3 zero_J = {1e-21, 0.0, 0.0, 0.0, 1e-21, 0.0, 0.0, 0.0, 1e-21};
+  jams::Vec<double, 3> zero_r = {0.0, 0.0, 1.0};
+  jams::Mat<double, 3, 3> zero_J = {1e-21, 0.0, 0.0, 0.0, 1e-21, 0.0, 0.0, 0.0, 1e-21};
   EXPECT_EQ(interactions[0].type_i, "A");
   EXPECT_EQ(interactions[0].type_j, "A");
   EXPECT_EQ(interactions[0].unit_cell_pos_i, -1);
@@ -130,8 +130,8 @@ TEST(interactions_from_file, jams_tensor) {
   EXPECT_EQ(interactions[0].r_ij, zero_r);
   EXPECT_EQ(interactions[0].J_ij, zero_J);
 
-  Vec3 one_r = {0.0, 0.0, 2.0};
-  Mat3 one_J = {2e-21, 0.0, 0.0, 0.0, 2e-21, 0.0, 0.0, 0.0, 2e-21};
+  jams::Vec<double, 3> one_r = {0.0, 0.0, 2.0};
+  jams::Mat<double, 3, 3> one_J = {2e-21, 0.0, 0.0, 0.0, 2e-21, 0.0, 0.0, 0.0, 2e-21};
   EXPECT_EQ(interactions[1].type_i, "B");
   EXPECT_EQ(interactions[1].type_j, "A");
   EXPECT_EQ(interactions[1].unit_cell_pos_i, -1);
@@ -145,8 +145,8 @@ TEST(interactions_from_file, kkr_scalar) {
   InteractionFileDescription desc = discover_interaction_file_format(file);
   auto interactions = interactions_from_file(file, desc);
 
-  Vec3 zero_r = {0.0, 0.0, 1.0};
-  Mat3 zero_J = {1e-21, 0.0, 0.0, 0.0, 1e-21, 0.0, 0.0, 0.0, 1e-21};
+  jams::Vec<double, 3> zero_r = {0.0, 0.0, 1.0};
+  jams::Mat<double, 3, 3> zero_J = {1e-21, 0.0, 0.0, 0.0, 1e-21, 0.0, 0.0, 0.0, 1e-21};
   EXPECT_EQ(interactions[0].type_i, "NOTYPE");
   EXPECT_EQ(interactions[0].type_j, "NOTYPE");
   EXPECT_EQ(interactions[0].unit_cell_pos_i, 0);
@@ -154,8 +154,8 @@ TEST(interactions_from_file, kkr_scalar) {
   EXPECT_EQ(interactions[0].r_ij, zero_r);
   EXPECT_EQ(interactions[0].J_ij, zero_J);
 
-  Vec3 one_r = {0.0, 0.0, 2.0};
-  Mat3 one_J = {2e-21, 0.0, 0.0, 0.0, 2e-21, 0.0, 0.0, 0.0, 2e-21};
+  jams::Vec<double, 3> one_r = {0.0, 0.0, 2.0};
+  jams::Mat<double, 3, 3> one_J = {2e-21, 0.0, 0.0, 0.0, 2e-21, 0.0, 0.0, 0.0, 2e-21};
   EXPECT_EQ(interactions[1].type_i, "NOTYPE");
   EXPECT_EQ(interactions[1].type_j, "NOTYPE");
   EXPECT_EQ(interactions[1].unit_cell_pos_i, 1);
@@ -171,8 +171,8 @@ TEST(interactions_from_file, kkr_tensor) {
   InteractionFileDescription desc = discover_interaction_file_format(file);
   auto interactions = interactions_from_file(file, desc);
 
-  Vec3 zero_r = {0.0, 0.0, 1.0};
-  Mat3 zero_J = {1e-21, 0.0, 0.0, 0.0, 1e-21, 0.0, 0.0, 0.0, 1e-21};
+  jams::Vec<double, 3> zero_r = {0.0, 0.0, 1.0};
+  jams::Mat<double, 3, 3> zero_J = {1e-21, 0.0, 0.0, 0.0, 1e-21, 0.0, 0.0, 0.0, 1e-21};
   EXPECT_EQ(interactions[0].type_i, "NOTYPE");
   EXPECT_EQ(interactions[0].type_j, "NOTYPE");
   EXPECT_EQ(interactions[0].unit_cell_pos_i, 0);
@@ -180,8 +180,8 @@ TEST(interactions_from_file, kkr_tensor) {
   EXPECT_EQ(interactions[0].r_ij, zero_r);
   EXPECT_EQ(interactions[0].J_ij, zero_J);
 
-  Vec3 one_r = {0.0, 0.0, 2.0};
-  Mat3 one_J = {2e-21, 0.0, 0.0, 0.0, 2e-21, 0.0, 0.0, 0.0, 2e-21};
+  jams::Vec<double, 3> one_r = {0.0, 0.0, 2.0};
+  jams::Mat<double, 3, 3> one_J = {2e-21, 0.0, 0.0, 0.0, 2e-21, 0.0, 0.0, 0.0, 2e-21};
   EXPECT_EQ(interactions[1].type_i, "NOTYPE");
   EXPECT_EQ(interactions[1].type_j, "NOTYPE");
   EXPECT_EQ(interactions[1].unit_cell_pos_i, 1);

@@ -30,7 +30,7 @@ public:
     static Hamiltonian *create(const libconfig::Setting &settings, unsigned int size, bool is_cuda_solver);
 
     // calculate the field a spin i
-    virtual Vec3R calculate_field(int i, jams::Real time) = 0;
+    virtual jams::Vec<jams::Real, 3> calculate_field(int i, jams::Real time) = 0;
 
     // calculate the energy of spin i
     virtual jams::Real calculate_energy(int i, jams::Real time) = 0;
@@ -45,7 +45,7 @@ public:
     virtual jams::Real calculate_total_energy(jams::Real time);
 
     // calculate the energy difference of spin i in initial and final states
-    virtual jams::Real calculate_energy_difference(int i, const Vec3 &spin_initial, const Vec3 &spin_final, jams::Real time);
+    virtual jams::Real calculate_energy_difference(int i, const jams::Vec<double, 3> &spin_initial, const jams::Vec<double, 3> &spin_final, jams::Real time);
 
 
     inline jams::Real energy(const int i) const {
@@ -54,7 +54,7 @@ public:
     }
 
     inline jams::Real field(const int i, const int j) const {
-      assert(i < field_.size(0));
+      assert(i < field_.extent(0));
       assert(j < 3);
       return field_(i, j);
     }
@@ -62,7 +62,7 @@ public:
     // raw pointer to field data on cuda device
     jams::Real *dev_ptr_field() {
       #if HAS_CUDA
-      return field_.device_data();
+      return field_.mutable_device_data();
       #else
       return nullptr;
       #endif

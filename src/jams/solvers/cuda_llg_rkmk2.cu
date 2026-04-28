@@ -166,7 +166,7 @@ void CUDALLGRKMK2Solver::run()
   thermostat_->wait_on(jams::instance().cuda_master_stream().get());
 
   cuda_llg_noise_step_rodrigues_kernel<<<grid_size, block_size, 0, jams::instance().cuda_master_stream().get()>>>(
-    globals::s.device_data(),
+    globals::s.mutable_device_data(),
     thermostat_->device_data(),
     globals::gyro.device_data(),
     globals::alpha.device_data(),
@@ -174,7 +174,7 @@ void CUDALLGRKMK2Solver::run()
   DEBUG_CHECK_CUDA_ASYNC_STATUS
   record_spin_barrier_event();
 
-  cudaMemcpyAsync(s_init_.device_data(),           // void *               dst
+  cudaMemcpyAsync(s_init_.mutable_device_data(),           // void *               dst
                 globals::s.device_data(),               // const void *         src
                 globals::s.bytes(),   // size_t               count
                 cudaMemcpyDeviceToDevice,    // enum cudaMemcpyKind  kind
@@ -187,8 +187,8 @@ void CUDALLGRKMK2Solver::run()
 
   cuda_llg_rkmk2_kernel_step_1<<<grid_size, block_size, 0, jams::instance().cuda_master_stream().get()>>>(
     s_init_.device_data(),
-    phi_.device_data(),
-    globals::s.device_data(),
+    phi_.mutable_device_data(),
+    globals::s.mutable_device_data(),
     globals::h.device_data(),
     globals::gyro.device_data(),
     globals::mus.device_data(),
@@ -205,9 +205,9 @@ void CUDALLGRKMK2Solver::run()
 
   cuda_llg_rkmk2_kernel_step_2<<<grid_size, block_size, 0, jams::instance().cuda_master_stream().get()>>>(
     s_init_.device_data(),
-    globals::s.device_data(),
+    globals::s.mutable_device_data(),
     phi_.device_data(),
-    globals::s.device_data(),
+    globals::s.mutable_device_data(),
     globals::h.device_data(),
     globals::gyro.device_data(),
     globals::mus.device_data(),
@@ -221,7 +221,7 @@ void CUDALLGRKMK2Solver::run()
   thermostat_->wait_on(jams::instance().cuda_master_stream().get());
 
   cuda_llg_noise_step_rodrigues_kernel<<<grid_size, block_size, 0,  jams::instance().cuda_master_stream().get()>>>(
-  globals::s.device_data(),
+  globals::s.mutable_device_data(),
   thermostat_->device_data(),
   globals::gyro.device_data(),
   globals::alpha.device_data(),

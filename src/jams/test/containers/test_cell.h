@@ -9,14 +9,14 @@
 
 #include "jams/containers/cell.h"
 
-//MATCHER_P2(Vec3Eq, expected, tolerance, "") {
-//  for (auto i = 0; i < 3; ++i) {
-//    if (std::abs(arg[i] - expected[i]) > tolerance) {
-//      return false;
-//    }
-//  }
-//  return true;
-//}
+MATCHER_P2(Vec3Eq, expected, tolerance, "") {
+  for (auto i = 0; i < 3; ++i) {
+    if (std::abs(arg[i] - expected[i]) > tolerance) {
+      return false;
+    }
+  }
+  return true;
+}
 
 MATCHER_P2(Mat3Eq, expected, tolerance, "") {
   for (auto i = 0; i < 3; ++i) {
@@ -34,12 +34,12 @@ TEST(CellTest, ctor) {
 
   const double eps = 1e-6;
 
-  Vec3 a = {1.00, 0.00, 0.00};
-  Vec3 b = {0.25, 0.50, 0.00};
-  Vec3 c = {0.25, 0.25, 0.75};
+  jams::Vec<double, 3> a = {1.00, 0.00, 0.00};
+  jams::Vec<double, 3> b = {0.25, 0.50, 0.00};
+  jams::Vec<double, 3> c = {0.25, 0.25, 0.75};
 
-  Mat3 unitcell = {1.00, 0.25, 0.25, 0.00, 0.50, 0.25, 0.00, 0.00, 0.75};
-  Mat3 inverse_matrix = {1.0, -0.5, -0.1666667, 0.0, 2.0, -0.6666667, 0.0, 0.0, 1.333333};
+  jams::Mat<double, 3, 3> unitcell = {1.00, 0.25, 0.25, 0.00, 0.50, 0.25, 0.00, 0.00, 0.75};
+  jams::Mat<double, 3, 3> inverse_matrix = {1.0, -0.5, -0.1666667, 0.0, 2.0, -0.6666667, 0.0, 0.0, 1.333333};
 
 
   Cell x(a, b, c);

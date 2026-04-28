@@ -46,10 +46,10 @@ namespace jams {
         /// Calculate the difference in potential energy for the system when a
         /// single spin is changed from spin_initial to spin_final
         double potential_difference(
-            int i, const Vec3 &spin_initial, const Vec3 &spin_final);
+            int i, const jams::Vec<double, 3> &spin_initial, const jams::Vec<double, 3> &spin_final);
 
         void spin_update(
-            int i, const Vec3 &spin_initial, const Vec3 &spin_final);
+            int i, const jams::Vec<double, 3> &spin_initial, const jams::Vec<double, 3> &spin_final);
 
         /// Merge potential with a shared potential stored in file
         void synchronise_shared_potential(const std::string& file_name);

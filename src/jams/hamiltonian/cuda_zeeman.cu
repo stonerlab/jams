@@ -49,7 +49,7 @@ void CudaZeemanHamiltonian::calculate_fields(jams::Real time) {
         grid_size.x = (globals::num_spins + block_size.x - 1) / block_size.x;
         grid_size.y = (3 + block_size.y - 1) / block_size.y;
 
-        cudaMemcpyAsync(field_.device_data(),           // void *               dst
+        cudaMemcpyAsync(field_.mutable_device_data(),           // void *               dst
                    dc_local_field_.device_data(),               // const void *         src
                    dc_local_field_.bytes(),   // size_t               count
                    cudaMemcpyDeviceToDevice,    // enum cudaMemcpyKind  kind
@@ -59,7 +59,7 @@ void CudaZeemanHamiltonian::calculate_fields(jams::Real time) {
         if (has_ac_local_field_) {
             cuda_zeeman_ac_field_kernel<<<grid_size, block_size, 0, cuda_stream_.get()>>>
                 (globals::num_spins, time,
-                    ac_local_field_.device_data(), ac_local_frequency_.device_data(), field_.device_data());
+                    ac_local_field_.device_data(), ac_local_frequency_.device_data(), field_.mutable_device_data());
             DEBUG_CHECK_CUDA_ASYNC_STATUS;
         }
 }

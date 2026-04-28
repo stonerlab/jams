@@ -77,7 +77,7 @@ private:
     double pulse_width_;
     double pulse_height_;
     bool   pulse_is_coherent_;
-    Vec3   pulse_polarisation_;
+    jams::Vec<double, 3>   pulse_polarisation_;
 
     jams::MultiArray<int, 1> spin_indices_;
 };

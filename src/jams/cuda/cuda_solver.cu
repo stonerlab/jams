@@ -47,6 +47,6 @@ void CudaSolver::compute_fields() {
       num_input_arrays,
       num_elements,
       dev_field_ptrs_,
-      globals::h.device_data(),
+      globals::h.mutable_device_data(),
       jams::instance().cuda_master_stream().get());
 }

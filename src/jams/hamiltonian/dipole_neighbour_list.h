@@ -12,14 +12,14 @@ class DipoleNeighbourListHamiltonian : public Hamiltonian {
 public:
     DipoleNeighbourListHamiltonian(const libconfig::Setting &settings, unsigned int size);
 
-    Vec3R calculate_field(int i, jams::Real time) override;
+    jams::Vec<jams::Real, 3> calculate_field(int i, jams::Real time) override;
 
     jams::Real calculate_energy(int i, jams::Real time) override;
 
-    jams::Real calculate_energy_difference(int i, const Vec3 &spin_initial, const Vec3 &spin_final, jams::Real time) override;
+    jams::Real calculate_energy_difference(int i, const jams::Vec<double, 3> &spin_initial, const jams::Vec<double, 3> &spin_final, jams::Real time) override;
 
 private:
-    std::vector<std::vector<std::pair<Vec3R, int>>> neighbour_list_;
+    std::vector<std::vector<std::pair<jams::Vec<jams::Real, 3>, int>>> neighbour_list_;
     jams::Real r_cutoff_; // cutoff radius for dipole interaction
     jams::Real dipole_prefactor_;
 };

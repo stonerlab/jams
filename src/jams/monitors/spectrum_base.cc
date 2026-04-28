@@ -92,11 +92,10 @@ SpectrumBaseMonitor::ChannelTransform SpectrumBaseMonitor::raise_lower_channel_m
 {
   ChannelTransform m;
   m.output_channels = 3;
-  m.weights = {{
-      {{kInvSqrtTwo, +kImagOne * kInvSqrtTwo, 0.0}},
-      {{kInvSqrtTwo, -kImagOne * kInvSqrtTwo, 0.0}},
-      {{0.0, 0.0, 1.0}}
-  }};
+  m.weights = jams::Mat<std::complex<double>, 3, 3>{
+      kInvSqrtTwo, +kImagOne * kInvSqrtTwo, 0.0,
+      kInvSqrtTwo, -kImagOne * kInvSqrtTwo, 0.0,
+      0.0, 0.0, 1.0};
   m.use_local_frame = true;
   m.scale_to_physical_spin = true;
   return m;
@@ -162,7 +161,7 @@ void SpectrumBaseMonitor::initialise_k_points_(
 void SpectrumBaseMonitor::initialise_basis_phase_factors_()
 {
   std::cout << "  generating basis phase factors" << std::endl;
-  std::vector<Vec3> r_frac(num_basis_atoms());
+  std::vector<jams::Vec<double, 3>> r_frac(num_basis_atoms());
   for (auto a = 0; a < num_basis_atoms(); ++a)
   {
     r_frac[a] = globals::lattice->basis_site_atom(a).position_frac;
@@ -323,8 +322,8 @@ void SpectrumBaseMonitor::resize_channel_storage_()
 
   if (temporal_estimator_ == TemporalEstimator::Multitaper)
   {
-    if (multitaper_windows_.size(0) != multitaper_count_
-        || multitaper_windows_.size(1) != T
+    if (multitaper_windows_.extent(0) != multitaper_count_
+        || multitaper_windows_.extent(1) != T
         || multitaper_weights_.size() != static_cast<std::size_t>(multitaper_count_))
     {
       generate_normalised_dpss_tapers_(
@@ -490,8 +489,8 @@ const SpectrumBaseMonitor::CmplxMappedSlice& SpectrumBaseMonitor::compute_freque
     generate_normalised_window_(periodogram_window_, num_time_samples);
   }
   if (temporal_estimator_ == TemporalEstimator::Multitaper
-      && (multitaper_windows_.size(0) != multitaper_count_
-          || multitaper_windows_.size(1) != num_time_samples
+      && (multitaper_windows_.extent(0) != multitaper_count_
+          || multitaper_windows_.extent(1) != num_time_samples
           || multitaper_weights_.size() != static_cast<std::size_t>(multitaper_count_)))
   {
     generate_normalised_dpss_tapers_(
@@ -503,9 +502,9 @@ const SpectrumBaseMonitor::CmplxMappedSlice& SpectrumBaseMonitor::compute_freque
   }
 
   if (!sk_time_fft_plan_
-      || frequency_scratch_.size(0) != num_sites
-      || frequency_scratch_.size(1) != num_time_samples
-      || frequency_scratch_.size(2) != channels)
+      || frequency_scratch_.extent(0) != num_sites
+      || frequency_scratch_.extent(1) != num_time_samples
+      || frequency_scratch_.extent(2) != channels)
   {
     if (sk_time_fft_plan_)
     {
@@ -549,30 +548,30 @@ const SpectrumBaseMonitor::CmplxMappedSlice& SpectrumBaseMonitor::compute_freque
     assert(sk_time_fft_plan_);
   }
 
-  if (frequency_accum_.size(0) != num_sites
-      || frequency_accum_.size(1) != num_time_samples
-      || frequency_accum_.size(2) != channels)
+  if (frequency_accum_.extent(0) != num_sites
+      || frequency_accum_.extent(1) != num_time_samples
+      || frequency_accum_.extent(2) != channels)
   {
     frequency_accum_.resize(num_sites, num_time_samples, channels);
   }
 
   if (temporal_estimator_ == TemporalEstimator::Multitaper
-      && (frequency_taper_sum_.size(0) != num_sites
-          || frequency_taper_sum_.size(1) != num_time_samples
-          || frequency_taper_sum_.size(2) != channels))
+      && (frequency_taper_sum_.extent(0) != num_sites
+          || frequency_taper_sum_.extent(1) != num_time_samples
+          || frequency_taper_sum_.extent(2) != channels))
   {
     frequency_taper_sum_.resize(num_sites, num_time_samples, channels);
   }
   if (temporal_estimator_ == TemporalEstimator::Multitaper
-      && (frequency_taper_power_sum_.size(0) != num_sites
-          || frequency_taper_power_sum_.size(1) != num_time_samples
-          || frequency_taper_power_sum_.size(2) != channels))
+      && (frequency_taper_power_sum_.extent(0) != num_sites
+          || frequency_taper_power_sum_.extent(1) != num_time_samples
+          || frequency_taper_power_sum_.extent(2) != channels))
   {
     frequency_taper_power_sum_.resize(num_sites, num_time_samples, channels);
   }
   const auto rotations = use_local_frame
       ? generate_sublattice_rotations_()
-      : jams::MultiArray<Mat3, 1>{};
+      : jams::MultiArray<jams::Mat<double, 3, 3>, 1>{};
   const auto* rotations_ptr = use_local_frame ? &rotations : nullptr;
 
   for (auto a = 0; a < num_sites; ++a)
@@ -581,7 +580,7 @@ const SpectrumBaseMonitor::CmplxMappedSlice& SpectrumBaseMonitor::compute_freque
     {
       if (use_local_frame)
       {
-        const Vec3cx spin_xyz = read_cartesian_spin_(a, t, kpoint_index);
+        const jams::Vec<std::complex<double>, 3> spin_xyz = read_cartesian_spin_(a, t, kpoint_index);
         for (auto c = 0; c < channels; ++c)
         {
           frequency_scratch_(a, t, c) = map_spin_component_(a, c, spin_xyz, rotations_ptr);
@@ -726,7 +725,7 @@ void SpectrumBaseMonitor::advance_periodogram_window()
         std::copy_n(src, overlap, dst);
         std::fill_n(&basis_mag_time_series_(sublattice, overlap),
                     num_period_samples - overlap,
-                    Vec3{0, 0, 0});
+                    jams::Vec<double, 3>{0, 0, 0});
       }
     }
   }
@@ -745,10 +744,10 @@ const SpectrumBaseMonitor::CmplxMappedSpectrum& SpectrumBaseMonitor::finalise_pe
   const int channels = num_channels();
   const int num_freq_out = keep_negative_frequencies_ ? periodogram_length() : (periodogram_length() / 2 + 1);
 
-  if (skw_buffer_.size(0) != num_sites
-      || skw_buffer_.size(1) != num_freq_out
-      || skw_buffer_.size(2) != num_k
-      || skw_buffer_.size(3) != channels)
+  if (skw_buffer_.extent(0) != num_sites
+      || skw_buffer_.extent(1) != num_freq_out
+      || skw_buffer_.extent(2) != num_k
+      || skw_buffer_.extent(3) != channels)
   {
     skw_buffer_.resize(num_sites, num_freq_out, num_k, channels);
   }
@@ -772,17 +771,17 @@ const SpectrumBaseMonitor::CmplxMappedSpectrum& SpectrumBaseMonitor::finalise_pe
   return skw_buffer_;
 }
 
-void SpectrumBaseMonitor::append_sk_sample_for_k_list(const jams::MultiArray<Vec3cx,4> &sk_sample,
+void SpectrumBaseMonitor::append_sk_sample_for_k_list(const jams::MultiArray<jams::Vec<std::complex<double>, 3>,4> &sk_sample,
                                                     const std::vector<jams::HKLIndex> &k_list)
 {
   const auto time_index = static_cast<std::size_t>(periodogram_sample_index_);
-  const auto num_basis = static_cast<std::size_t>(sk_sample.size(3));
+  const auto num_basis = static_cast<std::size_t>(sk_sample.extent(3));
   const auto num_k = k_list.size();
   const auto stored_channels = static_cast<std::size_t>(stored_channel_count_);
   const bool use_local_frame = needs_local_frame_mapping_();
   std::vector<CmplxStored> tail_buffer(num_basis * num_k * stored_channels);
 
-  for (auto a = 0; a < sk_sample.size(3); ++a)
+  for (auto a = 0; a < sk_sample.extent(3); ++a)
   {
     for (auto k = 0; k < k_list.size(); ++k)
     {
@@ -791,7 +790,7 @@ void SpectrumBaseMonitor::append_sk_sample_for_k_list(const jams::MultiArray<Vec
       const auto base =
           (static_cast<std::size_t>(a) * num_k + static_cast<std::size_t>(k)) * stored_channels;
 
-      Vec3cx spin_xyz;
+      jams::Vec<std::complex<double>, 3> spin_xyz;
       if (is_conjugate)
       {
         spin_xyz = basis_phase_factors_(a, k) * jams::conj(sk_sample(idx[0], idx[1], idx[2], a));
@@ -840,20 +839,20 @@ void SpectrumBaseMonitor::store_sublattice_magnetisation_(const jams::MultiArray
   const auto p = periodogram_sample_index();
   for (auto i = 0; i < globals::num_spins; ++i)
   {
-    Vec3 spin = {spin_state(i, 0), spin_state(i, 1), spin_state(i, 2)};
+    jams::Vec<double, 3> spin = {spin_state(i, 0), spin_state(i, 1), spin_state(i, 2)};
     const auto m = globals::lattice->lattice_site_basis_index(i);
     basis_mag_time_series_(m, p) += spin;
   }
 }
 
-jams::MultiArray<Vec3, 1> SpectrumBaseMonitor::compute_mean_basis_mag_directions_()
+jams::MultiArray<jams::Vec<double, 3>, 1> SpectrumBaseMonitor::compute_mean_basis_mag_directions_()
 {
   if (periodogram_window_.empty())
   {
     generate_normalised_window_(periodogram_window_, periodogram_length());
   }
 
-  jams::MultiArray<Vec3, 1> mean_directions(num_basis_atoms());
+  jams::MultiArray<jams::Vec<double, 3>, 1> mean_directions(num_basis_atoms());
   zero(mean_directions);
 
   for (auto m = 0; m < num_basis_atoms(); ++m)
@@ -869,9 +868,9 @@ jams::MultiArray<Vec3, 1> SpectrumBaseMonitor::compute_mean_basis_mag_directions
   return mean_directions;
 }
 
-jams::MultiArray<Mat3, 1> SpectrumBaseMonitor::generate_sublattice_rotations_()
+jams::MultiArray<jams::Mat<double, 3, 3>, 1> SpectrumBaseMonitor::generate_sublattice_rotations_()
 {
-  jams::MultiArray<Mat3, 1> rotations(num_basis_atoms());
+  jams::MultiArray<jams::Mat<double, 3, 3>, 1> rotations(num_basis_atoms());
   for (auto a = 0; a < num_basis_atoms(); ++a)
   {
     rotations(a) = kIdentityMat3;
@@ -886,7 +885,7 @@ jams::MultiArray<Mat3, 1> SpectrumBaseMonitor::generate_sublattice_rotations_()
 
   for (auto m = 0; m < mean_directions.size(); ++m)
   {
-    Vec3 n_hat = mean_directions(m);
+    jams::Vec<double, 3> n_hat = mean_directions(m);
     const double n_norm = jams::norm(n_hat);
     if (n_norm <= 0.0)
     {
@@ -895,15 +894,15 @@ jams::MultiArray<Mat3, 1> SpectrumBaseMonitor::generate_sublattice_rotations_()
     }
     n_hat *= (1.0 / n_norm);
 
-    const Vec3 ex{1.0, 0.0, 0.0};
-    const Vec3 ey{0.0, 1.0, 0.0};
-    const Vec3 ez{0.0, 0.0, 1.0};
+    const jams::Vec<double, 3> ex{1.0, 0.0, 0.0};
+    const jams::Vec<double, 3> ey{0.0, 1.0, 0.0};
+    const jams::Vec<double, 3> ez{0.0, 0.0, 1.0};
 
     const double ax = std::abs(jams::dot(ex, n_hat));
     const double ay = std::abs(jams::dot(ey, n_hat));
     const double az = std::abs(jams::dot(ez, n_hat));
 
-    Vec3 r = ex;
+    jams::Vec<double, 3> r = ex;
     double a_min = ax;
     if (ay < a_min)
     {
@@ -916,7 +915,7 @@ jams::MultiArray<Mat3, 1> SpectrumBaseMonitor::generate_sublattice_rotations_()
       a_min = az;
     }
 
-    Vec3 e1 = r - jams::dot(r, n_hat) * n_hat;
+    jams::Vec<double, 3> e1 = r - jams::dot(r, n_hat) * n_hat;
     const double e1_norm = jams::norm(e1);
     if (e1_norm <= 0.0)
     {
@@ -925,9 +924,9 @@ jams::MultiArray<Mat3, 1> SpectrumBaseMonitor::generate_sublattice_rotations_()
     }
     e1 *= (1.0 / e1_norm);
 
-    Vec3 e2 = jams::cross(n_hat, e1);
+    jams::Vec<double, 3> e2 = jams::cross(n_hat, e1);
 
-    Mat3 R = kIdentityMat3;
+    jams::Mat<double, 3, 3> R = kIdentityMat3;
     R[0][0] = e1[0];    R[0][1] = e1[1];    R[0][2] = e1[2];
     R[1][0] = e2[0];    R[1][1] = e2[1];    R[1][2] = e2[2];
     R[2][0] = n_hat[0]; R[2][1] = n_hat[1]; R[2][2] = n_hat[2];
@@ -941,10 +940,10 @@ jams::MultiArray<Mat3, 1> SpectrumBaseMonitor::generate_sublattice_rotations_()
 jams::ComplexHi SpectrumBaseMonitor::map_spin_component_(
     const int basis_index,
     const int channel_index,
-    const Vec3cx& spin_xyz,
-    const jams::MultiArray<Mat3, 1>* rotations) const
+    const jams::Vec<std::complex<double>, 3>& spin_xyz,
+    const jams::MultiArray<jams::Mat<double, 3, 3>, 1>* rotations) const
 {
-  Vec3cx s = spin_xyz;
+  jams::Vec<std::complex<double>, 3> s = spin_xyz;
 
   if (rotations)
   {
@@ -962,7 +961,7 @@ jams::ComplexHi SpectrumBaseMonitor::map_spin_component_(
   return w[0] * s[0] + w[1] * s[1] + w[2] * s[2];
 }
 
-Vec3cx SpectrumBaseMonitor::read_cartesian_spin_(const int basis_index,
+jams::Vec<std::complex<double>, 3> SpectrumBaseMonitor::read_cartesian_spin_(const int basis_index,
                                                  const int time_index,
                                                  const int k_index) const
 {
@@ -970,7 +969,7 @@ Vec3cx SpectrumBaseMonitor::read_cartesian_spin_(const int basis_index,
   const auto sx = sk_time_series_(time_index, basis_index, k_index, 0);
   const auto sy = sk_time_series_(time_index, basis_index, k_index, 1);
   const auto sz = sk_time_series_(time_index, basis_index, k_index, 2);
-  return Vec3cx{
+  return jams::Vec<std::complex<double>, 3>{
       jams::ComplexHi{sx.real(), sx.imag()},
       jams::ComplexHi{sy.real(), sy.imag()},
       jams::ComplexHi{sz.real(), sz.imag()}
@@ -1029,7 +1028,7 @@ void SpectrumBaseMonitor::generate_normalised_dpss_tapers_(
     throw std::runtime_error("time_bandwidth must be less than num_time_samples / 2");
   }
 
-  if (tapers.size(0) != num_tapers || tapers.size(1) != num_time_samples)
+  if (tapers.extent(0) != num_tapers || tapers.extent(1) != num_time_samples)
   {
     tapers.resize(num_tapers, num_time_samples);
   }
@@ -1114,10 +1113,10 @@ void SpectrumBaseMonitor::generate_normalised_dpss_tapers_(
 
 void SpectrumBaseMonitor::generate_phase_factors_(
     jams::MultiArray<jams::ComplexHi, 2>& phase_factors,
-    const std::vector<Vec3>& r_frac,
+    const std::vector<jams::Vec<double, 3>>& r_frac,
     const std::vector<jams::HKLIndex>& kpoints)
 {
-  if (phase_factors.size(0) != r_frac.size() || phase_factors.size(1) != kpoints.size())
+  if (phase_factors.extent(0) != r_frac.size() || phase_factors.extent(1) != kpoints.size())
   {
     phase_factors.resize(r_frac.size(), kpoints.size());
   }

@@ -40,25 +40,25 @@ class ConstrainedMCSolver : public Solver {
 
     void align_spins_to_constraint() const;
 
-    unsigned AsselinAlgorithm(const std::function<Vec3(Vec3)>&  trial_spin_move);
+    unsigned AsselinAlgorithm(const std::function<jams::Vec<double, 3>(jams::Vec<double, 3>)>&  trial_spin_move);
 
-    Vec3     rotate_cartesian_to_constraint(const int &i, const Vec3 &spin) const;
-    Vec3     rotate_constraint_to_cartesian(const int &i, const Vec3 &spin) const;
-    Vec3     total_transformed_magnetization() const;
+    jams::Vec<double, 3>     rotate_cartesian_to_constraint(const int &i, const jams::Vec<double, 3> &spin) const;
+    jams::Vec<double, 3>     rotate_constraint_to_cartesian(const int &i, const jams::Vec<double, 3> &spin) const;
+    jams::Vec<double, 3>     total_transformed_magnetization() const;
 
-    double   energy_difference(const int &s1, const Vec3 &s1_initial, const Vec3 &s1_trial, const int &s2, const Vec3 &s2_initial, const Vec3 &s2_trial) const;
-    Vec3     magnetization_difference(const int &s1, const Vec3 &s1_initial, const Vec3 &s1_trial, const int &s2, const Vec3 &s2_initial, const Vec3 &s2_trial) const;
+    double   energy_difference(const int &s1, const jams::Vec<double, 3> &s1_initial, const jams::Vec<double, 3> &s1_trial, const int &s2, const jams::Vec<double, 3> &s2_initial, const jams::Vec<double, 3> &s2_trial) const;
+    jams::Vec<double, 3>     magnetization_difference(const int &s1, const jams::Vec<double, 3> &s1_initial, const jams::Vec<double, 3> &s1_trial, const int &s2, const jams::Vec<double, 3> &s2_initial, const jams::Vec<double, 3> &s2_trial) const;
 
     bool do_spin_initial_alignment_ = true;
 
     double constraint_theta_   = 0.0;
     double constraint_phi_     = 0.0;
-    Vec3   constraint_vector_  = {{0.0, 0.0, 1.0}};
+    jams::Vec<double, 3>   constraint_vector_  = {{0.0, 0.0, 1.0}};
 
-    Mat3 rotation_matrix_         = kIdentityMat3;
-    Mat3 inverse_rotation_matrix_ = kIdentityMat3;
+    jams::Mat<double, 3, 3> rotation_matrix_         = kIdentityMat3;
+    jams::Mat<double, 3, 3> inverse_rotation_matrix_ = kIdentityMat3;
 
-    std::vector<Mat3> spin_transformations_;
+    std::vector<jams::Mat<double, 3, 3>> spin_transformations_;
 
     int output_write_steps_ = 100;
 

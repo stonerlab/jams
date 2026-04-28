@@ -87,8 +87,8 @@ jams::Real UniaxialMicroscopicAnisotropyHamiltonian::calculate_energy(const int 
   return energy;
 }
 
-jams::Real UniaxialMicroscopicAnisotropyHamiltonian::calculate_energy_difference(int i, const Vec3 &spin_initial,
-                                                                             const Vec3 &spin_final, jams::Real time) {
+jams::Real UniaxialMicroscopicAnisotropyHamiltonian::calculate_energy_difference(int i, const jams::Vec<double, 3> &spin_initial,
+                                                                             const jams::Vec<double, 3> &spin_final, jams::Real time) {
   jams::Real e_initial = 0.0;
   jams::Real e_final = 0.0;
 
@@ -111,9 +111,9 @@ void UniaxialMicroscopicAnisotropyHamiltonian::calculate_energies(jams::Real tim
 }
 
 
-Vec3R UniaxialMicroscopicAnisotropyHamiltonian::calculate_field(const int i, jams::Real time) {
+jams::Vec<jams::Real, 3> UniaxialMicroscopicAnisotropyHamiltonian::calculate_field(const int i, jams::Real time) {
   const jams::Real sz = globals::s(i, 2);
-  Vec3R field = {0.0, 0.0, 0.0};
+  jams::Vec<jams::Real, 3> field = {0.0, 0.0, 0.0};
 
   for (int n = 0; n < mca_order_.size(); ++n) {
     field[2] += -mca_value_(n,i) * legendre_dpoly(sz, mca_order_(n));
@@ -124,7 +124,7 @@ Vec3R UniaxialMicroscopicAnisotropyHamiltonian::calculate_field(const int i, jam
 void UniaxialMicroscopicAnisotropyHamiltonian::calculate_fields(jams::Real time) {
   field_.zero();
   for (int n = 0; n < mca_order_.size(); ++n) {
-    for (int i = 0; i < field_.size(0); ++i) {
+    for (int i = 0; i < field_.extent(0); ++i) {
       field_(i, 2) += -mca_value_(n,i) * legendre_dpoly(globals::s(i, 2), mca_order_(n));
     }
   }

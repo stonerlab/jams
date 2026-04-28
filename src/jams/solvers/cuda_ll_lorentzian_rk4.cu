@@ -106,19 +106,19 @@ void CUDALLLorentzianRK4Solver::run()
   const dim3 block_size = {64, 1, 1};
   auto grid_size = cuda_grid_size(block_size, {static_cast<unsigned int>(globals::num_spins), 1, 1});
 
-  cudaMemcpyAsync(s_old_.device_data(),           // void *               dst
+  cudaMemcpyAsync(s_old_.mutable_device_data(),           // void *               dst
                   globals::s.device_data(),               // const void *         src
                   globals::num_spins3*sizeof(double),   // size_t               count
                   cudaMemcpyDeviceToDevice,    // enum cudaMemcpyKind  kind
                   dev_stream_.get());                   // device stream
 
-  cudaMemcpyAsync(w_memory_process_old_.device_data(),           // void *               dst
+  cudaMemcpyAsync(w_memory_process_old_.mutable_device_data(),           // void *               dst
                   w_memory_process_.device_data(),               // const void *         src
                   globals::num_spins3*sizeof(double),   // size_t               count
                   cudaMemcpyDeviceToDevice,    // enum cudaMemcpyKind  kind
                   dev_stream_.get());                   // device stream
 
-  cudaMemcpyAsync(v_memory_process_old_.device_data(),           // void *               dst
+  cudaMemcpyAsync(v_memory_process_old_.mutable_device_data(),           // void *               dst
                   v_memory_process_.device_data(),               // const void *         src
                   globals::num_spins3*sizeof(double),   // size_t               count
                   cudaMemcpyDeviceToDevice,    // enum cudaMemcpyKind  kind
@@ -134,9 +134,9 @@ void CUDALLLorentzianRK4Solver::run()
 
   // k1
   cuda_ll_lorentzian_rk4_kernel<<<grid_size, block_size>>>(
-      s_k1_.device_data(),
-      w_memory_process_k1_.device_data(),
-      v_memory_process_k1_.device_data(),
+      s_k1_.mutable_device_data(),
+      w_memory_process_k1_.mutable_device_data(),
+      v_memory_process_k1_.mutable_device_data(),
       globals::s.device_data(),
       w_memory_process_.device_data(),
       v_memory_process_.device_data(),
@@ -149,17 +149,17 @@ void CUDALLLorentzianRK4Solver::run()
   double mid_time_step = 0.5 * step_size_;
   time_ = t0 + mid_time_step;
 
-  cuda_rk4_internal_timestep(globals::s.device_data(), s_old_.device_data(), s_k1_.device_data(), globals::num_spins3, mid_time_step);
-  cuda_rk4_internal_timestep(w_memory_process_.device_data(), w_memory_process_old_.device_data(), w_memory_process_k1_.device_data(), globals::num_spins3, mid_time_step);
-  cuda_rk4_internal_timestep(v_memory_process_.device_data(), v_memory_process_old_.device_data(), v_memory_process_k1_.device_data(), globals::num_spins3, mid_time_step);
+  cuda_rk4_internal_timestep(globals::s.mutable_device_data(), s_old_.device_data(), s_k1_.device_data(), globals::num_spins3, mid_time_step);
+  cuda_rk4_internal_timestep(w_memory_process_.mutable_device_data(), w_memory_process_old_.device_data(), w_memory_process_k1_.device_data(), globals::num_spins3, mid_time_step);
+  cuda_rk4_internal_timestep(v_memory_process_.mutable_device_data(), v_memory_process_old_.device_data(), v_memory_process_k1_.device_data(), globals::num_spins3, mid_time_step);
 
   compute_fields();
 
   // k2
   cuda_ll_lorentzian_rk4_kernel<<<grid_size, block_size>>>(
-      s_k2_.device_data(),
-      w_memory_process_k2_.device_data(),
-      v_memory_process_k2_.device_data(),
+      s_k2_.mutable_device_data(),
+      w_memory_process_k2_.mutable_device_data(),
+      v_memory_process_k2_.mutable_device_data(),
       globals::s.device_data(),
       w_memory_process_.device_data(),
       v_memory_process_.device_data(),
@@ -172,17 +172,17 @@ void CUDALLLorentzianRK4Solver::run()
   mid_time_step = 0.5 * step_size_;
   time_ = t0 + mid_time_step;
 
-  cuda_rk4_internal_timestep(globals::s.device_data(), s_old_.device_data(), s_k2_.device_data(), globals::num_spins3, mid_time_step);
-  cuda_rk4_internal_timestep(w_memory_process_.device_data(), w_memory_process_old_.device_data(), w_memory_process_k2_.device_data(), globals::num_spins3, mid_time_step);
-  cuda_rk4_internal_timestep(v_memory_process_.device_data(), v_memory_process_old_.device_data(), v_memory_process_k2_.device_data(), globals::num_spins3, mid_time_step);
+  cuda_rk4_internal_timestep(globals::s.mutable_device_data(), s_old_.device_data(), s_k2_.device_data(), globals::num_spins3, mid_time_step);
+  cuda_rk4_internal_timestep(w_memory_process_.mutable_device_data(), w_memory_process_old_.device_data(), w_memory_process_k2_.device_data(), globals::num_spins3, mid_time_step);
+  cuda_rk4_internal_timestep(v_memory_process_.mutable_device_data(), v_memory_process_old_.device_data(), v_memory_process_k2_.device_data(), globals::num_spins3, mid_time_step);
 
   compute_fields();
 
   // k3
   cuda_ll_lorentzian_rk4_kernel<<<grid_size, block_size>>>(
-      s_k3_.device_data(),
-      w_memory_process_k3_.device_data(),
-      v_memory_process_k3_.device_data(),
+      s_k3_.mutable_device_data(),
+      w_memory_process_k3_.mutable_device_data(),
+      v_memory_process_k3_.mutable_device_data(),
       globals::s.device_data(),
       w_memory_process_.device_data(),
       v_memory_process_.device_data(),
@@ -192,9 +192,9 @@ void CUDALLLorentzianRK4Solver::run()
       globals::num_spins);
   DEBUG_CHECK_CUDA_ASYNC_STATUS
 
-  cuda_rk4_internal_timestep(globals::s.device_data(), s_old_.device_data(), s_k3_.device_data(), globals::num_spins3, step_size_);
-  cuda_rk4_internal_timestep(w_memory_process_.device_data(), w_memory_process_old_.device_data(), w_memory_process_k3_.device_data(), globals::num_spins3, step_size_);
-  cuda_rk4_internal_timestep(v_memory_process_.device_data(), v_memory_process_old_.device_data(), v_memory_process_k3_.device_data(), globals::num_spins3, step_size_);
+  cuda_rk4_internal_timestep(globals::s.mutable_device_data(), s_old_.device_data(), s_k3_.device_data(), globals::num_spins3, step_size_);
+  cuda_rk4_internal_timestep(w_memory_process_.mutable_device_data(), w_memory_process_old_.device_data(), w_memory_process_k3_.device_data(), globals::num_spins3, step_size_);
+  cuda_rk4_internal_timestep(v_memory_process_.mutable_device_data(), v_memory_process_old_.device_data(), v_memory_process_k3_.device_data(), globals::num_spins3, step_size_);
 
   mid_time_step = step_size_;
   time_ = t0 + mid_time_step;
@@ -203,9 +203,9 @@ void CUDALLLorentzianRK4Solver::run()
 
   // k4
   cuda_ll_lorentzian_rk4_kernel<<<grid_size, block_size>>>(
-      s_k4_.device_data(),
-      w_memory_process_k4_.device_data(),
-      v_memory_process_k4_.device_data(),
+      s_k4_.mutable_device_data(),
+      w_memory_process_k4_.mutable_device_data(),
+      v_memory_process_k4_.mutable_device_data(),
       globals::s.device_data(),
       w_memory_process_.device_data(),
       v_memory_process_.device_data(),
@@ -216,7 +216,7 @@ void CUDALLLorentzianRK4Solver::run()
   DEBUG_CHECK_CUDA_ASYNC_STATUS
 
   cuda_ll_lorentzian_rk4_combination_normalize_kernel<<<grid_size, block_size>>>
-      (globals::s.device_data(), s_old_.device_data(),
+      (globals::s.mutable_device_data(), s_old_.device_data(),
        s_k1_.device_data(), s_k2_.device_data(), s_k3_.device_data(),
        s_k4_.device_data(),
        step_size_, globals::num_spins);
@@ -225,7 +225,7 @@ void CUDALLLorentzianRK4Solver::run()
   auto grid_size3 = cuda_grid_size(block_size, {static_cast<unsigned int>(globals::num_spins3), 1, 1});
 
   cuda_ll_lorentzian_rk4_combination_kernel<<<grid_size3, block_size>>>(
-      w_memory_process_.device_data(),
+      w_memory_process_.mutable_device_data(),
       w_memory_process_old_.device_data(),
       w_memory_process_k1_.device_data(),
       w_memory_process_k2_.device_data(),
@@ -235,7 +235,7 @@ void CUDALLLorentzianRK4Solver::run()
   DEBUG_CHECK_CUDA_ASYNC_STATUS
 
   cuda_ll_lorentzian_rk4_combination_kernel<<<grid_size3, block_size>>>(
-      v_memory_process_.device_data(),
+      v_memory_process_.mutable_device_data(),
       v_memory_process_old_.device_data(),
       v_memory_process_k1_.device_data(),
       v_memory_process_k2_.device_data(),
@@ -247,4 +247,3 @@ void CUDALLLorentzianRK4Solver::run()
   iteration_++;
   time_ = iteration_ * step_size_;
 }
-

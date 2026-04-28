@@ -18,12 +18,12 @@ TEST(UnorderedVectorSetTest, insert) {
   using namespace jams;
   using namespace testing;
 
-  Mat3 A = kIdentityMat3;
-  Mat3 B = 2.0 * kIdentityMat3;
-  Mat3 C = -3.0 * kIdentityMat3;
-  Mat3 D = 3.0 * kIdentityMat3;
+  jams::Mat<double, 3, 3> A = kIdentityMat3;
+  jams::Mat<double, 3, 3> B = 2.0 * kIdentityMat3;
+  jams::Mat<double, 3, 3> C = -3.0 * kIdentityMat3;
+  jams::Mat<double, 3, 3> D = 3.0 * kIdentityMat3;
 
-  UnorderedVectorSet<Mat3> vset;
+  UnorderedVectorSet<jams::Mat<double, 3, 3>> vset;
 
   ASSERT_EQ(vset.size(), 0);
 

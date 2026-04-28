@@ -221,12 +221,12 @@ void Hdf5Monitor::write_vector_field(const jams::MultiArray<double, 2> &field,
   DataSetCreateProps props;
 
   if (compression_enabled_) {
-    props.add(Chunking({static_cast<unsigned long long>(std::min(h5_compression_chunk_size, int(field.size(0)))), 1}));
+    props.add(Chunking({static_cast<unsigned long long>(std::min(h5_compression_chunk_size, int(field.extent(0)))), 1}));
     props.add(Shuffle());
     props.add(Deflate(h5_compression_factor));
   }
 
-  auto dataset = file.createDataSet<double>(data_path,  DataSpace({size_t(field.size(0)), size_t(field.size(1))}), props);
+  auto dataset = file.createDataSet<double>(data_path,  DataSpace({size_t(field.extent(0)), size_t(field.extent(1))}), props);
   dataset.write(field);
 }
 

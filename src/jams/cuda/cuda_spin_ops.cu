@@ -21,9 +21,9 @@ void jams::normalise_spins_cuda(jams::MultiArray<double, 2> &spins) {
   block_size.x = 128;
 
   dim3 grid_size;
-  grid_size.x = (spins.size(0) + block_size.x - 1) / block_size.x;
+  grid_size.x = (spins.extent(0) + block_size.x - 1) / block_size.x;
 
-  cuda_normalise_spins_kernel<<<grid_size, block_size>>>(spins.device_data(), spins.size(0));
+  cuda_normalise_spins_kernel<<<grid_size, block_size>>>(spins.mutable_device_data(), spins.extent(0));
 }
 
 __global__ void cuda_rotate_spins_kernel(double* spins, const int* indices, const unsigned size,
@@ -43,7 +43,7 @@ __global__ void cuda_rotate_spins_kernel(double* spins, const int* indices, cons
 }
 
 void jams::rotate_spins_cuda(jams::MultiArray<double, 2> &spins,
-                             const Mat3 &rotation_matrix,
+                             const jams::Mat<double, 3, 3> &rotation_matrix,
                              const jams::MultiArray<int, 1> &indices) {
 
   dim3 block_size;
@@ -53,7 +53,7 @@ void jams::rotate_spins_cuda(jams::MultiArray<double, 2> &spins,
   grid_size.x = (indices.size() + block_size.x - 1) / block_size.x;
 
   cuda_rotate_spins_kernel<<<grid_size, block_size>>>(
-      spins.device_data(), indices.device_data(), indices.size(),
+      spins.mutable_device_data(), indices.device_data(), indices.size(),
       rotation_matrix[0][0], rotation_matrix[0][1], rotation_matrix[0][2],
       rotation_matrix[1][0], rotation_matrix[1][1], rotation_matrix[1][2],
       rotation_matrix[2][0], rotation_matrix[2][1], rotation_matrix[2][2]);
@@ -83,7 +83,7 @@ void jams::scale_spins_cuda(jams::MultiArray<double, 2> &spins,
   grid_size.x = (indices.size() + block_size.x - 1) / block_size.x;
 
   cuda_scale_spins_kernel<<<grid_size, block_size>>>(
-      spins.device_data(), indices.device_data(), indices.size(), scale_factor);
+      spins.mutable_device_data(), indices.device_data(), indices.size(), scale_factor);
 }
 
 
@@ -118,7 +118,7 @@ void jams::add_to_spin_length_cuda(jams::MultiArray<double, 2> &spins,
   grid_size.x = (indices.size() + block_size.x - 1) / block_size.x;
 
   cuda_add_to_spin_length_kernel<<<grid_size, block_size>>>(
-      spins.device_data(), indices.device_data(), indices.size(),
+      spins.mutable_device_data(), indices.device_data(), indices.size(),
       additional_length);
 }
 
@@ -135,7 +135,7 @@ __global__ void cuda_add_to_spin_kernel(double* spins, const int* indices, const
 }
 
 void jams::add_to_spin_cuda(jams::MultiArray<double, 2> &spins,
-                                   const Vec3 &additional_length,
+                                   const jams::Vec<double, 3> &additional_length,
                                    const jams::MultiArray<int, 1> &indices) {
 
   dim3 block_size;
@@ -145,6 +145,6 @@ void jams::add_to_spin_cuda(jams::MultiArray<double, 2> &spins,
   grid_size.x = (indices.size() + block_size.x - 1) / block_size.x;
 
   cuda_add_to_spin_kernel<<<grid_size, block_size>>>(
-      spins.device_data(), indices.device_data(), indices.size(),
+      spins.mutable_device_data(), indices.device_data(), indices.size(),
       additional_length[0], additional_length[1], additional_length[2]);
 }

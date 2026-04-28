@@ -18,7 +18,7 @@ TEST(NearTreeTest, L1Norm) {
   std::uniform_real_distribution<double> dist(-10.0, 10.0);
 
   for (auto repeats = 0; repeats < 10; ++repeats) {
-    using Position = std::pair<Vec3, int>;
+    using Position = std::pair<jams::Vec<double, 3>, int>;
 
     const int num_positions = 1000;
     std::vector<Position> positions;
@@ -68,7 +68,7 @@ TEST(NearTreeTest, L2Norm) {
   std::uniform_real_distribution<double> dist(-10.0, 10.0);
 
   for (auto repeats = 0; repeats < 10; ++repeats) {
-    using Position = std::pair<Vec3, int>;
+    using Position = std::pair<jams::Vec<double, 3>, int>;
 
     const int num_positions = 1000;
     std::vector<Position> positions;

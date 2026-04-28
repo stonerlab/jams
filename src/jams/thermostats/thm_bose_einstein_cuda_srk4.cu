@@ -102,12 +102,12 @@ void jams::BoseEinsteinCudaSRK4Thermostat::update() {
   // The final step where we combine them is done in the default stream which
   // will not execute until the other streams are complete.
 
-  CHECK_CURAND_STATUS(curandGenerateNormalDouble(prng5_, psi5_.device_data(), psi5_.size(), 0.0, 1.0));
-  CHECK_CURAND_STATUS(curandGenerateNormalDouble(prng6_, psi6_.device_data(), psi6_.size(), 0.0, 1.0));
+  CHECK_CURAND_STATUS(curandGenerateNormalDouble(prng5_, psi5_.mutable_device_data(), psi5_.size(), 0.0, 1.0));
+  CHECK_CURAND_STATUS(curandGenerateNormalDouble(prng6_, psi6_.mutable_device_data(), psi6_.size(), 0.0, 1.0));
 
   jams::stochastic_rk4_cuda_kernel<<<grid_size, block_size, 0, dev_stream5_.get()>>>(
-      w5_.device_data(),
-      v5_.device_data(),
+      w5_.mutable_device_data(),
+      v5_.mutable_device_data(),
       psi5_.device_data(),
       2.7189,
       5.0142,
@@ -116,8 +116,8 @@ void jams::BoseEinsteinCudaSRK4Thermostat::update() {
   DEBUG_CHECK_CUDA_ASYNC_STATUS;
 
   jams::stochastic_rk4_cuda_kernel<<<grid_size, block_size, 0, dev_stream6_.get()>>>(
-      w6_.device_data(),
-      v6_.device_data(),
+      w6_.mutable_device_data(),
+      v6_.mutable_device_data(),
       psi6_.device_data(),
       1.2223,
       3.2974,
@@ -131,7 +131,7 @@ void jams::BoseEinsteinCudaSRK4Thermostat::update() {
   cudaStreamWaitEvent(dev_stream5_.get(), event6_, 0);
 
   jams::stochastic_combination_cuda_kernel<<<grid_size, block_size, 0, dev_stream5_.get()>>>(
-      noise_.device_data(),
+      noise_.mutable_device_data(),
       v5_.device_data(),
       v6_.device_data(),
       sigma_.device_data(),

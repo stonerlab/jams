@@ -128,8 +128,8 @@ CudaDipoleFFTHamiltonian::CudaDipoleFFTHamiltonian(const libconfig::Setting &set
 : Hamiltonian(settings, size),
   r_cutoff_(0),
   distance_tolerance_(jams::defaults::lattice_tolerance),
-  kspace_size_({0, 0, 0}),
-  kspace_padded_size_({0, 0, 0}),
+  kspace_size_(0, 0, 0),
+  kspace_padded_size_(0, 0, 0),
   kspace_s_(),
   kspace_h_(),
   cuda_fft_s_rspace_to_kspace(),
@@ -254,7 +254,7 @@ CudaDipoleFFTHamiltonian::CudaDipoleFFTHamiltonian(const libconfig::Setting &set
                     num_transforms));
 #endif
 
-  s_float_.resize(globals::s.size(0), globals::s.size(1));
+  s_float_.resize(globals::s.extent(0), globals::s.extent(1));
 
   const auto num_tensor_components = 6;
 
@@ -263,7 +263,7 @@ CudaDipoleFFTHamiltonian::CudaDipoleFFTHamiltonian(const libconfig::Setting &set
   kspace_tensors_.zero();
   for (int pos_i = 0; pos_i < num_sites; ++pos_i) {
     for (int pos_j = pos_i; pos_j < num_sites; ++pos_j) {
-      std::vector<Vec3> generated_positions;
+      std::vector<jams::Vec<double, 3>> generated_positions;
       const int pair = upper_tri_index(pos_i, pos_j, num_sites);
       generate_kspace_dipole_tensor(pos_i, pos_j, pair, generated_positions);
 
@@ -294,7 +294,7 @@ jams::Real CudaDipoleFFTHamiltonian::calculate_total_energy(jams::Real time) {
   return cuda_reduce_array(energy_.device_data(), globals::num_spins, cuda_stream_.get());
 }
 
-jams::Real CudaDipoleFFTHamiltonian::calculate_one_spin_energy(const int i, const Vec3 &s_i, jams::Real time) {
+jams::Real CudaDipoleFFTHamiltonian::calculate_one_spin_energy(const int i, const jams::Vec<double, 3> &s_i, jams::Real time) {
     throw jams::unimplemented_error("CudaDipoleFFTHamiltonian::calculate_one_spin_energy is not implemented");
 }
 
@@ -303,27 +303,27 @@ jams::Real CudaDipoleFFTHamiltonian::calculate_energy(const int i, jams::Real ti
 }
 
 jams::Real CudaDipoleFFTHamiltonian::calculate_energy_difference(
-    int i, const Vec3 &spin_initial, const Vec3 &spin_final, jams::Real time) {
+    int i, const jams::Vec<double, 3> &spin_initial, const jams::Vec<double, 3> &spin_final, jams::Real time) {
   throw jams::unimplemented_error("CudaDipoleFFTHamiltonian::calculate_energy_difference is not implemented");
 }
 
 void CudaDipoleFFTHamiltonian::calculate_energies(jams::Real time) {
   calculate_fields(time);
   const auto minus_half = static_cast<jams::Real>(-0.5);
-  cuda_array_dot_product(globals::num_spins, minus_half, globals::s.device_data(), field_.device_data(), energy_.device_data(), cuda_stream_.get());
+  cuda_array_dot_product(globals::num_spins, minus_half, globals::s.device_data(), field_.device_data(), energy_.mutable_device_data(), cuda_stream_.get());
 }
 
-Vec3R CudaDipoleFFTHamiltonian::calculate_field(const int i, jams::Real time) {
+jams::Vec<jams::Real, 3> CudaDipoleFFTHamiltonian::calculate_field(const int i, jams::Real time) {
   throw jams::unimplemented_error("CudaDipoleFFTHamiltonian::calculate_field is not implemented");
 }
 
 void CudaDipoleFFTHamiltonian::calculate_fields(jams::Real time) {
 
 #if DO_MIXED_PRECISION
-  cuda_array_double_to_float(globals::s.elements(), globals::s.device_data(), s_float_.device_data(), cuda_stream_.get());
-  CHECK_CUFFT_STATUS(cufftExecR2C(cuda_fft_s_rspace_to_kspace, reinterpret_cast<cufftReal*>(s_float_.device_data()), kspace_s_.device_data()));
+  cuda_array_double_to_float(globals::s.elements(), globals::s.device_data(), s_float_.mutable_device_data(), cuda_stream_.get());
+  CHECK_CUFFT_STATUS(cufftExecR2C(cuda_fft_s_rspace_to_kspace, const_cast<cufftReal*>(reinterpret_cast<const cufftReal*>(s_float_.device_data())), kspace_s_.mutable_device_data()));
 #else
-  CHECK_CUFFT_STATUS(cufftExecD2Z(cuda_fft_s_rspace_to_kspace, reinterpret_cast<cufftDoubleReal*>(globals::s.device_data()), kspace_s_.device_data()));
+  CHECK_CUFFT_STATUS(cufftExecD2Z(cuda_fft_s_rspace_to_kspace, const_cast<cufftDoubleReal*>(reinterpret_cast<const cufftDoubleReal*>(globals::s.device_data())), kspace_s_.mutable_device_data()));
 #endif
 
   unsigned int num_pos = globals::lattice->num_basis_sites();
@@ -332,26 +332,26 @@ const dim3 block_size = {64, 1, 1};
 const dim3 grid_size = cuda_grid_size(block_size, {fft_size, num_pos, 1});
 
 
-cuda_dipole_convolution<<<grid_size, block_size, 0, cuda_stream_.get()>>>(fft_size, num_pos, kspace_s_.device_data(), kspace_tensors_.device_data(), kspace_h_.device_data());
+cuda_dipole_convolution<<<grid_size, block_size, 0, cuda_stream_.get()>>>(fft_size, num_pos, kspace_s_.device_data(), kspace_tensors_.device_data(), kspace_h_.mutable_device_data());
 DEBUG_CHECK_CUDA_ASYNC_STATUS;
 
 #ifdef DO_MIXED_PRECISION
-  CHECK_CUFFT_STATUS(cufftExecC2R(cuda_fft_h_kspace_to_rspace, kspace_h_.device_data(), reinterpret_cast<cufftReal*>(field_.device_data())));
+  CHECK_CUFFT_STATUS(cufftExecC2R(cuda_fft_h_kspace_to_rspace, const_cast<cufftComplex*>(kspace_h_.device_data()), reinterpret_cast<cufftReal*>(field_.mutable_device_data())));
 #else
-  CHECK_CUFFT_STATUS(cufftExecZ2D(cuda_fft_h_kspace_to_rspace, kspace_h_.device_data(), reinterpret_cast<cufftDoubleReal*>(field_.device_data())));
+  CHECK_CUFFT_STATUS(cufftExecZ2D(cuda_fft_h_kspace_to_rspace, const_cast<cufftDoubleComplex*>(kspace_h_.device_data()), reinterpret_cast<cufftDoubleReal*>(field_.mutable_device_data())));
 #endif
 
 }
 
 // Generates the dipole tensor between unit cell positions i and j and appends
 // the generated positions to a vector
-void CudaDipoleFFTHamiltonian::generate_kspace_dipole_tensor(const int pos_i, const int pos_j, const int pair, std::vector<Vec3> &generated_positions) {
+void CudaDipoleFFTHamiltonian::generate_kspace_dipole_tensor(const int pos_i, const int pos_j, const int pair, std::vector<jams::Vec<double, 3>> &generated_positions) {
     using std::pow;
   
-    const Vec3 r_frac_i = globals::lattice->basis_site_atom(pos_i).position_frac;
-    const Vec3 r_frac_j = globals::lattice->basis_site_atom(pos_j).position_frac;
+    const jams::Vec<double, 3> r_frac_i = globals::lattice->basis_site_atom(pos_i).position_frac;
+    const jams::Vec<double, 3> r_frac_j = globals::lattice->basis_site_atom(pos_j).position_frac;
 
-    const Vec3 r_cart_j = globals::lattice->fractional_to_cartesian(r_frac_j);
+    const jams::Vec<double, 3> r_cart_j = globals::lattice->fractional_to_cartesian(r_frac_j);
 
     const int num_kz = kspace_padded_size_[2] / 2 + 1;
     const int num_ky = kspace_padded_size_[1];

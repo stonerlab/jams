@@ -26,18 +26,18 @@ DipoleTensorHamiltonian::DipoleTensorHamiltonian(const libconfig::Setting &setti
     jams::array_cast<jams::Real>(globals::lattice->get_supercell().a3()),
     globals::lattice->periodic_boundaries(), r_cutoff_, jams::defaults::lattice_tolerance);
 
-  std::vector<Vec3R> positions;
+  std::vector<jams::Vec<jams::Real, 3>> positions;
   positions.reserve(globals::num_spins);
   for (auto i = 0; i < globals::num_spins; ++i)
   {
-    positions.push_back(jams::array_cast<jams::Real>(Vec3{globals::positions(i,0), globals::positions(i,1), globals::positions(i,2)}));
+    positions.push_back(jams::array_cast<jams::Real>(jams::Vec<double, 3>{globals::positions(i,0), globals::positions(i,1), globals::positions(i,2)}));
   }
   neartree.insert_sites(positions);
 
   int expected_neighbours = 0;
   for (auto i = 0; i < globals::num_spins; ++i) {
     expected_neighbours += neartree.num_neighbours(
-        Vec3R{globals::positions(i,0), globals::positions(i,1), globals::positions(i,2)}, r_cutoff_);
+        jams::Vec<jams::Real, 3>{globals::positions(i,0), globals::positions(i,1), globals::positions(i,2)}, r_cutoff_);
   }
 
   std::size_t max_memory_per_tensor = 9*(2*sizeof(int) + sizeof(jams::Real));
@@ -52,7 +52,7 @@ DipoleTensorHamiltonian::DipoleTensorHamiltonian(const libconfig::Setting &setti
 
   int num_neighbours = 0;
   for (auto i = 0; i < globals::num_spins; ++i) {
-    const Vec3R r_i{globals::positions(i,0), globals::positions(i,1), globals::positions(i,2)};
+    const jams::Vec<jams::Real, 3> r_i{globals::positions(i,0), globals::positions(i,1), globals::positions(i,2)};
 
     const auto neighbours = neartree.neighbours(r_i, r_cutoff_);
     for (const auto & neighbour : neighbours) {
@@ -64,7 +64,7 @@ DipoleTensorHamiltonian::DipoleTensorHamiltonian(const libconfig::Setting &setti
       const auto r_abs = jams::norm(r_ij);
       const auto r_hat = r_ij / r_abs;
 
-      Mat3R dipole_tensor = kZeroMat3R;
+      jams::Mat<jams::Real, 3, 3> dipole_tensor = kZeroMat3R;
       for (auto m : {0, 1, 2}) {
         for (auto n : {0, 1, 2}) {
           dipole_tensor[m][n] +=

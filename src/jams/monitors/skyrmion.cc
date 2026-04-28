@@ -58,7 +58,7 @@ void SkyrmionMonitor::update(Solver& solver) {
     outfile << std::setw(16) << std::fixed << solver.physics()->temperature();
 
     for (double threshold : thresholds) {
-      std::vector<Vec3 > r_com(globals::lattice->num_materials(), {0.0, 0.0, 0.0});
+      std::vector<jams::Vec<double, 3> > r_com(globals::lattice->num_materials(), {0.0, 0.0, 0.0});
       calc_center_of_mass(r_com, threshold);
 
       std::vector<int> r_count(globals::lattice->num_materials(), 0);
@@ -135,7 +135,7 @@ void SkyrmionMonitor::create_center_of_mass_mapping() {
   }
 }
 
-void SkyrmionMonitor::calc_center_of_mass(std::vector<Vec3 > &r_com, const double &threshold) {
+void SkyrmionMonitor::calc_center_of_mass(std::vector<jams::Vec<double, 3> > &r_com, const double &threshold) {
   // TODO: make the x and y PBC individually optional
 
   assert(tube_x.size() > 0);
@@ -143,8 +143,8 @@ void SkyrmionMonitor::calc_center_of_mass(std::vector<Vec3 > &r_com, const doubl
 
   const int num_types = globals::lattice->num_materials();
 
-  std::vector<Vec3 > tube_x_com(num_types, {0.0, 0.0, 0.0});
-  std::vector<Vec3 > tube_y_com(num_types, {0.0, 0.0, 0.0});
+  std::vector<jams::Vec<double, 3> > tube_x_com(num_types, {0.0, 0.0, 0.0});
+  std::vector<jams::Vec<double, 3> > tube_y_com(num_types, {0.0, 0.0, 0.0});
   std::vector<int> r_count(num_types, 0);
 
   for (auto i = 0; i < globals::num_spins; ++i) {

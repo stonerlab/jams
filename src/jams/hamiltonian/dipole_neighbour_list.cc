@@ -57,26 +57,26 @@ DipoleNeighbourListHamiltonian::DipoleNeighbourListHamiltonian(const libconfig::
     jams::array_cast<jams::Real>(globals::lattice->get_supercell().a3()),
     globals::lattice->periodic_boundaries(), r_cutoff_, jams::defaults::lattice_tolerance);
 
-  std::vector<Vec3R> positions;
+  std::vector<jams::Vec<jams::Real, 3>> positions;
   positions.reserve(globals::num_spins);
   for (auto i = 0; i < globals::num_spins; ++i)
   {
-    positions.push_back(Vec3R{globals::positions(i,0), globals::positions(i,1), globals::positions(i,2)});
+    positions.push_back(jams::Vec<jams::Real, 3>{globals::positions(i,0), globals::positions(i,1), globals::positions(i,2)});
   }
   neartree.insert_sites(positions);
 
-  std::size_t max_memory_per_tensor = (sizeof(std::vector<std::pair<Vec3,int>>*) + sizeof(Vec3) + sizeof(int));
+  std::size_t max_memory_per_tensor = (sizeof(std::vector<std::pair<jams::Vec<double, 3>,int>>*) + sizeof(jams::Vec<double, 3>) + sizeof(int));
 
   std::cout << "  dipole neighbour list memory (estimate) "
             << memory_in_natural_units(max_memory_per_tensor * globals::num_spins * neartree.num_neighbours(
-                Vec3R{globals::positions(0, 0), globals::positions(0, 1), globals::positions(0, 2)}, r_cutoff_)) << std::endl;
+                jams::Vec<jams::Real, 3>{globals::positions(0, 0), globals::positions(0, 1), globals::positions(0, 2)}, r_cutoff_)) << std::endl;
 
 
   int num_neighbours = 0;
   neighbour_list_.resize(globals::num_spins);
   for (auto i = 0; i < neighbour_list_.size(); ++i) {
     // All neighbours of i within the r_cutoff distance
-    auto all_neighbours = neartree.neighbours(Vec3R{globals::positions(i, 0), globals::positions(i, 1), globals::positions(i, 2)}, r_cutoff_);
+    auto all_neighbours = neartree.neighbours(jams::Vec<jams::Real, 3>{globals::positions(i, 0), globals::positions(i, 1), globals::positions(i, 2)}, r_cutoff_);
 
     // Select only the neighbours which obey the predicate
     for (const auto& nbr : all_neighbours) {
@@ -94,13 +94,13 @@ DipoleNeighbourListHamiltonian::DipoleNeighbourListHamiltonian(const libconfig::
 }
 
 jams::Real DipoleNeighbourListHamiltonian::calculate_energy(const int i, jams::Real time) {
-  Vec3R s_i = jams::array_cast<jams::Real>(Vec3{globals::s(i, 0), globals::s(i, 1), globals::s(i, 2)});
+  jams::Vec<jams::Real, 3> s_i = jams::array_cast<jams::Real>(jams::Vec<double, 3>{globals::s(i, 0), globals::s(i, 1), globals::s(i, 2)});
   auto field = calculate_field(i, time);
   return -0.5 * jams::dot(s_i, field);
 }
 
 
-jams::Real DipoleNeighbourListHamiltonian::calculate_energy_difference(int i, const Vec3 &spin_initial, const Vec3 &spin_final, jams::Real time) {
+jams::Real DipoleNeighbourListHamiltonian::calculate_energy_difference(int i, const jams::Vec<double, 3> &spin_initial, const jams::Vec<double, 3> &spin_final, jams::Real time) {
   const auto field = calculate_field(i, time);
   const jams::Real e_initial = -jams::dot(spin_initial, field);
   const jams::Real e_final = -jams::dot(spin_final, field);
@@ -109,21 +109,21 @@ jams::Real DipoleNeighbourListHamiltonian::calculate_energy_difference(int i, co
 
 
 [[gnu::hot]]
-Vec3R DipoleNeighbourListHamiltonian::calculate_field(const int i, jams::Real time)
+jams::Vec<jams::Real, 3> DipoleNeighbourListHamiltonian::calculate_field(const int i, jams::Real time)
 {
   jams::Real w0 = globals::mus(i) * dipole_prefactor_;
-  Vec3R r_i = {globals::positions(i,0), globals::positions(i,1), globals::positions(i,2)};
+  jams::Vec<jams::Real, 3> r_i = {globals::positions(i,0), globals::positions(i,1), globals::positions(i,2)};
   // 2020-04-21 Using OMP on this loop gives almost no speedup because the heavy
   // work is already done to find the neighbours.
 
-  Vec3R field = {0.0, 0.0, 0.0};
+  jams::Vec<jams::Real, 3> field = {0.0, 0.0, 0.0};
   for (const auto & neighbour : neighbour_list_[i])
   {
     int j = neighbour.second;
     if (j == i) continue;
 
-    Vec3R s_j = jams::array_cast<jams::Real>(Vec3{globals::s(j,0), globals::s(j,1), globals::s(j,2)});
-    Vec3R r_ij =  neighbour.first - r_i;
+    jams::Vec<jams::Real, 3> s_j = jams::array_cast<jams::Real>(jams::Vec<double, 3>{globals::s(j,0), globals::s(j,1), globals::s(j,2)});
+    jams::Vec<jams::Real, 3> r_ij =  neighbour.first - r_i;
 
     field += w0 * globals::mus(j) * (3.0 * r_ij * jams::dot(s_j, r_ij) -
         jams::norm_squared(r_ij) * s_j) / pow5(jams::norm(r_ij));

@@ -200,7 +200,7 @@ void CUDALLGDMSolver::run()
   thermostat_->wait_on(jams::instance().cuda_master_stream().get());
 
   cuda_llg_noise_step_rodrigues_kernel<<<grid_size, block_size, 0, jams::instance().cuda_master_stream().get()>>>(
-    globals::s.device_data(),
+    globals::s.mutable_device_data(),
     thermostat_->device_data(),
     globals::gyro.device_data(),
     globals::alpha.device_data(),
@@ -210,7 +210,7 @@ void CUDALLGDMSolver::run()
 
   // snapshot S_n
   cudaMemcpyAsync(
-    s_init_.device_data(),
+    s_init_.mutable_device_data(),
     globals::s.device_data(),
     globals::s.bytes(),
     cudaMemcpyDeviceToDevice,
@@ -224,8 +224,8 @@ void CUDALLGDMSolver::run()
   // predictor: S* and store ω_n
   cuda_llg_dm_kernel_predict<<<grid_size, block_size, 0, jams::instance().cuda_master_stream().get()>>>(
     s_init_.device_data(),
-    omega1_.device_data(),
-    s_pred_.device_data(),
+    omega1_.mutable_device_data(),
+    s_pred_.mutable_device_data(),
     globals::h.device_data(),
     globals::gyro.device_data(),
     globals::mus.device_data(),
@@ -237,7 +237,7 @@ void CUDALLGDMSolver::run()
   // --- fields at t_{n+1} using S* (this matches DM for time-dependent fields)
   // Put predicted spins into globals::s so compute_fields() uses them.
   cudaMemcpyAsync(
-    globals::s.device_data(),
+    globals::s.mutable_device_data(),
     s_pred_.device_data(),
     globals::s.bytes(),
     cudaMemcpyDeviceToDevice,
@@ -252,7 +252,7 @@ void CUDALLGDMSolver::run()
     s_init_.device_data(),
     s_pred_.device_data(),
     omega1_.device_data(),
-    globals::s.device_data(),
+    globals::s.mutable_device_data(),
     globals::h.device_data(),
     globals::gyro.device_data(),
     globals::mus.device_data(),
@@ -267,7 +267,7 @@ void CUDALLGDMSolver::run()
   thermostat_->wait_on(jams::instance().cuda_master_stream().get());
 
   cuda_llg_noise_step_rodrigues_kernel<<<grid_size, block_size, 0, jams::instance().cuda_master_stream().get()>>>(
-    globals::s.device_data(),
+    globals::s.mutable_device_data(),
     thermostat_->device_data(),
     globals::gyro.device_data(),
     globals::alpha.device_data(),

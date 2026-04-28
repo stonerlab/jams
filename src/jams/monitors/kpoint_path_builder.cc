@@ -20,7 +20,7 @@ KPointPathBuilder::KPointPathBuilder(Lattice& lattice)
 void KPointPathBuilder::append_full_k_grid(
     std::vector<jams::HKLIndex>& k_points,
     std::vector<int>& k_segment_offsets,
-    const Vec3i& kspace_size) const
+    const jams::Vec<int, 3>& kspace_size) const
 {
   const std::size_t initial_size = k_points.size();
   const std::size_t added_count_estimate = static_cast<std::size_t>(jams::product(kspace_size));
@@ -32,9 +32,9 @@ void KPointPathBuilder::append_full_k_grid(
     {
       for (auto n = 0; n < kspace_size[2]; ++n)
       {
-        const Vec3i coordinate = {l, m, n};
-        const Vec3 hkl = jams::hadamard_product(coordinate, 1.0 / jams::to_double(kspace_size));
-        const Vec3 xyz = lattice_.get_unitcell().inv_fractional_to_cartesian(hkl);
+        const jams::Vec<int, 3> coordinate = {l, m, n};
+        const jams::Vec<double, 3> hkl = jams::hadamard_product(coordinate, 1.0 / jams::to_double(kspace_size));
+        const jams::Vec<double, 3> xyz = lattice_.get_unitcell().inv_fractional_to_cartesian(hkl);
         k_points.push_back(jams::HKLIndex{hkl, xyz, fftw_r2c_index(coordinate, kspace_size)});
       }
     }
@@ -52,14 +52,14 @@ void KPointPathBuilder::append_k_path_segment(
     std::vector<jams::HKLIndex>& k_points,
     std::vector<int>& k_segment_offsets,
     libconfig::Setting& settings,
-    const Vec3i& kspace_size) const
+    const jams::Vec<int, 3>& kspace_size) const
 {
   if (!settings.isList())
   {
     throw std::runtime_error("SpectrumBaseMonitor::configure_continuous_kpath failed because settings is not a List");
   }
 
-  std::vector<Vec3> hkl_path_nodes(settings.getLength());
+  std::vector<jams::Vec<double, 3>> hkl_path_nodes(settings.getLength());
   for (auto i = 0; i < settings.getLength(); ++i)
   {
     if (!settings[i].isArray())
@@ -67,7 +67,7 @@ void KPointPathBuilder::append_k_path_segment(
       throw std::runtime_error("SpectrumBaseMonitor::configure_continuous_kpath failed hkl node is not an Array");
     }
 
-    hkl_path_nodes[i] = Vec3{settings[i][0], settings[i][1], settings[i][2]};
+    hkl_path_nodes[i] = jams::Vec<double, 3>{settings[i][0], settings[i][1], settings[i][2]};
   }
 
   for (auto i = 1; i < hkl_path_nodes.size(); ++i)
@@ -81,9 +81,9 @@ void KPointPathBuilder::append_k_path_segment(
   std::size_t expected_new_points = 0;
   for (std::size_t i = 1; i < hkl_path_nodes.size(); ++i)
   {
-    const Vec3i start = jams::to_int(jams::hadamard_product(hkl_path_nodes[i - 1], kspace_size));
-    const Vec3i end = jams::to_int(jams::hadamard_product(hkl_path_nodes[i], kspace_size));
-    const Vec3i displacement = jams::absolute(end - start);
+    const jams::Vec<int, 3> start = jams::to_int(jams::hadamard_product(hkl_path_nodes[i - 1], kspace_size));
+    const jams::Vec<int, 3> end = jams::to_int(jams::hadamard_product(hkl_path_nodes[i], kspace_size));
+    const jams::Vec<int, 3> displacement = jams::absolute(end - start);
     expected_new_points += static_cast<std::size_t>(
         std::max({displacement[0], displacement[1], displacement[2]})) + 1;
   }
@@ -108,7 +108,7 @@ bool KPointPathBuilder::configure_k_list(
     std::vector<jams::HKLIndex>& k_points,
     std::vector<int>& k_segment_offsets,
     libconfig::Setting& settings,
-    const Vec3i& kspace_size) const
+    const jams::Vec<int, 3>& kspace_size) const
 {
   bool full_brillouin_zone_appended = false;
 
@@ -148,8 +148,8 @@ bool KPointPathBuilder::configure_k_list(
 }
 
 void KPointPathBuilder::make_hkl_path(
-    const std::vector<Vec3>& hkl_nodes,
-    const Vec3i& kspace_size,
+    const std::vector<jams::Vec<double, 3>>& hkl_nodes,
+    const jams::Vec<int, 3>& kspace_size,
     std::vector<jams::HKLIndex>& hkl_path) const
 {
   const std::size_t initial_size = hkl_path.size();
@@ -164,11 +164,11 @@ void KPointPathBuilder::make_hkl_path(
 
   for (auto n = 0; n < static_cast<int>(hkl_nodes.size()) - 1; ++n)
   {
-    Vec3i start = jams::to_int(jams::hadamard_product(hkl_nodes[n], kspace_size));
-    Vec3i end = jams::to_int(jams::hadamard_product(hkl_nodes[n + 1], kspace_size));
-    Vec3i displacement = jams::absolute(end - start);
+    jams::Vec<int, 3> start = jams::to_int(jams::hadamard_product(hkl_nodes[n], kspace_size));
+    jams::Vec<int, 3> end = jams::to_int(jams::hadamard_product(hkl_nodes[n + 1], kspace_size));
+    jams::Vec<int, 3> displacement = jams::absolute(end - start);
 
-    Vec3i step = {
+    jams::Vec<int, 3> step = {
         (end[0] > start[0]) ? 1 : ((end[0] < start[0]) ? -1 : 0),
         (end[1] > start[1]) ? 1 : ((end[1] < start[1]) ? -1 : 0),
         (end[2] > start[2]) ? 1 : ((end[2] < start[2]) ? -1 : 0)};
@@ -179,8 +179,8 @@ void KPointPathBuilder::make_hkl_path(
       int p2 = 2 * displacement[2] - displacement[0];
       while (start[0] != end[0])
       {
-        const Vec3 hkl = jams::hadamard_product(start, 1.0 / jams::to_double(kspace_size));
-        const Vec3 xyz = lattice_.get_unitcell().inv_fractional_to_cartesian(hkl);
+        const jams::Vec<double, 3> hkl = jams::hadamard_product(start, 1.0 / jams::to_double(kspace_size));
+        const jams::Vec<double, 3> xyz = lattice_.get_unitcell().inv_fractional_to_cartesian(hkl);
         push_unique(jams::HKLIndex{hkl, xyz, fftw_r2c_index(start, kspace_size)});
 
         start[0] += step[0];
@@ -204,8 +204,8 @@ void KPointPathBuilder::make_hkl_path(
       int p2 = 2 * displacement[2] - displacement[1];
       while (start[1] != end[1])
       {
-        const Vec3 hkl = jams::hadamard_product(start, 1.0 / jams::to_double(kspace_size));
-        const Vec3 xyz = lattice_.get_unitcell().inv_fractional_to_cartesian(hkl);
+        const jams::Vec<double, 3> hkl = jams::hadamard_product(start, 1.0 / jams::to_double(kspace_size));
+        const jams::Vec<double, 3> xyz = lattice_.get_unitcell().inv_fractional_to_cartesian(hkl);
         push_unique(jams::HKLIndex{hkl, xyz, fftw_r2c_index(start, kspace_size)});
 
         start[1] += step[1];
@@ -229,8 +229,8 @@ void KPointPathBuilder::make_hkl_path(
       int p2 = 2 * displacement[1] - displacement[2];
       while (start[2] != end[2])
       {
-        const Vec3 hkl = jams::hadamard_product(start, 1.0 / jams::to_double(kspace_size));
-        const Vec3 xyz = lattice_.get_unitcell().inv_fractional_to_cartesian(hkl);
+        const jams::Vec<double, 3> hkl = jams::hadamard_product(start, 1.0 / jams::to_double(kspace_size));
+        const jams::Vec<double, 3> xyz = lattice_.get_unitcell().inv_fractional_to_cartesian(hkl);
         push_unique(jams::HKLIndex{hkl, xyz, fftw_r2c_index(start, kspace_size)});
 
         start[2] += step[2];
@@ -249,8 +249,8 @@ void KPointPathBuilder::make_hkl_path(
       }
     }
 
-    const Vec3 hkl = jams::hadamard_product(end, 1.0 / jams::to_double(kspace_size));
-    const Vec3 xyz = lattice_.get_unitcell().inv_fractional_to_cartesian(hkl);
+    const jams::Vec<double, 3> hkl = jams::hadamard_product(end, 1.0 / jams::to_double(kspace_size));
+    const jams::Vec<double, 3> xyz = lattice_.get_unitcell().inv_fractional_to_cartesian(hkl);
     push_unique(jams::HKLIndex{hkl, xyz, fftw_r2c_index(end, kspace_size)});
   }
 }

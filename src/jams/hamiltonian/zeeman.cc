@@ -73,17 +73,17 @@ ZeemanHamiltonian::ZeemanHamiltonian(const libconfig::Setting &settings, const u
 
 
 jams::Real ZeemanHamiltonian::calculate_energy(const int i, jams::Real time) {
-    const Vec3 s_i = {globals::s(i,0), globals::s(i,1), globals::s(i,2)};
+    const jams::Vec<double, 3> s_i = {globals::s(i,0), globals::s(i,1), globals::s(i,2)};
     const auto field = calculate_field(i, time);
 
     return -jams::dot(s_i, field);
 }
 
 
-Vec3R ZeemanHamiltonian::calculate_field(const int i, jams::Real time) {
+jams::Vec<jams::Real, 3> ZeemanHamiltonian::calculate_field(const int i, jams::Real time) {
     using std::pow;
 
-    Vec3R field = {0.0, 0.0, 0.0};
+    jams::Vec<jams::Real, 3> field = {0.0, 0.0, 0.0};
 
     for (int j = 0; j < 3; ++j) {
       field[j] = dc_local_field_(i, j);

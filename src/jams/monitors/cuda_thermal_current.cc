@@ -52,7 +52,7 @@ CudaThermalCurrentMonitor::CudaThermalCurrentMonitor(const libconfig::Setting &s
 }
 
 void CudaThermalCurrentMonitor::update(Solver& solver) {
-  Vec3 js = execute_cuda_thermal_current_kernel(
+  jams::Vec<double, 3> js = execute_cuda_thermal_current_kernel(
           stream, globals::s, interaction_matrix_, thermal_current_rx_, thermal_current_ry_, thermal_current_rz_);
 
   outfile << std::setw(4) << std::scientific << solver.time() << "\t";
@@ -66,7 +66,7 @@ CudaThermalCurrentMonitor::~CudaThermalCurrentMonitor() {
   outfile.close();
 }
 
-CudaThermalCurrentMonitor::ThreeSpinList CudaThermalCurrentMonitor::generate_three_spin_from_two_spin_interactions(const jams::InteractionList<Mat3, 2>& nbr_list) {
+CudaThermalCurrentMonitor::ThreeSpinList CudaThermalCurrentMonitor::generate_three_spin_from_two_spin_interactions(const jams::InteractionList<jams::Mat<double, 3, 3>, 2>& nbr_list) {
   ThreeSpinList three_spin_list;
 
   // Jij * Jjk
@@ -120,7 +120,7 @@ CudaThermalCurrentMonitor::ThreeSpinList CudaThermalCurrentMonitor::generate_thr
     }
   }
 
-  interaction_matrix_ = jams::InteractionMatrix<Vec3, double>(three_spin_list, globals::num_spins);
+  interaction_matrix_ = jams::InteractionMatrix<jams::Vec<double, 3>, double>(three_spin_list, globals::num_spins);
 
   return three_spin_list;
 }
