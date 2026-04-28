@@ -8,16 +8,14 @@
 
 #if HAS_CUDA
 
-#include <curand.h>
-#include <fstream>
-#include <mutex>
+#include <memory>
 
 #include "jams/core/thermostat.h"
+#include "jams/thermostats/cuda_quantum_spde_noise.h"
 
 class CudaThermostatQuantumSpde : public Thermostat {
  public:
   CudaThermostatQuantumSpde(const jams::Real &temperature, const jams::Real &sigma, const jams::Real timestep, const int num_spins);
-  ~CudaThermostatQuantumSpde() override;
 
   void update() override;
 
@@ -25,29 +23,7 @@ class CudaThermostatQuantumSpde : public Thermostat {
   const jams::Real* device_data() override { return noise_.device_data(); }
 
  private:
-  void generate_random_buffers();
-  void initialize_stationary();
-  void warmup(unsigned steps);
-
-  // Generate random numbers on a low priority stream so it can be multiplexed with all of the field and integration
-  // until we next need random numbers.
-  CudaStream curand_stream_{CudaStream::Priority::LOW};
-  cudaEvent_t curand_done_{};
-  cudaEvent_t random_buffers_reusable_{};
-  bool debug_ = false;
-  bool do_zero_point_ = false;
-
-  jams::MultiArray<double, 1> zeta0_;
-  jams::MultiArray<double, 1> zeta5_;
-  jams::MultiArray<double, 1> zeta5p_;
-  jams::MultiArray<double, 1> zeta6_;
-  jams::MultiArray<double, 1> zeta6p_;
-  jams::MultiArray<jams::Real, 1> eta0a_;
-  jams::MultiArray<jams::Real, 1> eta0b_;
-  jams::MultiArray<jams::Real, 1> eta1a_;
-  jams::MultiArray<jams::Real, 1> eta1b_;
-  double                      delta_tau_;
-  double                      omega_max_;
+  std::unique_ptr<jams::CudaQuantumSpdeNoiseGenerator> noise_generator_;
 };
 
 #endif  // CUDA
