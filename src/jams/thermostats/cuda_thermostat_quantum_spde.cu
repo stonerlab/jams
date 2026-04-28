@@ -191,7 +191,10 @@ CudaThermostatQuantumSpde::CudaThermostatQuantumSpde(const jams::Real &temperatu
   DEBUG_CHECK_CUDA_ASYNC_STATUS
 
   cuda_stream_ = CudaStream(CudaStream::Priority::LOW);
-  const auto& thermostat_settings = globals::config->lookup("thermostat");
+  const libconfig::Setting* thermostat_settings = nullptr;
+  if (globals::config->exists("thermostat")) {
+    thermostat_settings = &globals::config->lookup("thermostat");
+  }
 
   zeta5_.resize(num_spins * 3).zero();
   zeta5p_.resize(num_spins * 3).zero();
@@ -200,7 +203,8 @@ CudaThermostatQuantumSpde::CudaThermostatQuantumSpde(const jams::Real &temperatu
   eta1a_.resize(2 * num_spins * 3).zero();
   eta1b_.resize(2 * num_spins * 3).zero();
 
-   globals::config->lookupValue("thermostat.zero_point", do_zero_point_);
+   do_zero_point_ = thermostat_settings != nullptr
+       && jams::config_optional<bool>(*thermostat_settings, "zero_point", false);
    if (do_zero_point_) {
      zeta0_.resize(4 * num_spins * 3).zero();
      eta0a_.resize(4 * num_spins * 3).zero();
@@ -208,18 +212,24 @@ CudaThermostatQuantumSpde::CudaThermostatQuantumSpde(const jams::Real &temperatu
    }
 
    double t_warmup = 1e-10; // 0.1 ns
-   globals::config->lookupValue("thermostat.warmup_time", t_warmup);
+   if (thermostat_settings != nullptr) {
+     t_warmup = jams::config_optional<double>(*thermostat_settings, "warmup_time", t_warmup);
+   }
    t_warmup = t_warmup / 1e-12; // convert to ps
-   const bool do_warmup = jams::config_optional<bool>(thermostat_settings, "warmup", false);
-   const auto initialization = lowercase(
-       jams::config_optional<std::string>(thermostat_settings, "initialization", "stationary"));
+   const bool do_warmup = thermostat_settings != nullptr
+       && jams::config_optional<bool>(*thermostat_settings, "warmup", false);
+   const auto initialization = lowercase(thermostat_settings != nullptr
+       ? jams::config_optional<std::string>(*thermostat_settings, "initialization", "stationary")
+       : std::string("stationary"));
    if (initialization != "stationary" && initialization != "zero") {
      throw jams::ConfigException(
-         thermostat_settings, "initialization must be either 'stationary' or 'zero'");
+         *thermostat_settings, "initialization must be either 'stationary' or 'zero'");
    }
 
    omega_max_ = 25.0 * kTwoPi;
-   globals::config->lookupValue("thermostat.w_max", omega_max_);
+   if (thermostat_settings != nullptr) {
+     omega_max_ = jams::config_optional<double>(*thermostat_settings, "w_max", omega_max_);
+   }
 
    double dt_thermostat = timestep;
    delta_tau_ = (dt_thermostat * kBoltzmannIU) / kHBarIU;
