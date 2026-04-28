@@ -139,11 +139,13 @@ void CudaNeutronScatteringNoLatticeMonitor::output_spectrum() {
 
   dim3 block_size = {32, 16, 1};
   dim3 grid_size = cuda_grid_size(block_size, {num_k, num_freq, 1});
+  const auto positions = globals::positions.host_view();
+  const auto& positions_array = globals::positions;
 
   for (auto i = 0; i < globals::num_spins; ++i) {
 
     // find all r_ij for current i using the minimum image convention.
-    jams::Vec<jams::Real, 3> r_i = {globals::positions(i, 0), globals::positions(i, 1), globals::positions(i, 2)};
+    jams::Vec<jams::Real, 3> r_i = {positions(i, 0), positions(i, 1), positions(i, 2)};
 
     // **ASSUMPTION** the system is cubic so that Smith's method for minimum
     // image works for all distances, not just the in-sphere.
@@ -151,7 +153,7 @@ void CudaNeutronScatteringNoLatticeMonitor::output_spectrum() {
       jams::array_cast<jams::Real>(globals::lattice->get_supercell().a1()),
       jams::array_cast<jams::Real>(globals::lattice->get_supercell().a2()),
       jams::array_cast<jams::Real>(globals::lattice->get_supercell().a3()),
-        globals::lattice->periodic_boundaries(), r_i, globals::positions, r_ij);
+        globals::lattice->periodic_boundaries(), r_i, positions_array, r_ij);
 
       spectrum_r_ij<<<grid_size, block_size>>>(
           i, globals::num_spins, num_k, num_freq, unit_q[0], unit_q[1], unit_q[2],
@@ -214,11 +216,12 @@ void CudaNeutronScatteringNoLatticeMonitor::update(Solver& solver) {
 
 void CudaNeutronScatteringNoLatticeMonitor::store_spin_data() {
   auto t = periodogram_index_;
+  const auto& spins = globals::s;
 
   auto ptr_offset = t * globals::num_spins3;
 
   cudaMemcpy(spin_timeseries_.mutable_device_data() + ptr_offset,
-             globals::s.device_data(),
+             spins.device_data(),
              globals::num_spins3*sizeof(double), cudaMemcpyDeviceToDevice);
 }
 

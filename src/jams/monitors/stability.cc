@@ -37,11 +37,12 @@ std::string StabilityMonitor::tsv_header() {
 
 void StabilityMonitor::update(Solver& solver)
 {
+    const auto spins = globals::s.host_view();
     double max_S_err = 0.0;
     double S_err_mean = 0.0;
     double S2_err_mean = 0.0;
     for (auto i = 0; i < globals::num_spins; ++i) {
-        const jams::Vec<double, 3> s = {globals::s(i,0), globals::s(i, 1), globals::s(i,2)};
+        const jams::Vec<double, 3> s = {spins(i,0), spins(i, 1), spins(i,2)};
         double S_err = jams::norm_squared(s) - 1;
         S_err_mean += S_err;
         S2_err_mean += S_err * S_err;

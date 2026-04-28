@@ -65,9 +65,8 @@ __global__ inline void cuda_thermostat_quantum_spde_zero_point_kernel
                 double *zeta,
                 const jams::Real *eta,
                 const jams::Real *sigma,
-                const jams::Real h,
-                const jams::Real T,
-                const jams::Real w_m,
+                const jams::Real h_omega_max,
+                const jams::Real zero_point_scale,
                 const int N
         ) {
 
@@ -75,17 +74,17 @@ __global__ inline void cuda_thermostat_quantum_spde_zero_point_kernel
   if (x < N) {
 
     const jams::Real c[4] =
-            {jams::Real(1.043576) * w_m,
-             jams::Real(0.177222) * w_m,
-             jams::Real(0.050319) * w_m,
-             jams::Real(0.010241) * w_m};
+            {jams::Real(1.043576),
+             jams::Real(0.177222),
+             jams::Real(0.050319),
+             jams::Real(0.010241)};
 
 
-    const jams::Real lambda[4] =
-            {jams::Real(1.763817) * w_m,
-             jams::Real(0.394613) * w_m,
-             jams::Real(0.103506) * w_m,
-             jams::Real(0.015873) * w_m};
+    const jams::Real lambda_h[4] =
+            {jams::Real(1.763817) * h_omega_max,
+             jams::Real(0.394613) * h_omega_max,
+             jams::Real(0.103506) * h_omega_max,
+             jams::Real(0.015873) * h_omega_max};
 
     double z[4];
     for (auto i = 0; i < 4; ++i) {
@@ -94,11 +93,12 @@ __global__ inline void cuda_thermostat_quantum_spde_zero_point_kernel
 
     jams::Real e[4];
     for (auto i = 0; i < 4; ++i) {
-      e[i] = eta[4*x + i] * sqrtf(jams::Real(2.0) / (lambda[i] * h));
+      e[i] = eta[4*x + i] * sqrtf(jams::Real(2.0) / lambda_h[i]);
     }
 
     for (auto i = 0; i < 4; ++i) {
-      z[i] = ou_linear_update(z[i], lambda[i], e[i], h);
+      const double decay = exp(-static_cast<double>(lambda_h[i]));
+      z[i] = static_cast<double>(e[i]) + (z[i] - static_cast<double>(e[i])) * decay;
     }
 
     for (auto i = 0; i < 4; ++i) {
@@ -110,7 +110,62 @@ __global__ inline void cuda_thermostat_quantum_spde_zero_point_kernel
       s0 += c[i] * (e[i] - z[i]);
     }
 
-    noise[x] += T * sigma[x] * static_cast<jams::Real>(s0);
+    noise[x] += sigma[x] * zero_point_scale * static_cast<jams::Real>(s0);
+  }
+}
+
+__global__ void cuda_thermostat_quantum_spde_stationary_zero_point_kernel
+        (
+                double *zeta,
+                const jams::Real *eta,
+                const jams::Real h_omega_max,
+                const int N
+        ) {
+
+  const int x = blockIdx.x * blockDim.x + threadIdx.x;
+  if (x < N) {
+    const jams::Real lambda_h[4] =
+            {jams::Real(1.763817) * h_omega_max,
+             jams::Real(0.394613) * h_omega_max,
+             jams::Real(0.103506) * h_omega_max,
+             jams::Real(0.015873) * h_omega_max};
+
+    for (auto i = 0; i < 4; ++i) {
+      const double decay = exp(-static_cast<double>(lambda_h[i]));
+      const double variance = 2.0 * (1.0 - decay) / (static_cast<double>(lambda_h[i]) * (1.0 + decay));
+      zeta[4 * x + i] = static_cast<double>(eta[4 * x + i]) * sqrt(variance);
+    }
+  }
+}
+
+__global__ void cuda_thermostat_quantum_spde_stationary_no_zero_kernel
+        (
+                double *zeta5,
+                double *zeta5p,
+                double *zeta6,
+                double *zeta6p,
+                const jams::Real *eta5,
+                const jams::Real *eta6,
+                const double l5_00,
+                const double l5_10,
+                const double l5_11,
+                const double l6_00,
+                const double l6_10,
+                const double l6_11,
+                const int N
+        ) {
+
+  const int x = blockIdx.x * blockDim.x + threadIdx.x;
+  if (x < N) {
+    const double g5_0 = static_cast<double>(eta5[x]);
+    const double g5_1 = static_cast<double>(eta5[N + x]);
+    zeta5[x] = l5_00 * g5_0;
+    zeta5p[x] = l5_10 * g5_0 + l5_11 * g5_1;
+
+    const double g6_0 = static_cast<double>(eta6[x]);
+    const double g6_1 = static_cast<double>(eta6[N + x]);
+    zeta6[x] = l6_00 * g6_0;
+    zeta6p[x] = l6_10 * g6_0 + l6_11 * g6_1;
   }
 }
 

@@ -68,12 +68,15 @@ CudaSpinCurrentMonitor::CudaSpinCurrentMonitor(const libconfig::Setting &setting
 }
 
 void CudaSpinCurrentMonitor::update(Solver& solver) {
+  const auto& spins = globals::s;
+  const auto& gyro = globals::gyro;
+  const auto& moments = globals::mus;
   jams::Vec<double, 3> js_z = execute_cuda_spin_current_kernel(
           stream,
           globals::num_spins,
-          globals::s.device_data(),
-          globals::gyro.device_data(),
-          globals::mus.device_data(),
+          spins.device_data(),
+          gyro.device_data(),
+          moments.device_data(),
           reinterpret_cast<const double*>(interaction_matrix_.val_device_data()),
           interaction_matrix_.row_device_data(),
           interaction_matrix_.col_device_data(),

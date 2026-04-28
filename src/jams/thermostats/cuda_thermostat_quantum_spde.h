@@ -8,11 +8,10 @@
 
 #if HAS_CUDA
 
-#include <curand.h>
-#include <fstream>
-#include <mutex>
+#include <memory>
 
 #include "jams/core/thermostat.h"
+#include "jams/thermostats/cuda_quantum_spde_noise.h"
 
 class CudaThermostatQuantumSpde : public Thermostat {
  public:
@@ -24,23 +23,7 @@ class CudaThermostatQuantumSpde : public Thermostat {
   const jams::Real* device_data() override { return noise_.device_data(); }
 
  private:
-    // Generate random numbers on a low priority stream so it can be multiplexed with all of the field and integration
-    // until we next need random numbers
-    CudaStream curand_stream_{CudaStream::Priority::LOW};
-    cudaEvent_t curand_done_{};
-    bool debug_ = false;
-    bool do_zero_point_ = false;
-
-    jams::MultiArray<double, 1> zeta0_;
-    jams::MultiArray<double, 1> zeta5_;
-    jams::MultiArray<double, 1> zeta5p_;
-    jams::MultiArray<double, 1> zeta6_;
-    jams::MultiArray<double, 1> zeta6p_;
-    jams::MultiArray<jams::Real, 1> eta0_;
-    jams::MultiArray<jams::Real, 1> eta1a_;
-    jams::MultiArray<jams::Real, 1> eta1b_;
-    double                      delta_tau_;
-    double                      omega_max_;
+  std::unique_ptr<jams::CudaQuantumSpdeNoiseGenerator> noise_generator_;
 };
 
 #endif  // CUDA

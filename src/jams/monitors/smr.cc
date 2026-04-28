@@ -24,6 +24,8 @@ SMRMonitor::SMRMonitor(const libconfig::Setting &settings)
 }
 
 void SMRMonitor::update(Solver& solver) {
+  const auto spins = globals::s.host_view();
+
   std::vector<double> mtsq_para(globals::lattice->num_materials(), 0.0);
   std::vector<double> mtsq_perp(globals::lattice->num_materials(), 0.0);
 
@@ -40,12 +42,12 @@ void SMRMonitor::update(Solver& solver) {
     // t -> y
     // n -> z
     int type = globals::lattice->lattice_site_material_id(i);
-    mtsq_para[type] +=  globals::s(i, 1) * globals::s(i, 1);
-    mtsq_perp[type] +=  globals::s(i, 0) * globals::s(i, 0);
-    mjmt_para[type] +=  globals::s(i, 0) * globals::s(i, 1);
-    mjmt_perp[type] += -globals::s(i, 0) * globals::s(i, 1);
+    mtsq_para[type] +=  spins(i, 1) * spins(i, 1);
+    mtsq_perp[type] +=  spins(i, 0) * spins(i, 0);
+    mjmt_para[type] +=  spins(i, 0) * spins(i, 1);
+    mjmt_perp[type] += -spins(i, 0) * spins(i, 1);
 
-    mn[type]   += globals::s(i, 2);
+    mn[type]   += spins(i, 2);
     material_count[type]++;
   }
 

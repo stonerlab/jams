@@ -52,8 +52,9 @@ CudaThermalCurrentMonitor::CudaThermalCurrentMonitor(const libconfig::Setting &s
 }
 
 void CudaThermalCurrentMonitor::update(Solver& solver) {
+  const auto& spins = globals::s;
   jams::Vec<double, 3> js = execute_cuda_thermal_current_kernel(
-          stream, globals::s, interaction_matrix_, thermal_current_rx_, thermal_current_ry_, thermal_current_rz_);
+          stream, spins, interaction_matrix_, thermal_current_rx_, thermal_current_ry_, thermal_current_rz_);
 
   outfile << std::setw(4) << std::scientific << solver.time() << "\t";
   for (auto n = 0; n < 3; ++ n) {

@@ -139,6 +139,7 @@ set(JAMS_SOURCES_CUDA
         solvers/cuda_llg_rkmk4.cu
         thermostats/thm_bose_einstein_cuda_srk4.cu
         thermostats/thm_bose_einstein_cuda_srk4_kernel.cuh
+        thermostats/cuda_quantum_spde_noise.cu
         thermostats/cuda_thermostat_quantum_spde.cu
         thermostats/cuda_thermostat_general_fft.cu
         thermostats/cuda_thermostat_classical.cc)

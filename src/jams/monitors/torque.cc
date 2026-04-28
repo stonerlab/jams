@@ -28,6 +28,7 @@ TorqueMonitor::TorqueMonitor(const libconfig::Setting &settings)
 void TorqueMonitor::update(Solver& solver) {
   tsv_file.width(12);
   tsv_file << std::scientific << solver.time() << "\t";
+  const auto spins = globals::s.host_view();
 
   // Loop over all of the Hamiltonians to calculate the total torque from each
   // Hamiltonian term. Each torque will be expressed as a torque per spin
@@ -41,7 +42,7 @@ void TorqueMonitor::update(Solver& solver) {
     jams::Vec<double, 3> torque = {0.0, 0.0, 0.0};
     for (auto i = 0; i < globals::num_spins; ++i) {
       // Calculate the local torque on a lattice site (\vec{S} \times \vec{H})
-      const jams::Vec<double, 3> spin = {globals::s(i,0), globals::s(i,1), globals::s(i,2)};
+      const jams::Vec<double, 3> spin = {spins(i,0), spins(i,1), spins(i,2)};
       const jams::Vec<double, 3> field = {hamiltonian->field(i, 0), hamiltonian->field(i, 1), hamiltonian->field(i, 2)};
 
       torque += jams::cross(spin, field);

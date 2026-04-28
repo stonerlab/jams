@@ -65,21 +65,23 @@ void UnitcellAverageMonitor::update(Solver& solver) {
 
   const std::string h5_file_name(jams::instance().output_path() + "/" + globals::simulation_name + "_" + zero_pad_number(outcount) + "_avg.h5");
 
+  const auto spins = globals::s.host_view();
+  const auto moments = globals::mus.host_view();
   double moment_IU_factor = 1.0 / kBohrMagnetonIU;
   cell_mag_.zero();
   for (auto i = 0; i < globals::num_spins; ++i) {
     auto cell = globals::lattice->cell_containing_atom(i);
     for (auto j = 0; j < 3; ++j) {
-      cell_mag_(cell, j) += globals::mus(i)*globals::s(i,j) * moment_IU_factor;
+      cell_mag_(cell, j) += moments(i)*spins(i,j) * moment_IU_factor;
     }
   }
 
   cell_neel_.zero();
   for (auto i = 0; i < globals::num_spins; ++i) {
     auto cell = globals::lattice->cell_containing_atom(i);
-    auto s_transformed = spin_transformations_[i] * jams::Vec<double, 3>{{globals::s(i,0), globals::s(i,1), globals::s(i,2)}};
+    auto s_transformed = spin_transformations_[i] * jams::Vec<double, 3>{{spins(i,0), spins(i,1), spins(i,2)}};
     for (auto j = 0; j < 3; ++j) {
-      cell_neel_(cell, j) += globals::mus(i)*s_transformed[j] * moment_IU_factor;
+      cell_neel_(cell, j) += moments(i)*s_transformed[j] * moment_IU_factor;
     }
   }
 
