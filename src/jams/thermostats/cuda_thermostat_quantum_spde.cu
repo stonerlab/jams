@@ -60,7 +60,8 @@ CudaThermostatQuantumSpde::CudaThermostatQuantumSpde(const jams::Real &temperatu
    globals::config->lookupValue("thermostat.zero_point", do_zero_point_);
    if (do_zero_point_) {
      zeta0_.resize(4 * num_spins * 3).zero();
-     eta0_.resize(4 * num_spins * 3).zero();
+     eta0a_.resize(4 * num_spins * 3).zero();
+     eta0b_.resize(4 * num_spins * 3).zero();
    }
 
    double t_warmup = 1e-10 / 1e-12; // 0.1 ns
@@ -80,7 +81,8 @@ CudaThermostatQuantumSpde::CudaThermostatQuantumSpde(const jams::Real &temperatu
 
    CHECK_CURAND_STATUS(curandSetStream(jams::instance().curand_generator(), curand_stream_.get()));
    if (do_zero_point_) {
-     generate_normal(eta0_);
+     generate_normal(eta0a_);
+     generate_normal(eta0b_);
    }
    generate_normal(eta1a_);
    generate_normal(eta1b_);
@@ -134,13 +136,15 @@ void CudaThermostatQuantumSpde::update() {
 
 
   if (do_zero_point_) {
+    swap(eta0a_, eta0b_);
+
     cuda_thermostat_quantum_spde_zero_point_kernel <<< grid_size, block_size, 0, cuda_stream_.get() >>> (
-        noise_.mutable_device_data(), zeta0_.mutable_device_data(), eta0_.device_data(), sigma_.device_data(), reduced_delta_tau,
+        noise_.mutable_device_data(), zeta0_.mutable_device_data(), eta0b_.device_data(), sigma_.device_data(), reduced_delta_tau,
         temperature, reduced_omega_max, globals::num_spins3);
     DEBUG_CHECK_CUDA_ASYNC_STATUS;
 
     CHECK_CURAND_STATUS(curandSetStream(jams::instance().curand_generator(), curand_stream_.get()));
-    generate_normal(eta0_);
+    generate_normal(eta0a_);
 
     cudaEventRecord(curand_done_, curand_stream_.get());
     DEBUG_CHECK_CUDA_ASYNC_STATUS

@@ -36,7 +36,8 @@ class CudaThermostatQuantumSpde : public Thermostat {
     jams::MultiArray<double, 1> zeta5p_;
     jams::MultiArray<double, 1> zeta6_;
     jams::MultiArray<double, 1> zeta6p_;
-    jams::MultiArray<jams::Real, 1> eta0_;
+    jams::MultiArray<jams::Real, 1> eta0a_;
+    jams::MultiArray<jams::Real, 1> eta0b_;
     jams::MultiArray<jams::Real, 1> eta1a_;
     jams::MultiArray<jams::Real, 1> eta1b_;
     double                      delta_tau_;
