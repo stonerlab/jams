@@ -64,8 +64,9 @@ CudaThermostatQuantumSpde::CudaThermostatQuantumSpde(const jams::Real &temperatu
      eta0b_.resize(4 * num_spins * 3).zero();
    }
 
-   double t_warmup = 1e-10 / 1e-12; // 0.1 ns
+   double t_warmup = 1e-10; // 0.1 ns
    globals::config->lookupValue("thermostat.warmup_time", t_warmup);
+   t_warmup = t_warmup / 1e-12; // convert to ps
 
    omega_max_ = 25.0 * kTwoPi;
    globals::config->lookupValue("thermostat.w_max", omega_max_);
