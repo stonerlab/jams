@@ -65,9 +65,8 @@ __global__ inline void cuda_thermostat_quantum_spde_zero_point_kernel
                 double *zeta,
                 const jams::Real *eta,
                 const jams::Real *sigma,
-                const jams::Real h,
-                const jams::Real T,
-                const jams::Real w_m,
+                const jams::Real h_omega_max,
+                const jams::Real zero_point_scale,
                 const int N
         ) {
 
@@ -75,17 +74,17 @@ __global__ inline void cuda_thermostat_quantum_spde_zero_point_kernel
   if (x < N) {
 
     const jams::Real c[4] =
-            {jams::Real(1.043576) * w_m,
-             jams::Real(0.177222) * w_m,
-             jams::Real(0.050319) * w_m,
-             jams::Real(0.010241) * w_m};
+            {jams::Real(1.043576),
+             jams::Real(0.177222),
+             jams::Real(0.050319),
+             jams::Real(0.010241)};
 
 
-    const jams::Real lambda[4] =
-            {jams::Real(1.763817) * w_m,
-             jams::Real(0.394613) * w_m,
-             jams::Real(0.103506) * w_m,
-             jams::Real(0.015873) * w_m};
+    const jams::Real lambda_h[4] =
+            {jams::Real(1.763817) * h_omega_max,
+             jams::Real(0.394613) * h_omega_max,
+             jams::Real(0.103506) * h_omega_max,
+             jams::Real(0.015873) * h_omega_max};
 
     double z[4];
     for (auto i = 0; i < 4; ++i) {
@@ -94,11 +93,12 @@ __global__ inline void cuda_thermostat_quantum_spde_zero_point_kernel
 
     jams::Real e[4];
     for (auto i = 0; i < 4; ++i) {
-      e[i] = eta[4*x + i] * sqrtf(jams::Real(2.0) / (lambda[i] * h));
+      e[i] = eta[4*x + i] * sqrtf(jams::Real(2.0) / lambda_h[i]);
     }
 
     for (auto i = 0; i < 4; ++i) {
-      z[i] = ou_linear_update(z[i], lambda[i], e[i], h);
+      const double decay = exp(-static_cast<double>(lambda_h[i]));
+      z[i] = static_cast<double>(e[i]) + (z[i] - static_cast<double>(e[i])) * decay;
     }
 
     for (auto i = 0; i < 4; ++i) {
@@ -110,7 +110,7 @@ __global__ inline void cuda_thermostat_quantum_spde_zero_point_kernel
       s0 += c[i] * (e[i] - z[i]);
     }
 
-    noise[x] += T * sigma[x] * static_cast<jams::Real>(s0);
+    noise[x] += sigma[x] * zero_point_scale * static_cast<jams::Real>(s0);
   }
 }
 
