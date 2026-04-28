@@ -368,12 +368,13 @@ void SpectrumFourierMonitor::fft_space() {
   assert(fft_plan_s_rspace_to_kspace != nullptr);
   assert(s_kspace.elements() > 0);
 
+  const auto spins = globals::s.host_view();
   transformed_spins.zero();
 
   for (auto n = 0; n < globals::num_spins; ++n) {
     for (auto i = 0; i < 3; ++i) {
       for (auto j = 0; j < 3; ++j) {
-        transformed_spins(n, i) += std::complex<double>{spin_transformations[n][i][j] * globals::s(n, j), 0.0};
+        transformed_spins(n, i) += std::complex<double>{spin_transformations[n][i][j] * spins(n, j), 0.0};
       }
     }
   }

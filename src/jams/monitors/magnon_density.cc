@@ -28,7 +28,8 @@ MagnonDensityMonitor::MagnonDensityMonitor(const libconfig::Setting& settings)
 
 void MagnonDensityMonitor::update(Solver& solver)
 {
-    store_sk_snapshot(globals::s);
+    const auto& spins = globals::s;
+    store_sk_snapshot(spins);
 
     if (periodogram_window_complete())
     {
@@ -66,10 +67,11 @@ void MagnonDensityMonitor::output_magnon_density()
 
     // Average spin length S = mu/g across basis sites.
     // globals::mus is indexed by material, so look up via basis-site material_index.
+    const auto moments = globals::mus.host_view();
     double avg_S = 0.0;
     for (int a = 0; a < num_basis_atoms(); ++a)
     {
-        const double mu = globals::mus(a);        // Bohr magnetons
+        const double mu = moments(a);        // Bohr magnetons
         const double S  = mu / kElectronGFactor;    // dimensionless spin length
         avg_S += S;
     }

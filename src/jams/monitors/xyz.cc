@@ -50,6 +50,7 @@ void XyzMonitor::update(Solver& solver) {
   if (solver.iteration()%output_step_freq_ == 0) {
     int outcount = solver.iteration()/output_step_freq_;  // int divisible by modulo above
 
+    const auto spins = globals::s.host_view();
     std::ofstream xyz_state_file(jams::output::full_path_filename_series(".xyz", outcount));
 
     // file header
@@ -68,7 +69,7 @@ void XyzMonitor::update(Solver& solver) {
         xyz_state_file << std::setw(16) << globals::lattice->lattice_site_position_cart(n)[0] << std::setw(16) << globals::lattice->lattice_site_position_cart(
             n)[1] << std::setw(16) << globals::lattice->lattice_site_position_cart(
             n)[2];
-        xyz_state_file << std::setw(16) << globals::s(n,0) << std::setw(16) << globals::s(n,1) << std::setw(16) <<  globals::s(n, 2) << "\n";
+        xyz_state_file << std::setw(16) << spins(n,0) << std::setw(16) << spins(n,1) << std::setw(16) <<  spins(n, 2) << "\n";
       }
     } else {
       for (int n = 0; n < globals::num_spins; ++n) {
@@ -76,7 +77,7 @@ void XyzMonitor::update(Solver& solver) {
         xyz_state_file << std::setw(16) << globals::lattice->lattice_site_position_cart(n)[0] << std::setw(16) << globals::lattice->lattice_site_position_cart(
             n)[1] << std::setw(16) << globals::lattice->lattice_site_position_cart(
             n)[2];
-        xyz_state_file << std::setw(16) << globals::s(n,0) << std::setw(16) << globals::s(n,1) << std::setw(16) <<  globals::s(n, 2) << "\n";
+        xyz_state_file << std::setw(16) << spins(n,0) << std::setw(16) << spins(n,1) << std::setw(16) <<  spins(n, 2) << "\n";
       }
     }
     xyz_state_file.close();

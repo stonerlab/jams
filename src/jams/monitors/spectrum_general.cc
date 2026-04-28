@@ -66,8 +66,9 @@ outfile(jams::output::full_path_filename("fk.tsv")){
 
 void SpectrumGeneralMonitor::update(Solver& solver) {
   if (time_point_counter_ < num_samples_) {
+    const auto spins = globals::s.host_view();
     for (auto i = 0; i < globals::num_spins; ++i) {
-      spin_data_(i, time_point_counter_) = jams::ComplexHi{globals::s(i, 0), globals::s(i, 1)};
+      spin_data_(i, time_point_counter_) = jams::ComplexHi{spins(i, 0), spins(i, 1)};
     }
   }
   time_point_counter_++;
@@ -140,9 +141,10 @@ SpectrumGeneralMonitor::~SpectrumGeneralMonitor() {
   }
 
   // support for lattice vacancies (we will skip these in the spectrum loop)
+  const auto spins = globals::s.host_view();
   std::vector<bool> is_vacancy(globals::num_spins, false);
   for (auto i = 0; i < globals::num_spins; ++i) {
-    if (globals::s(i, 0) == 0.0 && globals::s(i, 1) == 0.0 && globals::s(i, 2) == 0.0) {
+    if (spins(i, 0) == 0.0 && spins(i, 1) == 0.0 && spins(i, 2) == 0.0) {
       is_vacancy[i] = true;
     }
   }

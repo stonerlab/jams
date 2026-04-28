@@ -75,10 +75,12 @@ void Hdf5Monitor::write_spin_h5_file(const std::string &h5_file_name) {
 
   File file(h5_file_name, File::ReadWrite | File::Create | File::Truncate);
 
-  write_vector_field(globals::s, "/spins", file);
+  const auto& spins = globals::s;
+  write_vector_field(spins, "/spins", file);
 
   if (write_ds_dt_) {
-    write_vector_field(globals::ds_dt, "/ds_dt", file);
+    const auto& ds_dt = globals::ds_dt;
+    write_vector_field(ds_dt, "/ds_dt", file);
   }
 }
 
@@ -95,13 +97,14 @@ void Hdf5Monitor::write_lattice_h5_file(const std::string &h5_file_name) {
 
 
   if (slice_.num_points() != 0) {
+    const auto moments_view = globals::mus.host_view();
     for (auto i = 0; i < slice_.num_points(); ++i) {
       types(i) = slice_.type(i);
     }
 
     moments.resize(slice_.num_points());
     for (auto i = 0; i < slice_.num_points(); ++i) {
-      moments(i) = globals::mus(slice_.index(i));
+      moments(i) = moments_view(slice_.index(i));
     }
 
     positions.resize(slice_.num_points(), 3);
@@ -111,6 +114,7 @@ void Hdf5Monitor::write_lattice_h5_file(const std::string &h5_file_name) {
       }
     }
   } else {
+    const auto moments_view = globals::mus.host_view();
     types.resize(globals::num_spins);
 
     for (auto i = 0; i < globals::num_spins; ++i) {
@@ -119,7 +123,7 @@ void Hdf5Monitor::write_lattice_h5_file(const std::string &h5_file_name) {
 
     moments.resize(globals::num_spins);
     for (auto i = 0; i < globals::num_spins; ++i) {
-      moments(i) = globals::mus(i);
+      moments(i) = moments_view(i);
     }
 
     positions.resize(globals::num_spins, 3);

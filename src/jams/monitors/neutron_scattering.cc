@@ -63,7 +63,8 @@ void NeutronScatteringMonitor::configure_polarizations(libconfig::Setting &setti
 }
 
 void NeutronScatteringMonitor::update(Solver& solver) {
-  store_sk_snapshot(globals::s);
+  const auto& spins = globals::s;
+  store_sk_snapshot(spins);
 
   if (periodogram_window_complete()) {
     const auto& spectrum = finalise_periodogram_spectrum();

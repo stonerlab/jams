@@ -293,12 +293,13 @@ void NeutronScatteringNoLatticeMonitor::output_neutron_cross_section() {
 
 void NeutronScatteringNoLatticeMonitor::store_kspace_data_on_path() {
   auto i = periodogram_index_;
+  const auto spins = globals::s.host_view();
 
   fill(&kspace_spins_timeseries_(i,0), &kspace_spins_timeseries_(i,0) + kspace_path_.size(),
        jams::Vec<std::complex<double>, 3>{});
 
   for (auto n = 0; n < globals::num_spins; ++n) {
-    jams::Vec<double, 3> spin = {globals::s(n,0), globals::s(n,1), globals::s(n,2)};
+    jams::Vec<double, 3> spin = {spins(n,0), spins(n,1), spins(n,2)};
 
     jams::Vec<double, 3> r = rspace_displacement_(n);
 
@@ -375,10 +376,11 @@ jams::MultiArray<jams::Vec<std::complex<double>, 3>,1> NeutronScatteringNoLattic
 
 void NeutronScatteringNoLatticeMonitor::store_spin_data() {
   auto t = periodogram_index_;
+  const auto spins = globals::s.host_view();
 
   for (auto i = 0; i < globals::num_spins; ++i) {
     for (auto j = 0; j < 3; ++j) {
-      spin_timeseries_(i,j,t) = globals::s(i,j);
+      spin_timeseries_(i,j,t) = spins(i,j);
     }
   }
 

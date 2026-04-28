@@ -34,6 +34,7 @@ tsv_file_(jams::output::full_path_filename("jsp.tsv"))
 
 void SpinPumpingMonitor::update(Solver& solver) {
   tsv_file_.width(12);
+  const auto spins = globals::s.host_view();
 
   std::vector<jams::Vec<double, 3>> spin_pumping_real(material_count_.size());
   std::vector<jams::Vec<double, 3>> spin_pumping_imag(material_count_.size());
@@ -42,7 +43,7 @@ void SpinPumpingMonitor::update(Solver& solver) {
   for (auto i = 0; i < globals::num_spins; ++i) {
     const auto type = globals::lattice->lattice_site_material_id(i);
 
-    jams::Vec<double, 3> s_i = {globals::s(i,0), globals::s(i, 1), globals::s(i,2)};
+    jams::Vec<double, 3> s_i = {spins(i,0), spins(i, 1), spins(i,2)};
     jams::Vec<double, 3> s_old_i = {s_old_(i,0), s_old_(i, 1), s_old_(i,2)};
     jams::Vec<double, 3> ds_dt_i = (s_i - s_old_i) * d_timestep;
 
@@ -88,7 +89,8 @@ std::string SpinPumpingMonitor::tsv_header() {
 
 bool SpinPumpingMonitor::is_updating(const int &iteration) {
   if ((iteration + 1) % output_step_freq_ == 0) {
-    s_old_ = globals::s;
+    const auto& spins = globals::s;
+    s_old_ = spins;
   }
   if (iteration % output_step_freq_ == 0) {
     return true;

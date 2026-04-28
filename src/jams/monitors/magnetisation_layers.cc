@@ -127,6 +127,7 @@ MagnetisationLayersMonitor::MagnetisationLayersMonitor(
     jams::MultiArray<double, 1> layer_saturation_moment(num_layers);
     jams::MultiArray<int, 1> layer_spin_count(num_layers);
 
+    const auto moments = globals::mus.host_view();
     int counter = 0;
     for (auto const &z: unique_positions) {
 
@@ -148,7 +149,7 @@ MagnetisationLayersMonitor::MagnetisationLayersMonitor(
       for (auto i = 0; i < z.second.size(); ++i) {
         auto spin_index = z.second[i];
         group_layer_spin_indicies_[group_idx][counter](i) = spin_index;
-        layer_saturation_moment(counter) += globals::mus(spin_index) / kBohrMagnetonIU;
+        layer_saturation_moment(counter) += moments(spin_index) / kBohrMagnetonIU;
       }
 
       ++counter;
@@ -216,13 +217,16 @@ void MagnetisationLayersMonitor::update(Solver& solver) {
   timeseries_group.createAttribute<double>("time_step", solver.time_step());
   timeseries_group.createAttribute<std::string>("units", "ps");
 
+  const auto& spins = globals::s;
+  const auto& moments = globals::mus;
+
   for (int group_idx = 0; group_idx < group_spin_indices_.size(); ++group_idx) {
 
     auto spin_group = timeseries_group.createGroup(group_names_[group_idx]);
 
     // Loop over layers and calculate the magnetisation
     for (auto layer_index = 0; layer_index < group_num_layers_[group_idx]; ++layer_index) {
-      jams::Vec<double, 3> mag = jams::sum_spins_moments(globals::s, globals::mus,
+      jams::Vec<double, 3> mag = jams::sum_spins_moments(spins, moments,
                                            group_layer_spin_indicies_[group_idx][layer_index]);
 
       // internally we use meV T^-1 for mus so convert back to Bohr magneton
