@@ -184,10 +184,12 @@ Cholesky2 stationary_bose_cholesky(const double gamma, const double omega, const
 
 CudaThermostatQuantumSpde::CudaThermostatQuantumSpde(const jams::Real &temperature, const jams::Real &sigma, const jams::Real timestep, const int num_spins)
 : Thermostat(temperature, sigma, timestep, num_spins)
-  {
-   std::cout << "\n  initialising quantum-spde-gpu thermostat\n";
+{
+  std::cout << "\n  initialising quantum-spde-gpu thermostat\n";
 
   cudaEventCreateWithFlags(&curand_done_, cudaEventDisableTiming);
+  DEBUG_CHECK_CUDA_ASYNC_STATUS
+  cudaEventCreateWithFlags(&random_buffers_reusable_, cudaEventDisableTiming);
   DEBUG_CHECK_CUDA_ASYNC_STATUS
 
   cuda_stream_ = CudaStream(CudaStream::Priority::LOW);
@@ -203,60 +205,60 @@ CudaThermostatQuantumSpde::CudaThermostatQuantumSpde(const jams::Real &temperatu
   eta1a_.resize(2 * num_spins * 3).zero();
   eta1b_.resize(2 * num_spins * 3).zero();
 
-   do_zero_point_ = thermostat_settings != nullptr
-       && jams::config_optional<bool>(*thermostat_settings, "zero_point", false);
-   if (do_zero_point_) {
-     zeta0_.resize(4 * num_spins * 3).zero();
-     eta0a_.resize(4 * num_spins * 3).zero();
-     eta0b_.resize(4 * num_spins * 3).zero();
-   }
+  do_zero_point_ = thermostat_settings != nullptr
+      && jams::config_optional<bool>(*thermostat_settings, "zero_point", false);
+  if (do_zero_point_) {
+    zeta0_.resize(4 * num_spins * 3).zero();
+    eta0a_.resize(4 * num_spins * 3).zero();
+    eta0b_.resize(4 * num_spins * 3).zero();
+  }
 
-   double t_warmup = 1e-10; // 0.1 ns
-   if (thermostat_settings != nullptr) {
-     t_warmup = jams::config_optional<double>(*thermostat_settings, "warmup_time", t_warmup);
-   }
-   t_warmup = t_warmup / 1e-12; // convert to ps
-   const bool do_warmup = thermostat_settings != nullptr
-       && jams::config_optional<bool>(*thermostat_settings, "warmup", false);
-   const auto initialization = lowercase(thermostat_settings != nullptr
-       ? jams::config_optional<std::string>(*thermostat_settings, "initialization", "stationary")
-       : std::string("stationary"));
-   if (initialization != "stationary" && initialization != "zero") {
-     throw jams::ConfigException(
-         *thermostat_settings, "initialization must be either 'stationary' or 'zero'");
-   }
+  double t_warmup = 1e-10; // 0.1 ns
+  if (thermostat_settings != nullptr) {
+    t_warmup = jams::config_optional<double>(*thermostat_settings, "warmup_time", t_warmup);
+  }
+  t_warmup = t_warmup / 1e-12; // convert to ps
+  const bool do_warmup = thermostat_settings != nullptr
+      && jams::config_optional<bool>(*thermostat_settings, "warmup", false);
+  const auto initialization = lowercase(thermostat_settings != nullptr
+      ? jams::config_optional<std::string>(*thermostat_settings, "initialization", "stationary")
+      : std::string("stationary"));
+  if (initialization != "stationary" && initialization != "zero") {
+    throw jams::ConfigException(
+        *thermostat_settings, "initialization must be either 'stationary' or 'zero'");
+  }
 
-   omega_max_ = 25.0 * kTwoPi;
-   if (thermostat_settings != nullptr) {
-     omega_max_ = jams::config_optional<double>(*thermostat_settings, "w_max", omega_max_);
-   }
+  omega_max_ = 25.0 * kTwoPi;
+  if (thermostat_settings != nullptr) {
+    omega_max_ = jams::config_optional<double>(*thermostat_settings, "w_max", omega_max_);
+  }
 
-   double dt_thermostat = timestep;
-   delta_tau_ = (dt_thermostat * kBoltzmannIU) / kHBarIU;
+  double dt_thermostat = timestep;
+  delta_tau_ = (dt_thermostat * kBoltzmannIU) / kHBarIU;
 
-   std::cout << "    omega_max (THz) " << omega_max_ / (kTwoPi) << "\n";
-   std::cout << "    hbar*w/kB " << (kHBarIU * omega_max_) / (kBoltzmannIU) << "\n";
-   std::cout << "    t_step " << dt_thermostat << "\n";
-   std::cout << "    delta tau " << delta_tau_ << "\n";
-   std::cout << "    initialization " << initialization << "\n";
-   std::cout << "    warmup " << std::boolalpha << do_warmup << "\n";
+  std::cout << "    omega_max (THz) " << omega_max_ / (kTwoPi) << "\n";
+  std::cout << "    hbar*w/kB " << (kHBarIU * omega_max_) / (kBoltzmannIU) << "\n";
+  std::cout << "    t_step " << dt_thermostat << "\n";
+  std::cout << "    delta tau " << delta_tau_ << "\n";
+  std::cout << "    initialization " << initialization << "\n";
+  std::cout << "    warmup " << std::boolalpha << do_warmup << "\n";
 
   generate_random_buffers();
 
-    bool use_gilbert_prefactor = jams::config_optional<bool>(
-        globals::config->lookup("solver"), "gilbert_prefactor", false);
-    std::cout << "    llg gilbert_prefactor " << use_gilbert_prefactor << "\n";
+  bool use_gilbert_prefactor = jams::config_optional<bool>(
+      globals::config->lookup("solver"), "gilbert_prefactor", false);
+  std::cout << "    llg gilbert_prefactor " << use_gilbert_prefactor << "\n";
 
-    for (int i = 0; i < num_spins; ++i) {
-      for (int j = 0; j < 3; ++j) {
-        double denominator = 1.0;
-        if (use_gilbert_prefactor) {
-          denominator = 1.0 + pow2(globals::alpha(i));
-        }
-        sigma_(i,j) = static_cast<jams::Real>((kBoltzmannIU) * sqrt((2.0 * globals::alpha(i))
-                                            / (kHBarIU * globals::gyro(i) * globals::mus(i) * denominator)));
+  for (int i = 0; i < num_spins; ++i) {
+    for (int j = 0; j < 3; ++j) {
+      double denominator = 1.0;
+      if (use_gilbert_prefactor) {
+        denominator = 1.0 + pow2(globals::alpha(i));
       }
+      sigma_(i,j) = static_cast<jams::Real>((kBoltzmannIU) * sqrt((2.0 * globals::alpha(i))
+                                          / (kHBarIU * globals::gyro(i) * globals::mus(i) * denominator)));
     }
+  }
 
   if (initialization == "stationary") {
     initialize_stationary();
@@ -265,6 +267,18 @@ CudaThermostatQuantumSpde::CudaThermostatQuantumSpde(const jams::Real &temperatu
   auto num_warm_up_steps = static_cast<unsigned>(t_warmup / dt_thermostat);
   if (do_warmup && num_warm_up_steps > 0) {
     warmup(num_warm_up_steps);
+  }
+}
+
+CudaThermostatQuantumSpde::~CudaThermostatQuantumSpde() {
+  if (random_buffers_reusable_ != nullptr) {
+    cudaEventDestroy(random_buffers_reusable_);
+    random_buffers_reusable_ = nullptr;
+  }
+
+  if (curand_done_ != nullptr) {
+    cudaEventDestroy(curand_done_);
+    curand_done_ = nullptr;
   }
 }
 
@@ -343,6 +357,11 @@ void CudaThermostatQuantumSpde::update() {
       swap(eta0a_, eta0b_);
 
       cudaStreamWaitEvent(cuda_stream_.get(), curand_done_, 0);
+      // The buffer we are about to refill was used by the previous update.
+      // Warmup can enqueue updates back-to-back, so the CURAND stream must not
+      // overwrite it until the CUDA update stream has passed all prior readers.
+      cudaEventRecord(random_buffers_reusable_, cuda_stream_.get());
+      cudaStreamWaitEvent(curand_stream_.get(), random_buffers_reusable_, 0);
       cuda_thermostat_quantum_spde_zero_point_kernel <<< grid_size, block_size, 0, cuda_stream_.get() >>> (
           noise_.mutable_device_data(), zeta0_.mutable_device_data(), eta0b_.device_data(), sigma_.device_data(),
           static_cast<jams::Real>(zero_point_delta_tau), static_cast<jams::Real>(zero_point_scale),
@@ -367,6 +386,11 @@ void CudaThermostatQuantumSpde::update() {
   swap(eta1a_, eta1b_);
 
   cudaStreamWaitEvent(cuda_stream_.get(), curand_done_, 0);
+  // eta1a_ (and eta0a_ below) were used by the previous update before the swap.
+  // Gate CURAND refill on the CUDA stream reaching this point, but still allow
+  // refill to overlap with the current update kernels that read eta1b_/eta0b_.
+  cudaEventRecord(random_buffers_reusable_, cuda_stream_.get());
+  cudaStreamWaitEvent(curand_stream_.get(), random_buffers_reusable_, 0);
   cuda_thermostat_quantum_spde_no_zero_kernel<<<grid_size, block_size, 0, cuda_stream_.get() >>> (
     noise_.mutable_device_data(), zeta5_.mutable_device_data(), zeta5p_.mutable_device_data(), zeta6_.mutable_device_data(), zeta6p_.mutable_device_data(),
     eta1b_.device_data(), sigma_.device_data(), reduced_delta_tau, temperature, globals::num_spins3);
@@ -374,10 +398,6 @@ void CudaThermostatQuantumSpde::update() {
 
   CHECK_CURAND_STATUS(curandSetStream(jams::instance().curand_generator(), curand_stream_.get()));
   generate_normal(eta1a_);
-
-  cudaEventRecord(curand_done_, curand_stream_.get());
-  DEBUG_CHECK_CUDA_ASYNC_STATUS
-
 
   if (do_zero_point_) {
     swap(eta0a_, eta0b_);
@@ -390,8 +410,8 @@ void CudaThermostatQuantumSpde::update() {
 
     CHECK_CURAND_STATUS(curandSetStream(jams::instance().curand_generator(), curand_stream_.get()));
     generate_normal(eta0a_);
-
-    cudaEventRecord(curand_done_, curand_stream_.get());
-    DEBUG_CHECK_CUDA_ASYNC_STATUS
   }
+
+  cudaEventRecord(curand_done_, curand_stream_.get());
+  DEBUG_CHECK_CUDA_ASYNC_STATUS
 }
