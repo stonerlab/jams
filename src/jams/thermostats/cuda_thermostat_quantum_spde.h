@@ -24,6 +24,10 @@ class CudaThermostatQuantumSpde : public Thermostat {
   const jams::Real* device_data() override { return noise_.device_data(); }
 
  private:
+    void generate_random_buffers();
+    void initialize_stationary();
+    void warmup(unsigned steps);
+
     // Generate random numbers on a low priority stream so it can be multiplexed with all of the field and integration
     // until we next need random numbers
     CudaStream curand_stream_{CudaStream::Priority::LOW};
