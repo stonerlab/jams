@@ -26,6 +26,20 @@
 #include "jams/monitors/magnetisation.h"
 #include <jams/helpers/exception.h>
 
+namespace {
+
+void generate_normal(jams::MultiArray<jams::Real, 1>& data) {
+#ifdef DO_MIXED_PRECISION
+  CHECK_CURAND_STATUS(curandGenerateNormal(
+      jams::instance().curand_generator(), data.mutable_device_data(), data.size(), 0.0, 1.0));
+#else
+  CHECK_CURAND_STATUS(curandGenerateNormalDouble(
+      jams::instance().curand_generator(), data.mutable_device_data(), data.size(), 0.0, 1.0));
+#endif
+}
+
+}  // namespace
+
 CudaThermostatQuantumSpde::CudaThermostatQuantumSpde(const jams::Real &temperature, const jams::Real &sigma, const jams::Real timestep, const int num_spins)
 : Thermostat(temperature, sigma, timestep, num_spins)
   {
@@ -65,10 +79,10 @@ CudaThermostatQuantumSpde::CudaThermostatQuantumSpde(const jams::Real &temperatu
 
 
    if (do_zero_point_) {
-     CHECK_CURAND_STATUS(curandGenerateNormal(jams::instance().curand_generator(), eta0_.mutable_device_data(), eta0_.size(), 0.0, 1.0));
+     generate_normal(eta0_);
    }
-   CHECK_CURAND_STATUS(curandGenerateNormal(jams::instance().curand_generator(), eta1a_.mutable_device_data(), eta1a_.size(), 0.0, 1.0));
-   CHECK_CURAND_STATUS(curandGenerateNormal(jams::instance().curand_generator(), eta1b_.mutable_device_data(), eta1b_.size(), 0.0, 1.0));
+   generate_normal(eta1a_);
+   generate_normal(eta1b_);
 
   cudaEventRecord(curand_done_, curand_stream_.get());
 
@@ -112,11 +126,7 @@ void CudaThermostatQuantumSpde::update() {
   DEBUG_CHECK_CUDA_ASYNC_STATUS;
 
   CHECK_CURAND_STATUS(curandSetStream(jams::instance().curand_generator(), curand_stream_.get()));
-#ifdef DO_MIXED_PRECISION
-  CHECK_CURAND_STATUS(curandGenerateNormal(jams::instance().curand_generator(), eta1a_.mutable_device_data(), eta1a_.size(), 0.0, 1.0));
-#else
-  CHECK_CURAND_STATUS(curandGenerateNormalDouble(jams::instance().curand_generator(), eta1a_.mutable_device_data(), eta1a_.size(), 0.0, 1.0));
-#endif
+  generate_normal(eta1a_);
 
   cudaEventRecord(curand_done_, curand_stream_.get());
   DEBUG_CHECK_CUDA_ASYNC_STATUS
@@ -129,11 +139,7 @@ void CudaThermostatQuantumSpde::update() {
     DEBUG_CHECK_CUDA_ASYNC_STATUS;
 
     CHECK_CURAND_STATUS(curandSetStream(jams::instance().curand_generator(), curand_stream_.get()));
-#ifdef DO_MIXED_PRECISION
-    CHECK_CURAND_STATUS(curandGenerateNormal(jams::instance().curand_generator(), eta0_.mutable_device_data(), eta0_.size(), 0.0, 1.0));
-#else
-    CHECK_CURAND_STATUS(curandGenerateNormalDouble(jams::instance().curand_generator(), eta0_.mutable_device_data(), eta0_.size(), 0.0, 1.0));
-#endif
+    generate_normal(eta0_);
 
     cudaEventRecord(curand_done_, curand_stream_.get());
     DEBUG_CHECK_CUDA_ASYNC_STATUS
