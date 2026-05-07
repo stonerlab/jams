@@ -9,6 +9,7 @@
 #include "jams/test/containers/test_name_id_map.h"
 #include "jams/test/containers/test_synced_memory.h"
 #include "jams/test/containers/test_vec3.h"
+#include "jams/test/maths/test_tesseral_harmonics.h"
 
 int main(int argc, char **argv) {
   std::srand(static_cast<unsigned>(std::time(nullptr)));
