@@ -2,6 +2,7 @@
 
 #include "jams/core/globals.h"
 #include "jams/core/lattice.h"
+#include "jams/hamiltonian/anisotropy_polynomial_eval.h"
 #include "jams/helpers/defaults.h"
 #include "jams/helpers/exception.h"
 #include "jams/helpers/utils.h"
@@ -408,45 +409,51 @@ AnisotropyPolynomialHamiltonian::AnisotropyPolynomialHamiltonian(const libconfig
 
 jams::Vec<jams::Real, 3> AnisotropyPolynomialHamiltonian::calculate_field(int i, jams::Real time)
 {
-    jams::Vec<jams::Real, 3> field = {0.0, 0.0, 0.0};
+    const auto spins = std::as_const(globals::s).host_view();
+    jams::Real field[3];
+    jams::anisotropy_polynomial::field_for_spin(
+        i,
+        jams::Real(spins(i, 0)),
+        jams::Real(spins(i, 1)),
+        jams::Real(spins(i, 2)),
+        std::as_const(u_axes_).host_data(),
+        std::as_const(v_axes_).host_data(),
+        std::as_const(w_axes_).host_data(),
+        std::as_const(spin_pointer_).host_data(),
+        std::as_const(tesseral_keys_).host_data(),
+        std::as_const(tesseral_coefficients_).host_data(),
+        field);
 
-    const jams::Vec<jams::Real, 3> s_global = {globals::s(i, 0), globals::s(i, 1), globals::s(i, 2)};
-    const auto u = axis_for_spin(u_axes_, i);
-    const auto v = axis_for_spin(v_axes_, i);
-    const auto w = axis_for_spin(w_axes_, i);
-    const jams::Vec<jams::Real, 3> s = {jams::dot(s_global, u), jams::dot(s_global, v), jams::dot(s_global, w)};
-
-    for (auto n = spin_pointer_(i); n < spin_pointer_(i + 1); ++n)
-    {
-        const auto key = tesseral_keys_(n);
-        const auto coeff = tesseral_coefficients_(n);
-        jams::Real h[3];
-        jams::tesseral_monic_polynomial_grad_key_lookup(key, s[0], s[1], s[2], h);
-        field -= coeff * (h[0] * u + h[1] * v + h[2] * w);
-    }
-
-    return field;
+    return {field[0], field[1], field[2]};
 }
 
 jams::Real AnisotropyPolynomialHamiltonian::calculate_energy(int i, jams::Real time)
 {
-    return calculate_energy_for_spin(i, {globals::s(i, 0), globals::s(i, 1), globals::s(i, 2)}, time);
+    const auto spins = std::as_const(globals::s).host_view();
+    return jams::anisotropy_polynomial::energy_for_spin(
+        i,
+        jams::Real(spins(i, 0)),
+        jams::Real(spins(i, 1)),
+        jams::Real(spins(i, 2)),
+        std::as_const(u_axes_).host_data(),
+        std::as_const(v_axes_).host_data(),
+        std::as_const(w_axes_).host_data(),
+        std::as_const(spin_pointer_).host_data(),
+        std::as_const(tesseral_keys_).host_data(),
+        std::as_const(tesseral_coefficients_).host_data());
 }
 
 jams::Real AnisotropyPolynomialHamiltonian::calculate_energy_for_spin(int i, const jams::Vec<double, 3> &spin, jams::Real time)
 {
-    jams::Real energy = 0.0;
-
-    const auto s_global = jams::array_cast<jams::Real>(spin);
-    const auto u = axis_for_spin(u_axes_, i);
-    const auto v = axis_for_spin(v_axes_, i);
-    const auto w = axis_for_spin(w_axes_, i);
-    const jams::Vec<jams::Real, 3> s = {jams::dot(s_global, u), jams::dot(s_global, v), jams::dot(s_global, w)};
-
-    for (auto n = spin_pointer_(i); n < spin_pointer_(i + 1); ++n) {
-        const auto key = tesseral_keys_(n);
-        const auto coeff = tesseral_coefficients_(n);
-        energy += coeff * jams::tesseral_monic_polynomial_key_lookup(key, s[0], s[1], s[2]);
-    }
-    return energy;
+    return jams::anisotropy_polynomial::energy_for_spin(
+        i,
+        jams::Real(spin[0]),
+        jams::Real(spin[1]),
+        jams::Real(spin[2]),
+        std::as_const(u_axes_).host_data(),
+        std::as_const(v_axes_).host_data(),
+        std::as_const(w_axes_).host_data(),
+        std::as_const(spin_pointer_).host_data(),
+        std::as_const(tesseral_keys_).host_data(),
+        std::as_const(tesseral_coefficients_).host_data());
 }

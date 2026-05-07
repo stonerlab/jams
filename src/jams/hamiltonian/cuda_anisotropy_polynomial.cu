@@ -3,7 +3,7 @@
 #include <jams/core/globals.h>
 #include <jams/cuda/cuda_array_reduction.h>
 #include <jams/cuda/cuda_common.h>
-#include <jams/maths/tesseral_harmonics.h>
+#include <jams/hamiltonian/anisotropy_polynomial_eval.h>
 
 namespace {
 
@@ -29,27 +29,17 @@ void cuda_anisotropy_polynomial_energy_kernel(
     const jams::Real sy_global = static_cast<jams::Real>(spins[base + 1]);
     const jams::Real sz_global = static_cast<jams::Real>(spins[base + 2]);
 
-    const jams::Real ux = u_axes[base + 0];
-    const jams::Real uy = u_axes[base + 1];
-    const jams::Real uz = u_axes[base + 2];
-    const jams::Real vx = v_axes[base + 0];
-    const jams::Real vy = v_axes[base + 1];
-    const jams::Real vz = v_axes[base + 2];
-    const jams::Real wx = w_axes[base + 0];
-    const jams::Real wy = w_axes[base + 1];
-    const jams::Real wz = w_axes[base + 2];
-
-    const jams::Real sx = sx_global * ux + sy_global * uy + sz_global * uz;
-    const jams::Real sy = sx_global * vx + sy_global * vy + sz_global * vz;
-    const jams::Real sz = sx_global * wx + sy_global * wy + sz_global * wz;
-
-    jams::Real energy = 0;
-    for (int n = spin_pointer[idx]; n < spin_pointer[idx + 1]; ++n) {
-        energy += tesseral_coefficients[n]
-            * jams::tesseral_monic_polynomial_key_lookup(tesseral_keys[n], sx, sy, sz);
-    }
-
-    energies[idx] = energy;
+    energies[idx] = jams::anisotropy_polynomial::energy_for_spin(
+        int(idx),
+        sx_global,
+        sy_global,
+        sz_global,
+        u_axes,
+        v_axes,
+        w_axes,
+        spin_pointer,
+        tesseral_keys,
+        tesseral_coefficients);
 }
 
 __global__
@@ -74,35 +64,23 @@ void cuda_anisotropy_polynomial_field_kernel(
     const jams::Real sy_global = static_cast<jams::Real>(spins[base + 1]);
     const jams::Real sz_global = static_cast<jams::Real>(spins[base + 2]);
 
-    const jams::Real ux = u_axes[base + 0];
-    const jams::Real uy = u_axes[base + 1];
-    const jams::Real uz = u_axes[base + 2];
-    const jams::Real vx = v_axes[base + 0];
-    const jams::Real vy = v_axes[base + 1];
-    const jams::Real vz = v_axes[base + 2];
-    const jams::Real wx = w_axes[base + 0];
-    const jams::Real wy = w_axes[base + 1];
-    const jams::Real wz = w_axes[base + 2];
+    jams::Real field[3];
+    jams::anisotropy_polynomial::field_for_spin(
+        int(idx),
+        sx_global,
+        sy_global,
+        sz_global,
+        u_axes,
+        v_axes,
+        w_axes,
+        spin_pointer,
+        tesseral_keys,
+        tesseral_coefficients,
+        field);
 
-    const jams::Real sx = sx_global * ux + sy_global * uy + sz_global * uz;
-    const jams::Real sy = sx_global * vx + sy_global * vy + sz_global * vz;
-    const jams::Real sz = sx_global * wx + sy_global * wy + sz_global * wz;
-
-    jams::Real hx_local = 0;
-    jams::Real hy_local = 0;
-    jams::Real hz_local = 0;
-    for (int n = spin_pointer[idx]; n < spin_pointer[idx + 1]; ++n) {
-        jams::Real grad[3];
-        jams::tesseral_monic_polynomial_grad_key_lookup(tesseral_keys[n], sx, sy, sz, grad);
-        const jams::Real coeff = tesseral_coefficients[n];
-        hx_local -= coeff * grad[0];
-        hy_local -= coeff * grad[1];
-        hz_local -= coeff * grad[2];
-    }
-
-    fields[base + 0] = hx_local * ux + hy_local * vx + hz_local * wx;
-    fields[base + 1] = hx_local * uy + hy_local * vy + hz_local * wy;
-    fields[base + 2] = hx_local * uz + hy_local * vz + hz_local * wz;
+    fields[base + 0] = field[0];
+    fields[base + 1] = field[1];
+    fields[base + 2] = field[2];
 }
 
 } // namespace
