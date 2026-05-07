@@ -204,6 +204,24 @@ TEST_F(CudaAnisotropyPolynomialHamiltonianTests, energies_and_fields_match_cpu)
     }
 }
 
+TEST_F(CudaAnisotropyPolynomialHamiltonianTests, cpu_fields_are_tangent_to_spins)
+{
+    set_test_spins();
+
+    cpu_hamiltonian_->calculate_fields(0.0);
+
+    for (int i = 0; i < globals::num_spins; ++i) {
+        const auto dot = globals::s(i, 0) * cpu_hamiltonian_->field(i, 0)
+            + globals::s(i, 1) * cpu_hamiltonian_->field(i, 1)
+            + globals::s(i, 2) * cpu_hamiltonian_->field(i, 2);
+        const auto field_scale = std::abs(double(cpu_hamiltonian_->field(i, 0)))
+            + std::abs(double(cpu_hamiltonian_->field(i, 1)))
+            + std::abs(double(cpu_hamiltonian_->field(i, 2)));
+
+        ASSERT_NEAR(dot, 0.0, 5e-6 * std::max(1e-30, field_scale)) << "spin " << i;
+    }
+}
+
 TEST_F(CudaAnisotropyPolynomialHamiltonianTests, energy_difference_uses_trial_spin_energies_without_mutating_globals)
 {
     set_test_spins();

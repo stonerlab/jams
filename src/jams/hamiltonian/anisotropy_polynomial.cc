@@ -382,7 +382,7 @@ AnisotropyPolynomialHamiltonian::AnisotropyPolynomialHamiltonian(const libconfig
 
 jams::Vec<jams::Real, 3> AnisotropyPolynomialHamiltonian::calculate_field(int i, jams::Real time)
 {
-    jams::Vec<jams::Real, 3> field = {0.0, 0.0, 0.0};
+    jams::Vec<jams::Real, 3> energy_grad = {0.0, 0.0, 0.0};
 
     const jams::Vec<jams::Real, 3> s_global = {globals::s(i, 0), globals::s(i, 1), globals::s(i, 2)};
     const auto u = axis_for_spin(u_axes_, i);
@@ -396,10 +396,11 @@ jams::Vec<jams::Real, 3> AnisotropyPolynomialHamiltonian::calculate_field(int i,
         const auto coeff = tesseral_coefficients_(n);
         jams::Real h[3];
         jams::tesseral_monic_polynomial_grad_key_lookup(key, s[0], s[1], s[2], h);
-        field += coeff * (h[0] * u + h[1] * v + h[2] * w);
+        energy_grad += coeff * (h[0] * u + h[1] * v + h[2] * w);
     }
 
-    return field;
+    const auto radial_grad = jams::dot(s_global, energy_grad);
+    return radial_grad * s_global - energy_grad;
 }
 
 jams::Real AnisotropyPolynomialHamiltonian::calculate_energy(int i, jams::Real time)
