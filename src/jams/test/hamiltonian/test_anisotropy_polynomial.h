@@ -178,6 +178,24 @@ TEST_F(CudaAnisotropyPolynomialHamiltonianTests, factory_selects_cuda_variant)
     ASSERT_NE(dynamic_cast<CudaAnisotropyPolynomialHamiltonian*>(hamiltonian.get()), nullptr);
 }
 
+TEST_F(CudaAnisotropyPolynomialHamiltonianTests, non_unit_integer_axes_are_not_misread_as_coefficients)
+{
+    libconfig::Config config;
+    config.readString(R"(
+        hamiltonian = {
+          module = "anisotropy-polynomial";
+          energy_units = "meV";
+          anisotropies = (
+            ("A", [2, 0, 0], [0, 2, 0], [0, 0, 2], (2, 0, 1.0))
+          );
+        };
+    )");
+
+    ASSERT_NO_THROW(AnisotropyPolynomialHamiltonian(
+        config.lookup("hamiltonian"),
+        globals::num_spins));
+}
+
 TEST_F(CudaAnisotropyPolynomialHamiltonianTests, energies_and_fields_match_cpu)
 {
     set_test_spins();

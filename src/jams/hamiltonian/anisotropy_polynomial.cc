@@ -10,6 +10,7 @@
 #include <libconfig.h++>
 
 #include <algorithm>
+#include <cstdint>
 #include <string>
 #include <utility>
 #include <vector>
@@ -42,13 +43,33 @@ int read_integer(const Setting& setting, const char* name)
         throw jams::ConfigException(setting, name, " must be an integer");
     }
 
+    if (setting.getType() == Setting::TypeInt64) {
+        return int(static_cast<int64_t>(setting));
+    }
+
     return int(setting);
+}
+
+jams::Real read_real(const Setting& setting, const char* name)
+{
+    if (!setting.isNumber()) {
+        throw jams::ConfigException(setting, name, " must be numeric");
+    }
+
+    if (setting.getType() == Setting::TypeInt) {
+        return jams::Real(int(setting));
+    }
+    if (setting.getType() == Setting::TypeInt64) {
+        return jams::Real(static_cast<int64_t>(setting));
+    }
+
+    return jams::Real(double(setting));
 }
 
 jams::Vec<jams::Real, 3> read_axis(const Setting& setting)
 {
-    if (!(setting.isArray() || setting.isList()) || setting.getLength() != 3) {
-        throw jams::ConfigException(setting, "axis must contain exactly three numeric components");
+    if (!setting.isArray() || setting.getLength() != 3) {
+        throw jams::ConfigException(setting, "axis must be an array containing exactly three numeric components");
     }
 
     for (auto i = 0; i < 3; ++i) {
@@ -58,9 +79,9 @@ jams::Vec<jams::Real, 3> read_axis(const Setting& setting)
     }
 
     jams::Vec<jams::Real, 3> axis = {
-        jams::Real(setting[0]),
-        jams::Real(setting[1]),
-        jams::Real(setting[2])
+        read_real(setting[0], "axis component"),
+        read_real(setting[1], "axis component"),
+        read_real(setting[2], "axis component")
     };
 
     const auto length = jams::norm(axis);
@@ -73,7 +94,7 @@ jams::Vec<jams::Real, 3> read_axis(const Setting& setting)
 
 bool is_axis_setting(const Setting& setting)
 {
-    if (!(setting.isArray() || setting.isList()) || setting.getLength() != 3) {
+    if (!setting.isArray() || setting.getLength() != 3) {
         return false;
     }
 
@@ -153,7 +174,7 @@ bool axes_match(const jams::Vec<jams::Real, 3>& lhs_u,
 
 bool is_coefficient_setting(const Setting& setting)
 {
-    if (!(setting.isArray() || setting.isList()) || setting.getLength() != 3) {
+    if (!setting.isList() || setting.getLength() != 3) {
         return false;
     }
 
@@ -169,7 +190,7 @@ std::pair<int, jams::Real> read_coefficient_setting(
     const double energy_unit_conversion,
     const jams::TesseralHarmonicNormalisation normalisation)
 {
-    if (!(setting.isArray() || setting.isList()) || setting.getLength() != 3) {
+    if (!setting.isList() || setting.getLength() != 3) {
         throw jams::ConfigException(setting, "coefficient must be a list containing l, m and coefficient");
     }
 
@@ -186,7 +207,7 @@ std::pair<int, jams::Real> read_coefficient_setting(
     const auto normalisation_scale = jams::tesseral_monic_polynomial_normalisation_scale<jams::Real>(
         normalisation, l, m);
     return {jams::tesseral_key(l, m),
-            jams::Real(setting[2]) * jams::Real(energy_unit_conversion) * normalisation_scale};
+            read_real(setting[2], "anisotropy coefficient") * jams::Real(energy_unit_conversion) * normalisation_scale};
 }
 
 void read_coefficient_settings(std::vector<std::pair<int, jams::Real>>& coefficients,
@@ -194,7 +215,7 @@ void read_coefficient_settings(std::vector<std::pair<int, jams::Real>>& coeffici
                                const double energy_unit_conversion,
                                const jams::TesseralHarmonicNormalisation normalisation)
 {
-    if ((setting.isArray() || setting.isList()) && setting.getLength() > 0 && (setting[0].isArray() || setting[0].isList())) {
+    if (setting.isList() && setting.getLength() > 0 && setting[0].isList()) {
         for (auto i = 0; i < setting.getLength(); ++i) {
             coefficients.push_back(read_coefficient_setting(setting[i], energy_unit_conversion, normalisation));
         }
@@ -238,7 +259,7 @@ AnisotropyPolynomialSetting read_anisotropy_setting(
     }
 
     auto coefficient_start = 1;
-    const auto has_some_axis_settings = length > 1 && is_axis_setting(setting[1]) && !is_coefficient_setting(setting[1]);
+    const auto has_some_axis_settings = length > 1 && is_axis_setting(setting[1]);
     if (has_some_axis_settings) {
         if (length < 5 || !is_axis_setting(setting[2]) || !is_axis_setting(setting[3])) {
             throw jams::ConfigException(setting, "anisotropy must specify all three axes or no axes");
