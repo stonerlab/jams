@@ -539,11 +539,57 @@ namespace jams
   // Returns the coefficient multiplying the monic polynomial basis function to
   // obtain Racah-normalised real tesseral harmonics:
   //   C_lm = sqrt(4*pi/(2*l + 1)) Y_lm.
+  //
+  // This lookup is host/device compatible so CPU and CUDA crystal-field code
+  // can share the same Racah scaling without duplicating tesseral polynomials.
+  template <typename T, typename = std::enable_if_t<std::is_floating_point_v<T>>>
+  JAMS_HOST_DEVICE constexpr T tesseral_racah_normalisation_scale_lookup(const int l, const int m)
+  {
+    switch (tesseral_key(l, m))
+    {
+    case tesseral_key(2, -2): return T{1.7320508075688772};  // sqrt(3)
+    case tesseral_key(2, -1): return T{1.7320508075688772};  // sqrt(3)
+    case tesseral_key(2,  0): return T{1.5};                 // sqrt(9/4)
+    case tesseral_key(2,  1): return T{1.7320508075688772};  // sqrt(3)
+    case tesseral_key(2,  2): return T{0.8660254037844386};  // sqrt(3/4)
+
+    case tesseral_key(4, -4): return T{5.9160797830996161};  // sqrt(35)
+    case tesseral_key(4, -3): return T{6.2749501990055663};  // sqrt(315/8)
+    case tesseral_key(4, -2): return T{7.8262379212492643};  // sqrt(245/4)
+    case tesseral_key(4, -1): return T{5.5339859052946636};  // sqrt(245/8)
+    case tesseral_key(4,  0): return T{4.375};               // sqrt(1225/64)
+    case tesseral_key(4,  1): return T{5.5339859052946636};  // sqrt(245/8)
+    case tesseral_key(4,  2): return T{7.8262379212492643};  // sqrt(245/4)
+    case tesseral_key(4,  3): return T{8.3666002653407556};  // sqrt(70)
+    case tesseral_key(4,  4): return T{0.73950997288745202}; // sqrt(35/64)
+
+    case tesseral_key(6, -6): return T{4.0301597362883772};  // sqrt(2079/128)
+    case tesseral_key(6, -5): return T{11.634069043116428};  // sqrt(17325/128)
+    case tesseral_key(6, -4): return T{43.654896632565745};  // sqrt(7623/4)
+    case tesseral_key(6, -3): return T{39.851286052020953};  // sqrt(12705/8)
+    case tesseral_key(6, -2): return T{29.888464539015718};  // sqrt(114345/128)
+    case tesseral_key(6, -1): return T{18.903124741692839};  // sqrt(22869/64)
+    case tesseral_key(6,  0): return T{14.4375};             // sqrt(53361/256)
+    case tesseral_key(6,  1): return T{18.903124741692839};  // sqrt(22869/64)
+    case tesseral_key(6,  2): return T{29.888464539015718};  // sqrt(114345/128)
+    case tesseral_key(6,  3): return T{39.851286052020953};  // sqrt(12705/8)
+    case tesseral_key(6,  4): return T{5.4568620790707181};  // sqrt(7623/256)
+    case tesseral_key(6,  5): return T{2.3268138086232857};  // sqrt(693/128)
+    case tesseral_key(6,  6): return T{0.67169328938139616}; // sqrt(231/512)
+
+    default:
+#ifdef __CUDA_ARCH__
+      return T{0};
+#else
+      throw std::invalid_argument("invalid l,m given to tesseral normalisation scale");
+#endif
+    }
+  }
+
   template <typename T, typename = std::enable_if_t<std::is_floating_point_v<T>>>
   T tesseral_racah_normalisation_scale(const int l, const int m)
   {
-    return tesseral_condon_shortley_normalisation_scale<T>(l, m)
-        * std::sqrt(T{4} * pi<T>() / static_cast<T>(2 * l + 1));
+    return tesseral_racah_normalisation_scale_lookup<T>(l, m);
   }
 
   // Returns the coefficient multiplying the monic polynomial basis function to

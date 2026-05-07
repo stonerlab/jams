@@ -366,6 +366,7 @@ TEST(TesseralHarmonicsTest, NormalisationScaleFactors)
 
     const auto racah_scale = jams::tesseral_monic_polynomial_normalisation_scale<double>(
         jams::TesseralHarmonicNormalisation::racah, l, m);
+    EXPECT_DOUBLE_EQ(racah_scale, jams::tesseral_racah_normalisation_scale_lookup<double>(l, m));
     const auto expected_racah_scale_squared =
         4.0 * condon_shortley_scale_squared_times_pi(l, m) / static_cast<double>(2 * l + 1);
     EXPECT_NEAR(racah_scale * racah_scale,
