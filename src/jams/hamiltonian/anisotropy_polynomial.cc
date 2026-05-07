@@ -330,6 +330,9 @@ AnisotropyPolynomialHamiltonian::AnisotropyPolynomialHamiltonian(const libconfig
     if (!anisotropy_settings.isList()) {
         throw jams::ConfigException(anisotropy_settings, "anisotropies must be a list");
     }
+    if (anisotropy_settings.getLength() == 0) {
+        throw jams::ConfigException(anisotropy_settings, "anisotropies must contain at least one entry");
+    }
 
     zero(spin_pointer_.resize(size + 1));
     zero(u_axes_.resize(size, 3));

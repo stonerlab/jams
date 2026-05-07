@@ -16,6 +16,7 @@
 #include "jams/core/lattice.h"
 #include "jams/hamiltonian/anisotropy_polynomial.h"
 #include "jams/hamiltonian/cuda_anisotropy_polynomial.h"
+#include "jams/helpers/exception.h"
 #include "jams/helpers/utils.h"
 #include "jams/test/output.h"
 
@@ -238,6 +239,22 @@ TEST_F(CudaAnisotropyPolynomialHamiltonianTests, crystal_field_normalisation_ali
             ASSERT_DOUBLE_EQ(crystal_field[j], racah[j]);
         }
     }
+}
+
+TEST_F(CudaAnisotropyPolynomialHamiltonianTests, empty_anisotropies_are_rejected)
+{
+    libconfig::Config config;
+    config.readString(R"(
+        hamiltonian = {
+          module = "anisotropy-polynomial";
+          energy_units = "meV";
+          anisotropies = ();
+        };
+    )");
+
+    ASSERT_THROW(
+        AnisotropyPolynomialHamiltonian(config.lookup("hamiltonian"), globals::num_spins),
+        jams::ConfigException);
 }
 
 TEST_F(CudaAnisotropyPolynomialHamiltonianTests, energies_and_fields_match_cpu)
