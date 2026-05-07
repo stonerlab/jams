@@ -71,9 +71,11 @@
 ///         w = [0.0, 0.0, 1.0]
 ///
 ///     If axes are provided, all three axes must be specified. They are
-///     normalised on input and must be mutually orthogonal. If anisotropies are
-///     specified for the same spin by both material and unit cell position, the
-///     local axes must be consistent.
+///     normalised on input and must be mutually orthogonal. Omitted axes use
+///     the default frame unless another matching anisotropy definition provides
+///     explicit axes for the same spin. If anisotropies are specified for the
+///     same spin by both material and unit cell position, all explicit local
+///     axes must be consistent.
 ///
 /// Example
 /// -------

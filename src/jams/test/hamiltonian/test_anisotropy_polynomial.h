@@ -257,6 +257,57 @@ TEST_F(CudaAnisotropyPolynomialHamiltonianTests, empty_anisotropies_are_rejected
         jams::ConfigException);
 }
 
+TEST_F(CudaAnisotropyPolynomialHamiltonianTests, omitted_axes_inherit_explicit_axes_for_same_spin)
+{
+    set_test_spins();
+
+    libconfig::Config split_config;
+    split_config.readString(R"(
+        hamiltonian = {
+          module = "anisotropy-polynomial";
+          energy_units = "meV";
+          anisotropies = (
+            ("A", (2, 0, 1.0)),
+            ("A", [0.0, 1.0, 0.0], [0.0, 0.0, 1.0], [1.0, 0.0, 0.0], (4, 0, 0.5))
+          );
+        };
+    )");
+
+    libconfig::Config combined_config;
+    combined_config.readString(R"(
+        hamiltonian = {
+          module = "anisotropy-polynomial";
+          energy_units = "meV";
+          anisotropies = (
+            ("A", [0.0, 1.0, 0.0], [0.0, 0.0, 1.0], [1.0, 0.0, 0.0],
+              (2, 0, 1.0),
+              (4, 0, 0.5))
+          );
+        };
+    )");
+
+    AnisotropyPolynomialHamiltonianTestAccess split_hamiltonian(
+        split_config.lookup("hamiltonian"),
+        globals::num_spins);
+    AnisotropyPolynomialHamiltonianTestAccess combined_hamiltonian(
+        combined_config.lookup("hamiltonian"),
+        globals::num_spins);
+
+    for (int i = 0; i < globals::num_spins; ++i) {
+        const jams::Vec<double, 3> spin = {globals::s(i, 0), globals::s(i, 1), globals::s(i, 2)};
+        ASSERT_NEAR(
+            split_hamiltonian.calculate_energy_for_spin(i, spin, 0.0),
+            combined_hamiltonian.calculate_energy_for_spin(i, spin, 0.0),
+            1e-14);
+
+        const auto split_field = split_hamiltonian.calculate_field(i, 0.0);
+        const auto combined_field = combined_hamiltonian.calculate_field(i, 0.0);
+        for (auto j = 0; j < 3; ++j) {
+            ASSERT_NEAR(split_field[j], combined_field[j], 1e-14);
+        }
+    }
+}
+
 TEST_F(CudaAnisotropyPolynomialHamiltonianTests, energies_and_fields_match_cpu)
 {
     set_test_spins();

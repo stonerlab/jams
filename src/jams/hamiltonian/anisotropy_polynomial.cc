@@ -25,6 +25,7 @@ constexpr jams::Vec<jams::Real, 3> kDefaultW = {0.0, 0.0, 1.0};
 struct AnisotropyPolynomialSetting {
     int motif_position = -1;
     int material_id = -1;
+    bool has_axes = false;
     jams::Vec<jams::Real, 3> u = kDefaultU;
     jams::Vec<jams::Real, 3> v = kDefaultV;
     jams::Vec<jams::Real, 3> w = kDefaultW;
@@ -265,6 +266,7 @@ AnisotropyPolynomialSetting read_anisotropy_setting(
             throw jams::ConfigException(setting, "anisotropy must specify all three axes or no axes");
         }
 
+        result.has_axes = true;
         result.u = read_axis(setting[1]);
         result.v = read_axis(setting[2]);
         result.w = read_axis(setting[3]);
@@ -352,7 +354,7 @@ AnisotropyPolynomialHamiltonian::AnisotropyPolynomialHamiltonian(const libconfig
     }
 
     std::vector<TesseralKeyCoefficientMap> spin_coefficients(size);
-    std::vector<bool> spin_axes_set(size, false);
+    std::vector<bool> spin_axes_explicitly_set(size, false);
 
     for (auto n = 0; n < anisotropy_settings.getLength(); ++n) {
         const auto& anisotropy_setting = anisotropy_settings[n];
@@ -364,7 +366,7 @@ AnisotropyPolynomialHamiltonian::AnisotropyPolynomialHamiltonian(const libconfig
                 continue;
             }
 
-            if (spin_axes_set[i]) {
+            if (anisotropy.has_axes && spin_axes_explicitly_set[i]) {
                 const auto existing_u = axis_for_spin(u_axes_, int(i));
                 const auto existing_v = axis_for_spin(v_axes_, int(i));
                 const auto existing_w = axis_for_spin(w_axes_, int(i));
@@ -373,9 +375,9 @@ AnisotropyPolynomialHamiltonian::AnisotropyPolynomialHamiltonian(const libconfig
                                                 "anisotropy axes are specified inconsistently for spin ",
                                                 i);
                 }
-            } else {
+            } else if (anisotropy.has_axes) {
                 write_axes_for_spin(u_axes_, v_axes_, w_axes_, int(i), anisotropy);
-                spin_axes_set[i] = true;
+                spin_axes_explicitly_set[i] = true;
             }
 
             for (const auto& [key, coefficient] : anisotropy.coefficients) {
