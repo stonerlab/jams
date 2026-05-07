@@ -2,9 +2,11 @@
 
 #include <gtest/gtest.h>
 
+#include <algorithm>
 #include <cmath>
 #include <memory>
 #include <string>
+#include <vector>
 
 #include <cuda_runtime.h>
 #include <libconfig.h++>
@@ -16,6 +18,12 @@
 #include "jams/hamiltonian/cuda_anisotropy_polynomial.h"
 #include "jams/helpers/utils.h"
 #include "jams/test/output.h"
+
+class AnisotropyPolynomialHamiltonianTestAccess : public AnisotropyPolynomialHamiltonian {
+public:
+    using AnisotropyPolynomialHamiltonian::AnisotropyPolynomialHamiltonian;
+    using AnisotropyPolynomialHamiltonian::calculate_energy_for_spin;
+};
 
 class CudaAnisotropyPolynomialHamiltonianTests : public ::testing::Test {
 public:
@@ -192,6 +200,36 @@ TEST_F(CudaAnisotropyPolynomialHamiltonianTests, energies_and_fields_match_cpu)
     for (int i = 0; i < globals::num_spins; ++i) {
         for (int j = 0; j < 3; ++j) {
             ASSERT_NEAR(cuda_hamiltonian_->field(i, j), cpu_hamiltonian_->field(i, j), tolerance);
+        }
+    }
+}
+
+TEST_F(CudaAnisotropyPolynomialHamiltonianTests, energy_difference_uses_trial_spin_energies_without_mutating_globals)
+{
+    set_test_spins();
+
+    std::vector<jams::Vec<double, 3>> original_spins(globals::num_spins);
+    for (int i = 0; i < globals::num_spins; ++i) {
+        original_spins[i] = {globals::s(i, 0), globals::s(i, 1), globals::s(i, 2)};
+    }
+
+    AnisotropyPolynomialHamiltonianTestAccess hamiltonian(
+        globals::config->lookup("hamiltonians.[0]"),
+        globals::num_spins);
+
+    const int spin_index = 0;
+    const jams::Vec<double, 3> spin_initial = {0.2, -0.3, std::sqrt(1.0 - 0.2 * 0.2 - 0.3 * 0.3)};
+    const jams::Vec<double, 3> spin_final = {-0.4, 0.5, std::sqrt(1.0 - 0.4 * 0.4 - 0.5 * 0.5)};
+
+    const auto actual = hamiltonian.calculate_energy_difference(spin_index, spin_initial, spin_final, 0.0);
+    const auto expected = hamiltonian.calculate_energy_for_spin(spin_index, spin_final, 0.0)
+        - hamiltonian.calculate_energy_for_spin(spin_index, spin_initial, 0.0);
+
+    ASSERT_NEAR(actual, expected, 1e-12 * std::max(1.0, std::abs(double(expected))));
+
+    for (int i = 0; i < globals::num_spins; ++i) {
+        for (int j = 0; j < 3; ++j) {
+            ASSERT_DOUBLE_EQ(globals::s(i, j), original_spins[i][j]);
         }
     }
 }

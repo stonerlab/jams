@@ -404,9 +404,14 @@ jams::Vec<jams::Real, 3> AnisotropyPolynomialHamiltonian::calculate_field(int i,
 
 jams::Real AnisotropyPolynomialHamiltonian::calculate_energy(int i, jams::Real time)
 {
+    return calculate_energy_for_spin(i, {globals::s(i, 0), globals::s(i, 1), globals::s(i, 2)}, time);
+}
+
+jams::Real AnisotropyPolynomialHamiltonian::calculate_energy_for_spin(int i, const jams::Vec<double, 3> &spin, jams::Real time)
+{
     jams::Real energy = 0.0;
 
-    const jams::Vec<jams::Real, 3> s_global = {globals::s(i, 0), globals::s(i, 1), globals::s(i, 2)};
+    const auto s_global = jams::array_cast<jams::Real>(spin);
     const auto u = axis_for_spin(u_axes_, i);
     const auto v = axis_for_spin(v_axes_, i);
     const auto w = axis_for_spin(w_axes_, i);

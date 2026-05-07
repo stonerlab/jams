@@ -104,6 +104,8 @@ public:
     jams::Real calculate_energy(int i, jams::Real time) override;
 
 protected:
+    jams::Real calculate_energy_for_spin(int i, const jams::Vec<double, 3> &spin, jams::Real time) override;
+
     // Local reference axes for the anisotropy of a given spin
     jams::MultiArray<jams::Real,2> u_axes_; /// u_axes_(spin_index, cart_component)
     jams::MultiArray<jams::Real,2> v_axes_; /// v_axes_(spin_index, cart_component)

@@ -68,7 +68,12 @@ RandomAnisotropyHamiltonian::RandomAnisotropyHamiltonian(const libconfig::Settin
 
 
 jams::Real RandomAnisotropyHamiltonian::calculate_energy(const int i, jams::Real time) {
-  return -magnitude_[i] * pow2(direction_[i][0] * globals::s(i, 0) + direction_[i][1] * globals::s(i, 1) + direction_[i][2] * globals::s(i, 2));
+  return calculate_energy_for_spin(i, {globals::s(i, 0), globals::s(i, 1), globals::s(i, 2)}, time);
+}
+
+jams::Real RandomAnisotropyHamiltonian::calculate_energy_for_spin(const int i, const jams::Vec<double, 3>& spin, jams::Real time) {
+  const auto s = jams::array_cast<jams::Real>(spin);
+  return -magnitude_[i] * pow2(jams::dot(direction_[i], s));
 }
 
 

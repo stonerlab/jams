@@ -9,6 +9,7 @@
 #include "jams/core/units.h"
 #include "jams/helpers/defaults.h"
 #include "jams/helpers/error.h"
+#include "jams/helpers/exception.h"
 #include "jams/helpers/utils.h"
 
 #include "jams/hamiltonian/applied_field.h"
@@ -147,10 +148,15 @@ jams::Real Hamiltonian::calculate_total_energy(jams::Real time)
 jams::Real Hamiltonian::calculate_energy_difference(int i, const jams::Vec<double, 3>& spin_initial, const jams::Vec<double, 3>& spin_final,
   jams::Real time)
 {
-  const jams::Real e_initial = -jams::dot(jams::array_cast<jams::Real>(spin_initial), calculate_field(i, time));
-  const jams::Real e_final = -jams::dot(jams::array_cast<jams::Real>(spin_final), calculate_field(i, time));
+  const jams::Real e_initial = calculate_energy_for_spin(i, spin_initial, time);
+  const jams::Real e_final = calculate_energy_for_spin(i, spin_final, time);
 
   return (e_final - e_initial);
+}
+
+jams::Real Hamiltonian::calculate_energy_for_spin(int i, const jams::Vec<double, 3>& spin, jams::Real time)
+{
+  throw jams::unimplemented_error("Hamiltonian::calculate_energy_for_spin");
 }
 
 Hamiltonian::Hamiltonian(const libconfig::Setting &settings, const unsigned int size)

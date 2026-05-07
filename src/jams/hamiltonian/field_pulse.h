@@ -39,6 +39,9 @@ public:
 
     jams::Real calculate_energy(int i, jams::Real time) override;
 
+protected:
+    jams::Real calculate_energy_for_spin(int i, const jams::Vec<double, 3> &spin, jams::Real time) override;
+
 private:
     void output_pulse(std::ofstream& pulse_file);
 
