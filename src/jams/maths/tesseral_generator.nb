@@ -1,0 +1,1493 @@
+(* Content-type: application/vnd.wolfram.mathematica *)
+
+(*** Wolfram Notebook File ***)
+(* http://www.wolfram.com/nb *)
+
+(* CreatedBy='Mathematica 14.0' *)
+
+(*CacheID: 234*)
+(* Internal cache information:
+NotebookFileLineBreakTest
+NotebookFileLineBreakTest
+NotebookDataPosition[       158,          7]
+NotebookDataLength[     60221,       1485]
+NotebookOptionsPosition[     59646,       1467]
+NotebookOutlinePosition[     60038,       1483]
+CellTagsIndexPosition[     59995,       1480]
+WindowFrame->Normal*)
+
+(* Beginning of Notebook Content *)
+Notebook[{
+Cell[BoxData[
+ RowBox[{"(*", " ", 
+  RowBox[{
+   RowBox[{
+    RowBox[{
+     RowBox[{"References", ":", "\[IndentingNewLine]", 
+      RowBox[{
+       RowBox[{"-", " ", "Expanding"}], " ", "powers", " ", "in", " ", 
+       "CForm", " ", 
+       RowBox[{"e", ".", "g", ".", " ", "Power"}], 
+       RowBox[{"(", 
+        RowBox[{"x", ",", "2"}], ")"}]}]}], " ", "->", " ", 
+     RowBox[{"x", "*", 
+      RowBox[{"x", ":", " ", "https", ":"}]}]}], "//", 
+    RowBox[{
+     RowBox[{
+      RowBox[{
+       RowBox[{
+        RowBox[{"mathematica", ".", "stackexchange", ".", "com"}], "/", "a"}],
+        "/", "141421"}], "\[IndentingNewLine]", "-", " ", 
+      RowBox[{
+      "Assumptions", " ", "for", " ", "simplify", " ", "Tesseral", " ", 
+       "harmonics", " ", "in", " ", "Cartesians"}]}], " ", "->", " ", 
+     RowBox[{"https", ":"}]}]}], "//", 
+   RowBox[{
+    RowBox[{
+     RowBox[{"mathematica", ".", "stackexchange", ".", "com"}], "/", "a"}], "/",
+     "45882"}]}], "  ", "\[IndentingNewLine]", "*)"}]], "Input",
+ CellChangeTimes->{{3.9307132748190804`*^9, 3.930713304360279*^9}, {
+  3.930713338831605*^9, 3.93071338750252*^9}},
+ CellLabel->"In[1]:=",ExpressionUUID->"f3eaf6b6-ee5c-4ba3-8750-03c867f2286d"],
+
+Cell[CellGroupData[{
+
+Cell[BoxData[
+ RowBox[{"\[IndentingNewLine]", 
+  RowBox[{
+   RowBox[{"ClearAll", "[", "\[IndentingNewLine]", 
+    RowBox[{
+    "monicCartesianBasis", ",", "\[IndentingNewLine]", 
+     "CStaticCastFormString", ",", " ", "\[IndentingNewLine]", 
+     "ExpandPowersForC", ",", "\[IndentingNewLine]", "RationalToFunction", ",",
+      "\[IndentingNewLine]", "PowerToProducts", ",", "\[IndentingNewLine]", 
+     "ToRationalCFormString", ",", "\[IndentingNewLine]", "RationalSymbol", ",",
+      "\[IndentingNewLine]", "IntegerSymbol", ",", "\[IndentingNewLine]", 
+     "PowerStringToProducts"}], "]"}], "\[IndentingNewLine]", "\[IndentingNewLine]", 
+   RowBox[{
+    RowBox[{
+     RowBox[{"ExpandPowersForC", "[", "expr_", "]"}], ":=", 
+     RowBox[{"expr", "//.", 
+      RowBox[{"{", 
+       RowBox[{
+        RowBox[{
+         RowBox[{"Power", "[", 
+          RowBox[{"a_", ",", "2"}], "]"}], ":>", 
+         RowBox[{"HoldForm", "[", 
+          RowBox[{"a", "*", "a"}], "]"}]}], ",", 
+        RowBox[{
+         RowBox[{"Power", "[", 
+          RowBox[{"a_", ",", "3"}], "]"}], ":>", 
+         RowBox[{"HoldForm", "[", 
+          RowBox[{"a", "*", "a", "*", "a"}], "]"}]}], ",", 
+        RowBox[{
+         RowBox[{"Power", "[", 
+          RowBox[{"a_", ",", "4"}], "]"}], ":>", 
+         RowBox[{"HoldForm", "[", 
+          RowBox[{"a", "*", "a", "*", "a", "*", "a"}], "]"}]}], ",", 
+        RowBox[{
+         RowBox[{"Power", "[", 
+          RowBox[{"a_", ",", "5"}], "]"}], ":>", 
+         RowBox[{"HoldForm", "[", 
+          RowBox[{"a", "*", "a", "*", "a", "*", "a", "*", "a"}], "]"}]}], ",", 
+        RowBox[{
+         RowBox[{"Power", "[", 
+          RowBox[{"a_", ",", "6"}], "]"}], ":>", 
+         RowBox[{"HoldForm", "[", 
+          RowBox[{"a", "*", "a", "*", "a", "*", "a", "*", "a", "*", "a"}], 
+          "]"}]}]}], "}"}]}]}], ";"}], "\[IndentingNewLine]", "\n", 
+   RowBox[{
+    RowBox[{"CStaticCastFormString", "[", 
+     RowBox[{"expr_", ",", 
+      RowBox[{"type_String", ":", "\"\<T\>\""}]}], "]"}], ":=", 
+    RowBox[{"Module", "[", 
+     RowBox[{
+      RowBox[{"{", "s", "}"}], ",", 
+      RowBox[{
+       RowBox[{"s", "=", 
+        RowBox[{"ToString", "[", 
+         RowBox[{
+          RowBox[{"CForm", "[", "expr", "]"}], ",", 
+          RowBox[{"PageWidth", "->", "Infinity"}]}], "]"}]}], ";", 
+       "\[IndentingNewLine]", 
+       RowBox[{"StringReplace", "[", 
+        RowBox[{"s", ",", 
+         RowBox[{
+          RowBox[{
+          "RegularExpression", 
+           "[", "\"\<(?<![A-Za-z0-9_\\\\.])((?:\\\\d+\\\\.\\\\d*|\\\\.\\\\d+|\
+\\\\d+[eE][+-]?\\\\d+|\\\\d+\\\\.\\\\d*[eE][+-]?\\\\d+|\\\\.\\\\d+[eE][+-]?\\\
+\\d+))(?![A-Za-z0-9_\\\\.fF])\>\"", "]"}], ":>", 
+          
+          RowBox[{"\"\<static_cast<\>\"", "<>", "type", "<>", "\"\<>(\>\"", 
+           "<>", "\"\<$1\>\"", "<>", "\"\<)\>\""}]}]}], "]"}]}]}], "]"}]}], 
+   "\[IndentingNewLine]", "\[IndentingNewLine]", 
+   RowBox[{
+    RowBox[{
+     RowBox[{"RationalToFunction", "[", 
+      RowBox[{"expr_", ",", 
+       RowBox[{"type_String", ":", "\"\<T\>\""}]}], "]"}], ":=", 
+     RowBox[{"expr", "/.", " ", 
+      RowBox[{
+       RowBox[{"Rational", "[", 
+        RowBox[{"a_Integer", ",", "b_Integer"}], "]"}], ":>", 
+       RowBox[{
+        RowBox[{"HoldForm", "[", "rational", "]"}], "[", 
+        RowBox[{"type", ",", "a", ",", "b"}], "]"}]}]}]}], ";"}], 
+   "\[IndentingNewLine]", "\n", 
+   RowBox[{
+    RowBox[{
+     RowBox[{"PowerToProducts", "[", "expr_", "]"}], ":=", 
+     RowBox[{"expr", "//.", 
+      RowBox[{
+       RowBox[{"Power", "[", 
+        RowBox[{"a_", ",", 
+         RowBox[{"n_Integer", "?", "Positive"}]}], "]"}], ":>", 
+       RowBox[{"Apply", "[", 
+        RowBox[{"Times", ",", 
+         RowBox[{"ConstantArray", "[", 
+          RowBox[{"a", ",", "n"}], "]"}]}], "]"}]}]}]}], ";"}], "\n", "\n", 
+   RowBox[{
+    RowBox[{
+     RowBox[{"RationalSymbol", "[", 
+      RowBox[{"a_Integer", ",", "b_Integer"}], "]"}], ":=", 
+     RowBox[{"Module", "[", 
+      RowBox[{
+       RowBox[{"{", 
+        RowBox[{"sa", ",", "sb"}], "}"}], ",", 
+       RowBox[{
+        RowBox[{"sa", "=", 
+         RowBox[{"If", "[", 
+          RowBox[{
+           RowBox[{"a", "<", "0"}], ",", 
+           RowBox[{"\"\<m\>\"", "<>", 
+            RowBox[{"ToString", "[", 
+             RowBox[{"Abs", "[", "a", "]"}], "]"}]}], ",", 
+           RowBox[{"ToString", "[", "a", "]"}]}], "]"}]}], ";", 
+        "\[IndentingNewLine]", 
+        RowBox[{"sb", "=", 
+         RowBox[{"If", "[", 
+          RowBox[{
+           RowBox[{"b", "<", "0"}], ",", 
+           RowBox[{"\"\<m\>\"", "<>", 
+            RowBox[{"ToString", "[", 
+             RowBox[{"Abs", "[", "b", "]"}], "]"}]}], ",", 
+           RowBox[{"ToString", "[", "b", "]"}]}], "]"}]}], ";", 
+        "\[IndentingNewLine]", 
+        RowBox[{"ToExpression", "[", 
+         RowBox[{"\"\<RATIONAL\>\"", "<>", "sa", "<>", "\"\<OVER\>\"", "<>", 
+          "sb"}], "]"}]}]}], "]"}]}], ";"}], "\n", "\[IndentingNewLine]", 
+   RowBox[{
+    RowBox[{
+     RowBox[{"IntegerSymbol", "[", "n_Integer", "]"}], ":=", 
+     RowBox[{"Module", "[", 
+      RowBox[{
+       RowBox[{"{", "sn", "}"}], ",", 
+       RowBox[{
+        RowBox[{"sn", "=", 
+         RowBox[{"If", "[", 
+          RowBox[{
+           RowBox[{"n", "<", "0"}], ",", 
+           RowBox[{"\"\<m\>\"", "<>", 
+            RowBox[{"ToString", "[", 
+             RowBox[{"Abs", "[", "n", "]"}], "]"}]}], ",", 
+           RowBox[{"ToString", "[", "n", "]"}]}], "]"}]}], ";", 
+        "\[IndentingNewLine]", 
+        RowBox[{"ToExpression", "[", 
+         RowBox[{"\"\<INTEGER\>\"", "<>", "sn"}], "]"}]}]}], "]"}]}], ";"}], 
+   "\n", "\[IndentingNewLine]", 
+   RowBox[{
+    RowBox[{
+     RowBox[{"PowerStringToProducts", "[", "s_String", "]"}], ":=", 
+     RowBox[{"StringReplace", "[", 
+      RowBox[{"s", ",", 
+       RowBox[{"{", 
+        RowBox[{
+         RowBox[{"\"\<Power(x,2)\>\"", "->", "\"\<x*x\>\""}], ",", 
+         RowBox[{"\"\<Power(x,3)\>\"", "->", "\"\<x*x*x\>\""}], ",", 
+         RowBox[{"\"\<Power(x,4)\>\"", "->", "\"\<x*x*x*x\>\""}], ",", 
+         RowBox[{"\"\<Power(x,5)\>\"", "->", "\"\<x*x*x*x*x\>\""}], ",", 
+         RowBox[{"\"\<Power(x,6)\>\"", "->", "\"\<x*x*x*x*x*x\>\""}], ",", 
+         RowBox[{"\"\<Power(y,2)\>\"", "->", "\"\<y*y\>\""}], ",", 
+         RowBox[{"\"\<Power(y,3)\>\"", "->", "\"\<y*y*y\>\""}], ",", 
+         RowBox[{"\"\<Power(y,4)\>\"", "->", "\"\<y*y*y*y\>\""}], ",", 
+         RowBox[{"\"\<Power(y,5)\>\"", "->", "\"\<y*y*y*y*y\>\""}], ",", 
+         RowBox[{"\"\<Power(y,6)\>\"", "->", "\"\<y*y*y*y*y*y\>\""}], ",", 
+         RowBox[{"\"\<Power(z,2)\>\"", "->", "\"\<z*z\>\""}], ",", 
+         RowBox[{"\"\<Power(z,3)\>\"", "->", "\"\<z*z*z\>\""}], ",", 
+         RowBox[{"\"\<Power(z,4)\>\"", "->", "\"\<z*z*z*z\>\""}], ",", 
+         RowBox[{"\"\<Power(z,5)\>\"", "->", "\"\<z*z*z*z*z\>\""}], ",", 
+         RowBox[{"\"\<Power(z,6)\>\"", "->", "\"\<z*z*z*z*z*z\>\""}]}], 
+        "}"}]}], "]"}]}], ";"}], "\n", "\[IndentingNewLine]", 
+   RowBox[{
+    RowBox[{"ToRationalCFormString", "[", 
+     RowBox[{"expr_", ",", 
+      RowBox[{"type_String", ":", "\"\<T\>\""}]}], "]"}], ":=", 
+    RowBox[{"Module", "[", 
+     RowBox[{
+      RowBox[{"{", 
+       RowBox[{"e", ",", "s"}], "}"}], ",", 
+      RowBox[{
+       RowBox[{"e", "=", 
+        RowBox[{"Expand", "[", "expr", "]"}]}], ";", "\[IndentingNewLine]", 
+       RowBox[{"(*", 
+        RowBox[{"Protect", " ", "exact", " ", "rationals", " ", 
+         RowBox[{"first", "."}]}], "*)"}], 
+       RowBox[{"e", "=", 
+        RowBox[{"e", "/.", " ", 
+         RowBox[{
+          RowBox[{"Rational", "[", 
+           RowBox[{"a_Integer", ",", "b_Integer"}], "]"}], ":>", 
+          RowBox[{"RationalSymbol", "[", 
+           RowBox[{"a", ",", "b"}], "]"}]}]}]}], ";", "\[IndentingNewLine]", 
+       RowBox[{"(*", 
+        RowBox[{
+         RowBox[{
+         "Convert", " ", "remaining", " ", "standalone", " ", "integers"}], ",", 
+         RowBox[{
+         "but", " ", "this", " ", "will", " ", "also", " ", "affect", " ", 
+          RowBox[{"powers", ".", "That"}], " ", "is", " ", "OK", " ", 
+          "because", " ", "we", " ", "undo", " ", "Power", 
+          RowBox[{"(", "...", ")"}], " ", "at", " ", "string", " ", "level", " ", 
+          RowBox[{"below", "."}]}]}], "*)"}], 
+       RowBox[{"e", "=", 
+        RowBox[{"e", "/.", " ", 
+         RowBox[{"n_Integer", ":>", 
+          RowBox[{"IntegerSymbol", "[", "n", "]"}]}]}]}], ";", 
+       "\[IndentingNewLine]", 
+       RowBox[{"s", "=", 
+        RowBox[{"ToString", "[", 
+         RowBox[{
+          RowBox[{"CForm", "[", "e", "]"}], ",", 
+          RowBox[{"PageWidth", "->", "Infinity"}]}], "]"}]}], ";", 
+       "\[IndentingNewLine]", 
+       RowBox[{"(*", 
+        RowBox[{"Fix", " ", "powers", " ", "with", " ", "typed", " ", 
+         RowBox[{"exponents", "."}]}], "*)"}], 
+       RowBox[{"s", "=", 
+        RowBox[{"StringReplace", "[", 
+         RowBox[{"s", ",", 
+          RowBox[{"{", 
+           RowBox[{
+            RowBox[{"\"\<Power(x,INTEGER2)\>\"", "->", "\"\<x*x\>\""}], ",", 
+            RowBox[{"\"\<Power(x,INTEGER3)\>\"", "->", "\"\<x*x*x\>\""}], ",", 
+            RowBox[{"\"\<Power(x,INTEGER4)\>\"", "->", "\"\<x*x*x*x\>\""}], ",", 
+            RowBox[{"\"\<Power(x,INTEGER5)\>\"", "->", "\"\<x*x*x*x*x\>\""}], 
+            ",", 
+            
+            RowBox[{"\"\<Power(x,INTEGER6)\>\"", 
+             "->", "\"\<x*x*x*x*x*x\>\""}], ",", 
+            RowBox[{"\"\<Power(y,INTEGER2)\>\"", "->", "\"\<y*y\>\""}], ",", 
+            RowBox[{"\"\<Power(y,INTEGER3)\>\"", "->", "\"\<y*y*y\>\""}], ",", 
+            RowBox[{"\"\<Power(y,INTEGER4)\>\"", "->", "\"\<y*y*y*y\>\""}], ",", 
+            RowBox[{"\"\<Power(y,INTEGER5)\>\"", "->", "\"\<y*y*y*y*y\>\""}], 
+            ",", 
+            
+            RowBox[{"\"\<Power(y,INTEGER6)\>\"", 
+             "->", "\"\<y*y*y*y*y*y\>\""}], ",", 
+            RowBox[{"\"\<Power(z,INTEGER2)\>\"", "->", "\"\<z*z\>\""}], ",", 
+            RowBox[{"\"\<Power(z,INTEGER3)\>\"", "->", "\"\<z*z*z\>\""}], ",", 
+            RowBox[{"\"\<Power(z,INTEGER4)\>\"", "->", "\"\<z*z*z*z\>\""}], ",", 
+            RowBox[{"\"\<Power(z,INTEGER5)\>\"", "->", "\"\<z*z*z*z*z\>\""}], 
+            ",", 
+            
+            RowBox[{"\"\<Power(z,INTEGER6)\>\"", 
+             "->", "\"\<z*z*z*z*z*z\>\""}]}], "}"}]}], "]"}]}], ";", 
+       "\[IndentingNewLine]", 
+       RowBox[{"s", "=", 
+        RowBox[{"StringReplace", "[", 
+         RowBox[{"s", ",", 
+          RowBox[{"{", 
+           RowBox[{
+            RowBox[{
+             RowBox[{
+             "RegularExpression", "[", "\"\<RATIONALm(\\\\d+)OVER(\\\\d+)\>\"",
+               "]"}], ":>", 
+             
+             RowBox[{"\"\<rational<\>\"", "<>", "type", "<>", "\"\<>(-\>\"", 
+              "<>", "\"\<$1\>\"", "<>", "\"\<, \>\"", "<>", "\"\<$2\>\"", 
+              "<>", "\"\<)\>\""}]}], ",", 
+            RowBox[{
+             RowBox[{
+             "RegularExpression", "[", "\"\<RATIONAL(\\\\d+)OVER(\\\\d+)\>\"",
+               "]"}], ":>", 
+             
+             RowBox[{"\"\<rational<\>\"", "<>", "type", "<>", "\"\<>(\>\"", 
+              "<>", "\"\<$1\>\"", "<>", "\"\<, \>\"", "<>", "\"\<$2\>\"", 
+              "<>", "\"\<)\>\""}]}], ",", 
+            RowBox[{
+             RowBox[{
+             "RegularExpression", "[", "\"\<INTEGERm(\\\\d+)\>\"", "]"}], ":>", 
+             RowBox[{
+             "type", "<>", "\"\<{-\>\"", "<>", "\"\<$1\>\"", 
+              "<>", "\"\<}\>\""}]}], ",", 
+            RowBox[{
+             RowBox[{
+             "RegularExpression", "[", "\"\<INTEGER(\\\\d+)\>\"", "]"}], ":>", 
+             RowBox[{
+             "type", "<>", "\"\<{\>\"", "<>", "\"\<$1\>\"", 
+              "<>", "\"\<}\>\""}]}]}], "}"}]}], "]"}]}], ";", 
+       "\[IndentingNewLine]", "s"}]}], "]"}]}], "\[IndentingNewLine]", 
+   "\[IndentingNewLine]", "\[IndentingNewLine]", 
+   RowBox[{"(*", " ", 
+    RowBox[{
+     RowBox[{"Returns", " ", "the", " ", "tesseral", " ", "harmonic", " ", 
+      SubscriptBox["Z", 
+       RowBox[{"l", ",", "m"}]], " ", "in", " ", "Cartesian", " ", 
+      "coordinates"}], ",", " ", 
+     RowBox[{"{", 
+      RowBox[{"x", ",", " ", "y", ",", " ", "z"}], "}"}]}], " ", "*)"}], 
+   "\[IndentingNewLine]", "\[IndentingNewLine]", "\[IndentingNewLine]", 
+   RowBox[{
+    RowBox[{"TesseralHarmonic", "[", 
+     RowBox[{"l_Integer", ",", "m_Integer", ",", "x_", ",", "y_", ",", "z_"}],
+      "]"}], ":=", " ", 
+    RowBox[{"Block", "[", 
+     RowBox[{
+      RowBox[{"{", 
+       RowBox[{"x1", ",", "y1", ",", "z1"}], "}"}], ",", 
+      "\[IndentingNewLine]", 
+      RowBox[{
+       RowBox[{
+        RowBox[{"TesseralHarmonic", "[", 
+         RowBox[{"l", ",", "m", ",", "x1_", ",", "y1_", ",", "z1_"}], "]"}], "=", 
+        RowBox[{"FullSimplify", "[", " ", 
+         RowBox[{
+          RowBox[{"Module", "[", 
+           RowBox[{
+            RowBox[{"{", 
+             RowBox[{"\[Theta]", ",", "\[Phi]"}], "}"}], ",", 
+            "\[IndentingNewLine]", 
+            RowBox[{"ComplexExpand", "[", " ", 
+             RowBox[{"(*", " ", 
+              RowBox[{
+              "Use", " ", "ComplexExpand", " ", "to", " ", "avoid", " ", 
+               "use", " ", "of", " ", "Re", " ", "and", " ", "Im", " ", "in", 
+               " ", "the", " ", "results"}], " ", "*)"}], 
+             "\[IndentingNewLine]", 
+             RowBox[{
+              RowBox[{"Piecewise", "[", 
+               RowBox[{"{", "\[IndentingNewLine]", 
+                RowBox[{
+                 RowBox[{"{", 
+                  RowBox[{
+                   RowBox[{
+                    RowBox[{"Sqrt", "[", "2", "]"}], 
+                    RowBox[{"Re", "[", 
+                    RowBox[{"SphericalHarmonicY", "[", 
+                    RowBox[{"l", ",", "m", ",", "\[Theta]", ",", "\[Phi]"}], 
+                    "]"}], "]"}]}], ",", " ", 
+                   RowBox[{"m", ">", " ", "0"}]}], "}"}], ",", 
+                 "\[IndentingNewLine]", 
+                 RowBox[{"{", 
+                  RowBox[{
+                   RowBox[{"SphericalHarmonicY", "[", 
+                    RowBox[{"l", ",", "0", ",", "\[Theta]", ",", "\[Phi]"}], 
+                    "]"}], ",", " ", 
+                   RowBox[{"m", " ", "==", " ", "0"}]}], "}"}], ",", 
+                 "\[IndentingNewLine]", 
+                 RowBox[{"{", 
+                  RowBox[{
+                   RowBox[{
+                    RowBox[{"Sqrt", "[", "2", "]"}], 
+                    RowBox[{"Im", "[", 
+                    RowBox[{"SphericalHarmonicY", "[", 
+                    RowBox[{"l", ",", "m", ",", "\[Theta]", ",", "\[Phi]"}], 
+                    "]"}], "]"}]}], ",", " ", 
+                   RowBox[{"m", " ", "<", " ", "0"}]}], "}"}]}], 
+                "\[IndentingNewLine]", "}"}], "]"}], "/.", 
+              RowBox[{"{", 
+               RowBox[{
+                RowBox[{
+                 RowBox[{"Power", "[", 
+                  RowBox[{"E", ",", 
+                   RowBox[{"Times", "[", 
+                    RowBox[{
+                    RowBox[{"Complex", "[", 
+                    RowBox[{"0", ",", "\[Mu]_"}], "]"}], ",", "\[Phi]"}], 
+                    "]"}]}], "]"}], "->", 
+                 RowBox[{
+                  RowBox[{
+                   RowBox[{"(", 
+                    RowBox[{"x1", "+", 
+                    RowBox[{"I", " ", "y1"}]}], ")"}], "^", "\[Mu]"}], "/", 
+                  RowBox[{
+                   RowBox[{"(", 
+                    RowBox[{
+                    RowBox[{"x1", "^", "2"}], "+", 
+                    RowBox[{"y1", "^", "2"}]}], ")"}], "^", 
+                   RowBox[{"(", 
+                    RowBox[{"\[Mu]", "/", "2"}], ")"}]}]}]}], ",", 
+                RowBox[{
+                 RowBox[{"Sin", "[", "\[Theta]", "]"}], "->", 
+                 RowBox[{
+                  RowBox[{
+                   RowBox[{"(", 
+                    RowBox[{
+                    RowBox[{"x1", "^", "2"}], "+", 
+                    RowBox[{"y1", "^", "2"}]}], ")"}], "^", 
+                   RowBox[{"(", 
+                    RowBox[{"1", "/", "2"}], ")"}]}], "/", 
+                  RowBox[{
+                   RowBox[{"(", 
+                    RowBox[{
+                    RowBox[{"x1", "^", "2"}], "+", 
+                    RowBox[{"y1", "^", "2"}], "+", 
+                    RowBox[{"z1", "^", "2"}]}], ")"}], "^", 
+                   RowBox[{"(", 
+                    RowBox[{"1", "/", "2"}], ")"}]}]}]}], ",", 
+                RowBox[{
+                 RowBox[{
+                  RowBox[{"Sin", "[", "\[Theta]", "]"}], "^", "\[Mu]_"}], "->", 
+                 RowBox[{
+                  RowBox[{
+                   RowBox[{"(", 
+                    RowBox[{
+                    RowBox[{"x1", "^", "2"}], "+", 
+                    RowBox[{"y1", "^", "2"}]}], ")"}], "^", 
+                   RowBox[{"(", 
+                    RowBox[{"\[Mu]", "/", "2"}], ")"}]}], "/", 
+                  RowBox[{
+                   RowBox[{"(", 
+                    RowBox[{
+                    RowBox[{"x1", "^", "2"}], "+", 
+                    RowBox[{"y1", "^", "2"}], "+", 
+                    RowBox[{"z1", "^", "2"}]}], ")"}], "^", 
+                   RowBox[{"(", 
+                    RowBox[{"\[Mu]", "/", "2"}], ")"}]}]}]}], ",", 
+                RowBox[{
+                 RowBox[{"Cos", "[", "\[Theta]", "]"}], "->", 
+                 RowBox[{"z1", "/", 
+                  RowBox[{
+                   RowBox[{"(", 
+                    RowBox[{
+                    RowBox[{"x1", "^", "2"}], "+", 
+                    RowBox[{"y1", "^", "2"}], "+", 
+                    RowBox[{"z1", "^", "2"}]}], ")"}], "^", 
+                   RowBox[{"(", 
+                    RowBox[{"1", "/", "2"}], ")"}]}]}]}], ",", 
+                RowBox[{
+                 RowBox[{
+                  RowBox[{"Cos", "[", "\[Theta]", "]"}], "^", "\[Lambda]_"}], 
+                 "->", 
+                 RowBox[{
+                  RowBox[{"z1", "^", "\[Lambda]"}], "/", 
+                  RowBox[{
+                   RowBox[{"(", 
+                    RowBox[{
+                    RowBox[{"x1", "^", "2"}], "+", 
+                    RowBox[{"y1", "^", "2"}], "+", 
+                    RowBox[{"z1", "^", "2"}]}], ")"}], "^", 
+                   RowBox[{"(", 
+                    RowBox[{"\[Lambda]", "/", "2"}], ")"}]}]}]}]}], "}"}]}], 
+             "\[IndentingNewLine]", "]"}]}], "]"}], ",", 
+          RowBox[{"Assumptions", "->", 
+           RowBox[{"{", 
+            RowBox[{
+             RowBox[{"x1", "\[Element]", "Reals"}], ",", 
+             RowBox[{"y1", "\[Element]", "Reals"}], ",", 
+             RowBox[{"z1", "\[Element]", "Reals"}]}], "}"}]}]}], "]"}]}], ";",
+        " ", 
+       RowBox[{"(*", " ", 
+        RowBox[{
+        "Must", " ", "tell", " ", "Mathematica", " ", "these", " ", "are", " ",
+          "real", " ", "to", " ", "avoid", " ", "Complex", " ", "results"}], 
+        " ", "*)"}], "\[IndentingNewLine]", 
+       RowBox[{"TesseralHarmonic", "[", 
+        RowBox[{
+        "l", ",", " ", "m", ",", " ", "x", ",", " ", "y", ",", " ", "z"}], 
+        "]"}]}]}], "\[IndentingNewLine]", "]"}]}], "\[IndentingNewLine]", 
+   "\[IndentingNewLine]", 
+   RowBox[{"(*", " ", 
+    RowBox[{
+     RowBox[{"Returns", " ", "the", " ", "tesseral", " ", "harmonic", " ", 
+      SubscriptBox["Z", 
+       RowBox[{"l", ",", "m"}]], " ", "in", " ", "Cartesian", " ", 
+      "coordinates"}], ",", " ", 
+     RowBox[{
+      RowBox[{"{", 
+       RowBox[{"x", ",", " ", "y", ",", " ", "z"}], "}"}], " ", "where", " ", 
+      "the", " ", "vector", " ", "described", " ", "by", " ", 
+      RowBox[{"{", 
+       RowBox[{"x", ",", " ", "y", ",", " ", "z"}], "}"}], " ", "is", " ", 
+      "a", " ", "unit", " ", 
+      RowBox[{"vector", "."}]}]}], " ", "*)"}], "\[IndentingNewLine]", 
+   RowBox[{
+    RowBox[{"TesseralHarmonicUnitVector", "[", 
+     RowBox[{"l_Integer", ",", "m_Integer", ",", "x_", ",", "y_", ",", "z_"}],
+      "]"}], ":=", "\[IndentingNewLine]", 
+    RowBox[{"FullSimplify", "[", 
+     RowBox[{
+      RowBox[{"TesseralHarmonic", "[", 
+       RowBox[{
+       "l", ",", " ", "m", ",", " ", "x", ",", " ", "y", ",", " ", "z"}], 
+       "]"}], ",", 
+      RowBox[{"Assumptions", "->", 
+       RowBox[{"{", 
+        RowBox[{
+         RowBox[{
+          RowBox[{"x", "^", "2"}], "+", 
+          RowBox[{"y", "^", "2"}], "+", 
+          RowBox[{"z", "^", "2"}]}], "==", "1"}], "}"}]}]}], "]"}]}], 
+   "\[IndentingNewLine]", "\[IndentingNewLine]", 
+   RowBox[{"(*", " ", 
+    RowBox[{
+     RowBox[{
+     "Returns", " ", "the", " ", "gradient", " ", "of", " ", "the", " ", 
+      "tesseral", " ", "harmonic", " ", 
+      SubscriptBox["Z", 
+       RowBox[{"l", ",", "m"}]], " ", "in", " ", "Cartesian", " ", 
+      "coordinates"}], ",", " ", 
+     RowBox[{
+      RowBox[{"{", 
+       RowBox[{"x", ",", " ", "y", ",", " ", "z"}], "}"}], " ", "where", " ", 
+      "the", " ", "vector", " ", "described", " ", "by", " ", 
+      RowBox[{"{", 
+       RowBox[{"x", ",", " ", "y", ",", " ", "z"}], "}"}], " ", "is", " ", 
+      "a", " ", "unit", " ", 
+      RowBox[{"vector", "."}]}]}], " ", "*)"}], "\[IndentingNewLine]", 
+   RowBox[{
+    RowBox[{"DTesseralHarmonicUnitVector", "[", 
+     RowBox[{"l_Integer", ",", "m_Integer", ",", "x_", ",", "y_", ",", "z_"}],
+      "]"}], ":=", "\[IndentingNewLine]", 
+    RowBox[{"FullSimplify", "[", 
+     RowBox[{
+      RowBox[{"Grad", "[", 
+       RowBox[{
+        RowBox[{"TesseralHarmonic", "[", 
+         RowBox[{
+         "l", ",", " ", "m", ",", " ", "x", ",", " ", "y", ",", " ", "z"}], 
+         "]"}], ",", 
+        RowBox[{"{", 
+         RowBox[{"x", ",", "y", ",", "z"}], "}"}], ",", "\"\<Cartesian\>\""}],
+        "]"}], ",", 
+      RowBox[{"Assumptions", "->", 
+       RowBox[{"{", 
+        RowBox[{
+         RowBox[{
+          RowBox[{"x", "^", "2"}], "+", 
+          RowBox[{"y", "^", "2"}], "+", 
+          RowBox[{"z", "^", "2"}]}], "==", "1"}], "}"}]}]}], "]"}]}], 
+   "\[IndentingNewLine]", "\n", 
+   RowBox[{
+    RowBox[{"monicCartesianBasis", "[", 
+     RowBox[{"l_", ",", "m_"}], "]"}], ":=", 
+    RowBox[{"Module", "[", 
+     RowBox[{
+      RowBox[{"{", 
+       RowBox[{"expr", ",", "rules", ",", "lead"}], "}"}], ",", 
+      RowBox[{
+       RowBox[{"expr", "=", 
+        RowBox[{"Expand", "[", 
+         RowBox[{
+          RowBox[{"Sqrt", "[", 
+           RowBox[{"4", " ", 
+            RowBox[{"Pi", "/", 
+             RowBox[{"(", 
+              RowBox[{
+               RowBox[{"2", " ", "l"}], "+", "1"}], ")"}]}]}], "]"}], "*", 
+          RowBox[{"TesseralHarmonicUnitVector", "[", 
+           RowBox[{"l", ",", "m", ",", "x", ",", "y", ",", "z"}], "]"}]}], 
+         "]"}]}], ";", "\[IndentingNewLine]", 
+       RowBox[{"rules", "=", 
+        RowBox[{"CoefficientRules", "[", 
+         RowBox[{"expr", ",", 
+          RowBox[{"{", 
+           RowBox[{"x", ",", "y", ",", "z"}], "}"}]}], "]"}]}], ";", 
+       "\[IndentingNewLine]", 
+       RowBox[{"lead", "=", 
+        RowBox[{"First", "@", 
+         RowBox[{"Select", "[", 
+          RowBox[{"rules", ",", 
+           RowBox[{
+            RowBox[{
+             RowBox[{"Total", "[", 
+              RowBox[{"First", "[", "#", "]"}], "]"}], ">", "0"}], "&"}]}], 
+          "]"}]}]}], ";", "\[IndentingNewLine]", 
+       RowBox[{"Expand", "[", 
+        RowBox[{"expr", "/", 
+         RowBox[{"Last", "[", "lead", "]"}]}], "]"}]}]}], "]"}]}], "\n", "\[IndentingNewLine]", 
+   RowBox[{
+    RowBox[{
+     RowBox[{"name", "[", 
+      RowBox[{"l_", ",", "m_"}], "]"}], ":=", 
+     RowBox[{"\"\<tesseral_monic_cartesian_l\>\"", "<>", 
+      RowBox[{"ToString", "[", "l", "]"}], "<>", "\"\<_\>\"", "<>", 
+      RowBox[{"Which", "[", 
+       RowBox[{
+        RowBox[{"m", "<", "0"}], ",", 
+        RowBox[{"\"\<m\>\"", "<>", 
+         RowBox[{"ToString", "[", 
+          RowBox[{"Abs", "[", "m", "]"}], "]"}]}], ",", 
+        RowBox[{"m", ">", "0"}], ",", 
+        RowBox[{"\"\<p\>\"", "<>", 
+         RowBox[{"ToString", "[", "m", "]"}]}], ",", "True", 
+        ",", "\"\<0\>\""}], "]"}]}]}], ";"}], "\[IndentingNewLine]", "\[IndentingNewLine]", 
+   RowBox[{"For", "[", 
+    RowBox[{
+     RowBox[{
+      RowBox[{"count", "=", "0"}], ";", 
+      RowBox[{"l", "=", "2"}]}], ",", 
+     RowBox[{"l", "<=", "6"}], ",", 
+     RowBox[{"l", "+=", "2"}], ",", 
+     RowBox[{"For", "[", 
+      RowBox[{
+       RowBox[{"m", "=", 
+        RowBox[{"-", "l"}]}], ",", 
+       RowBox[{"m", "<=", "l"}], ",", 
+       RowBox[{"m", "++"}], ",", 
+       RowBox[{
+        RowBox[{"WriteString", "[", 
+         RowBox[{"\"\<stdout\>\"", ",", "\"\<// Z_{\>\"", ",", 
+          RowBox[{"ToString", "[", "l", "]"}], ",", "\"\<,\>\"", ",", 
+          RowBox[{"ToString", "[", "m", "]"}], ",", "\"\<} = \>\"", ",", 
+          RowBox[{"ToString", "[", 
+           RowBox[{
+            RowBox[{"monicCartesianBasis", "[", 
+             RowBox[{"l", ",", "m"}], "]"}], ",", "InputForm"}], "]"}], 
+          ",", "\"\<\\n\>\""}], "]"}], ";", "\[IndentingNewLine]", 
+        RowBox[{"WriteString", "[", 
+         RowBox[{"\"\<stdout\>\"", ",", "\"\<template <typename T>\\n\>\""}], 
+         "]"}], ";", "\[IndentingNewLine]", 
+        RowBox[{"WriteString", "[", 
+         RowBox[{"\"\<stdout\>\"", ",", "\"\<constexpr T \>\"", ",", 
+          RowBox[{"name", "[", 
+           RowBox[{"l", ",", "m"}], "]"}], 
+          ",", "\"\<(T x, T y, T z) {\\n\>\""}], "]"}], ";", 
+        "\[IndentingNewLine]", 
+        RowBox[{"WriteString", "[", 
+         RowBox[{"\"\<stdout\>\"", 
+          ",", "\"\<  static_assert(std::is_floating_point_v<T>, \\\"T must \
+be a floating-point type\\\");\\n\>\""}], "]"}], ";", "\[IndentingNewLine]", 
+        RowBox[{"WriteString", "[", 
+         RowBox[{"\"\<stdout\>\"", ",", "\"\<  return \>\"", ",", 
+          RowBox[{"ToRationalCFormString", "[", 
+           RowBox[{
+            RowBox[{"monicCartesianBasis", "[", 
+             RowBox[{"l", ",", "m"}], "]"}], ",", "\"\<T\>\""}], "]"}], 
+          ",", "\"\<;\\n\>\""}], "]"}], ";", "\[IndentingNewLine]", 
+        RowBox[{"WriteString", "[", 
+         RowBox[{"\"\<stdout\>\"", ",", "\"\<}\\n\\n\>\""}], "]"}], ";", 
+        "\[IndentingNewLine]", 
+        RowBox[{"count", "++"}], ";"}]}], "]"}]}], "]"}], 
+   "\[IndentingNewLine]", "\[IndentingNewLine]", 
+   RowBox[{
+    RowBox[{
+     RowBox[{"gradName", "[", 
+      RowBox[{"l_", ",", "m_"}], "]"}], ":=", 
+     RowBox[{
+      RowBox[{"name", "[", 
+       RowBox[{"l", ",", "m"}], "]"}], "<>", "\"\<_grad\>\""}]}], ";"}], 
+   "\[IndentingNewLine]", "\n", 
+   RowBox[{
+    RowBox[{"monicCartesianBasisGrad", "[", 
+     RowBox[{"l_", ",", "m_"}], "]"}], ":=", 
+    RowBox[{"Module", "[", 
+     RowBox[{
+      RowBox[{"{", "q", "}"}], ",", 
+      RowBox[{
+       RowBox[{"q", "=", 
+        RowBox[{"monicCartesianBasis", "[", 
+         RowBox[{"l", ",", "m"}], "]"}]}], ";", "\[IndentingNewLine]", 
+       RowBox[{"Expand", "/@", 
+        RowBox[{"{", 
+         RowBox[{
+          RowBox[{"D", "[", 
+           RowBox[{"q", ",", "x"}], "]"}], ",", 
+          RowBox[{"D", "[", 
+           RowBox[{"q", ",", "y"}], "]"}], ",", 
+          RowBox[{"D", "[", 
+           RowBox[{"q", ",", "z"}], "]"}]}], "}"}]}]}]}], "]"}]}], 
+   "\[IndentingNewLine]", "\[IndentingNewLine]", 
+   RowBox[{"For", "[", 
+    RowBox[{
+     RowBox[{
+      RowBox[{"count", "=", "0"}], ";", 
+      RowBox[{"l", "=", "2"}]}], ",", 
+     RowBox[{"l", "<=", "6"}], ",", 
+     RowBox[{"l", "+=", "2"}], ",", 
+     RowBox[{"For", "[", 
+      RowBox[{
+       RowBox[{"m", "=", 
+        RowBox[{"-", "l"}]}], ",", 
+       RowBox[{"m", "<=", "l"}], ",", 
+       RowBox[{"m", "++"}], ",", "\[IndentingNewLine]", 
+       RowBox[{
+        RowBox[{"WriteString", "[", 
+         RowBox[{"\"\<stdout\>\"", ",", "\"\<// grad Z_{\>\"", ",", 
+          RowBox[{"ToString", "[", "l", "]"}], ",", "\"\<,\>\"", ",", 
+          RowBox[{"ToString", "[", "m", "]"}], ",", "\"\<} = \>\"", ",", 
+          RowBox[{"ToString", "[", 
+           RowBox[{
+            RowBox[{"monicCartesianBasisGrad", "[", 
+             RowBox[{"l", ",", "m"}], "]"}], ",", "InputForm"}], "]"}], 
+          ",", "\"\<\\n\>\""}], "]"}], ";", "\[IndentingNewLine]", 
+        RowBox[{"WriteString", "[", 
+         RowBox[{"\"\<stdout\>\"", ",", "\"\<template <typename T>\\n\>\""}], 
+         "]"}], ";", "\[IndentingNewLine]", 
+        RowBox[{"WriteString", "[", 
+         RowBox[{"\"\<stdout\>\"", ",", "\"\<constexpr std::array<T, 3> \>\"",
+           ",", 
+          RowBox[{"gradName", "[", 
+           RowBox[{"l", ",", "m"}], "]"}], 
+          ",", "\"\<(T x, T y, T z) {\\n\>\""}], "]"}], ";", 
+        "\[IndentingNewLine]", 
+        RowBox[{"WriteString", "[", 
+         RowBox[{"\"\<stdout\>\"", 
+          ",", "\"\<  static_assert(std::is_floating_point_v<T>, \\\"T must \
+be a floating-point type\\\");\\n\>\""}], "]"}], ";", "\[IndentingNewLine]", 
+        RowBox[{"WriteString", "[", 
+         RowBox[{"\"\<stdout\>\"", 
+          ",", "\"\<  return std::array<T, 3>{\\n\>\"", ",", 
+          "\[IndentingNewLine]", "\"\<    \>\"", ",", 
+          RowBox[{"ToRationalCFormString", "[", 
+           RowBox[{
+            RowBox[{
+             RowBox[{"monicCartesianBasisGrad", "[", 
+              RowBox[{"l", ",", "m"}], "]"}], "[", 
+             RowBox[{"[", "1", "]"}], "]"}], ",", "\"\<T\>\""}], "]"}], 
+          ",", "\"\<,\\n\>\"", ",", "\[IndentingNewLine]", "\"\<    \>\"", ",", 
+          RowBox[{"ToRationalCFormString", "[", 
+           RowBox[{
+            RowBox[{
+             RowBox[{"monicCartesianBasisGrad", "[", 
+              RowBox[{"l", ",", "m"}], "]"}], "[", 
+             RowBox[{"[", "2", "]"}], "]"}], ",", "\"\<T\>\""}], "]"}], 
+          ",", "\"\<,\\n\>\"", ",", "\[IndentingNewLine]", "\"\<    \>\"", ",", 
+          RowBox[{"ToRationalCFormString", "[", 
+           RowBox[{
+            RowBox[{
+             RowBox[{"monicCartesianBasisGrad", "[", 
+              RowBox[{"l", ",", "m"}], "]"}], "[", 
+             RowBox[{"[", "3", "]"}], "]"}], ",", "\"\<T\>\""}], "]"}], 
+          ",", "\"\<\\n\>\"", ",", "\[IndentingNewLine]", "\"\<  };\\n\>\""}],
+          "]"}], ";", "\[IndentingNewLine]", 
+        RowBox[{"WriteString", "[", 
+         RowBox[{"\"\<stdout\>\"", ",", "\"\<}\\n\\n\>\""}], "]"}], ";", 
+        "\[IndentingNewLine]", 
+        RowBox[{"count", "++"}], ";"}]}], "]"}]}], "]"}], 
+   "\[IndentingNewLine]"}]}]], "Input",
+ CellChangeTimes->{{3.928417945987839*^9, 3.928417975841633*^9}, {
+   3.928418045895054*^9, 3.928418477630796*^9}, {3.928418519018028*^9, 
+   3.928418545371943*^9}, {3.928418582731306*^9, 3.928418645610972*^9}, {
+   3.9284186997375803`*^9, 3.928418975263482*^9}, {3.9284190550852633`*^9, 
+   3.9284191753500834`*^9}, {3.928419252389925*^9, 3.928419358434723*^9}, {
+   3.928419401985634*^9, 3.928419414082582*^9}, {3.928481555588389*^9, 
+   3.9284816136035757`*^9}, {3.928481668559523*^9, 3.928481668604607*^9}, {
+   3.928481867781227*^9, 3.928481898728945*^9}, {3.928481967925341*^9, 
+   3.92848217553094*^9}, {3.928482363538886*^9, 3.92848239990679*^9}, {
+   3.928482836168746*^9, 3.928482848788312*^9}, {3.928482885525977*^9, 
+   3.928483156084566*^9}, {3.928483240831574*^9, 3.9284833624396257`*^9}, {
+   3.928483536919466*^9, 3.92848353701694*^9}, {3.928483611347385*^9, 
+   3.928483611411804*^9}, {3.9284836866915293`*^9, 3.928483688270112*^9}, {
+   3.928483785250798*^9, 3.9284837853234386`*^9}, {3.928483947399661*^9, 
+   3.92848394751088*^9}, {3.928484332082508*^9, 3.928484332162674*^9}, {
+   3.928484496625029*^9, 3.928484496773391*^9}, {3.928484634134342*^9, 
+   3.928484635727955*^9}, {3.928484848565608*^9, 3.928484848659498*^9}, {
+   3.928484999852021*^9, 3.928484999988886*^9}, {3.928485183625387*^9, 
+   3.928485183693466*^9}, {3.928485367689653*^9, 3.92848537120545*^9}, {
+   3.9284857550406322`*^9, 3.928485755622526*^9}, {3.9284858845794973`*^9, 
+   3.9284858857211113`*^9}, {3.928485987113632*^9, 3.928485987199321*^9}, {
+   3.928486112884184*^9, 3.928486113023244*^9}, {3.9284862633277473`*^9, 
+   3.928486263461416*^9}, {3.928486518836772*^9, 3.9284865258933372`*^9}, {
+   3.928486732440916*^9, 3.928486732503983*^9}, {3.928486927719694*^9, 
+   3.92848692849397*^9}, 3.928487177311965*^9, {3.928487284500827*^9, 
+   3.928487285444586*^9}, {3.92848746885863*^9, 3.928487641210322*^9}, {
+   3.928487696666851*^9, 3.92848771376812*^9}, {3.9284878923796883`*^9, 
+   3.928487993534378*^9}, {3.92848803981217*^9, 3.928488140635874*^9}, {
+   3.928488625510687*^9, 3.928488651159014*^9}, {3.928488739076818*^9, 
+   3.928488833486721*^9}, {3.928488952879986*^9, 3.928488987557806*^9}, {
+   3.928489068384659*^9, 3.928489225318329*^9}, {3.928489277072822*^9, 
+   3.928489329698491*^9}, {3.9284893640027*^9, 3.928489421616424*^9}, {
+   3.9284894578542557`*^9, 3.928489743385508*^9}, {3.928489773797492*^9, 
+   3.928489845202482*^9}, {3.928489879207059*^9, 3.928489931794491*^9}, {
+   3.928489962661076*^9, 3.928490024509976*^9}, {3.928490147243663*^9, 
+   3.92849018457996*^9}, {3.928490216389386*^9, 3.928490216606091*^9}, {
+   3.9284905135458593`*^9, 3.928490572869494*^9}, {3.928490744805297*^9, 
+   3.928490777921615*^9}, {3.928550472471162*^9, 3.928550481309124*^9}, {
+   3.928550736265871*^9, 3.928550776320882*^9}, {3.928572030564837*^9, 
+   3.928572035804788*^9}, {3.928572419790909*^9, 3.928572515193926*^9}, {
+   3.9285725683856*^9, 3.9285726312520447`*^9}, {3.92857266922994*^9, 
+   3.92857266979884*^9}, {3.9285728150570297`*^9, 3.928572874989634*^9}, {
+   3.928572983526702*^9, 3.928573052360368*^9}, {3.928574183546513*^9, 
+   3.928574214171873*^9}, {3.928574661960696*^9, 3.928574722312583*^9}, {
+   3.928574764379581*^9, 3.928574888164913*^9}, {3.92857494104332*^9, 
+   3.9285751020395813`*^9}, {3.928575133519446*^9, 3.928575149136391*^9}, {
+   3.9285751935222397`*^9, 3.928575201121382*^9}, {3.92857524369136*^9, 
+   3.92857526837361*^9}, {3.930647564447574*^9, 3.930647582507113*^9}, {
+   3.930647614553081*^9, 3.930647615053533*^9}, {3.930647824467781*^9, 
+   3.9306478550440083`*^9}, {3.930647901305592*^9, 3.930647902014186*^9}, {
+   3.930647947534585*^9, 3.930647973388612*^9}, {3.930648315612398*^9, 
+   3.930648321317582*^9}, {3.930648353865658*^9, 3.930648411614725*^9}, {
+   3.930648456005367*^9, 3.930648461170745*^9}, {3.930648782469258*^9, 
+   3.930648861117687*^9}, {3.930649424621987*^9, 3.930649434421533*^9}, {
+   3.930649762810357*^9, 3.930649772789239*^9}, {3.930711935562482*^9, 
+   3.930711960526147*^9}, {3.9307121640575037`*^9, 3.930712301749958*^9}, {
+   3.930712923243941*^9, 3.930712964882428*^9}, {3.930713569634471*^9, 
+   3.930713595945451*^9}, {3.930713663780051*^9, 3.930713667637631*^9}, {
+   3.930713735554837*^9, 3.930713736205885*^9}, {3.930713793696225*^9, 
+   3.930713794184331*^9}, {3.930713826899054*^9, 3.930713864292693*^9}, {
+   3.930714716900084*^9, 3.930714734470753*^9}, {3.930725403634508*^9, 
+   3.930725554240003*^9}, {3.931855837307577*^9, 3.931855958552607*^9}, {
+   3.93185599027604*^9, 3.931856109325011*^9}, {3.931856154142262*^9, 
+   3.931856158884606*^9}, {3.931856292313616*^9, 3.931856373945438*^9}, {
+   3.931856413895879*^9, 3.931856566584676*^9}, {3.9318610256384974`*^9, 
+   3.931861027793801*^9}, {3.9318612556852703`*^9, 3.931861272889739*^9}, {
+   3.931921772130616*^9, 3.931921841403416*^9}, {3.931921937759101*^9, 
+   3.9319219545020647`*^9}, {3.9319221291609364`*^9, 3.931922133268539*^9}, {
+   3.932709964078642*^9, 3.932709994259172*^9}, {3.932710084182631*^9, 
+   3.932710103276043*^9}, {3.932710186144071*^9, 3.932710187732692*^9}, {
+   3.9327102731748667`*^9, 3.93271027437816*^9}, {3.932710315452128*^9, 
+   3.932710351645072*^9}, 3.9870839257723913`*^9, 3.98708402538021*^9, {
+   3.987085750008403*^9, 3.987085777112488*^9}, {3.987085964656499*^9, 
+   3.987086059608601*^9}, {3.987086180929018*^9, 3.987086199965663*^9}, {
+   3.9870866350791597`*^9, 3.987086693008255*^9}, {3.987086816271669*^9, 
+   3.98708683887339*^9}, {3.987086885288044*^9, 3.987086885728801*^9}, {
+   3.987086946747754*^9, 3.987086973625894*^9}, {3.987087029209119*^9, 
+   3.987087029936817*^9}},
+ CellLabel->"In[78]:=",ExpressionUUID->"88868abf-989c-41f1-8d04-160a16d0ed66"],
+
+Cell["\<\
+// Z_{2,-2} = x*y
+template <typename T>
+constexpr T tesseral_monic_cartesian_l2_m2(T x, T y, T z) {
+  static_assert(std::is_floating_point_v<T>, \"T must be a floating-point \
+type\");
+  return x*y;
+}
+
+// Z_{2,-1} = y*z
+template <typename T>
+constexpr T tesseral_monic_cartesian_l2_m1(T x, T y, T z) {
+  static_assert(std::is_floating_point_v<T>, \"T must be a floating-point \
+type\");
+  return y*z;
+}
+
+// Z_{2,0} = -1/3 + z^2
+template <typename T>
+constexpr T tesseral_monic_cartesian_l2_0(T x, T y, T z) {
+  static_assert(std::is_floating_point_v<T>, \"T must be a floating-point \
+type\");
+  return rational<T>(-1, 3) + z*z;
+}
+
+// Z_{2,1} = x*z
+template <typename T>
+constexpr T tesseral_monic_cartesian_l2_p1(T x, T y, T z) {
+  static_assert(std::is_floating_point_v<T>, \"T must be a floating-point \
+type\");
+  return x*z;
+}
+
+// Z_{2,2} = x^2 - y^2
+template <typename T>
+constexpr T tesseral_monic_cartesian_l2_p2(T x, T y, T z) {
+  static_assert(std::is_floating_point_v<T>, \"T must be a floating-point \
+type\");
+  return x*x + T{-1}*y*y;
+}
+
+// Z_{4,-4} = -1/2*(x*y) + x*y^3 + (x*y*z^2)/2
+template <typename T>
+constexpr T tesseral_monic_cartesian_l4_m4(T x, T y, T z) {
+  static_assert(std::is_floating_point_v<T>, \"T must be a floating-point \
+type\");
+  return rational<T>(-1, 2)*x*y + x*y*y*y + rational<T>(1, 2)*x*y*z*z;
+}
+
+// Z_{4,-3} = x^2*y*z - (y^3*z)/3
+template <typename T>
+constexpr T tesseral_monic_cartesian_l4_m3(T x, T y, T z) {
+  static_assert(std::is_floating_point_v<T>, \"T must be a floating-point \
+type\");
+  return x*x*y*z + rational<T>(-1, 3)*y*y*y*z;
+}
+
+// Z_{4,-2} = -1/7*(x*y) + x*y*z^2
+template <typename T>
+constexpr T tesseral_monic_cartesian_l4_m2(T x, T y, T z) {
+  static_assert(std::is_floating_point_v<T>, \"T must be a floating-point \
+type\");
+  return rational<T>(-1, 7)*x*y + x*y*z*z;
+}
+
+// Z_{4,-1} = (-3*y*z)/7 + y*z^3
+template <typename T>
+constexpr T tesseral_monic_cartesian_l4_m1(T x, T y, T z) {
+  static_assert(std::is_floating_point_v<T>, \"T must be a floating-point \
+type\");
+  return rational<T>(-3, 7)*y*z + y*z*z*z;
+}
+
+// Z_{4,0} = 3/35 - (6*z^2)/7 + z^4
+template <typename T>
+constexpr T tesseral_monic_cartesian_l4_0(T x, T y, T z) {
+  static_assert(std::is_floating_point_v<T>, \"T must be a floating-point \
+type\");
+  return rational<T>(3, 35) + rational<T>(-6, 7)*z*z + z*z*z*z;
+}
+
+// Z_{4,1} = (-3*x*z)/7 + x*z^3
+template <typename T>
+constexpr T tesseral_monic_cartesian_l4_p1(T x, T y, T z) {
+  static_assert(std::is_floating_point_v<T>, \"T must be a floating-point \
+type\");
+  return rational<T>(-3, 7)*x*z + x*z*z*z;
+}
+
+// Z_{4,2} = 1/14 - y^2/7 - (4*z^2)/7 + y^2*z^2 + z^4/2
+template <typename T>
+constexpr T tesseral_monic_cartesian_l4_p2(T x, T y, T z) {
+  static_assert(std::is_floating_point_v<T>, \"T must be a floating-point \
+type\");
+  return rational<T>(1, 14) + rational<T>(-1, 7)*y*y + rational<T>(-4, 7)*z*z \
++ y*y*z*z + rational<T>(1, 2)*z*z*z*z;
+}
+
+// Z_{4,3} = -1/4*(x*z) + x*y^2*z + (x*z^3)/4
+template <typename T>
+constexpr T tesseral_monic_cartesian_l4_p3(T x, T y, T z) {
+  static_assert(std::is_floating_point_v<T>, \"T must be a floating-point \
+type\");
+  return rational<T>(-1, 4)*x*z + x*y*y*z + rational<T>(1, 4)*x*z*z*z;
+}
+
+// Z_{4,4} = x^4 - 6*x^2*y^2 + y^4
+template <typename T>
+constexpr T tesseral_monic_cartesian_l4_p4(T x, T y, T z) {
+  static_assert(std::is_floating_point_v<T>, \"T must be a floating-point \
+type\");
+  return x*x*x*x + T{-6}*x*x*y*y + y*y*y*y;
+}
+
+// Z_{6,-6} = x^5*y - (10*x^3*y^3)/3 + x*y^5
+template <typename T>
+constexpr T tesseral_monic_cartesian_l6_m6(T x, T y, T z) {
+  static_assert(std::is_floating_point_v<T>, \"T must be a floating-point \
+type\");
+  return x*x*x*x*x*y + rational<T>(-10, 3)*x*x*x*y*y*y + x*y*y*y*y*y;
+}
+
+// Z_{6,-5} = x^4*y*z - 2*x^2*y^3*z + (y^5*z)/5
+template <typename T>
+constexpr T tesseral_monic_cartesian_l6_m5(T x, T y, T z) {
+  static_assert(std::is_floating_point_v<T>, \"T must be a floating-point \
+type\");
+  return x*x*x*x*y*z + T{-2}*x*x*y*y*y*z + rational<T>(1, 5)*y*y*y*y*y*z;
+}
+
+// Z_{6,-4} = (x*y)/22 - (x*y^3)/11 - (6*x*y*z^2)/11 + x*y^3*z^2 + \
+(x*y*z^4)/2
+template <typename T>
+constexpr T tesseral_monic_cartesian_l6_m4(T x, T y, T z) {
+  static_assert(std::is_floating_point_v<T>, \"T must be a floating-point \
+type\");
+  return rational<T>(1, 22)*x*y + rational<T>(-1, 11)*x*y*y*y + \
+rational<T>(-6, 11)*x*y*z*z + x*y*y*y*z*z + rational<T>(1, 2)*x*y*z*z*z*z;
+}
+
+// Z_{6,-3} = (9*y*z)/44 - (3*y^3*z)/11 - (21*y*z^3)/22 + y^3*z^3 + (3*y*z^5)/4
+template <typename T>
+constexpr T tesseral_monic_cartesian_l6_m3(T x, T y, T z) {
+  static_assert(std::is_floating_point_v<T>, \"T must be a floating-point \
+type\");
+  return rational<T>(9, 44)*y*z + rational<T>(-3, 11)*y*y*y*z + \
+rational<T>(-21, 22)*y*z*z*z + y*y*y*z*z*z + rational<T>(3, 4)*y*z*z*z*z*z;
+}
+
+// Z_{6,-2} = (x*y)/33 - (6*x*y*z^2)/11 + x*y*z^4
+template <typename T>
+constexpr T tesseral_monic_cartesian_l6_m2(T x, T y, T z) {
+  static_assert(std::is_floating_point_v<T>, \"T must be a floating-point \
+type\");
+  return rational<T>(1, 33)*x*y + rational<T>(-6, 11)*x*y*z*z + x*y*z*z*z*z;
+}
+
+// Z_{6,-1} = (5*y*z)/33 - (10*y*z^3)/11 + y*z^5
+template <typename T>
+constexpr T tesseral_monic_cartesian_l6_m1(T x, T y, T z) {
+  static_assert(std::is_floating_point_v<T>, \"T must be a floating-point \
+type\");
+  return rational<T>(5, 33)*y*z + rational<T>(-10, 11)*y*z*z*z + y*z*z*z*z*z;
+}
+
+// Z_{6,0} = -5/231 + (5*z^2)/11 - (15*z^4)/11 + z^6
+template <typename T>
+constexpr T tesseral_monic_cartesian_l6_0(T x, T y, T z) {
+  static_assert(std::is_floating_point_v<T>, \"T must be a floating-point \
+type\");
+  return rational<T>(-5, 231) + rational<T>(5, 11)*z*z + rational<T>(-15, \
+11)*z*z*z*z + z*z*z*z*z*z;
+}
+
+// Z_{6,1} = (5*x*z)/33 - (10*x*z^3)/11 + x*z^5
+template <typename T>
+constexpr T tesseral_monic_cartesian_l6_p1(T x, T y, T z) {
+  static_assert(std::is_floating_point_v<T>, \"T must be a floating-point \
+type\");
+  return rational<T>(5, 33)*x*z + rational<T>(-10, 11)*x*z*z*z + x*z*z*z*z*z;
+}
+
+// Z_{6,2} = -1/66 + y^2/33 + (19*z^2)/66 - (6*y^2*z^2)/11 - (17*z^4)/22 + \
+y^2*z^4 + z^6/2
+template <typename T>
+constexpr T tesseral_monic_cartesian_l6_p2(T x, T y, T z) {
+  static_assert(std::is_floating_point_v<T>, \"T must be a floating-point \
+type\");
+  return rational<T>(-1, 66) + rational<T>(1, 33)*y*y + rational<T>(19, \
+66)*z*z + rational<T>(-6, 11)*y*y*z*z + rational<T>(-17, 22)*z*z*z*z + \
+y*y*z*z*z*z + rational<T>(1, 2)*z*z*z*z*z*z;
+}
+
+// Z_{6,3} = (3*x*z)/44 - (3*x*y^2*z)/11 - (7*x*z^3)/22 + x*y^2*z^3 + (x*z^5)/4
+template <typename T>
+constexpr T tesseral_monic_cartesian_l6_p3(T x, T y, T z) {
+  static_assert(std::is_floating_point_v<T>, \"T must be a floating-point \
+type\");
+  return rational<T>(3, 44)*x*z + rational<T>(-3, 11)*x*y*y*z + \
+rational<T>(-7, 22)*x*z*z*z + x*y*y*z*z*z + rational<T>(1, 4)*x*z*z*z*z*z;
+}
+
+// Z_{6,4} = -1/11*x^4 + (6*x^2*y^2)/11 - y^4/11 + x^4*z^2 - 6*x^2*y^2*z^2 + \
+y^4*z^2
+template <typename T>
+constexpr T tesseral_monic_cartesian_l6_p4(T x, T y, T z) {
+  static_assert(std::is_floating_point_v<T>, \"T must be a floating-point \
+type\");
+  return rational<T>(-1, 11)*x*x*x*x + rational<T>(6, 11)*x*x*y*y + \
+rational<T>(-1, 11)*y*y*y*y + x*x*x*x*z*z + T{-6}*x*x*y*y*z*z + y*y*y*y*z*z;
+}
+
+// Z_{6,5} = x^5*z - 10*x^3*y^2*z + 5*x*y^4*z
+template <typename T>
+constexpr T tesseral_monic_cartesian_l6_p5(T x, T y, T z) {
+  static_assert(std::is_floating_point_v<T>, \"T must be a floating-point \
+type\");
+  return x*x*x*x*x*z + T{-10}*x*x*x*y*y*z + T{5}*x*y*y*y*y*z;
+}
+
+// Z_{6,6} = x^6 - 15*x^4*y^2 + 15*x^2*y^4 - y^6
+template <typename T>
+constexpr T tesseral_monic_cartesian_l6_p6(T x, T y, T z) {
+  static_assert(std::is_floating_point_v<T>, \"T must be a floating-point \
+type\");
+  return x*x*x*x*x*x + T{-15}*x*x*x*x*y*y + T{15}*x*x*y*y*y*y + \
+T{-1}*y*y*y*y*y*y;
+}
+
+// grad Z_{2,-2} = {y, x, 0}
+template <typename T>
+constexpr std::array<T, 3> tesseral_monic_cartesian_l2_m2_grad(T x, T y, T z) {
+  static_assert(std::is_floating_point_v<T>, \"T must be a floating-point \
+type\");
+  return std::array<T, 3>{
+    y,
+    x,
+    T{0}
+  };
+}
+
+// grad Z_{2,-1} = {0, z, y}
+template <typename T>
+constexpr std::array<T, 3> tesseral_monic_cartesian_l2_m1_grad(T x, T y, T z) {
+  static_assert(std::is_floating_point_v<T>, \"T must be a floating-point \
+type\");
+  return std::array<T, 3>{
+    T{0},
+    z,
+    y
+  };
+}
+
+// grad Z_{2,0} = {0, 0, 2*z}
+template <typename T>
+constexpr std::array<T, 3> tesseral_monic_cartesian_l2_0_grad(T x, T y, T z) \
+{
+  static_assert(std::is_floating_point_v<T>, \"T must be a floating-point \
+type\");
+  return std::array<T, 3>{
+    T{0},
+    T{0},
+    T{2}*z
+  };
+}
+
+// grad Z_{2,1} = {z, 0, x}
+template <typename T>
+constexpr std::array<T, 3> tesseral_monic_cartesian_l2_p1_grad(T x, T y, T z) {
+  static_assert(std::is_floating_point_v<T>, \"T must be a floating-point \
+type\");
+  return std::array<T, 3>{
+    z,
+    T{0},
+    x
+  };
+}
+
+// grad Z_{2,2} = {2*x, -2*y, 0}
+template <typename T>
+constexpr std::array<T, 3> tesseral_monic_cartesian_l2_p2_grad(T x, T y, T z) {
+  static_assert(std::is_floating_point_v<T>, \"T must be a floating-point \
+type\");
+  return std::array<T, 3>{
+    T{2}*x,
+    T{-2}*y,
+    T{0}
+  };
+}
+
+// grad Z_{4,-4} = {-1/2*y + y^3 + (y*z^2)/2, -1/2*x + 3*x*y^2 + (x*z^2)/2, \
+x*y*z}
+template <typename T>
+constexpr std::array<T, 3> tesseral_monic_cartesian_l4_m4_grad(T x, T y, T z) {
+  static_assert(std::is_floating_point_v<T>, \"T must be a floating-point \
+type\");
+  return std::array<T, 3>{
+    rational<T>(-1, 2)*y + y*y*y + rational<T>(1, 2)*y*z*z,
+    rational<T>(-1, 2)*x + T{3}*x*y*y + rational<T>(1, 2)*x*z*z,
+    x*y*z
+  };
+}
+
+// grad Z_{4,-3} = {2*x*y*z, x^2*z - y^2*z, x^2*y - y^3/3}
+template <typename T>
+constexpr std::array<T, 3> tesseral_monic_cartesian_l4_m3_grad(T x, T y, T z) {
+  static_assert(std::is_floating_point_v<T>, \"T must be a floating-point \
+type\");
+  return std::array<T, 3>{
+    T{2}*x*y*z,
+    x*x*z + T{-1}*y*y*z,
+    x*x*y + rational<T>(-1, 3)*y*y*y
+  };
+}
+
+// grad Z_{4,-2} = {-1/7*y + y*z^2, -1/7*x + x*z^2, 2*x*y*z}
+template <typename T>
+constexpr std::array<T, 3> tesseral_monic_cartesian_l4_m2_grad(T x, T y, T z) {
+  static_assert(std::is_floating_point_v<T>, \"T must be a floating-point \
+type\");
+  return std::array<T, 3>{
+    rational<T>(-1, 7)*y + y*z*z,
+    rational<T>(-1, 7)*x + x*z*z,
+    T{2}*x*y*z
+  };
+}
+
+// grad Z_{4,-1} = {0, (-3*z)/7 + z^3, (-3*y)/7 + 3*y*z^2}
+template <typename T>
+constexpr std::array<T, 3> tesseral_monic_cartesian_l4_m1_grad(T x, T y, T z) {
+  static_assert(std::is_floating_point_v<T>, \"T must be a floating-point \
+type\");
+  return std::array<T, 3>{
+    T{0},
+    rational<T>(-3, 7)*z + z*z*z,
+    rational<T>(-3, 7)*y + T{3}*y*z*z
+  };
+}
+
+// grad Z_{4,0} = {0, 0, (-12*z)/7 + 4*z^3}
+template <typename T>
+constexpr std::array<T, 3> tesseral_monic_cartesian_l4_0_grad(T x, T y, T z) \
+{
+  static_assert(std::is_floating_point_v<T>, \"T must be a floating-point \
+type\");
+  return std::array<T, 3>{
+    T{0},
+    T{0},
+    rational<T>(-12, 7)*z + T{4}*z*z*z
+  };
+}
+
+// grad Z_{4,1} = {(-3*z)/7 + z^3, 0, (-3*x)/7 + 3*x*z^2}
+template <typename T>
+constexpr std::array<T, 3> tesseral_monic_cartesian_l4_p1_grad(T x, T y, T z) {
+  static_assert(std::is_floating_point_v<T>, \"T must be a floating-point \
+type\");
+  return std::array<T, 3>{
+    rational<T>(-3, 7)*z + z*z*z,
+    T{0},
+    rational<T>(-3, 7)*x + T{3}*x*z*z
+  };
+}
+
+// grad Z_{4,2} = {0, (-2*y)/7 + 2*y*z^2, (-8*z)/7 + 2*y^2*z + 2*z^3}
+template <typename T>
+constexpr std::array<T, 3> tesseral_monic_cartesian_l4_p2_grad(T x, T y, T z) {
+  static_assert(std::is_floating_point_v<T>, \"T must be a floating-point \
+type\");
+  return std::array<T, 3>{
+    T{0},
+    rational<T>(-2, 7)*y + T{2}*y*z*z,
+    rational<T>(-8, 7)*z + T{2}*y*y*z + T{2}*z*z*z
+  };
+}
+
+// grad Z_{4,3} = {-1/4*z + y^2*z + z^3/4, 2*x*y*z, -1/4*x + x*y^2 + \
+(3*x*z^2)/4}
+template <typename T>
+constexpr std::array<T, 3> tesseral_monic_cartesian_l4_p3_grad(T x, T y, T z) {
+  static_assert(std::is_floating_point_v<T>, \"T must be a floating-point \
+type\");
+  return std::array<T, 3>{
+    rational<T>(-1, 4)*z + y*y*z + rational<T>(1, 4)*z*z*z,
+    T{2}*x*y*z,
+    rational<T>(-1, 4)*x + x*y*y + rational<T>(3, 4)*x*z*z
+  };
+}
+
+// grad Z_{4,4} = {4*x^3 - 12*x*y^2, -12*x^2*y + 4*y^3, 0}
+template <typename T>
+constexpr std::array<T, 3> tesseral_monic_cartesian_l4_p4_grad(T x, T y, T z) {
+  static_assert(std::is_floating_point_v<T>, \"T must be a floating-point \
+type\");
+  return std::array<T, 3>{
+    T{4}*x*x*x + T{-12}*x*y*y,
+    T{-12}*x*x*y + T{4}*y*y*y,
+    T{0}
+  };
+}
+
+// grad Z_{6,-6} = {5*x^4*y - 10*x^2*y^3 + y^5, x^5 - 10*x^3*y^2 + 5*x*y^4, \
+0}
+template <typename T>
+constexpr std::array<T, 3> tesseral_monic_cartesian_l6_m6_grad(T x, T y, T z) {
+  static_assert(std::is_floating_point_v<T>, \"T must be a floating-point \
+type\");
+  return std::array<T, 3>{
+    T{5}*x*x*x*x*y + T{-10}*x*x*y*y*y + y*y*y*y*y,
+    x*x*x*x*x + T{-10}*x*x*x*y*y + T{5}*x*y*y*y*y,
+    T{0}
+  };
+}
+
+// grad Z_{6,-5} = {4*x^3*y*z - 4*x*y^3*z, x^4*z - 6*x^2*y^2*z + y^4*z, x^4*y \
+- 2*x^2*y^3 + y^5/5}
+template <typename T>
+constexpr std::array<T, 3> tesseral_monic_cartesian_l6_m5_grad(T x, T y, T z) {
+  static_assert(std::is_floating_point_v<T>, \"T must be a floating-point \
+type\");
+  return std::array<T, 3>{
+    T{4}*x*x*x*y*z + T{-4}*x*y*y*y*z,
+    x*x*x*x*z + T{-6}*x*x*y*y*z + y*y*y*y*z,
+    x*x*x*x*y + T{-2}*x*x*y*y*y + rational<T>(1, 5)*y*y*y*y*y
+  };
+}
+
+// grad Z_{6,-4} = {y/22 - y^3/11 - (6*y*z^2)/11 + y^3*z^2 + (y*z^4)/2, x/22 \
+- (3*x*y^2)/11 - (6*x*z^2)/11 + 3*x*y^2*z^2 + (x*z^4)/2, (-12*x*y*z)/11 + \
+2*x*y^3*z + 2*x*y*z^3}
+template <typename T>
+constexpr std::array<T, 3> tesseral_monic_cartesian_l6_m4_grad(T x, T y, T z) {
+  static_assert(std::is_floating_point_v<T>, \"T must be a floating-point \
+type\");
+  return std::array<T, 3>{
+    rational<T>(1, 22)*y + rational<T>(-1, 11)*y*y*y + rational<T>(-6, \
+11)*y*z*z + y*y*y*z*z + rational<T>(1, 2)*y*z*z*z*z,
+    rational<T>(1, 22)*x + rational<T>(-3, 11)*x*y*y + rational<T>(-6, \
+11)*x*z*z + T{3}*x*y*y*z*z + rational<T>(1, 2)*x*z*z*z*z,
+    rational<T>(-12, 11)*x*y*z + T{2}*x*y*y*y*z + T{2}*x*y*z*z*z
+  };
+}
+
+// grad Z_{6,-3} = {0, (9*z)/44 - (9*y^2*z)/11 - (21*z^3)/22 + 3*y^2*z^3 + \
+(3*z^5)/4, (9*y)/44 - (3*y^3)/11 - (63*y*z^2)/22 + 3*y^3*z^2 + (15*y*z^4)/4}
+template <typename T>
+constexpr std::array<T, 3> tesseral_monic_cartesian_l6_m3_grad(T x, T y, T z) {
+  static_assert(std::is_floating_point_v<T>, \"T must be a floating-point \
+type\");
+  return std::array<T, 3>{
+    T{0},
+    rational<T>(9, 44)*z + rational<T>(-9, 11)*y*y*z + rational<T>(-21, \
+22)*z*z*z + T{3}*y*y*z*z*z + rational<T>(3, 4)*z*z*z*z*z,
+    rational<T>(9, 44)*y + rational<T>(-3, 11)*y*y*y + rational<T>(-63, \
+22)*y*z*z + T{3}*y*y*y*z*z + rational<T>(15, 4)*y*z*z*z*z
+  };
+}
+
+// grad Z_{6,-2} = {y/33 - (6*y*z^2)/11 + y*z^4, x/33 - (6*x*z^2)/11 + x*z^4, \
+(-12*x*y*z)/11 + 4*x*y*z^3}
+template <typename T>
+constexpr std::array<T, 3> tesseral_monic_cartesian_l6_m2_grad(T x, T y, T z) {
+  static_assert(std::is_floating_point_v<T>, \"T must be a floating-point \
+type\");
+  return std::array<T, 3>{
+    rational<T>(1, 33)*y + rational<T>(-6, 11)*y*z*z + y*z*z*z*z,
+    rational<T>(1, 33)*x + rational<T>(-6, 11)*x*z*z + x*z*z*z*z,
+    rational<T>(-12, 11)*x*y*z + T{4}*x*y*z*z*z
+  };
+}
+
+// grad Z_{6,-1} = {0, (5*z)/33 - (10*z^3)/11 + z^5, (5*y)/33 - (30*y*z^2)/11 \
++ 5*y*z^4}
+template <typename T>
+constexpr std::array<T, 3> tesseral_monic_cartesian_l6_m1_grad(T x, T y, T z) {
+  static_assert(std::is_floating_point_v<T>, \"T must be a floating-point \
+type\");
+  return std::array<T, 3>{
+    T{0},
+    rational<T>(5, 33)*z + rational<T>(-10, 11)*z*z*z + z*z*z*z*z,
+    rational<T>(5, 33)*y + rational<T>(-30, 11)*y*z*z + T{5}*y*z*z*z*z
+  };
+}
+
+// grad Z_{6,0} = {0, 0, (10*z)/11 - (60*z^3)/11 + 6*z^5}
+template <typename T>
+constexpr std::array<T, 3> tesseral_monic_cartesian_l6_0_grad(T x, T y, T z) \
+{
+  static_assert(std::is_floating_point_v<T>, \"T must be a floating-point \
+type\");
+  return std::array<T, 3>{
+    T{0},
+    T{0},
+    rational<T>(10, 11)*z + rational<T>(-60, 11)*z*z*z + T{6}*z*z*z*z*z
+  };
+}
+
+// grad Z_{6,1} = {(5*z)/33 - (10*z^3)/11 + z^5, 0, (5*x)/33 - (30*x*z^2)/11 \
++ 5*x*z^4}
+template <typename T>
+constexpr std::array<T, 3> tesseral_monic_cartesian_l6_p1_grad(T x, T y, T z) {
+  static_assert(std::is_floating_point_v<T>, \"T must be a floating-point \
+type\");
+  return std::array<T, 3>{
+    rational<T>(5, 33)*z + rational<T>(-10, 11)*z*z*z + z*z*z*z*z,
+    T{0},
+    rational<T>(5, 33)*x + rational<T>(-30, 11)*x*z*z + T{5}*x*z*z*z*z
+  };
+}
+
+// grad Z_{6,2} = {0, (2*y)/33 - (12*y*z^2)/11 + 2*y*z^4, (19*z)/33 - \
+(12*y^2*z)/11 - (34*z^3)/11 + 4*y^2*z^3 + 3*z^5}
+template <typename T>
+constexpr std::array<T, 3> tesseral_monic_cartesian_l6_p2_grad(T x, T y, T z) {
+  static_assert(std::is_floating_point_v<T>, \"T must be a floating-point \
+type\");
+  return std::array<T, 3>{
+    T{0},
+    rational<T>(2, 33)*y + rational<T>(-12, 11)*y*z*z + T{2}*y*z*z*z*z,
+    rational<T>(19, 33)*z + rational<T>(-12, 11)*y*y*z + rational<T>(-34, \
+11)*z*z*z + T{4}*y*y*z*z*z + T{3}*z*z*z*z*z
+  };
+}
+
+// grad Z_{6,3} = {(3*z)/44 - (3*y^2*z)/11 - (7*z^3)/22 + y^2*z^3 + z^5/4, \
+(-6*x*y*z)/11 + 2*x*y*z^3, (3*x)/44 - (3*x*y^2)/11 - (21*x*z^2)/22 + \
+3*x*y^2*z^2 + (5*x*z^4)/4}
+template <typename T>
+constexpr std::array<T, 3> tesseral_monic_cartesian_l6_p3_grad(T x, T y, T z) {
+  static_assert(std::is_floating_point_v<T>, \"T must be a floating-point \
+type\");
+  return std::array<T, 3>{
+    rational<T>(3, 44)*z + rational<T>(-3, 11)*y*y*z + rational<T>(-7, \
+22)*z*z*z + y*y*z*z*z + rational<T>(1, 4)*z*z*z*z*z,
+    rational<T>(-6, 11)*x*y*z + T{2}*x*y*z*z*z,
+    rational<T>(3, 44)*x + rational<T>(-3, 11)*x*y*y + rational<T>(-21, \
+22)*x*z*z + T{3}*x*y*y*z*z + rational<T>(5, 4)*x*z*z*z*z
+  };
+}
+
+// grad Z_{6,4} = {(-4*x^3)/11 + (12*x*y^2)/11 + 4*x^3*z^2 - 12*x*y^2*z^2, \
+(12*x^2*y)/11 - (4*y^3)/11 - 12*x^2*y*z^2 + 4*y^3*z^2, 2*x^4*z - 12*x^2*y^2*z \
++ 2*y^4*z}
+template <typename T>
+constexpr std::array<T, 3> tesseral_monic_cartesian_l6_p4_grad(T x, T y, T z) {
+  static_assert(std::is_floating_point_v<T>, \"T must be a floating-point \
+type\");
+  return std::array<T, 3>{
+    rational<T>(-4, 11)*x*x*x + rational<T>(12, 11)*x*y*y + T{4}*x*x*x*z*z + \
+T{-12}*x*y*y*z*z,
+    rational<T>(12, 11)*x*x*y + rational<T>(-4, 11)*y*y*y + T{-12}*x*x*y*z*z \
++ T{4}*y*y*y*z*z,
+    T{2}*x*x*x*x*z + T{-12}*x*x*y*y*z + T{2}*y*y*y*y*z
+  };
+}
+
+// grad Z_{6,5} = {5*x^4*z - 30*x^2*y^2*z + 5*y^4*z, -20*x^3*y*z + \
+20*x*y^3*z, x^5 - 10*x^3*y^2 + 5*x*y^4}
+template <typename T>
+constexpr std::array<T, 3> tesseral_monic_cartesian_l6_p5_grad(T x, T y, T z) {
+  static_assert(std::is_floating_point_v<T>, \"T must be a floating-point \
+type\");
+  return std::array<T, 3>{
+    T{5}*x*x*x*x*z + T{-30}*x*x*y*y*z + T{5}*y*y*y*y*z,
+    T{-20}*x*x*x*y*z + T{20}*x*y*y*y*z,
+    x*x*x*x*x + T{-10}*x*x*x*y*y + T{5}*x*y*y*y*y
+  };
+}
+
+// grad Z_{6,6} = {6*x^5 - 60*x^3*y^2 + 30*x*y^4, -30*x^4*y + 60*x^2*y^3 - \
+6*y^5, 0}
+template <typename T>
+constexpr std::array<T, 3> tesseral_monic_cartesian_l6_p6_grad(T x, T y, T z) {
+  static_assert(std::is_floating_point_v<T>, \"T must be a floating-point \
+type\");
+  return std::array<T, 3>{
+    T{6}*x*x*x*x*x + T{-60}*x*x*x*y*y + T{30}*x*y*y*y*y,
+    T{-30}*x*x*x*x*y + T{60}*x*x*y*y*y + T{-6}*y*y*y*y*y,
+    T{0}
+  };
+}
+\
+\>", "Print",
+ CellChangeTimes->{
+  3.930649973990454*^9, {3.930650007064069*^9, 3.930650036854413*^9}, 
+   3.930650093089948*^9, 3.930650148019988*^9, {3.930650182319181*^9, 
+   3.930650198541774*^9}, 3.930651336898677*^9, {3.930651382615047*^9, 
+   3.930651412188663*^9}, 3.930653614763753*^9, 3.930711977033786*^9, 
+   3.930712309968731*^9, 3.930713020872298*^9, {3.930713225570897*^9, 
+   3.930713249490354*^9}, {3.930713739100842*^9, 3.930713759624702*^9}, 
+   3.930713830857244*^9, 3.931856114253254*^9, {3.931856161091603*^9, 
+   3.931856180921935*^9}, 3.931860403989595*^9, 3.931861112563158*^9, {
+   3.931861258757697*^9, 3.93186127619497*^9}, 3.931921844923861*^9, 
+   3.931921892301999*^9, {3.931921956846219*^9, 3.93192196839408*^9}, {
+   3.932709943255096*^9, 3.932709996334846*^9}, {3.93271009165452*^9, 
+   3.932710105168566*^9}, {3.9327101713040524`*^9, 3.932710191366581*^9}, {
+   3.932710277380044*^9, 3.932710300461409*^9}, {3.987070941912385*^9, 
+   3.987070978160033*^9}, {3.987071663530849*^9, 3.9870716889213953`*^9}, {
+   3.9870718061383343`*^9, 3.987071811399007*^9}, {3.98707187138023*^9, 
+   3.9870719143645782`*^9}, 3.987072012294489*^9, {3.987072139990714*^9, 
+   3.987072153600903*^9}, 3.9870721899216003`*^9, {3.987072239495965*^9, 
+   3.987072280463131*^9}, 3.987072440562716*^9, {3.9870724921760902`*^9, 
+   3.9870725023221684`*^9}, {3.987072695076907*^9, 3.9870727114373407`*^9}, 
+   3.9870727643201017`*^9, {3.987074197196835*^9, 3.987074220661495*^9}, {
+   3.987074293842206*^9, 3.9870743058876333`*^9}, 3.987074428824003*^9, 
+   3.987074463181786*^9, 3.987076734515873*^9, {3.987084041377161*^9, 
+   3.987084046948122*^9}, 3.987084110058598*^9, 3.987084166443733*^9, 
+   3.9870842712323217`*^9, {3.9870848033965893`*^9, 3.98708482433416*^9}, {
+   3.9870848801985617`*^9, 3.987084899849949*^9}, 3.987084971689939*^9, {
+   3.987085200257148*^9, 3.9870852544663897`*^9}, 3.987086060118021*^9, {
+   3.987086665616765*^9, 3.987086693553363*^9}, 3.987086727956355*^9, 
+   3.987086839383484*^9, 3.987086886431067*^9, 3.987086974065085*^9, {
+   3.987087028099823*^9, 3.987087030791025*^9}},
+ CellLabel->
+  "During evaluation of \
+In[78]:=",ExpressionUUID->"90678586-6686-414b-bf7e-37cc539edd4d"]
+}, Open  ]]
+},
+WindowSize->{1280, 1387},
+WindowMargins->{{Automatic, 0}, {Automatic, 0}},
+FrontEndVersion->"14.3 for Mac OS X ARM (64-bit) (July 8, 2025)",
+StyleDefinitions->"Default.nb",
+ExpressionUUID->"a64dcfbb-195b-4378-8744-21a78f18ab3d"
+]
+(* End of Notebook Content *)
+
+(* Internal cache information *)
+(*CellTagsOutline
+CellTagsIndex->{}
+*)
+(*CellTagsIndex
+CellTagsIndex->{}
+*)
+(*NotebookFileOutline
+Notebook[{
+Cell[558, 20, 1209, 30, 90, "Input",ExpressionUUID->"f3eaf6b6-ee5c-4ba3-8750-03c867f2286d"],
+Cell[CellGroupData[{
+Cell[1792, 54, 36061, 793, 2380, "Input",ExpressionUUID->"88868abf-989c-41f1-8d04-160a16d0ed66"],
+Cell[37856, 849, 21774, 615, 7823, "Print",ExpressionUUID->"90678586-6686-414b-bf7e-37cc539edd4d"]
+}, Open  ]]
+}
+]
+*)
+
