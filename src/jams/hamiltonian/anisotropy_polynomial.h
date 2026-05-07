@@ -49,12 +49,13 @@
 ///           C_lm = sqrt(4*pi/(2*l + 1)) Y_lm. This is the convention used by
 ///           the crystal-field Hamiltonian angular functions. For example, the
 ///           l=2,m=0 term is (3z^2 - 1)/2. The aliases "wybourne",
-///           "racah-wybourne" and "wybourne-racah" are also accepted.
+///           "racah-wybourne", "wybourne-racah" and "crystal-field" are also
+///           accepted.
 ///
 ///       "stevens"
 ///           Coefficients multiply the classical Stevens tesseral polynomial
-///           convention. For example, the l=2,m=0 term is 3z^2 - 1. The aliases
-///           "stevens-operators" and "crystal-field" are also accepted.
+///           convention. For example, the l=2,m=0 term is 3z^2 - 1. The alias
+///           "stevens-operators" is also accepted.
 ///
 /// anisotropies: (required | list)
 ///     A list of anisotropy definitions for each material or unit cell position.

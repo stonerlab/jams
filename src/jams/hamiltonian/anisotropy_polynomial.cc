@@ -137,11 +137,11 @@ jams::TesseralHarmonicNormalisation read_tesseral_normalisation(const Setting& s
         return jams::TesseralHarmonicNormalisation::condon_shortley;
     }
     if (normalisation == "racah" || normalisation == "wybourne" ||
-        normalisation == "racah-wybourne" || normalisation == "wybourne-racah") {
+        normalisation == "racah-wybourne" || normalisation == "wybourne-racah" ||
+        normalisation == "crystal-field") {
         return jams::TesseralHarmonicNormalisation::racah;
     }
-    if (normalisation == "stevens" || normalisation == "stevens-operators" ||
-        normalisation == "crystal-field") {
+    if (normalisation == "stevens" || normalisation == "stevens-operators") {
         return jams::TesseralHarmonicNormalisation::stevens;
     }
 

@@ -146,6 +146,20 @@ protected:
         )";
     }
 
+    static std::string single_term_config_string(const std::string& normalisation)
+    {
+        return R"(
+            hamiltonian = {
+              module = "anisotropy-polynomial";
+              energy_units = "meV";
+              normalisation = ")" + normalisation + R"(";
+              anisotropies = (
+                ("A", (2, 0, 1.0))
+              );
+            };
+        )";
+    }
+
     void set_test_spins()
     {
         const double inv_sqrt_3 = 1.0 / std::sqrt(3.0);
@@ -194,6 +208,36 @@ TEST_F(CudaAnisotropyPolynomialHamiltonianTests, non_unit_integer_axes_are_not_m
     ASSERT_NO_THROW(AnisotropyPolynomialHamiltonian(
         config.lookup("hamiltonian"),
         globals::num_spins));
+}
+
+TEST_F(CudaAnisotropyPolynomialHamiltonianTests, crystal_field_normalisation_alias_matches_racah)
+{
+    set_test_spins();
+
+    libconfig::Config racah_config;
+    racah_config.readString(single_term_config_string("racah"));
+    AnisotropyPolynomialHamiltonianTestAccess racah_hamiltonian(
+        racah_config.lookup("hamiltonian"),
+        globals::num_spins);
+
+    libconfig::Config crystal_field_config;
+    crystal_field_config.readString(single_term_config_string("crystal-field"));
+    AnisotropyPolynomialHamiltonianTestAccess crystal_field_hamiltonian(
+        crystal_field_config.lookup("hamiltonian"),
+        globals::num_spins);
+
+    for (int i = 0; i < globals::num_spins; ++i) {
+        const jams::Vec<double, 3> spin = {globals::s(i, 0), globals::s(i, 1), globals::s(i, 2)};
+        ASSERT_DOUBLE_EQ(
+            crystal_field_hamiltonian.calculate_energy_for_spin(i, spin, 0.0),
+            racah_hamiltonian.calculate_energy_for_spin(i, spin, 0.0));
+
+        const auto crystal_field = crystal_field_hamiltonian.calculate_field(i, 0.0);
+        const auto racah = racah_hamiltonian.calculate_field(i, 0.0);
+        for (auto j = 0; j < 3; ++j) {
+            ASSERT_DOUBLE_EQ(crystal_field[j], racah[j]);
+        }
+    }
 }
 
 TEST_F(CudaAnisotropyPolynomialHamiltonianTests, energies_and_fields_match_cpu)
