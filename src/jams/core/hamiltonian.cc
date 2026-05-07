@@ -30,6 +30,7 @@
 #include "jams/hamiltonian/crystal_field.h"
 
 #if HAS_CUDA
+  #include "jams/hamiltonian/cuda_anisotropy_polynomial.h"
   #include "jams/hamiltonian/cuda_applied_field.h"
   #include "jams/hamiltonian/cuda_biquadratic_exchange.h"
   #include "jams/hamiltonian/cuda_cubic_anisotropy.h"
@@ -84,7 +85,6 @@ Hamiltonian * Hamiltonian::create(const libconfig::Setting &settings, const unsi
     throw jams::removed_feature_error("dipole hamiltonians now have specific names and 'strategy' has been removed");
   }
 
-  DEFINED_HAMILTONIAN("anisotropy-polynomial", AnisotropyPolynomialHamiltonian, settings, size);
   DEFINED_HAMILTONIAN("exchange", ExchangeHamiltonian, settings, size);
   DEFINED_HAMILTONIAN("exchange-functional", ExchangeFunctionalHamiltonian, settings, size);
   DEFINED_HAMILTONIAN("exchange-neartree", ExchangeNeartreeHamiltonian, settings, size);
@@ -95,6 +95,7 @@ Hamiltonian * Hamiltonian::create(const libconfig::Setting &settings, const unsi
   DEFINED_CUDA_HAMILTONIAN("landau", CudaLandauHamiltonian, settings, size);
   DEFINED_CUDA_HAMILTONIAN("biquadratic-exchange", CudaBiquadraticExchangeHamiltonian, settings, size);
 
+  DEFINED_HAMILTONIAN_CUDA_VARIANT("anisotropy-polynomial", AnisotropyPolynomialHamiltonian, is_cuda_solver, settings, size);
   DEFINED_HAMILTONIAN_CUDA_VARIANT("applied-field", AppliedFieldHamiltonian, is_cuda_solver, settings, size);
   DEFINED_HAMILTONIAN_CUDA_VARIANT("crystal-field", CrystalFieldHamiltonian, is_cuda_solver, settings, size);
   DEFINED_HAMILTONIAN_CUDA_VARIANT("random-anisotropy", RandomAnisotropyHamiltonian, is_cuda_solver, settings, size);

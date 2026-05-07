@@ -4,10 +4,12 @@
 #include "jams/core/lattice.h"
 #include "jams/helpers/defaults.h"
 #include "jams/helpers/exception.h"
+#include "jams/helpers/utils.h"
 #include "jams/maths/tesseral_harmonics.h"
 
 #include <libconfig.h++>
 
+#include <algorithm>
 #include <string>
 #include <utility>
 #include <vector>
@@ -84,6 +86,48 @@ bool is_axis_setting(const Setting& setting)
     return true;
 }
 
+jams::TesseralHarmonicNormalisation read_tesseral_normalisation(const Setting& settings)
+{
+    const Setting* normalisation_setting = nullptr;
+    if (settings.exists("normalisation")) {
+        normalisation_setting = &settings["normalisation"];
+    }
+    if (settings.exists("normalization")) {
+        if (normalisation_setting != nullptr) {
+            throw jams::ConfigException(settings, "specify either normalisation or normalization, not both");
+        }
+        normalisation_setting = &settings["normalization"];
+    }
+
+    if (normalisation_setting == nullptr) {
+        return jams::TesseralHarmonicNormalisation::monic;
+    }
+
+    if (!normalisation_setting->isString()) {
+        throw jams::ConfigException(*normalisation_setting, "normalisation must be a string");
+    }
+
+    std::string normalisation = lowercase(normalisation_setting->c_str());
+    std::replace(normalisation.begin(), normalisation.end(), '_', '-');
+    if (normalisation == "monic") {
+        return jams::TesseralHarmonicNormalisation::monic;
+    }
+    if (normalisation == "condon-shortley") {
+        return jams::TesseralHarmonicNormalisation::condon_shortley;
+    }
+    if (normalisation == "racah" || normalisation == "wybourne" ||
+        normalisation == "racah-wybourne" || normalisation == "wybourne-racah") {
+        return jams::TesseralHarmonicNormalisation::racah;
+    }
+    if (normalisation == "stevens" || normalisation == "stevens-operators" ||
+        normalisation == "crystal-field") {
+        return jams::TesseralHarmonicNormalisation::stevens;
+    }
+
+    throw jams::ConfigException(*normalisation_setting,
+                                "normalisation must be one of: monic, condon-shortley, racah, stevens");
+}
+
 bool axes_are_orthogonal(const jams::Vec<jams::Real, 3>& u,
                          const jams::Vec<jams::Real, 3>& v,
                          const jams::Vec<jams::Real, 3>& w)
@@ -120,7 +164,10 @@ bool is_coefficient_setting(const Setting& setting)
     return jams::valid_tesseral_lm(int(setting[0]), int(setting[1]));
 }
 
-std::pair<int, jams::Real> read_coefficient_setting(const Setting& setting, const double energy_unit_conversion)
+std::pair<int, jams::Real> read_coefficient_setting(
+    const Setting& setting,
+    const double energy_unit_conversion,
+    const jams::TesseralHarmonicNormalisation normalisation)
 {
     if (!(setting.isArray() || setting.isList()) || setting.getLength() != 3) {
         throw jams::ConfigException(setting, "coefficient must be a list containing l, m and coefficient");
@@ -136,24 +183,31 @@ std::pair<int, jams::Real> read_coefficient_setting(const Setting& setting, cons
         throw jams::ConfigException(setting[2], "anisotropy coefficient must be numeric");
     }
 
-    return {jams::tesseral_key(l, m), jams::Real(setting[2]) * jams::Real(energy_unit_conversion)};
+    const auto normalisation_scale = jams::tesseral_monic_polynomial_normalisation_scale<jams::Real>(
+        normalisation, l, m);
+    return {jams::tesseral_key(l, m),
+            jams::Real(setting[2]) * jams::Real(energy_unit_conversion) * normalisation_scale};
 }
 
 void read_coefficient_settings(std::vector<std::pair<int, jams::Real>>& coefficients,
                                const Setting& setting,
-                               const double energy_unit_conversion)
+                               const double energy_unit_conversion,
+                               const jams::TesseralHarmonicNormalisation normalisation)
 {
     if ((setting.isArray() || setting.isList()) && setting.getLength() > 0 && (setting[0].isArray() || setting[0].isList())) {
         for (auto i = 0; i < setting.getLength(); ++i) {
-            coefficients.push_back(read_coefficient_setting(setting[i], energy_unit_conversion));
+            coefficients.push_back(read_coefficient_setting(setting[i], energy_unit_conversion, normalisation));
         }
         return;
     }
 
-    coefficients.push_back(read_coefficient_setting(setting, energy_unit_conversion));
+    coefficients.push_back(read_coefficient_setting(setting, energy_unit_conversion, normalisation));
 }
 
-AnisotropyPolynomialSetting read_anisotropy_setting(const Setting& setting, const double energy_unit_conversion)
+AnisotropyPolynomialSetting read_anisotropy_setting(
+    const Setting& setting,
+    const double energy_unit_conversion,
+    const jams::TesseralHarmonicNormalisation normalisation)
 {
     if (!setting.isList()) {
         throw jams::ConfigException(setting, "anisotropy must be a list");
@@ -202,7 +256,7 @@ AnisotropyPolynomialSetting read_anisotropy_setting(const Setting& setting, cons
     }
 
     for (auto i = coefficient_start; i < length; ++i) {
-        read_coefficient_settings(result.coefficients, setting[i], energy_unit_conversion);
+        read_coefficient_settings(result.coefficients, setting[i], energy_unit_conversion, normalisation);
     }
 
     if (result.coefficients.empty()) {
@@ -249,6 +303,8 @@ AnisotropyPolynomialHamiltonian::AnisotropyPolynomialHamiltonian(const libconfig
         throw jams::ConfigException(settings, "missing anisotropies");
     }
 
+    const auto normalisation = read_tesseral_normalisation(settings);
+
     const auto& anisotropy_settings = settings["anisotropies"];
     if (!anisotropy_settings.isList()) {
         throw jams::ConfigException(anisotropy_settings, "anisotropies must be a list");
@@ -276,7 +332,8 @@ AnisotropyPolynomialHamiltonian::AnisotropyPolynomialHamiltonian(const libconfig
 
     for (auto n = 0; n < anisotropy_settings.getLength(); ++n) {
         const auto& anisotropy_setting = anisotropy_settings[n];
-        const auto anisotropy = read_anisotropy_setting(anisotropy_setting, input_energy_unit_conversion_);
+        const auto anisotropy = read_anisotropy_setting(
+            anisotropy_setting, input_energy_unit_conversion_, normalisation);
 
         for (auto i = 0u; i < size; ++i) {
             if (!applies_to_spin(anisotropy, int(i))) {
@@ -337,7 +394,8 @@ jams::Vec<jams::Real, 3> AnisotropyPolynomialHamiltonian::calculate_field(int i,
     {
         const auto key = tesseral_keys_(n);
         const auto coeff = tesseral_coefficients_(n);
-        const auto h = jams::array_cast<jams::Real>(jams::tesseral_monic_polynomial_grad_key_lookup(key, s[0], s[1], s[2]));
+        jams::Real h[3];
+        jams::tesseral_monic_polynomial_grad_key_lookup(key, s[0], s[1], s[2], h);
         field += coeff * (h[0] * u + h[1] * v + h[2] * w);
     }
 

@@ -26,6 +26,36 @@
 ///     Energy units of the anisotropy coefficients in one of the JAMS supported
 ///     units.
 ///
+/// normalisation: monic (optional | string)
+///     Normalisation convention used by the coefficients in the input file.
+///     The American spelling "normalization" is also accepted. The selected
+///     convention is converted to the internal monic polynomial basis when the
+///     Hamiltonian is constructed, so the input coefficient C_lm is interpreted
+///     as multiplying the requested normalised form.
+///
+///     Supported values:
+///       "monic"
+///           Coefficients multiply the internal monic tesseral polynomials
+///           directly. For example, the l=2,m=0 term is z^2 - 1/3.
+///
+///       "condon-shortley"
+///           Coefficients multiply unit-normalised real tesseral harmonics
+///           using the Condon-Shortley phase convention. The internal monic
+///           coefficient is multiplied by the corresponding normalisation
+///           factor from jams::tesseral_monic_polynomial_normalisation_scale.
+///
+///       "racah"
+///           Coefficients multiply Racah-normalised real tesseral harmonics,
+///           C_lm = sqrt(4*pi/(2*l + 1)) Y_lm. This is the convention used by
+///           the crystal-field Hamiltonian angular functions. For example, the
+///           l=2,m=0 term is (3z^2 - 1)/2. The aliases "wybourne",
+///           "racah-wybourne" and "wybourne-racah" are also accepted.
+///
+///       "stevens"
+///           Coefficients multiply the classical Stevens tesseral polynomial
+///           convention. For example, the l=2,m=0 term is 3z^2 - 1. The aliases
+///           "stevens-operators" and "crystal-field" are also accepted.
+///
 /// anisotropies: (required | list)
 ///     A list of anisotropy definitions for each material or unit cell position.
 ///     Each definition has the format:
