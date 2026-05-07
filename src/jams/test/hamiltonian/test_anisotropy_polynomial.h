@@ -204,6 +204,33 @@ TEST_F(CudaAnisotropyPolynomialHamiltonianTests, energies_and_fields_match_cpu)
     }
 }
 
+TEST_F(CudaAnisotropyPolynomialHamiltonianTests, cpu_field_is_negative_energy_gradient)
+{
+    set_test_spins();
+
+    AnisotropyPolynomialHamiltonianTestAccess hamiltonian(
+        globals::config->lookup("hamiltonians.[0]"),
+        globals::num_spins);
+
+    const int spin_index = 1;
+    const jams::Vec<double, 3> spin = {globals::s(spin_index, 0), globals::s(spin_index, 1), globals::s(spin_index, 2)};
+    const auto field = hamiltonian.calculate_field(spin_index, 0.0);
+
+    constexpr double step = 1e-3;
+    for (int j = 0; j < 3; ++j) {
+        auto spin_plus = spin;
+        auto spin_minus = spin;
+        spin_plus[j] += step;
+        spin_minus[j] -= step;
+
+        const auto energy_plus = hamiltonian.calculate_energy_for_spin(spin_index, spin_plus, 0.0);
+        const auto energy_minus = hamiltonian.calculate_energy_for_spin(spin_index, spin_minus, 0.0);
+        const auto finite_difference = (double(energy_plus) - double(energy_minus)) / (2.0 * step);
+
+        ASSERT_NEAR(field[j], -finite_difference, 1e-4 * std::max(1.0, std::abs(finite_difference))) << "component " << j;
+    }
+}
+
 TEST_F(CudaAnisotropyPolynomialHamiltonianTests, energy_difference_uses_trial_spin_energies_without_mutating_globals)
 {
     set_test_spins();

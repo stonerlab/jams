@@ -95,9 +95,9 @@ void cuda_anisotropy_polynomial_field_kernel(
         jams::Real grad[3];
         jams::tesseral_monic_polynomial_grad_key_lookup(tesseral_keys[n], sx, sy, sz, grad);
         const jams::Real coeff = tesseral_coefficients[n];
-        hx_local += coeff * grad[0];
-        hy_local += coeff * grad[1];
-        hz_local += coeff * grad[2];
+        hx_local -= coeff * grad[0];
+        hy_local -= coeff * grad[1];
+        hz_local -= coeff * grad[2];
     }
 
     fields[base + 0] = hx_local * ux + hy_local * vx + hz_local * wx;
