@@ -20,7 +20,7 @@ CrystalFieldHamiltonian::CrystalFieldHamiltonian(const libconfig::Setting &setti
     crystal_field_spin_type_ = CrystalFieldSpinType::kSpinUp;
     std::cout << "crystal_field_spin_type: up\n";
   } else if (spin_type_string == "down") {
-    crystal_field_spin_type_ = CrystalFieldSpinType::kSpinUp;
+    crystal_field_spin_type_ = CrystalFieldSpinType::kSpinDown;
     std::cout << "crystal_field_spin_type: down\n";
   } else {
     throw jams::ConfigException(settings["crystal_field_spin_type"], "must be 'up' or 'down'");
