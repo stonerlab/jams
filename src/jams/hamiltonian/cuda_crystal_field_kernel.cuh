@@ -75,7 +75,7 @@ __global__ void cuda_crystal_field_kernel(
   const double sy = dev_s[base + 1];
   const double sz = dev_s[base + 2];
 
-  double h[3] = {0.0, 0.0, 0.0};
+  double energy_grad[3] = {0.0, 0.0, 0.0};
 
 #pragma unroll
   for (auto term = 0u; term < kCrystalFieldNumTerms; ++term) {
@@ -92,19 +92,17 @@ __global__ void cuda_crystal_field_kernel(
 
     double grad[3];
     jams::tesseral_monic_polynomial_grad_key_lookup(key, sx, sy, sz, grad);
-    const auto grad_x = scale * grad[0];
-    const auto grad_y = scale * grad[1];
-    const auto grad_z = scale * grad[2];
-    const auto radial_grad = sx * grad_x + sy * grad_y + sz * grad_z;
-
-    h[0] += coefficient * (radial_grad * sx - grad_x);
-    h[1] += coefficient * (radial_grad * sy - grad_y);
-    h[2] += coefficient * (radial_grad * sz - grad_z);
+    const auto coefficient_scale = coefficient * scale;
+    energy_grad[0] += coefficient_scale * grad[0];
+    energy_grad[1] += coefficient_scale * grad[1];
+    energy_grad[2] += coefficient_scale * grad[2];
   }
 
-  dev_h[base + 0] = static_cast<jams::Real>(h[0]);
-  dev_h[base + 1] = static_cast<jams::Real>(h[1]);
-  dev_h[base + 2] = static_cast<jams::Real>(h[2]);
+  const auto radial_grad = sx * energy_grad[0] + sy * energy_grad[1] + sz * energy_grad[2];
+
+  dev_h[base + 0] = static_cast<jams::Real>(radial_grad * sx - energy_grad[0]);
+  dev_h[base + 1] = static_cast<jams::Real>(radial_grad * sy - energy_grad[1]);
+  dev_h[base + 2] = static_cast<jams::Real>(radial_grad * sz - energy_grad[2]);
 }
 
 #endif // JAMS_HAMILTONIAN_CUDA_CRYSTAL_FIELD_KERNEL_CUH

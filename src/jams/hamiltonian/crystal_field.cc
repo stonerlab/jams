@@ -220,7 +220,7 @@ jams::Vec<jams::Real, 3> CrystalFieldHamiltonian::calculate_field(int i, jams::R
   const double sy = globals::s(i, 1);
   const double sz = globals::s(i, 2);
 
-  jams::Vec<double, 3> h = {0.0, 0.0, 0.0};
+  jams::Vec<double, 3> energy_grad = {0.0, 0.0, 0.0};
 
   for (auto n = 0u; n < kCrystalFieldTesseralTerms.size(); ++n) {
     const auto coefficient = crystal_field_tesseral_coeff_(n, i);
@@ -234,15 +234,18 @@ jams::Vec<jams::Real, 3> CrystalFieldHamiltonian::calculate_field(int i, jams::R
 
     double grad[3];
     jams::tesseral_monic_polynomial_grad_key_lookup(key, sx, sy, sz, grad);
-    const auto grad_x = scale * grad[0];
-    const auto grad_y = scale * grad[1];
-    const auto grad_z = scale * grad[2];
-    const auto radial_grad = sx * grad_x + sy * grad_y + sz * grad_z;
-
-    h[0] += coefficient * (radial_grad * sx - grad_x);
-    h[1] += coefficient * (radial_grad * sy - grad_y);
-    h[2] += coefficient * (radial_grad * sz - grad_z);
+    const auto coefficient_scale = coefficient * scale;
+    energy_grad[0] += coefficient_scale * grad[0];
+    energy_grad[1] += coefficient_scale * grad[1];
+    energy_grad[2] += coefficient_scale * grad[2];
   }
+
+  const auto radial_grad = sx * energy_grad[0] + sy * energy_grad[1] + sz * energy_grad[2];
+  const jams::Vec<double, 3> h = {
+      radial_grad * sx - energy_grad[0],
+      radial_grad * sy - energy_grad[1],
+      radial_grad * sz - energy_grad[2]
+  };
 
   return jams::array_cast<jams::Real>(h);
 }
