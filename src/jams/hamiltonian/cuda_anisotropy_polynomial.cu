@@ -100,14 +100,9 @@ void cuda_anisotropy_polynomial_field_kernel(
         hz_local += coeff * grad[2];
     }
 
-    const jams::Real grad_x = hx_local * ux + hy_local * vx + hz_local * wx;
-    const jams::Real grad_y = hx_local * uy + hy_local * vy + hz_local * wy;
-    const jams::Real grad_z = hx_local * uz + hy_local * vz + hz_local * wz;
-    const jams::Real radial_grad = sx_global * grad_x + sy_global * grad_y + sz_global * grad_z;
-
-    fields[base + 0] = radial_grad * sx_global - grad_x;
-    fields[base + 1] = radial_grad * sy_global - grad_y;
-    fields[base + 2] = radial_grad * sz_global - grad_z;
+    fields[base + 0] = hx_local * ux + hy_local * vx + hz_local * wx;
+    fields[base + 1] = hx_local * uy + hy_local * vy + hz_local * wy;
+    fields[base + 2] = hx_local * uz + hy_local * vz + hz_local * wz;
 }
 
 } // namespace
