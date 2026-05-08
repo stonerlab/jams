@@ -16,6 +16,7 @@
 #include "jams/core/globals.h"
 #include "jams/helpers/utils.h"
 #include "jams/helpers/exception.h"
+#include "jams/interface/config.h"
 
 
 void neighbour_list_checks(const jams::InteractionList<jams::Mat<double, 3, 3>, 2>& list, const std::vector<InteractionChecks>& checks);
@@ -185,11 +186,11 @@ discover_interaction_setting_format(libconfig::Setting& setting) {
 
   }
 
-  if (!setting[0][2].isArray()) {
+  if (!jams::is_numeric_array_setting(setting[0][2], 3)) {
     throw std::runtime_error("interaction vector format is incorrect");
   }
 
-  if (!((setting[0][3].isArray() && setting[0][3].getLength() == 9) || setting[0][3].isNumber())) {
+  if (!(jams::is_numeric_array_setting(setting[0][3], 9) || setting[0][3].isNumber())) {
     throw std::runtime_error("interaction energy format is incorrect");
   }
 
@@ -272,10 +273,10 @@ interactions_from_settings(libconfig::Setting &setting, const InteractionFileDes
       J.type_j = setting[i][1].c_str();
     }
 
-    J.interaction_vector_cart = {setting[i][2][0], setting[i][2][1], setting[i][2][2]};
+    J.interaction_vector_cart = jams::read_vec_setting<double, 3>(setting[i][2], "interaction vector");
 
     if (desc.dimension == InteractionType::SCALAR) {
-      J.interaction_value_tensor = double(setting[i][3]) * kIdentityMat3;
+      J.interaction_value_tensor = jams::read_numeric_setting<double>(setting[i][3], "interaction energy") * kIdentityMat3;
     } else {
       J.interaction_value_tensor = {setting[i][3][0], setting[i][3][1], setting[i][3][2],
                                     setting[i][3][3], setting[i][3][4], setting[i][3][5],

@@ -4,9 +4,9 @@
 #include <jams/core/lattice.h>
 #include <jams/helpers/exception.h>
 #include <jams/hamiltonian/tesseral_polynomial_evaluator.h>
+#include <jams/interface/config.h>
 #include <jams/maths/tesseral_harmonics.h>
 #include <algorithm>
-#include <cstdint>
 #include <fstream>
 #include <iostream>
 #include <sstream>
@@ -16,21 +16,6 @@
 namespace {
 constexpr int parity_sign(const int m) {
   return (m % 2 == 0) ? 1 : -1;
-}
-
-bool is_integer_setting(const libconfig::Setting& setting)
-{
-  const auto type = setting.getType();
-  return type == libconfig::Setting::TypeInt || type == libconfig::Setting::TypeInt64;
-}
-
-int read_integer_setting(const libconfig::Setting& setting)
-{
-  if (setting.getType() == libconfig::Setting::TypeInt64) {
-    return int(static_cast<int64_t>(setting));
-  }
-
-  return int(setting);
 }
 
 bool terms_are_axial(const AnisotropyPolynomialHamiltonian::TesseralKeyCoefficientMap& terms)
@@ -94,8 +79,8 @@ CrystalFieldHamiltonian::CrystalFieldHamiltonian(const libconfig::Setting &setti
 
     int motif_position = -1;
     int material_id = -1;
-    if (is_integer_setting(cf_params[0])) {
-      motif_position = read_integer_setting(cf_params[0]) - 1;
+    if (jams::is_integer_setting(cf_params[0])) {
+      motif_position = jams::read_integer_setting(cf_params[0], "unit cell index") - 1;
       if (motif_position < 0 || motif_position >= globals::lattice->num_basis_sites()) {
         throw jams::ConfigException(cf_params[0],
                                     "unit cell index must be between 1 and ",
@@ -121,19 +106,14 @@ CrystalFieldHamiltonian::CrystalFieldHamiltonian(const libconfig::Setting &setti
           "(target, [u, v, w], J, alphaJ, betaJ, gammaJ, cf_param_filename)");
     }
 
-    for (auto parameter_index = parameter_start; parameter_index < parameter_start + 4; ++parameter_index) {
-      if (!cf_params[parameter_index].isNumber()) {
-        throw jams::ConfigException(cf_params[parameter_index], "crystal field parameter must be numeric");
-      }
-    }
     if (!cf_params[parameter_start + 4].isString()) {
       throw jams::ConfigException(cf_params[parameter_start + 4], "crystal field coefficient filename must be a string");
     }
 
-    double J = cf_params[parameter_start];
-    double alphaJ = cf_params[parameter_start + 1];
-    double betaJ = cf_params[parameter_start + 2];
-    double gammaJ = cf_params[parameter_start + 3];
+    const double J = jams::read_numeric_setting<double>(cf_params[parameter_start], "J");
+    const double alphaJ = jams::read_numeric_setting<double>(cf_params[parameter_start + 1], "alphaJ");
+    const double betaJ = jams::read_numeric_setting<double>(cf_params[parameter_start + 2], "betaJ");
+    const double gammaJ = jams::read_numeric_setting<double>(cf_params[parameter_start + 3], "gammaJ");
     auto cf_coefficient_filename = cf_params[parameter_start + 4].c_str();
 
     std::map<int, double> stevens_prefactor;

@@ -12,6 +12,7 @@
 #include "jams/helpers/utils.h"
 #include "jams/helpers/error.h"
 #include "jams/core/lattice.h"
+#include "jams/interface/config.h"
 #include "jams/physics/empty.h"
 #include "jams/physics/field_cool.h"
 #include "jams/physics/fmr.h"
@@ -41,12 +42,7 @@ Physics::Physics(const libconfig::Setting &physics_settings) :
   // initialise applied field
   jams::Vec<double, 3> field = {0.0, 0.0, 0.0};
   if (physics_settings.exists("applied_field")) {
-    if (!physics_settings["applied_field"].isArray() || !(physics_settings["applied_field"].getLength() == 3)) {
-      throw jams::ConfigException(physics_settings["applied_field"], "must be an array of length 3");
-    }
-    for (int n = 0; n != 3; ++n) {
-      field[n] = physics_settings["applied_field"][n];
-    }
+    field = jams::read_vec_setting<double, 3>(physics_settings["applied_field"], "applied_field");
   }
   applied_field_ = field;
 
@@ -54,15 +50,8 @@ Physics::Physics(const libconfig::Setting &physics_settings) :
 
   if (physics_settings.exists("initial_state")) {
     libconfig::Setting& state_settings = physics_settings["initial_state"];
-    if (!state_settings["origin"].isArray() || !(state_settings["origin"].getLength() == 3)) {
-      throw jams::ConfigException(state_settings["origin"], "must be an array of length 3");
-    }
-
-    jams::Vec<double, 3> origin;
-    for (int i = 0; i < 3; ++i) {
-      origin[i] = state_settings["origin"][i];
-    }
-    double radius = state_settings["radius"];
+    const auto origin = jams::read_vec_setting<double, 3>(state_settings["origin"], "origin");
+    const double radius = jams::read_numeric_setting<double>(state_settings["radius"], "radius");
 
     for (int i = 0; i < globals::num_spins; ++i) {
       jams::Vec<double, 3> pos = globals::lattice->displacement(
