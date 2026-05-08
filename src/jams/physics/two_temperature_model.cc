@@ -11,6 +11,7 @@
 #include "jams/core/globals.h"
 #include "jams/helpers/consts.h"
 #include "jams/helpers/output.h"
+#include "jams/interface/config.h"
 
 TTMPhysics::TTMPhysics(const libconfig::Setting &settings)
   : Physics(settings),
@@ -27,7 +28,7 @@ TTMPhysics::TTMPhysics(const libconfig::Setting &settings)
   G(17.0E17),
   Gsink(17.0E14),
   TTMFile(jams::output::full_path_filename( "ttm.tsv")) {
-  phononTemp = settings["InitialTemperature"];
+  phononTemp = jams::config_required<double>(settings, "InitialTemperature");
   electronTemp = phononTemp;
 
   sinkTemp = phononTemp;
@@ -49,13 +50,14 @@ TTMPhysics::TTMPhysics(const libconfig::Setting &settings)
   }
 
   // if these settings don't exist, the defaults will be left in
-  settings.lookupValue("Ce", Ce);
-  settings.lookupValue("Cl", Cl);
-  settings.lookupValue("Gep", G);
-  settings.lookupValue("Gps", Gsink);
+  Ce = jams::config_optional<double>(settings, "Ce", Ce);
+  Cl = jams::config_optional<double>(settings, "Cl", Cl);
+  G = jams::config_optional<double>(settings, "Gep", G);
+  Gsink = jams::config_optional<double>(settings, "Gps", Gsink);
 
+  const auto field = jams::read_vec_setting<double, 3>(settings["ReversingField"], "ReversingField");
   for (int i = 0; i < 3; ++i) {
-    reversingField[i] = settings["ReversingField"][i];
+    reversingField[i] = field[i];
   }
 
   TTMFile << std::setprecision(8);

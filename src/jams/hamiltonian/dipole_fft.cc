@@ -10,6 +10,7 @@
 #include "jams/helpers/utils.h"
 #include "jams/helpers/maths.h"
 #include "jams/helpers/output.h"
+#include "jams/interface/config.h"
 #include "jams/interface/fft.h"
 
 #include "jams/hamiltonian/dipole_fft.h"
@@ -35,11 +36,11 @@ DipoleFFTHamiltonian::~DipoleFFTHamiltonian() {
 DipoleFFTHamiltonian::DipoleFFTHamiltonian(const libconfig::Setting &settings, const unsigned int size)
 : Hamiltonian(settings, size)
 {
-  settings.lookupValue("debug", debug_);
-  settings.lookupValue("check_radius", check_radius_);
-  settings.lookupValue("check_symmetry", check_symmetry_);
+  debug_ = jams::config_optional<bool>(settings, "debug", debug_);
+  check_radius_ = jams::config_optional<bool>(settings, "check_radius", check_radius_);
+  check_symmetry_ = jams::config_optional<bool>(settings, "check_symmetry", check_symmetry_);
 
-  r_cutoff_ = double(settings["r_cutoff"]);
+  r_cutoff_ = jams::config_required<jams::Real>(settings, "r_cutoff");
   std::cout << "  r_cutoff " << r_cutoff_ << "\n";
   std::cout << "  r_cutoff_max " << ::globals::lattice->max_interaction_radius() << "\n";
 
@@ -50,7 +51,8 @@ DipoleFFTHamiltonian::DipoleFFTHamiltonian(const libconfig::Setting &settings, c
       }
     }
 
-    settings.lookupValue("distance_tolerance", r_distance_tolerance_);
+  r_distance_tolerance_ = jams::config_optional<jams::Real>(
+      settings, "distance_tolerance", r_distance_tolerance_);
   std::cout << "  distance_tolerance " << r_distance_tolerance_ << "\n";
 
     for (auto n = 0; n < 3; ++n) {
@@ -370,4 +372,3 @@ void DipoleFFTHamiltonian::calculate_fields(jams::Real time) {
     }
   }  // unit cell pos_i
 }
-

@@ -5,6 +5,7 @@
 #include <jams/core/lattice.h>
 #include <jams/cuda/cuda_stream.h>
 #include <jams/helpers/consts.h>
+#include <jams/interface/config.h>
 #include <jams/lattice/minimum_image.h>
 
 CudaDipoleBruteforceHamiltonian::CudaDipoleBruteforceHamiltonian(const libconfig::Setting &settings, const unsigned int size)
@@ -15,7 +16,7 @@ CudaDipoleBruteforceHamiltonian::CudaDipoleBruteforceHamiltonian(const libconfig
         super_cell_dim[n] = jams::Real(globals::lattice->size(n)) / 2;
     }
 
-    settings.lookupValue("r_cutoff", r_cutoff_);
+    r_cutoff_ = jams::config_required<jams::Real>(settings, "r_cutoff");
     std::cout << "  r_cutoff " << r_cutoff_ << "\n";
 
     if (r_cutoff_ > globals::lattice->max_interaction_radius()) {

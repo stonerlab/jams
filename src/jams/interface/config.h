@@ -228,6 +228,24 @@ struct config_required_impl<InteractionFileFormat, void> {
       return result;
     }
 
+    // Returns a row-major numeric Mat setting read directly from a flat positional setting.
+    template <typename T, std::size_t Rows, std::size_t Cols>
+    inline jams::Mat<T, Rows, Cols> read_mat_setting(const libconfig::Setting& setting, const char* name)
+    {
+      constexpr auto length = int(Rows * Cols);
+      if (!is_numeric_array_setting(setting, length)) {
+        throw jams::ConfigException(setting, name, " must be an array containing exactly ", length, " numeric components");
+      }
+
+      jams::Mat<T, Rows, Cols> result;
+      for (auto row = 0; row < int(Rows); ++row) {
+        for (auto col = 0; col < int(Cols); ++col) {
+          result[row][col] = read_numeric_setting<T>(setting[row * int(Cols) + col], "component");
+        }
+      }
+      return result;
+    }
+
 
 
 

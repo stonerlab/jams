@@ -8,27 +8,25 @@
 #include "jams/helpers/error.h"
 #include "jams/helpers/utils.h"
 #include "jams/helpers/output.h"
+#include "jams/interface/config.h"
 
 ExchangeHamiltonian::ExchangeHamiltonian(const libconfig::Setting &settings, const unsigned int size)
     : SparseInteractionHamiltonian(settings, size) {
-  bool use_symops = true;
-  settings.lookupValue("symops", use_symops);
+  const auto use_symops = jams::config_optional<bool>(settings, "symops", true);
 
   // this is in the units specified by 'unit_name' in the input
-  energy_cutoff_ = 0.0;
-  settings.lookupValue("energy_cutoff", energy_cutoff_);
+  energy_cutoff_ = jams::config_optional<double>(settings, "energy_cutoff", 0.0);
   std::cout << "    interaction energy cutoff " << energy_cutoff_ << "\n";
 
-  radius_cutoff_ = 100.0;  // lattice parameters
-  settings.lookupValue("radius_cutoff", radius_cutoff_);
+  radius_cutoff_ = jams::config_optional<double>(settings, "radius_cutoff", 100.0);  // lattice parameters
   std::cout << "    interaction radius cutoff " << radius_cutoff_ << "\n";
 
-  distance_tolerance_ = jams::defaults::lattice_tolerance; // fractional coordinate units
-  settings.lookupValue("distance_tolerance", distance_tolerance_);
+  // fractional coordinate units
+  distance_tolerance_ = jams::config_optional<double>(
+      settings, "distance_tolerance", jams::defaults::lattice_tolerance);
   std::cout << "    distance_tolerance " << distance_tolerance_ << "\n";
 
-  interaction_prefactor_ = 1.0;
-  settings.lookupValue("interaction_prefactor", interaction_prefactor_);
+  interaction_prefactor_ = jams::config_optional<double>(settings, "interaction_prefactor", 1.0);
   std::cout << "    interaction_prefactor " << interaction_prefactor_ << "\n";
 
   safety_check_distance_tolerance(distance_tolerance_);
@@ -77,41 +75,24 @@ ExchangeHamiltonian::ExchangeHamiltonian(const libconfig::Setting &settings, con
 
   std::vector<InteractionChecks> interaction_checks;
 
-  if (!settings.exists("check_no_zero_motif_neighbour_count")) {
+  if (jams::config_optional<bool>(settings, "check_no_zero_motif_neighbour_count", true)) {
     interaction_checks.push_back(InteractionChecks::kNoZeroMotifNeighbourCount);
-  } else {
-    if (bool(settings["check_no_zero_motif_neighbour_count"]) == true) {
-      interaction_checks.push_back(InteractionChecks::kNoZeroMotifNeighbourCount);
-    }
   }
 
-  if (!settings.exists("check_identical_motif_neighbour_count")) {
+  if (jams::config_optional<bool>(settings, "check_identical_motif_neighbour_count", true)) {
     interaction_checks.push_back(InteractionChecks::kIdenticalMotifNeighbourCount);
-  } else {
-    if (bool(settings["check_identical_motif_neighbour_count"]) == true) {
-      interaction_checks.push_back(InteractionChecks::kIdenticalMotifNeighbourCount);
-    }
   }
 
-  if (!settings.exists("check_identical_motif_total_exchange")) {
+  if (jams::config_optional<bool>(settings, "check_identical_motif_total_exchange", true)) {
     interaction_checks.push_back(InteractionChecks::kIdenticalMotifTotalExchange);
-  } else {
-    if (bool(settings["check_identical_motif_total_exchange"]) == true) {
-      interaction_checks.push_back(InteractionChecks::kIdenticalMotifTotalExchange);
-    }
   }
 
-  jams::SparseMatrixSymmetryCheck sparse_matrix_checks = jams::SparseMatrixSymmetryCheck::Symmetric;
+  const auto sparse_matrix_checks = jams::config_optional<bool>(settings, "check_sparse_matrix_symmetry", true)
+      ? jams::SparseMatrixSymmetryCheck::Symmetric
+      : jams::SparseMatrixSymmetryCheck::None;
 
-  if (settings.exists("check_sparse_matrix_symmetry")) {
-    if (bool(settings["check_sparse_matrix_symmetry"]) == false) {
-      sparse_matrix_checks = jams::SparseMatrixSymmetryCheck::None;
-    }
-  }
-
-  std::string coordinate_format_name = "CARTESIAN";
-  settings.lookupValue("coordinate_format", coordinate_format_name);
-  CoordinateFormat coord_format = coordinate_format_from_string(coordinate_format_name);
+  const auto coord_format = jams::config_optional<CoordinateFormat>(
+      settings, "coordinate_format", CoordinateFormat::CARTESIAN);
 
   std::cout << "    coordinate format: " << to_string(coord_format) << "\n";
   // exc_file is to maintain backwards compatibility

@@ -34,10 +34,10 @@ Physics::Physics(const libconfig::Setting &physics_settings) :
   std::cout << "  " << name() << " physics\n";
 
   // initialise temperature
-  temperature_ = 0.0;
-  if (!physics_settings.lookupValue("temperature", temperature_)) {
+  if (!physics_settings.exists("temperature")) {
     jams_warning("No temperature specified in input - assuming 0.0");
   }
+  temperature_ = jams::config_optional<double>(physics_settings, "temperature", 0.0);
 
   // initialise applied field
   jams::Vec<double, 3> field = {0.0, 0.0, 0.0};
@@ -67,9 +67,8 @@ Physics::Physics(const libconfig::Setting &physics_settings) :
 
 Physics* Physics::create(const libconfig::Setting &settings) {
 
-  std::string module_name = jams::defaults::physics_module;
-  settings.lookupValue("module", module_name);
-  module_name = lowercase(module_name);
+  const auto module_name = lowercase(
+      jams::config_optional<std::string>(settings, "module", jams::defaults::physics_module));
 
   if (module_name == "empty") {
     return new EmptyPhysics(settings);

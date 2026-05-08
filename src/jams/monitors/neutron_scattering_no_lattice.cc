@@ -9,6 +9,7 @@
 #include "jams/cuda/cuda_common.h"
 #include "jams/core/solver.h"
 #include "jams/helpers/output.h"
+#include "jams/interface/config.h"
 
 #include "jams/monitors/spectrum_general.h"
 #include "jams/monitors/neutron_scattering_no_lattice.h"
@@ -322,8 +323,7 @@ void NeutronScatteringNoLatticeMonitor::store_kspace_data_on_path() {
 
 void NeutronScatteringNoLatticeMonitor::configure_polarizations(libconfig::Setting &settings) {
   for (auto i = 0; i < settings.getLength(); ++i) {
-    neutron_polarizations_.push_back({
-                                         double{settings[i][0]}, double{settings[i][1]}, double{settings[i][2]}});
+    neutron_polarizations_.push_back(jams::read_vec_setting<double, 3>(settings[i], "polarization"));
   }
 }
 

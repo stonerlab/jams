@@ -22,8 +22,8 @@ jams::BoseEinsteinCudaSRK4Thermostat::BoseEinsteinCudaSRK4Thermostat(const doubl
 
    jams_warning("This thermostat is currently broken. Do not use for production work.");
 
-   double warmup_time = 100.0e-12;
-   globals::config->lookupValue("thermostat.warmup_time", warmup_time);
+   double warmup_time = jams::config_optional<double>(
+       globals::config->lookup("thermostat"), "warmup_time", 100.0e-12);
    warmup_time = warmup_time / 1e-12; // convert into ps
 
    const auto& solver_settings = globals::config->lookup("solver");

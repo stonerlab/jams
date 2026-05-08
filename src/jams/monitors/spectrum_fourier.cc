@@ -12,6 +12,7 @@
 #include "jams/core/globals.h"
 #include "jams/core/lattice.h"
 #include "jams/helpers/consts.h"
+#include "jams/interface/config.h"
 #include "jams/interface/fft.h"
 #include "spectrum_fourier.h"
 #include "jams/helpers/output.h"
@@ -32,7 +33,8 @@ namespace {
 
 SpectrumFourierMonitor::SpectrumFourierMonitor(const libconfig::Setting &settings)
 : Monitor(settings) {
-  settings.lookupValue("output_sublattice", output_sublattice_enabled_);
+  output_sublattice_enabled_ = jams::config_optional<bool>(
+      settings, "output_sublattice", output_sublattice_enabled_);
 
   time_point_counter_ = 0;
 

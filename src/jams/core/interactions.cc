@@ -278,9 +278,7 @@ interactions_from_settings(libconfig::Setting &setting, const InteractionFileDes
     if (desc.dimension == InteractionType::SCALAR) {
       J.interaction_value_tensor = jams::read_numeric_setting<double>(setting[i][3], "interaction energy") * kIdentityMat3;
     } else {
-      J.interaction_value_tensor = {setting[i][3][0], setting[i][3][1], setting[i][3][2],
-                                    setting[i][3][3], setting[i][3][4], setting[i][3][5],
-                                    setting[i][3][6], setting[i][3][7], setting[i][3][8]};
+      J.interaction_value_tensor = jams::read_mat_setting<double, 3, 3>(setting[i][3], "interaction tensor");
     }
 
     interactions.push_back(J);
