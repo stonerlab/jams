@@ -43,9 +43,12 @@
 ///
 /// crystal_field_coefficients (required | list)
 ///      A list of the crystal field parameters for each material or unit cell position. Each list element is another
-///      list with the format: (material, J, alphaJ, betaJ, gammaJ, cf_param_filename), where material can be a material
+///      list with the format: (target, J, alphaJ, betaJ, gammaJ, cf_param_filename), where target can be a material
 ///      name or unit cell position, and cf_param_filename is a filename for the file which contains the crystal field
-///      coefficients B_{l,m} for that material.
+///      coefficients B_{l,m} for that material. Optional local axes may be supplied immediately after the target with
+///      the format: (target, u, v, w, J, alphaJ, betaJ, gammaJ, cf_param_filename). The u, v and w axes are normalised
+///      on input and must be mutually orthogonal. The crystal-field tesseral harmonics are evaluated using the spin
+///      components projected onto these local axes.
 ///
 /// Crystal Field File Format
 /// -------------------------
@@ -66,7 +69,10 @@
 ///        energy_cutoff = 1e-1;
 ///        crystal_field_spin_type = "down";
 ///        crystal_field_coefficients = (
-///            ("Tb", 6, -0.01010101, 0.00012244, -0.00000112, "Tb.CFparameters.dat"));
+///            ("Tb", 6, -0.01010101, 0.00012244, -0.00000112, "Tb.CFparameters.dat"),
+///            ("Dy", [1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0],
+///             7.5, -0.00222222, -0.00003333, 0.00000002, "Dy.CFparameters.dat")
+///        );
 ///      }
 ///  );
 ///

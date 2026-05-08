@@ -320,6 +320,60 @@ void write_axes_for_spin(jams::MultiArray<jams::Real, 2>& u_axes,
 
 } // namespace
 
+bool AnisotropyPolynomialHamiltonian::is_local_axis_setting(const libconfig::Setting& setting)
+{
+    return is_axis_setting(setting);
+}
+
+AnisotropyPolynomialHamiltonian::LocalAxes AnisotropyPolynomialHamiltonian::read_optional_local_axes(
+    const libconfig::Setting& setting,
+    const int axis_start_index,
+    const char* setting_name,
+    int& value_start_index)
+{
+    LocalAxes axes;
+    value_start_index = axis_start_index;
+
+    const auto length = setting.getLength();
+    const auto has_some_axis_settings = length > axis_start_index && is_local_axis_setting(setting[axis_start_index]);
+    if (!has_some_axis_settings) {
+        return axes;
+    }
+
+    if (length < axis_start_index + 3 ||
+        !is_local_axis_setting(setting[axis_start_index + 1]) ||
+        !is_local_axis_setting(setting[axis_start_index + 2])) {
+        throw jams::ConfigException(setting, setting_name, " must specify all three axes or no axes");
+    }
+
+    axes.has_axes = true;
+    axes.u = read_axis(setting[axis_start_index]);
+    axes.v = read_axis(setting[axis_start_index + 1]);
+    axes.w = read_axis(setting[axis_start_index + 2]);
+
+    if (!axes_are_orthogonal(axes.u, axes.v, axes.w)) {
+        throw jams::ConfigException(setting, "u, v and w axes must be orthogonal");
+    }
+
+    value_start_index = axis_start_index + 3;
+    return axes;
+}
+
+void AnisotropyPolynomialHamiltonian::write_local_axes_for_spin(
+    const int spin_index,
+    const LocalAxes& axes)
+{
+    if (!axes.has_axes) {
+        return;
+    }
+
+    for (auto j = 0; j < 3; ++j) {
+        u_axes_(spin_index, j) = axes.u[j];
+        v_axes_(spin_index, j) = axes.v[j];
+        w_axes_(spin_index, j) = axes.w[j];
+    }
+}
+
 AnisotropyPolynomialHamiltonian::AnisotropyPolynomialHamiltonian(const libconfig::Setting& settings,
     const unsigned int size)
     : Hamiltonian(settings, size)

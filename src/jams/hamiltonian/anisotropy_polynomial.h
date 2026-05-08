@@ -108,12 +108,26 @@ public:
     jams::Real calculate_energy(int i, jams::Real time) override;
 
 protected:
+    struct LocalAxes {
+        bool has_axes = false;
+        jams::Vec<jams::Real, 3> u = {1.0, 0.0, 0.0};
+        jams::Vec<jams::Real, 3> v = {0.0, 1.0, 0.0};
+        jams::Vec<jams::Real, 3> w = {0.0, 0.0, 1.0};
+    };
+
     struct EmptyStorageTag {};
 
     AnisotropyPolynomialHamiltonian(const libconfig::Setting &settings, const unsigned int size, EmptyStorageTag);
 
     void initialise_tesseral_storage(const unsigned int size);
     void set_tesseral_terms(const std::vector<TesseralKeyCoefficientMap>& spin_coefficients);
+    void write_local_axes_for_spin(int spin_index, const LocalAxes& axes);
+
+    static bool is_local_axis_setting(const libconfig::Setting& setting);
+    static LocalAxes read_optional_local_axes(const libconfig::Setting& setting,
+                                             int axis_start_index,
+                                             const char* setting_name,
+                                             int& value_start_index);
 
     jams::Real calculate_energy_for_spin(int i, const jams::Vec<double, 3> &spin, jams::Real time) override;
 

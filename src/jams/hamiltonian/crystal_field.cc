@@ -39,6 +39,12 @@ CrystalFieldHamiltonian::CrystalFieldHamiltonian(const libconfig::Setting &setti
   for (auto n = 0; n < settings["crystal_field_coefficients"].getLength(); ++n) {
 
     const auto &cf_params = settings["crystal_field_coefficients"][n];
+    if (!cf_params.isList()) {
+      throw jams::ConfigException(cf_params, "crystal field coefficients entry must be a list");
+    }
+    if (cf_params.getLength() == 0) {
+      throw jams::ConfigException(cf_params, "crystal field coefficients entry must not be empty");
+    }
 
     // validate settings
     if (cf_params[0].isNumber()) {
@@ -55,11 +61,29 @@ CrystalFieldHamiltonian::CrystalFieldHamiltonian(const libconfig::Setting &setti
       throw jams::ConfigException(cf_params[0], "must be a unit cell index or material name");
     }
 
-    double J = cf_params[1];
-    double alphaJ = cf_params[2];
-    double betaJ = cf_params[3];
-    double gammaJ = cf_params[4];
-    auto cf_coefficient_filename = cf_params[5].c_str();
+    int parameter_start = 1;
+    const auto local_axes = read_optional_local_axes(cf_params, 1, "crystal field", parameter_start);
+    if (cf_params.getLength() != parameter_start + 5) {
+      throw jams::ConfigException(
+          cf_params,
+          "crystal field coefficients entry must have format "
+          "(target, [u, v, w], J, alphaJ, betaJ, gammaJ, cf_param_filename)");
+    }
+
+    for (auto parameter_index = parameter_start; parameter_index < parameter_start + 4; ++parameter_index) {
+      if (!cf_params[parameter_index].isNumber()) {
+        throw jams::ConfigException(cf_params[parameter_index], "crystal field parameter must be numeric");
+      }
+    }
+    if (!cf_params[parameter_start + 4].isString()) {
+      throw jams::ConfigException(cf_params[parameter_start + 4], "crystal field coefficient filename must be a string");
+    }
+
+    double J = cf_params[parameter_start];
+    double alphaJ = cf_params[parameter_start + 1];
+    double betaJ = cf_params[parameter_start + 2];
+    double gammaJ = cf_params[parameter_start + 3];
+    auto cf_coefficient_filename = cf_params[parameter_start + 4].c_str();
 
     std::map<int, double> stevens_prefactor;
     stevens_prefactor.insert({2, J * (J - 0.5) * alphaJ});
@@ -110,6 +134,7 @@ CrystalFieldHamiltonian::CrystalFieldHamiltonian(const libconfig::Setting &setti
         throw std::runtime_error("crystal field is specified more than once for atom " + std::to_string(i));
       }
 
+      write_local_axes_for_spin(int(i), local_axes);
       spin_terms[i] = crystal_field_terms;
       spin_has_crystal_field[i] = true;
     }

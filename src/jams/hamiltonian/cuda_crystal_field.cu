@@ -18,6 +18,9 @@ void CudaCrystalFieldHamiltonian::calculate_fields(jams::Real time) {
     cuda_crystal_field_kernel<<<grid_size, block_size, 0, cuda_stream_.get() >>>
             (globals::num_spins,
              globals::s.device_data(),
+             u_axes_.device_data(),
+             v_axes_.device_data(),
+             w_axes_.device_data(),
              spin_pointer_.device_data(),
              tesseral_keys_.device_data(),
              tesseral_coefficients_.device_data(),
@@ -35,6 +38,9 @@ void CudaCrystalFieldHamiltonian::calculate_energies(jams::Real time) {
     cuda_crystal_field_energy_kernel<<<grid_size, block_size, 0, cuda_stream_.get() >>>
             (globals::num_spins,
              globals::s.device_data(),
+             u_axes_.device_data(),
+             v_axes_.device_data(),
+             w_axes_.device_data(),
              spin_pointer_.device_data(),
              tesseral_keys_.device_data(),
              tesseral_coefficients_.device_data(),
