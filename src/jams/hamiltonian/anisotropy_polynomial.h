@@ -62,8 +62,11 @@
 ///     A list of anisotropy definitions for each material or unit cell position.
 ///     Each definition has the format:
 ///         (target, u, v, w, coefficient...)
+///     or, for purely axial m=0 anisotropy:
+///         (target, w, coefficient...)
 ///     where target is either a material name or a unit cell position, u, v and w
-///     are the local reference axes, and each coefficient has the format:
+///     are the local reference axes, w is the local axial direction, and each
+///     coefficient has the format:
 ///         (l, m, C_lm)
 ///
 ///     The axes may be omitted, in which case the defaults are:
@@ -71,12 +74,15 @@
 ///         v = [0.0, 1.0, 0.0]
 ///         w = [0.0, 0.0, 1.0]
 ///
-///     If axes are provided, all three axes must be specified. They are
-///     normalised on input and must be mutually orthogonal. Omitted axes use
-///     the default frame unless another matching anisotropy definition provides
+///     If axes are provided, either one axial w axis or all three u, v and w
+///     axes must be specified. Axes are normalised on input; full u, v and w
+///     axes must be mutually orthogonal. A single w axis is only valid when all
+///     non-zero terms applying to that spin have m=0. Omitted axes use the
+///     default frame unless another matching anisotropy definition provides
 ///     explicit axes for the same spin. All explicit local axes that apply to a
 ///     given spin must be consistent; it is malformed input to define multiple
-///     anisotropies for the same spin with different local frames.
+///     anisotropies for the same spin with different local frames. For one-axis
+///     axial definitions, consistency is checked using the w axis.
 ///
 /// Example
 /// -------
@@ -110,6 +116,7 @@ public:
 protected:
     struct LocalAxes {
         bool has_axes = false;
+        bool has_full_axes = false;
         jams::Vec<jams::Real, 3> u = {1.0, 0.0, 0.0};
         jams::Vec<jams::Real, 3> v = {0.0, 1.0, 0.0};
         jams::Vec<jams::Real, 3> w = {0.0, 0.0, 1.0};
@@ -141,6 +148,7 @@ protected:
     jams::MultiArray<jams::Real,2> u_axes_; /// u_axes_(profile_index, cart_component)
     jams::MultiArray<jams::Real,2> v_axes_; /// v_axes_(profile_index, cart_component)
     jams::MultiArray<jams::Real,2> w_axes_; /// w_axes_(profile_index, cart_component)
+    jams::MultiArray<int, 1> profile_axis_modes_;
 
     // An array similar to CSR format where beginning and end index of the data
     // for a given profile in the key and coefficient arrays is stored.

@@ -143,6 +143,15 @@ protected:
   }
 };
 
+class CrystalFieldHamiltonianSingleAxisRuntimeTest : public CrystalFieldHamiltonianRuntimeTest {
+protected:
+  std::string crystal_field_coefficients_entry() const override
+  {
+    return "(\"A\", [1.0, 0.0, 0.0], "
+        "2.0, 1.0, 0.0, 0.0, \"" + coefficient_filename_ + "\")";
+  }
+};
+
 class CrystalFieldHamiltonianFractionalTargetRuntimeTest : public CrystalFieldHamiltonianRuntimeTest {
 protected:
   std::string crystal_field_coefficients_entry() const override
@@ -319,6 +328,46 @@ TEST_F(CrystalFieldHamiltonianAxesRuntimeTest, ProjectsEnergyAndFieldOntoConfigu
   ASSERT_NEAR(field[0], -2.0 * coefficient, tolerance);
   ASSERT_NEAR(field[1], 0.0, tolerance);
   ASSERT_NEAR(field[2], 0.0, tolerance);
+}
+
+TEST_F(CrystalFieldHamiltonianSingleAxisRuntimeTest, ProjectsAxialEnergyAndFieldOntoConfiguredAxis)
+{
+  CrystalFieldHamiltonianTestAccess hamiltonian(
+      globals::config->lookup("hamiltonian"),
+      globals::num_spins);
+
+  constexpr int spin_index = 0;
+  const double stevens_prefactor = 2.0 * (2.0 - 0.5);
+  const double monic_scale = jams::tesseral_racah_normalisation_scale_lookup<double>(2, 0);
+  const auto coefficient = jams::Real(stevens_prefactor * monic_scale);
+  const auto tolerance = 1e-6;
+
+  const jams::Vec<double, 3> spin_global_x = {1.0, 0.0, 0.0};
+  const double expected_energy = coefficient * jams::tesseral_monic_polynomial(2, 0, 0.0, 0.0, 1.0);
+  ASSERT_NEAR(hamiltonian.crystal_field_energy(spin_index, spin_global_x), expected_energy, tolerance);
+
+  globals::s(spin_index, 0) = 1.0;
+  globals::s(spin_index, 1) = 0.0;
+  globals::s(spin_index, 2) = 0.0;
+
+  const auto field = hamiltonian.calculate_field(spin_index, 0.0);
+  ASSERT_NEAR(field[0], -2.0 * coefficient, tolerance);
+  ASSERT_NEAR(field[1], 0.0, tolerance);
+  ASSERT_NEAR(field[2], 0.0, tolerance);
+}
+
+TEST_F(CrystalFieldHamiltonianSingleAxisRuntimeTest, RejectsSingleAxisWithNonAxialTerms)
+{
+  std::ofstream coefficients(coefficient_filename_);
+  coefficients << "2 -2 1.0 0.0 0.0 0.0\n";
+  coefficients << "2 2 1.0 0.0 0.0 0.0\n";
+  coefficients.close();
+
+  ASSERT_THROW(
+      CrystalFieldHamiltonianTestAccess(
+          globals::config->lookup("hamiltonian"),
+          globals::num_spins),
+      jams::ConfigException);
 }
 
 #endif // JAMS_TEST_HAMILTONIAN_TEST_CRYSTAL_FIELD_H

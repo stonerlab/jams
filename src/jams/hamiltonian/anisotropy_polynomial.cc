@@ -30,6 +30,7 @@ struct AnisotropyPolynomialSetting {
     int motif_position = -1;
     int material_id = -1;
     bool has_axes = false;
+    bool has_full_axes = false;
     jams::Vec<jams::Real, 3> u = kDefaultU;
     jams::Vec<jams::Real, 3> v = kDefaultV;
     jams::Vec<jams::Real, 3> w = kDefaultW;
@@ -40,6 +41,7 @@ struct AnisotropyProfile {
     jams::Vec<jams::Real, 3> u = kDefaultU;
     jams::Vec<jams::Real, 3> v = kDefaultV;
     jams::Vec<jams::Real, 3> w = kDefaultW;
+    int axis_mode = jams::tesseral_polynomial::kProfileAxesDefault;
     std::array<jams::Real, 4> axial_polynomial = {0.0, 0.0, 0.0, 0.0};
     std::vector<std::pair<int, jams::Real>> terms;
 };
@@ -185,6 +187,30 @@ bool axes_match(const jams::Vec<jams::Real, 3>& lhs_u,
         && jams::approximately_equal(lhs_w, rhs_w, tolerance);
 }
 
+bool axes_match(const jams::Vec<jams::Real, 3>& lhs, const jams::Vec<jams::Real, 3>& rhs)
+{
+    const auto tolerance = jams::Real(jams::defaults::lattice_tolerance);
+    return jams::approximately_equal(lhs, rhs, tolerance);
+}
+
+bool coefficient_is_axial(const std::pair<int, jams::Real>& coefficient)
+{
+    return jams::tesseral_polynomial::axial_coefficient_index_from_key(coefficient.first) >= 0;
+}
+
+bool coefficients_are_axial(const std::vector<std::pair<int, jams::Real>>& coefficients)
+{
+    return std::all_of(coefficients.begin(), coefficients.end(), coefficient_is_axial);
+}
+
+bool coefficients_are_axial(const AnisotropyPolynomialHamiltonian::TesseralKeyCoefficientMap& coefficients)
+{
+    return std::all_of(coefficients.begin(), coefficients.end(), [](const auto& term) {
+        return term.second == jams::Real{0}
+            || jams::tesseral_polynomial::axial_coefficient_index_from_key(term.first) >= 0;
+    });
+}
+
 std::pair<int, jams::Real> read_coefficient_setting(
     const Setting& setting,
     const double energy_unit_conversion,
@@ -261,20 +287,26 @@ AnisotropyPolynomialSetting read_anisotropy_setting(
     auto coefficient_start = 1;
     const auto has_some_axis_settings = length > 1 && is_axis_setting(setting[1]);
     if (has_some_axis_settings) {
-        if (length < 5 || !is_axis_setting(setting[2]) || !is_axis_setting(setting[3])) {
-            throw jams::ConfigException(setting, "anisotropy must specify all three axes or no axes");
-        }
-
         result.has_axes = true;
-        result.u = read_axis(setting[1]);
-        result.v = read_axis(setting[2]);
-        result.w = read_axis(setting[3]);
+        if (length > 2 && is_axis_setting(setting[2])) {
+            if (length < 5 || !is_axis_setting(setting[3])) {
+                throw jams::ConfigException(setting, "anisotropy must specify either one axial axis, all three axes or no axes");
+            }
 
-        if (!axes_are_orthogonal(result.u, result.v, result.w)) {
-            throw jams::ConfigException(setting, "u, v and w axes must be orthogonal");
+            result.has_full_axes = true;
+            result.u = read_axis(setting[1]);
+            result.v = read_axis(setting[2]);
+            result.w = read_axis(setting[3]);
+
+            if (!axes_are_orthogonal(result.u, result.v, result.w)) {
+                throw jams::ConfigException(setting, "u, v and w axes must be orthogonal");
+            }
+
+            coefficient_start = 4;
+        } else {
+            result.w = read_axis(setting[1]);
+            coefficient_start = 2;
         }
-
-        coefficient_start = 4;
     }
 
     for (auto i = coefficient_start; i < length; ++i) {
@@ -283,6 +315,9 @@ AnisotropyPolynomialSetting read_anisotropy_setting(
 
     if (result.coefficients.empty()) {
         throw jams::ConfigException(setting, "anisotropy must contain at least one coefficient");
+    }
+    if (result.has_axes && !result.has_full_axes && !coefficients_are_axial(result.coefficients)) {
+        throw jams::ConfigException(setting, "a single anisotropy axis can only be used when all coefficients have m = 0");
     }
 
     return result;
@@ -309,8 +344,10 @@ void write_axes_for_spin(jams::MultiArray<jams::Real, 2>& u_axes,
                          const AnisotropyPolynomialSetting& setting)
 {
     for (auto j = 0; j < 3; ++j) {
-        u_axes(spin_index, j) = setting.u[j];
-        v_axes(spin_index, j) = setting.v[j];
+        if (setting.has_full_axes) {
+            u_axes(spin_index, j) = setting.u[j];
+            v_axes(spin_index, j) = setting.v[j];
+        }
         w_axes(spin_index, j) = setting.w[j];
     }
 }
@@ -345,6 +382,7 @@ bool profiles_equal(const AnisotropyProfile& lhs, const AnisotropyProfile& rhs)
     return lhs.u == rhs.u
         && lhs.v == rhs.v
         && lhs.w == rhs.w
+        && lhs.axis_mode == rhs.axis_mode
         && lhs.axial_polynomial == rhs.axial_polynomial
         && lhs.terms == rhs.terms;
 }
@@ -395,22 +433,26 @@ AnisotropyPolynomialHamiltonian::LocalAxes AnisotropyPolynomialHamiltonian::read
         return axes;
     }
 
-    if (length < axis_start_index + 3 ||
-        !is_local_axis_setting(setting[axis_start_index + 1]) ||
-        !is_local_axis_setting(setting[axis_start_index + 2])) {
-        throw jams::ConfigException(setting, setting_name, " must specify all three axes or no axes");
-    }
-
     axes.has_axes = true;
-    axes.u = read_axis(setting[axis_start_index]);
-    axes.v = read_axis(setting[axis_start_index + 1]);
-    axes.w = read_axis(setting[axis_start_index + 2]);
+    if (length > axis_start_index + 1 && is_local_axis_setting(setting[axis_start_index + 1])) {
+        if (length < axis_start_index + 3 || !is_local_axis_setting(setting[axis_start_index + 2])) {
+            throw jams::ConfigException(setting, setting_name, " must specify either one axial axis, all three axes or no axes");
+        }
 
-    if (!axes_are_orthogonal(axes.u, axes.v, axes.w)) {
-        throw jams::ConfigException(setting, "u, v and w axes must be orthogonal");
+        axes.has_full_axes = true;
+        axes.u = read_axis(setting[axis_start_index]);
+        axes.v = read_axis(setting[axis_start_index + 1]);
+        axes.w = read_axis(setting[axis_start_index + 2]);
+
+        if (!axes_are_orthogonal(axes.u, axes.v, axes.w)) {
+            throw jams::ConfigException(setting, "u, v and w axes must be orthogonal");
+        }
+
+        value_start_index = axis_start_index + 3;
+    } else {
+        axes.w = read_axis(setting[axis_start_index]);
+        value_start_index = axis_start_index + 1;
     }
-
-    value_start_index = axis_start_index + 3;
     return axes;
 }
 
@@ -423,8 +465,10 @@ void AnisotropyPolynomialHamiltonian::write_local_axes_for_spin(
     }
 
     for (auto j = 0; j < 3; ++j) {
-        u_axes_(spin_index, j) = axes.u[j];
-        v_axes_(spin_index, j) = axes.v[j];
+        if (axes.has_full_axes) {
+            u_axes_(spin_index, j) = axes.u[j];
+            v_axes_(spin_index, j) = axes.v[j];
+        }
         w_axes_(spin_index, j) = axes.w[j];
     }
 }
@@ -451,6 +495,7 @@ AnisotropyPolynomialHamiltonian::AnisotropyPolynomialHamiltonian(const libconfig
 
     std::vector<TesseralKeyCoefficientMap> spin_coefficients(size);
     std::vector<bool> spin_axes_explicitly_set(size, false);
+    std::vector<bool> spin_axes_are_full(size, false);
 
     for (auto n = 0; n < anisotropy_settings.getLength(); ++n) {
         const auto& anisotropy_setting = anisotropy_settings[n];
@@ -466,19 +511,38 @@ AnisotropyPolynomialHamiltonian::AnisotropyPolynomialHamiltonian(const libconfig
                 const auto existing_u = axis_for_spin(u_axes_, int(i));
                 const auto existing_v = axis_for_spin(v_axes_, int(i));
                 const auto existing_w = axis_for_spin(w_axes_, int(i));
-                if (!axes_match(existing_u, existing_v, existing_w, anisotropy.u, anisotropy.v, anisotropy.w)) {
+                if (anisotropy.has_full_axes && spin_axes_are_full[i] &&
+                    !axes_match(existing_u, existing_v, existing_w, anisotropy.u, anisotropy.v, anisotropy.w)) {
                     throw jams::ConfigException(anisotropy_setting,
                                                 "anisotropy axes are specified inconsistently for spin ",
                                                 i);
                 }
+                if ((!anisotropy.has_full_axes || !spin_axes_are_full[i]) && !axes_match(existing_w, anisotropy.w)) {
+                    throw jams::ConfigException(anisotropy_setting,
+                                                "anisotropy axes are specified inconsistently for spin ",
+                                                i);
+                }
+                if (anisotropy.has_full_axes && !spin_axes_are_full[i]) {
+                    write_axes_for_spin(u_axes_, v_axes_, w_axes_, int(i), anisotropy);
+                    spin_axes_are_full[i] = true;
+                }
             } else if (anisotropy.has_axes) {
                 write_axes_for_spin(u_axes_, v_axes_, w_axes_, int(i), anisotropy);
                 spin_axes_explicitly_set[i] = true;
+                spin_axes_are_full[i] = anisotropy.has_full_axes;
             }
 
             for (const auto& [key, coefficient] : anisotropy.coefficients) {
                 spin_coefficients[i][key] += coefficient;
             }
+        }
+    }
+
+    for (auto i = 0u; i < size; ++i) {
+        if (spin_axes_explicitly_set[i] && !spin_axes_are_full[i] && !coefficients_are_axial(spin_coefficients[i])) {
+            throw jams::ConfigException(
+                anisotropy_settings,
+                "a single anisotropy axis can only be used when all non-zero terms for a spin have m = 0");
         }
     }
 
@@ -503,6 +567,7 @@ void AnisotropyPolynomialHamiltonian::initialise_tesseral_storage(const unsigned
     zero(u_axes_.resize(size, 3));
     zero(v_axes_.resize(size, 3));
     zero(w_axes_.resize(size, 3));
+    zero(profile_axis_modes_.resize(size));
 
     for (auto i = 0u; i < size; ++i) {
         u_axes_(i, 0) = kDefaultU[0];
@@ -549,12 +614,22 @@ void AnisotropyPolynomialHamiltonian::set_tesseral_terms(
             }
         }
 
+        const auto has_default_axes = profile.u == kDefaultU && profile.v == kDefaultV && profile.w == kDefaultW;
+        if (has_default_axes) {
+            profile.axis_mode = jams::tesseral_polynomial::kProfileAxesDefault;
+        } else if (profile.terms.empty()) {
+            profile.axis_mode = jams::tesseral_polynomial::kProfileAxesAxial;
+        } else {
+            profile.axis_mode = jams::tesseral_polynomial::kProfileAxesFull;
+        }
+
         spin_profile_(i) = find_or_add_profile(profiles, profile);
     }
 
     zero(u_axes_.resize(profiles.size(), 3));
     zero(v_axes_.resize(profiles.size(), 3));
     zero(w_axes_.resize(profiles.size(), 3));
+    zero(profile_axis_modes_.resize(profiles.size()));
     zero(axial_polynomial_coefficients_.resize(profiles.size(), 4));
     zero(profile_pointer_.resize(profiles.size() + 1));
 
@@ -562,6 +637,7 @@ void AnisotropyPolynomialHamiltonian::set_tesseral_terms(
     for (auto i = 0u; i < profiles.size(); ++i) {
         profile_pointer_(i) = total_terms;
         total_terms += int(profiles[i].terms.size());
+        profile_axis_modes_(i) = profiles[i].axis_mode;
 
         for (auto j = 0; j < 3; ++j) {
             u_axes_(i, j) = profiles[i].u[j];
@@ -613,6 +689,7 @@ jams::Vec<jams::Real, 3> AnisotropyPolynomialHamiltonian::calculate_field(int i,
         std::as_const(u_axes_).host_data(),
         std::as_const(v_axes_).host_data(),
         std::as_const(w_axes_).host_data(),
+        std::as_const(profile_axis_modes_).host_data(),
         std::as_const(profile_pointer_).host_data(),
         std::as_const(tesseral_keys_).host_data(),
         std::as_const(tesseral_coefficients_).host_data(),
@@ -634,6 +711,7 @@ jams::Real AnisotropyPolynomialHamiltonian::calculate_energy(int i, jams::Real t
         std::as_const(u_axes_).host_data(),
         std::as_const(v_axes_).host_data(),
         std::as_const(w_axes_).host_data(),
+        std::as_const(profile_axis_modes_).host_data(),
         std::as_const(profile_pointer_).host_data(),
         std::as_const(tesseral_keys_).host_data(),
         std::as_const(tesseral_coefficients_).host_data(),
@@ -651,6 +729,7 @@ jams::Real AnisotropyPolynomialHamiltonian::calculate_energy_for_spin(int i, con
         std::as_const(u_axes_).host_data(),
         std::as_const(v_axes_).host_data(),
         std::as_const(w_axes_).host_data(),
+        std::as_const(profile_axis_modes_).host_data(),
         std::as_const(profile_pointer_).host_data(),
         std::as_const(tesseral_keys_).host_data(),
         std::as_const(tesseral_coefficients_).host_data(),

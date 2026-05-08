@@ -231,6 +231,110 @@ TEST_F(CudaAnisotropyPolynomialHamiltonianTests, non_unit_integer_axes_are_not_m
         globals::num_spins));
 }
 
+TEST_F(CudaAnisotropyPolynomialHamiltonianTests, single_axis_is_allowed_for_axial_terms)
+{
+    set_test_spins();
+
+    libconfig::Config single_axis_config;
+    single_axis_config.readString(R"(
+        hamiltonian = {
+          module = "anisotropy-polynomial";
+          energy_units = "meV";
+          anisotropies = (
+            ("A", [1.0, 0.0, 0.0], (2, 0, 1.0), (4, 0, 0.5))
+          );
+        };
+    )");
+
+    libconfig::Config full_axes_config;
+    full_axes_config.readString(R"(
+        hamiltonian = {
+          module = "anisotropy-polynomial";
+          energy_units = "meV";
+          anisotropies = (
+            ("A", [0.0, 1.0, 0.0], [0.0, 0.0, 1.0], [1.0, 0.0, 0.0],
+              (2, 0, 1.0), (4, 0, 0.5))
+          );
+        };
+    )");
+
+    AnisotropyPolynomialHamiltonianTestAccess single_axis_hamiltonian(
+        single_axis_config.lookup("hamiltonian"),
+        globals::num_spins);
+    AnisotropyPolynomialHamiltonianTestAccess full_axes_hamiltonian(
+        full_axes_config.lookup("hamiltonian"),
+        globals::num_spins);
+
+    for (auto i = 0; i < globals::num_spins; ++i) {
+        const jams::Vec<double, 3> spin = {globals::s(i, 0), globals::s(i, 1), globals::s(i, 2)};
+        ASSERT_NEAR(
+            single_axis_hamiltonian.calculate_energy_for_spin(i, spin, 0.0),
+            full_axes_hamiltonian.calculate_energy_for_spin(i, spin, 0.0),
+            1e-14);
+
+        const auto single_axis_field = single_axis_hamiltonian.calculate_field(i, 0.0);
+        const auto full_axes_field = full_axes_hamiltonian.calculate_field(i, 0.0);
+        for (auto j = 0; j < 3; ++j) {
+            ASSERT_NEAR(single_axis_field[j], full_axes_field[j], 1e-14);
+        }
+    }
+}
+
+TEST_F(CudaAnisotropyPolynomialHamiltonianTests, single_axis_rejects_non_axial_terms)
+{
+    libconfig::Config config;
+    config.readString(R"(
+        hamiltonian = {
+          module = "anisotropy-polynomial";
+          energy_units = "meV";
+          anisotropies = (
+            ("A", [1.0, 0.0, 0.0], (2, 2, 1.0))
+          );
+        };
+    )");
+
+    ASSERT_THROW(
+        AnisotropyPolynomialHamiltonian(config.lookup("hamiltonian"), globals::num_spins),
+        jams::ConfigException);
+}
+
+TEST_F(CudaAnisotropyPolynomialHamiltonianTests, single_axis_rejects_later_non_axial_terms_for_same_spin)
+{
+    libconfig::Config config;
+    config.readString(R"(
+        hamiltonian = {
+          module = "anisotropy-polynomial";
+          energy_units = "meV";
+          anisotropies = (
+            ("A", [1.0, 0.0, 0.0], (2, 0, 1.0)),
+            ("A", (2, 2, 1.0))
+          );
+        };
+    )");
+
+    ASSERT_THROW(
+        AnisotropyPolynomialHamiltonian(config.lookup("hamiltonian"), globals::num_spins),
+        jams::ConfigException);
+}
+
+TEST_F(CudaAnisotropyPolynomialHamiltonianTests, two_axes_are_rejected)
+{
+    libconfig::Config config;
+    config.readString(R"(
+        hamiltonian = {
+          module = "anisotropy-polynomial";
+          energy_units = "meV";
+          anisotropies = (
+            ("A", [1.0, 0.0, 0.0], [0.0, 1.0, 0.0], (2, 0, 1.0))
+          );
+        };
+    )");
+
+    ASSERT_THROW(
+        AnisotropyPolynomialHamiltonian(config.lookup("hamiltonian"), globals::num_spins),
+        jams::ConfigException);
+}
+
 TEST_F(CudaAnisotropyPolynomialHamiltonianTests, crystal_field_normalisation_alias_matches_racah)
 {
     set_test_spins();

@@ -3,7 +3,9 @@
 #include <jams/core/globals.h>
 #include <jams/core/lattice.h>
 #include <jams/helpers/exception.h>
+#include <jams/hamiltonian/tesseral_polynomial_evaluator.h>
 #include <jams/maths/tesseral_harmonics.h>
+#include <algorithm>
 #include <cstdint>
 #include <fstream>
 #include <iostream>
@@ -29,6 +31,14 @@ int read_integer_setting(const libconfig::Setting& setting)
   }
 
   return int(setting);
+}
+
+bool terms_are_axial(const AnisotropyPolynomialHamiltonian::TesseralKeyCoefficientMap& terms)
+{
+  return std::all_of(terms.begin(), terms.end(), [](const auto& term) {
+    return term.second == jams::Real{0}
+        || jams::tesseral_polynomial::axial_coefficient_index_from_key(term.first) >= 0;
+  });
 }
 }
 
@@ -156,6 +166,11 @@ CrystalFieldHamiltonian::CrystalFieldHamiltonian(const libconfig::Setting &setti
       }
 
       crystal_field_terms[jams::tesseral_key(l, m)] = jams::Real(coefficient);
+    }
+    if (local_axes.has_axes && !local_axes.has_full_axes && !terms_are_axial(crystal_field_terms)) {
+      throw jams::ConfigException(
+          cf_params,
+          "a single crystal-field axis can only be used when all non-zero tesseral terms have m = 0");
     }
 
     for (auto i = 0u; i < size; i++) {

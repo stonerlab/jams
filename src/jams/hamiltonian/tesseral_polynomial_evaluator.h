@@ -5,6 +5,12 @@
 
 namespace jams::tesseral_polynomial {
 
+enum ProfileAxisMode {
+    kProfileAxesDefault = 0,
+    kProfileAxesAxial = 1,
+    kProfileAxesFull = 2
+};
+
 JAMS_HOST_DEVICE inline int axial_coefficient_index_from_key(const int key)
 {
     switch (key) {
@@ -211,6 +217,7 @@ JAMS_HOST_DEVICE inline T energy_for_profile(
     const T* const u_axes,
     const T* const v_axes,
     const T* const w_axes,
+    const int* const profile_axis_modes,
     const int* const profile_pointer,
     const int* const keys,
     const T* const coefficients,
@@ -220,6 +227,7 @@ JAMS_HOST_DEVICE inline T energy_for_profile(
     const int term_end = profile_pointer[profile_index + 1];
     const int axial_base = 4 * profile_index;
     const T* const axial_polynomial = axial_polynomial_coefficients + axial_base;
+    const int axis_mode = profile_axis_modes[profile_index];
 
     if (term_begin == term_end &&
         axial_polynomial[0] == T{0} &&
@@ -231,10 +239,26 @@ JAMS_HOST_DEVICE inline T energy_for_profile(
 
     const int base = 3 * profile_index;
     if (term_begin == term_end) {
+        if (axis_mode == kProfileAxesDefault) {
+            return axial_energy_from_polynomial(axial_polynomial, sz_global);
+        }
+
         const T z = sx_global * w_axes[base + 0]
             + sy_global * w_axes[base + 1]
             + sz_global * w_axes[base + 2];
         return axial_energy_from_polynomial(axial_polynomial, z);
+    }
+
+    if (axis_mode == kProfileAxesDefault) {
+        return axial_energy_from_polynomial(axial_polynomial, sz_global)
+            + energy_from_local_terms(
+                term_begin,
+                term_end,
+                keys,
+                coefficients,
+                sx_global,
+                sy_global,
+                sz_global);
     }
 
     T local_spin[3];
@@ -266,6 +290,7 @@ JAMS_HOST_DEVICE inline T energy_for_spin_with_profiles(
     const T* const u_axes,
     const T* const v_axes,
     const T* const w_axes,
+    const int* const profile_axis_modes,
     const int* const profile_pointer,
     const int* const keys,
     const T* const coefficients,
@@ -279,6 +304,7 @@ JAMS_HOST_DEVICE inline T energy_for_spin_with_profiles(
         u_axes,
         v_axes,
         w_axes,
+        profile_axis_modes,
         profile_pointer,
         keys,
         coefficients,
@@ -430,6 +456,7 @@ JAMS_HOST_DEVICE inline void field_for_profile(
     const T* const u_axes,
     const T* const v_axes,
     const T* const w_axes,
+    const int* const profile_axis_modes,
     const int* const profile_pointer,
     const int* const keys,
     const T* const coefficients,
@@ -440,6 +467,7 @@ JAMS_HOST_DEVICE inline void field_for_profile(
     const int term_end = profile_pointer[profile_index + 1];
     const int axial_base = 4 * profile_index;
     const T* const axial_polynomial = axial_polynomial_coefficients + axial_base;
+    const int axis_mode = profile_axis_modes[profile_index];
 
     if (term_begin == term_end &&
         axial_polynomial[0] == T{0} &&
@@ -453,6 +481,14 @@ JAMS_HOST_DEVICE inline void field_for_profile(
     }
 
     const int base = 3 * profile_index;
+    if (term_begin == term_end && axis_mode == kProfileAxesDefault) {
+        const T axial_field_z = axial_negative_gradient_from_polynomial(axial_polynomial, sz_global);
+        field[0] = T{0};
+        field[1] = T{0};
+        field[2] = axial_field_z;
+        return;
+    }
+
     const T wx = w_axes[base + 0];
     const T wy = w_axes[base + 1];
     const T wz = w_axes[base + 2];
@@ -463,6 +499,25 @@ JAMS_HOST_DEVICE inline void field_for_profile(
         field[0] = axial_field_z * wx;
         field[1] = axial_field_z * wy;
         field[2] = axial_field_z * wz;
+        return;
+    }
+
+    if (axis_mode == kProfileAxesDefault) {
+        T local_field[3];
+        negative_gradient_from_local_terms(
+            term_begin,
+            term_end,
+            keys,
+            coefficients,
+            sx_global,
+            sy_global,
+            sz_global,
+            local_field);
+        local_field[2] += axial_negative_gradient_from_polynomial(axial_polynomial, sz_global);
+
+        field[0] = local_field[0];
+        field[1] = local_field[1];
+        field[2] = local_field[2];
         return;
     }
 
@@ -513,6 +568,7 @@ JAMS_HOST_DEVICE inline void field_for_spin_with_profiles(
     const T* const u_axes,
     const T* const v_axes,
     const T* const w_axes,
+    const int* const profile_axis_modes,
     const int* const profile_pointer,
     const int* const keys,
     const T* const coefficients,
@@ -527,6 +583,7 @@ JAMS_HOST_DEVICE inline void field_for_spin_with_profiles(
         u_axes,
         v_axes,
         w_axes,
+        profile_axis_modes,
         profile_pointer,
         keys,
         coefficients,

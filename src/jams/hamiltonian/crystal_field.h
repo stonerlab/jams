@@ -46,9 +46,11 @@
 ///      list with the format: (target, J, alphaJ, betaJ, gammaJ, cf_param_filename), where target can be a material
 ///      name or unit cell position, and cf_param_filename is a filename for the file which contains the crystal field
 ///      coefficients B_{l,m} for that material. Optional local axes may be supplied immediately after the target with
-///      the format: (target, u, v, w, J, alphaJ, betaJ, gammaJ, cf_param_filename). The u, v and w axes are normalised
-///      on input and must be mutually orthogonal. The crystal-field tesseral harmonics are evaluated using the spin
-///      components projected onto these local axes.
+///      the format: (target, u, v, w, J, alphaJ, betaJ, gammaJ, cf_param_filename). If the converted tesseral
+///      coefficients contain only non-zero m=0 terms, a single axial w axis may be supplied instead with the format:
+///      (target, w, J, alphaJ, betaJ, gammaJ, cf_param_filename). Axes are normalised on input; full u, v and w axes
+///      must be mutually orthogonal. The crystal-field tesseral harmonics are evaluated using the spin components
+///      projected onto these local axes.
 ///
 /// Crystal Field File Format
 /// -------------------------
