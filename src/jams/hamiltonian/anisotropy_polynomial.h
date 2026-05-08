@@ -181,7 +181,6 @@ protected:
     void set_tesseral_terms(const std::vector<TesseralKeyCoefficientMap>& spin_coefficients);
     void write_local_axes_for_spin(int spin_index, const LocalAxes& axes);
 
-    static bool is_local_axis_setting(const libconfig::Setting& setting);
     static LocalAxes read_optional_local_axes(const libconfig::Setting& setting,
                                              int axis_start_index,
                                              const char* setting_name,

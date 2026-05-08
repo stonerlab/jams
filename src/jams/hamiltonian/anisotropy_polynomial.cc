@@ -375,11 +375,6 @@ int find_or_add_profile(std::vector<AnisotropyProfile>& profiles, const Anisotro
 
 } // namespace
 
-bool AnisotropyPolynomialHamiltonian::is_local_axis_setting(const libconfig::Setting& setting)
-{
-    return jams::is_vec3_setting(setting);
-}
-
 AnisotropyPolynomialHamiltonian::LocalAxes AnisotropyPolynomialHamiltonian::read_optional_local_axes(
     const libconfig::Setting& setting,
     const int axis_start_index,
@@ -390,14 +385,14 @@ AnisotropyPolynomialHamiltonian::LocalAxes AnisotropyPolynomialHamiltonian::read
     value_start_index = axis_start_index;
 
     const auto length = setting.getLength();
-    const auto has_some_axis_settings = length > axis_start_index && is_local_axis_setting(setting[axis_start_index]);
+    const auto has_some_axis_settings = length > axis_start_index && jams::is_vec3_setting(setting[axis_start_index]);
     if (!has_some_axis_settings) {
         return axes;
     }
 
     axes.has_axes = true;
-    if (length > axis_start_index + 1 && is_local_axis_setting(setting[axis_start_index + 1])) {
-        if (length < axis_start_index + 3 || !is_local_axis_setting(setting[axis_start_index + 2])) {
+    if (length > axis_start_index + 1 && jams::is_vec3_setting(setting[axis_start_index + 1])) {
+        if (length < axis_start_index + 3 || !jams::is_vec3_setting(setting[axis_start_index + 2])) {
             throw jams::ConfigException(setting, setting_name, " must specify either one axial axis, all three axes or no axes");
         }
 
