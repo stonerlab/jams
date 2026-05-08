@@ -27,12 +27,17 @@ public:
 
     int total_terms() const
     {
-        return spin_pointer_(spin_pointer_.elements() - 1);
+        return profile_pointer_(profile_pointer_.elements() - 1);
     }
 
     jams::Real axial_polynomial_coefficient(int spin, int index) const
     {
-        return axial_polynomial_coefficients_(spin, index);
+        return axial_polynomial_coefficients_(spin_profile_(spin), index);
+    }
+
+    int profile_count() const
+    {
+        return spin_profile_.empty() ? 0 : u_axes_.extent(0);
     }
 };
 
@@ -329,6 +334,27 @@ TEST_F(CudaAnisotropyPolynomialHamiltonianTests, axial_terms_are_stored_outside_
 
         ASSERT_NEAR(hamiltonian.calculate_energy_for_spin(i, spin, 0.0), expected_energy, 1e-14);
     }
+}
+
+TEST_F(CudaAnisotropyPolynomialHamiltonianTests, identical_spin_anisotropies_share_profiles)
+{
+    libconfig::Config config;
+    config.readString(R"(
+        hamiltonian = {
+          module = "anisotropy-polynomial";
+          energy_units = "meV";
+          anisotropies = (
+            ("A", (2, 0, 1.0), (4, 0, 0.5)),
+            ("B", (2, 0, 1.0), (4, 0, 0.5))
+          );
+        };
+    )");
+
+    AnisotropyPolynomialHamiltonianTestAccess hamiltonian(
+        config.lookup("hamiltonian"),
+        globals::num_spins);
+
+    ASSERT_EQ(hamiltonian.profile_count(), 1);
 }
 
 TEST_F(CudaAnisotropyPolynomialHamiltonianTests, omitted_axes_inherit_explicit_axes_for_same_spin)

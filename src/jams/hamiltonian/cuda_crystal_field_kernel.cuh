@@ -6,10 +6,11 @@
 __global__ void cuda_crystal_field_energy_kernel(
     const unsigned int num_spins,
     const jams::RealHi* dev_s,
+    const int* dev_spin_profile,
     const jams::Real* dev_u_axes,
     const jams::Real* dev_v_axes,
     const jams::Real* dev_w_axes,
-    const int* dev_spin_pointer,
+    const int* dev_profile_pointer,
     const int* dev_tesseral_keys,
     const jams::Real* dev_tesseral_coefficients,
     const jams::Real* dev_axial_polynomial_coefficients,
@@ -25,15 +26,16 @@ __global__ void cuda_crystal_field_energy_kernel(
   const jams::Real sy = static_cast<jams::Real>(dev_s[base + 1]);
   const jams::Real sz = static_cast<jams::Real>(dev_s[base + 2]);
 
-  dev_e[idx] = jams::tesseral_polynomial::energy_for_spin_with_axial_terms(
+  dev_e[idx] = jams::tesseral_polynomial::energy_for_spin_with_profiles(
       idx,
       sx,
       sy,
       sz,
+      dev_spin_profile,
       dev_u_axes,
       dev_v_axes,
       dev_w_axes,
-      dev_spin_pointer,
+      dev_profile_pointer,
       dev_tesseral_keys,
       dev_tesseral_coefficients,
       dev_axial_polynomial_coefficients);
@@ -42,10 +44,11 @@ __global__ void cuda_crystal_field_energy_kernel(
 __global__ void cuda_crystal_field_kernel(
     const unsigned int num_spins,
     const jams::RealHi* dev_s,
+    const int* dev_spin_profile,
     const jams::Real* dev_u_axes,
     const jams::Real* dev_v_axes,
     const jams::Real* dev_w_axes,
-    const int* dev_spin_pointer,
+    const int* dev_profile_pointer,
     const int* dev_tesseral_keys,
     const jams::Real* dev_tesseral_coefficients,
     const jams::Real* dev_axial_polynomial_coefficients,
@@ -62,15 +65,16 @@ __global__ void cuda_crystal_field_kernel(
   const jams::Real sz = static_cast<jams::Real>(dev_s[base + 2]);
 
   jams::Real h[3] = {0.0, 0.0, 0.0};
-  jams::tesseral_polynomial::field_for_spin_with_axial_terms(
+  jams::tesseral_polynomial::field_for_spin_with_profiles(
       idx,
       sx,
       sy,
       sz,
+      dev_spin_profile,
       dev_u_axes,
       dev_v_axes,
       dev_w_axes,
-      dev_spin_pointer,
+      dev_profile_pointer,
       dev_tesseral_keys,
       dev_tesseral_coefficients,
       dev_axial_polynomial_coefficients,

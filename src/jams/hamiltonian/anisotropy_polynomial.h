@@ -131,14 +131,17 @@ protected:
 
     jams::Real calculate_energy_for_spin(int i, const jams::Vec<double, 3> &spin, jams::Real time) override;
 
-    // Local reference axes for the anisotropy of a given spin
-    jams::MultiArray<jams::Real,2> u_axes_; /// u_axes_(spin_index, cart_component)
-    jams::MultiArray<jams::Real,2> v_axes_; /// v_axes_(spin_index, cart_component)
-    jams::MultiArray<jams::Real,2> w_axes_; /// w_axes_(spin_index, cart_component)
+    // Profile index used by each spin.
+    jams::MultiArray<int, 1> spin_profile_;
+
+    // Local reference axes for each unique anisotropy profile.
+    jams::MultiArray<jams::Real,2> u_axes_; /// u_axes_(profile_index, cart_component)
+    jams::MultiArray<jams::Real,2> v_axes_; /// v_axes_(profile_index, cart_component)
+    jams::MultiArray<jams::Real,2> w_axes_; /// w_axes_(profile_index, cart_component)
 
     // An array similar to CSR format where beginning and end index of the data
-    // for a given spin in the key and coefficient arrays is stored.
-    jams::MultiArray<int, 1> spin_pointer_;
+    // for a given profile in the key and coefficient arrays is stored.
+    jams::MultiArray<int, 1> profile_pointer_;
     jams::MultiArray<int, 1> tesseral_keys_;
     jams::MultiArray<jams::Real, 1> tesseral_coefficients_;
 
@@ -146,7 +149,7 @@ protected:
     // E(z) = A0 + A2 z^2 + A4 z^4 + A6 z^6. Stored separately from the
     // generic tesseral CSR terms so the common axial path can avoid the key
     // lookup and full local-axis transform.
-    jams::MultiArray<jams::Real, 2> axial_polynomial_coefficients_; /// axial_polynomial_coefficients_(spin_index, power_index)
+    jams::MultiArray<jams::Real, 2> axial_polynomial_coefficients_; /// axial_polynomial_coefficients_(profile_index, power_index)
 };
 
 #endif //JAMS_ANISOTROPY_POLYNOMIAL_H
