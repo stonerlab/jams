@@ -102,6 +102,57 @@
 ///      }
 ///  );
 ///
+/// Design notes
+/// ------------
+///
+/// The fundamental internal basis is the monic tesseral polynomial basis. Input
+/// normalisation conventions are converted once, during construction, by
+/// multiplying the user coefficient by the scale factor needed to obtain the
+/// corresponding monic polynomial. This keeps the runtime CPU and CUDA
+/// evaluators independent of the input convention, avoids duplicating Racah,
+/// Stevens or Condon-Shortley factors in kernels, and gives the evaluator a
+/// small set of explicit polynomial functions with simple rational
+/// coefficients. It also lets the crystal-field Hamiltonian reuse this class by
+/// converting its angular functions onto the same monic basis.
+///
+/// The storage is organised around unique anisotropy profiles rather than one
+/// full coefficient list per spin. Each spin stores an integer profile index.
+/// A profile contains the local axes, a combined axial polynomial, and a
+/// residual CSR-style list of non-axial tesseral terms. This matches the common
+/// input pattern where many spins share the same material or unit-cell
+/// anisotropy, reducing duplicated coefficient and axis data on both CPU and
+/// CUDA.
+///
+/// Terms with m=0 are handled separately because they are expected to dominate
+/// typical input files and depend only on z = s.w in the local frame. The l=2,
+/// l=4 and l=6 axial coefficients are folded into a single polynomial
+///     E(z) = A0 + A2 z^2 + A4 z^4 + A6 z^6
+/// so energy and field evaluation can use a short Horner-style expression and
+/// its analytic derivative. Axial-only profiles need only the w axis. Profiles
+/// with default axes avoid axis loads altogether, axial profiles with a custom
+/// axis load only w, and only profiles with residual non-axial terms need the
+/// full u/v/w local-coordinate transform.
+///
+/// CUDA kernels launch over active_spin_indices_ rather than all spins. A spin
+/// is active when its profile has a non-zero axial polynomial or residual
+/// tesseral terms. CUDA field and energy arrays are zeroed before the active
+/// spin kernels run, so inactive spins contribute exactly zero without
+/// consuming a thread. This is beneficial for sparse anisotropy definitions
+/// where only a subset of materials or basis sites carry anisotropy.
+///
+/// calculate_field returns the unconstrained Cartesian gradient field -dE/ds.
+/// It is not projected onto the tangent plane of the unit sphere. This is
+/// deliberate: the Hamiltonian reports the derivative of the energy function in
+/// spin-coordinate space, while spin-length constraints should be handled
+/// consistently by the solver or optimisation algorithm. Many spin dynamics
+/// solvers enforce the constraint through cross products, renormalisation, or a
+/// solver-level tangent projection; projecting inside one Hamiltonian but not
+/// others would make the summed field convention inconsistent. A constrained
+/// tangent field may be needed for algorithms that use the Hamiltonian field
+/// directly as a constrained descent direction on |s|=1. In that case the
+/// projection should be applied once at the integrator or optimiser level, to
+/// the total field from all Hamiltonian terms.
+///
 class AnisotropyPolynomialHamiltonian : public Hamiltonian
 {
 public:
