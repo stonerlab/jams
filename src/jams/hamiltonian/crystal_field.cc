@@ -9,6 +9,8 @@
 #include <algorithm>
 #include <fstream>
 #include <iostream>
+#include <optional>
+#include <set>
 #include <sstream>
 #include <utility>
 #include <vector>
@@ -25,31 +27,86 @@ bool terms_are_axial(const AnisotropyPolynomialHamiltonian::TesseralKeyCoefficie
         || jams::tesseral_polynomial::axial_coefficient_index_from_key(term.first) >= 0;
   });
 }
+
+bool is_valid_crystal_field_l(const int l)
+{
+  return jams::util::is_in_list(l, {0, 2, 4, 6});
+}
+
+CrystalFieldHamiltonian::SphericalHarmonicCoefficientMap zero_spherical_coefficients()
+{
+  CrystalFieldHamiltonian::SphericalHarmonicCoefficientMap coefficients;
+  for (auto l : {0, 2, 4, 6}) {
+    for (auto m = -l; m <= l; ++m) {
+      coefficients.insert({{l, m}, {0.0, 0.0}});
+    }
+  }
+  return coefficients;
+}
+
+CrystalFieldHamiltonian::CrystalFieldSpinType read_crystal_field_spin_type_setting(
+    const libconfig::Setting& setting)
+{
+  if (!jams::is_string_setting(setting)) {
+    throw jams::ConfigException(setting, "crystal_field_spin_type must be 'up' or 'down'");
+  }
+
+  auto spin_type_string = lowercase(jams::read_string_setting(setting, "crystal_field_spin_type"));
+
+  if (spin_type_string == "up") {
+    return CrystalFieldHamiltonian::CrystalFieldSpinType::kSpinUp;
+  }
+  if (spin_type_string == "down") {
+    return CrystalFieldHamiltonian::CrystalFieldSpinType::kSpinDown;
+  }
+
+  throw jams::ConfigException(setting, "crystal_field_spin_type must be 'up' or 'down'");
+}
+
+std::optional<CrystalFieldHamiltonian::CrystalFieldSpinType> read_optional_crystal_field_spin_type(
+    const libconfig::Setting& settings)
+{
+  if (!settings.exists("crystal_field_spin_type")) {
+    return std::nullopt;
+  }
+
+  return read_crystal_field_spin_type_setting(settings["crystal_field_spin_type"]);
+}
+
+const char* crystal_field_spin_type_name(const CrystalFieldHamiltonian::CrystalFieldSpinType spin_type)
+{
+  switch (spin_type) {
+    case CrystalFieldHamiltonian::CrystalFieldSpinType::kSpinUp:
+      return "up";
+    case CrystalFieldHamiltonian::CrystalFieldSpinType::kSpinDown:
+      return "down";
+  }
+
+  throw std::invalid_argument("invalid crystal field spin type");
+}
+
+std::map<int, double> stevens_prefactors(
+    const double J,
+    const double alphaJ,
+    const double betaJ,
+    const double gammaJ)
+{
+  return {
+      {2, J * (J - 0.5) * alphaJ},
+      {4, J * (J - 0.5) * (J - 1) * (J - 1.5) * betaJ},
+      {6, J * (J - 0.5) * (J - 1) * (J - 1.5) * (J - 2) * (J - 2.5) * gammaJ}
+  };
+}
 }
 
 CrystalFieldHamiltonian::CrystalFieldHamiltonian(const libconfig::Setting &settings, unsigned int size)
     : AnisotropyPolynomialHamiltonian(settings, size, EmptyStorageTag{}),
-      energy_cutoff_(jams::config_required<double>(settings, "energy_cutoff")),
-      crystal_field_spin_type_(CrystalFieldSpinType::kSpinUp) {
+      energy_cutoff_(jams::config_required<double>(settings, "energy_cutoff")) {
   std::cout << "energy_cutoff: " << energy_cutoff_ << "\n";
 
-  if (!settings.exists("crystal_field_spin_type")) {
-    throw jams::ConfigException(settings, "missing crystal_field_spin_type");
-  }
-  if (!jams::is_string_setting(settings["crystal_field_spin_type"])) {
-    throw jams::ConfigException(settings["crystal_field_spin_type"], "must be 'up' or 'down'");
-  }
-
-  auto spin_type_string = lowercase(jams::read_string_setting(settings["crystal_field_spin_type"], "crystal_field_spin_type"));
-
-  if (spin_type_string == "up") {
-    crystal_field_spin_type_ = CrystalFieldSpinType::kSpinUp;
-    std::cout << "crystal_field_spin_type: up\n";
-  } else if (spin_type_string == "down") {
-    crystal_field_spin_type_ = CrystalFieldSpinType::kSpinDown;
-    std::cout << "crystal_field_spin_type: down\n";
-  } else {
-    throw jams::ConfigException(settings["crystal_field_spin_type"], "must be 'up' or 'down'");
+  const auto crystal_field_spin_type = read_optional_crystal_field_spin_type(settings);
+  if (crystal_field_spin_type.has_value()) {
+    std::cout << "crystal_field_spin_type: " << crystal_field_spin_type_name(*crystal_field_spin_type) << "\n";
   }
 
   if (!settings.exists("crystal_field_coefficients")) {
@@ -100,31 +157,44 @@ CrystalFieldHamiltonian::CrystalFieldHamiltonian(const libconfig::Setting &setti
 
     int parameter_start = 1;
     const auto local_axes = read_optional_local_axes(cf_params, 1, "crystal field", parameter_start);
-    if (cf_params.getLength() != parameter_start + 5) {
+    if (cf_params.getLength() < parameter_start + 5) {
       throw jams::ConfigException(
           cf_params,
           "crystal field coefficients entry must have format "
-          "(target, [u, v, w], J, alphaJ, betaJ, gammaJ, cf_param_filename)");
-    }
-
-    if (!jams::is_string_setting(cf_params[parameter_start + 4])) {
-      throw jams::ConfigException(cf_params[parameter_start + 4], "crystal field coefficient filename must be a string");
+          "(target, [u, v, w], J, alphaJ, betaJ, gammaJ, cf_param_filename) or "
+          "(target, [u, v, w], J, alphaJ, betaJ, gammaJ, (l, m, real, imaginary), ...)");
     }
 
     const double J = jams::read_numeric_setting<double>(cf_params[parameter_start], "J");
     const double alphaJ = jams::read_numeric_setting<double>(cf_params[parameter_start + 1], "alphaJ");
     const double betaJ = jams::read_numeric_setting<double>(cf_params[parameter_start + 2], "betaJ");
     const double gammaJ = jams::read_numeric_setting<double>(cf_params[parameter_start + 3], "gammaJ");
-    const auto cf_coefficient_filename = jams::read_string_setting(
-        cf_params[parameter_start + 4], "crystal field coefficient filename");
+    const auto stevens_prefactor = stevens_prefactors(J, alphaJ, betaJ, gammaJ);
 
-    std::map<int, double> stevens_prefactor;
-    stevens_prefactor.insert({2, J * (J - 0.5) * alphaJ});
-    stevens_prefactor.insert({4, J * (J - 0.5) * (J - 1) * (J - 1.5) * betaJ});
-    stevens_prefactor.insert({6, J * (J - 0.5) * (J - 1) * (J - 1.5) * (J - 2) * (J - 2.5) * gammaJ});
+    SphericalHarmonicCoefficientMap spherical_coefficients;
+    const auto coefficient_start = parameter_start + 4;
+    if (jams::is_string_setting(cf_params[coefficient_start])) {
+      if (cf_params.getLength() != coefficient_start + 1) {
+        throw jams::ConfigException(
+            cf_params,
+            "file-based crystal field coefficients entry must have format "
+            "(target, [u, v, w], J, alphaJ, betaJ, gammaJ, cf_param_filename)");
+      }
+      if (!crystal_field_spin_type.has_value()) {
+        throw jams::ConfigException(
+            settings,
+            "crystal_field_spin_type is required when crystal field coefficients are read from a file");
+      }
 
-    auto tesseral_coefficients = convert_spherical_to_tesseral(
-        read_crystal_field_coefficients_from_file(cf_coefficient_filename), energy_cutoff_);
+      const auto cf_coefficient_filename = jams::read_string_setting(
+          cf_params[coefficient_start], "crystal field coefficient filename");
+      spherical_coefficients = read_crystal_field_coefficients_from_file(
+          cf_coefficient_filename, *crystal_field_spin_type);
+    } else {
+      spherical_coefficients = read_crystal_field_coefficients_from_config(cf_params, coefficient_start);
+    }
+
+    auto tesseral_coefficients = convert_spherical_to_tesseral(spherical_coefficients, energy_cutoff_);
 
     if (debug_is_enabled()) {
       std::cout << "tesseral harmonic coefficients " << n << ":" << std::endl;
@@ -141,7 +211,7 @@ CrystalFieldHamiltonian::CrystalFieldHamiltonian(const libconfig::Setting &setti
         continue;
       }
 
-      const auto coefficient = input_energy_unit_conversion_ * stevens_prefactor[l] * B_lm
+      const auto coefficient = input_energy_unit_conversion_ * stevens_prefactor.at(l) * B_lm
           * jams::tesseral_racah_normalisation_scale_lookup<double>(l, m);
       if (coefficient == 0.0) {
         continue;
@@ -180,21 +250,14 @@ CrystalFieldHamiltonian::CrystalFieldHamiltonian(const libconfig::Setting &setti
 }
 
 CrystalFieldHamiltonian::SphericalHarmonicCoefficientMap CrystalFieldHamiltonian::read_crystal_field_coefficients_from_file(
-    const std::string& filename) {
+    const std::string& filename,
+    const CrystalFieldSpinType spin_type) {
   std::ifstream fs(filename);
   if (fs.fail()) {
     throw jams::FileException(filename, "failed to open file");
   }
 
-  SphericalHarmonicCoefficientMap coefficients;
-
-  // We first populate an empty coefficient map. This ensures that the map is always full and ordered
-  // so that it is always a consistent length.
-  for (auto l : {0, 2, 4, 6}) {
-    for (auto m = -l; m <= l; ++m) {
-      coefficients.insert({{l, m}, {0, 0}});
-    }
-  }
+  auto coefficients = zero_spherical_coefficients();
 
   int line_number = 0;
   for (std::string line; getline(fs, line);) {
@@ -212,7 +275,7 @@ CrystalFieldHamiltonian::SphericalHarmonicCoefficientMap CrystalFieldHamiltonian
       throw jams::FileException(filename, "line ", line_number, ": expected columns l m upRe upIm dnRe dnIm");
     }
 
-    if (!jams::util::is_in_list(l, {0, 2, 4, 6})) {
+    if (!is_valid_crystal_field_l(l)) {
       throw jams::FileException(filename, "line ", line_number, ": 'l' must be 0, 2, 4 or 6");
     }
 
@@ -227,11 +290,69 @@ CrystalFieldHamiltonian::SphericalHarmonicCoefficientMap CrystalFieldHamiltonian
     // harmonics which are purely real. The averaging means that it becomes harder to check that the real part is
     // purely real.
 
-    const auto &[Re_Blm, Im_Blm] = (crystal_field_spin_type_ == CrystalFieldSpinType::kSpinUp)
+    const auto &[Re_Blm, Im_Blm] = (spin_type == CrystalFieldSpinType::kSpinUp)
                                    ? std::tie(Re_Blm_up, Im_Blm_up) : std::tie(Re_Blm_down, Im_Blm_down);
 
     coefficients.at({l, m}) = {Re_Blm, Im_Blm};
 
+  }
+
+  return coefficients;
+}
+
+CrystalFieldHamiltonian::SphericalHarmonicCoefficientMap CrystalFieldHamiltonian::read_crystal_field_coefficients_from_config(
+    const libconfig::Setting& cf_params,
+    const int coefficient_start_index)
+{
+  auto coefficients = zero_spherical_coefficients();
+  std::set<std::pair<int, int>> specified_coefficients;
+
+  for (auto i = coefficient_start_index; i < cf_params.getLength(); ++i) {
+    const auto& coefficient_setting = cf_params[i];
+    if (!coefficient_setting.isList() || coefficient_setting.getLength() != 4) {
+      throw jams::ConfigException(
+          coefficient_setting,
+          "crystal field coefficient must have format (l, m, real, imaginary)");
+    }
+
+    const int l = jams::read_integer_setting(coefficient_setting[0], "l");
+    const int m = jams::read_integer_setting(coefficient_setting[1], "m");
+    const double real = jams::read_numeric_setting<double>(coefficient_setting[2], "real");
+    const double imaginary = jams::read_numeric_setting<double>(coefficient_setting[3], "imaginary");
+
+    if (!is_valid_crystal_field_l(l)) {
+      throw jams::ConfigException(coefficient_setting[0], "l must be 0, 2, 4 or 6");
+    }
+
+    if (m < -l || m > l) {
+      throw jams::ConfigException(coefficient_setting[1], "m must be -l <= m <= l");
+    }
+
+    const auto lm = std::make_pair(l, m);
+    if (!specified_coefficients.insert(lm).second) {
+      throw jams::ConfigException(coefficient_setting, "crystal field coefficient is specified more than once");
+    }
+
+    coefficients.at(lm) = {real, imaginary};
+  }
+
+  for (auto l : {2, 4, 6}) {
+    for (auto m = 1; m <= l; ++m) {
+      const auto positive_m = std::make_pair(l, m);
+      const auto negative_m = std::make_pair(l, -m);
+      const auto has_positive_m = specified_coefficients.count(positive_m) > 0;
+      const auto has_negative_m = specified_coefficients.count(negative_m) > 0;
+
+      if (has_positive_m == has_negative_m) {
+        continue;
+      }
+
+      if (has_positive_m) {
+        coefficients.at(negative_m) = static_cast<double>(parity_sign(m)) * std::conj(coefficients.at(positive_m));
+      } else {
+        coefficients.at(positive_m) = static_cast<double>(parity_sign(m)) * std::conj(coefficients.at(negative_m));
+      }
+    }
   }
 
   return coefficients;

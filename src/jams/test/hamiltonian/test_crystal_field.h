@@ -242,6 +242,91 @@ TEST_F(CrystalFieldHamiltonianRuntimeTest, UsesSparseTesseralKeysForEnergyAndFie
   }
 }
 
+TEST_F(CrystalFieldHamiltonianRuntimeTest, ReadsInlineCoefficientsWithoutSpinType)
+{
+  libconfig::Config config;
+  config.readString(R"(
+      hamiltonian = {
+        module = "crystal-field";
+        energy_units = "meV";
+        energy_cutoff = 1e-14;
+        crystal_field_coefficients = (
+          ("A", 2.0, 1.0, 0.0, 0.0,
+           (2, 0, 1.0, 0.0))
+        );
+      };
+  )");
+
+  CrystalFieldHamiltonianTestAccess hamiltonian(
+      config.lookup("hamiltonian"),
+      globals::num_spins);
+
+  constexpr int spin_index = 0;
+  const jams::Vec<double, 3> spin = {0.0, 0.0, 1.0};
+  const double stevens_prefactor = 2.0 * (2.0 - 0.5);
+  const double monic_scale = jams::tesseral_racah_normalisation_scale_lookup<double>(2, 0);
+  const auto coefficient = jams::Real(stevens_prefactor * monic_scale);
+  const auto tolerance = 1e-6;
+
+  const double expected_energy = coefficient * jams::tesseral_monic_polynomial(2, 0, spin[0], spin[1], spin[2]);
+  ASSERT_NEAR(hamiltonian.crystal_field_energy(spin_index, spin), expected_energy, tolerance);
+}
+
+TEST_F(CrystalFieldHamiltonianRuntimeTest, InfersMissingInlineConjugateCoefficient)
+{
+  libconfig::Config config;
+  config.readString(R"(
+      hamiltonian = {
+        module = "crystal-field";
+        energy_units = "meV";
+        energy_cutoff = 1e-14;
+        crystal_field_coefficients = (
+          ("A", 2.0, 1.0, 0.0, 0.0,
+           (2, -2, 1.0, 2.0))
+        );
+      };
+  )");
+
+  CrystalFieldHamiltonianTestAccess hamiltonian(
+      config.lookup("hamiltonian"),
+      globals::num_spins);
+
+  constexpr int spin_index = 0;
+  constexpr double inv_sqrt_two = 0.707106781186547524400844362104849039;
+  const jams::Vec<double, 3> spin = {inv_sqrt_two, inv_sqrt_two, 0.0};
+  const double stevens_prefactor = 2.0 * (2.0 - 0.5);
+  const double tesseral_coefficient = std::sqrt(2.0) * 2.0;
+  const double monic_scale = jams::tesseral_racah_normalisation_scale_lookup<double>(2, -2);
+  const auto coefficient = jams::Real(stevens_prefactor * tesseral_coefficient * monic_scale);
+  const auto tolerance = 1e-6;
+
+  const double expected_energy = coefficient * jams::tesseral_monic_polynomial(2, -2, spin[0], spin[1], spin[2]);
+  ASSERT_NEAR(hamiltonian.crystal_field_energy(spin_index, spin), expected_energy, tolerance);
+}
+
+TEST_F(CrystalFieldHamiltonianRuntimeTest, RejectsDuplicateInlineCoefficientSettings)
+{
+  libconfig::Config config;
+  config.readString(R"(
+      hamiltonian = {
+        module = "crystal-field";
+        energy_units = "meV";
+        energy_cutoff = 1e-14;
+        crystal_field_coefficients = (
+          ("A", 2.0, 1.0, 0.0, 0.0,
+           (2, 0, 1.0, 0.0),
+           (2, 0, 2.0, 0.0))
+        );
+      };
+  )");
+
+  ASSERT_THROW(
+      CrystalFieldHamiltonianTestAccess(
+          config.lookup("hamiltonian"),
+          globals::num_spins),
+      jams::ConfigException);
+}
+
 TEST_F(CrystalFieldHamiltonianRuntimeTest, RejectsMalformedCoefficientLines)
 {
   std::ofstream coefficients(coefficient_filename_);
@@ -264,7 +349,7 @@ TEST_F(CrystalFieldHamiltonianFractionalTargetRuntimeTest, RejectsFractionalUnit
       jams::ConfigException);
 }
 
-TEST_F(CrystalFieldHamiltonianRuntimeTest, RejectsMissingSpinTypeSetting)
+TEST_F(CrystalFieldHamiltonianRuntimeTest, RejectsMissingSpinTypeSettingForFileCoefficients)
 {
   libconfig::Config config;
   config.readString(R"(

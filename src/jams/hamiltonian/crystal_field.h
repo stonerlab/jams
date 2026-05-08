@@ -37,16 +37,20 @@
 ///     If this check fails then JAMS will error and the input should be checked. Units for the cutoff are the same as
 ///     `energy_units` so the cutoff and the interpretation of a negligible energy should be with respect to these units.
 ///
-/// crystal_field_spin_type: (required | "up" or "down")
-///     The crystal field input file contains data for both spin up and spin down. This setting selects which data to
-///     use. The choice should be made based on the physics of the local moment and the filling of the f-shell.
+/// crystal_field_spin_type: (optional | "up" or "down")
+///     Required only when crystal field coefficients are read from a file. The crystal field input file contains data
+///     for both spin up and spin down, and this setting selects which data to use. The choice should be made based on
+///     the physics of the local moment and the filling of the f-shell. Inline coefficients do not use this setting.
 ///
 /// crystal_field_coefficients (required | list)
 ///      A list of the crystal field parameters for each material or unit cell position. Each list element is another
 ///      list with the format: (target, J, alphaJ, betaJ, gammaJ, cf_param_filename), where target can be a material
 ///      name or unit cell position, and cf_param_filename is a filename for the file which contains the crystal field
-///      coefficients B_{l,m} for that material. Optional local axes may be supplied immediately after the target with
-///      the format: (target, u, v, w, J, alphaJ, betaJ, gammaJ, cf_param_filename). If the converted tesseral
+///      coefficients B_{l,m} for that material. Alternatively, the complex spherical crystal-field coefficients can be
+///      specified inline after gammaJ with the format: (target, J, alphaJ, betaJ, gammaJ, (l, m, real, imaginary), ...).
+///      If only one side of a non-zero +/-m inline coefficient pair is specified, the other side is inferred using
+///      B_{l,-m} = (-1)^m B^*_{l,m}. Other missing inline coefficients are treated as zero. Optional local axes may be
+///      supplied immediately after the target with the format: (target, u, v, w, J, alphaJ, betaJ, gammaJ, cf_param_filename). If the converted tesseral
 ///      coefficients contain only non-zero m=0 terms, a single axial w axis may be supplied instead with the format:
 ///      (target, w, J, alphaJ, betaJ, gammaJ, cf_param_filename). Axes are normalised on input; full u, v and w axes
 ///      must be mutually orthogonal. The crystal-field tesseral harmonics are evaluated using the spin components
@@ -73,7 +77,10 @@
 ///        crystal_field_coefficients = (
 ///            ("Tb", 6, -0.01010101, 0.00012244, -0.00000112, "Tb.CFparameters.dat"),
 ///            ("Dy", [1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0],
-///             7.5, -0.00222222, -0.00003333, 0.00000002, "Dy.CFparameters.dat")
+///             7.5, -0.00222222, -0.00003333, 0.00000002, "Dy.CFparameters.dat"),
+///            ("Sm_1a", 2.5, 0.041269841, 0.0025012, 0.0,
+///             (2, -2, -0.7692698426335154, -2.1810119871698825),
+///             (2,  0, -767.0712291753692, 0.0))
 ///        );
 ///      }
 ///  );
@@ -98,19 +105,26 @@ protected:
   // Reads a crystal field coefficient file and returns a SphericalHarmonicCoefficientMap where the key is the pair
   // {l, m} and the value is the complex crystal field coefficient.
   //
-  // The file should have columns 'l, m, Re(B_lm_up), Im(B_lm_up), Re(B_lm_down), Im(B_lm_down)', although the
-  // columns Re(B_lm_down) and Im(B_lm_down) are ignored. Any missing values of l,m are set to zero.
+  // The file should have columns 'l, m, Re(B_lm_up), Im(B_lm_up), Re(B_lm_down), Im(B_lm_down)'. The selected
+  // spin_type chooses whether the up or down columns are used. Any missing values of l,m are set to zero.
   //
   // The returned map will be order (intrinsically due to C++ map) increasing in l and in m, e.g.
   // {0, 0}, {2, -2}, {2, 1}, {2, 0}, {2, 1}, {2, 2}, {4, -4}, {4, -3} ...
-  SphericalHarmonicCoefficientMap read_crystal_field_coefficients_from_file(const std::string& filename);
+  static SphericalHarmonicCoefficientMap read_crystal_field_coefficients_from_file(
+      const std::string& filename,
+      CrystalFieldSpinType spin_type);
+
+  // Reads inline complex B_lm settings from a crystal_field_coefficients entry. Each coefficient setting has the
+  // format (l, m, real, imaginary). Missing +/-m pairs are inferred where possible; other missing l,m values are set
+  // to zero.
+  static SphericalHarmonicCoefficientMap read_crystal_field_coefficients_from_config(
+      const libconfig::Setting& cf_params,
+      int coefficient_start_index);
 
   static TesseralHarmonicCoefficientMap convert_spherical_to_tesseral(const SphericalHarmonicCoefficientMap& spherical_coefficients, const double zero_epsilon);
 
   // Energy cutoff in input units
   double energy_cutoff_;
-
-  CrystalFieldSpinType crystal_field_spin_type_;
 
 };
 
