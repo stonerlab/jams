@@ -8,6 +8,7 @@
 
 #include "jams/hamiltonian/zeeman.h"
 #include <jams/helpers/exception.h>
+#include <jams/interface/config.h>
 
 ZeemanHamiltonian::ZeemanHamiltonian(const libconfig::Setting &settings, const unsigned int size)
 : Hamiltonian(settings, size)
@@ -23,50 +24,39 @@ ZeemanHamiltonian::ZeemanHamiltonian(const libconfig::Setting &settings, const u
     ac_local_frequency_.zero();
 
 
+    const auto num_materials = globals::lattice->num_materials();
+
     if(settings.exists("dc_local_field")) {
-        if (settings["dc_local_field"].getLength() != globals::lattice->num_materials()) {
-          throw jams::ConfigException(settings["dc_local_field"], "field must be specified for every material");
-        }
-
-
+        const auto dc_fields = jams::read_vec_sequence_setting<jams::Real, 3>(
+            settings["dc_local_field"], "dc_local_field", num_materials);
         for (int i = 0; i < globals::num_spins; ++i) {
+            const auto& field = dc_fields[globals::lattice->lattice_site_material_id(i)];
             for (int j = 0; j < 3; ++j) {
-                dc_local_field_(i, j) = settings["dc_local_field"][globals::lattice->lattice_site_material_id(i)][j];
-                dc_local_field_(i, j) *= globals::mus(i);
+                dc_local_field_(i, j) = field[j] * globals::mus(i);
             }
         }
     }
 
     if(settings.exists("ac_local")) {
-        if (settings["ac_local"].getLength() != globals::lattice->num_materials()) {
-          throw jams::ConfigException(settings["ac_local"], "field must be specified for every material");
-        }
+        jams::require_setting_length(settings["ac_local"], "ac_local", num_materials);
     }
 
     has_ac_local_field_ = false;
-    if(settings.exists("ac_local_field") || settings.exists("ac_local_frequency")) {
-        if(!(settings.exists("ac_local_field") && settings.exists("ac_local_frequency"))) {
-          throw jams::ConfigException(settings["ac_local_field"], "must have a field and a frequency");
-        }
-        if (settings["ac_local_frequency"].getLength() != globals::lattice->num_materials()) {
-          throw jams::ConfigException(settings["ac_local_frequency"], "must be specified for every material");
-        }
-        if (settings["ac_local_field"].getLength() != globals::lattice->num_materials()) {
-          throw jams::ConfigException(settings["ac_local_field"], "must be specified for every material");
-        }
-
+    jams::require_settings_together(settings, {"ac_local_field", "ac_local_frequency"});
+    if(settings.exists("ac_local_field")) {
         has_ac_local_field_ = true;
+        const auto ac_fields = jams::read_vec_sequence_setting<jams::Real, 3>(
+            settings["ac_local_field"], "ac_local_field", num_materials);
+        const auto ac_frequencies = jams::read_numeric_sequence_setting<jams::Real>(
+            settings["ac_local_frequency"], "ac_local_frequency", num_materials);
 
         for (int i = 0; i < globals::num_spins; ++i) {
+            const auto material_id = globals::lattice->lattice_site_material_id(i);
+            const auto& field = ac_fields[material_id];
             for (int j = 0; j < 3; ++j) {
-                ac_local_field_(i, j) = settings["ac_local_field"][globals::lattice->lattice_site_material_id(i)][j];
-                ac_local_field_(i, j) *= globals::mus(i);
+                ac_local_field_(i, j) = field[j] * globals::mus(i);
             }
-        }
-
-        for (int i = 0; i < globals::num_spins; ++i) {
-            ac_local_frequency_(i) = settings["ac_local_frequency"][globals::lattice->lattice_site_material_id(i)];
-            ac_local_frequency_(i) = kTwoPi*ac_local_frequency_(i);
+            ac_local_frequency_(i) = kTwoPi * ac_frequencies[material_id];
         }
     }
 }

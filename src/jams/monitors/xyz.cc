@@ -10,28 +10,23 @@
 #include "jams/core/lattice.h"
 #include "jams/helpers/utils.h"
 #include "jams/helpers/output.h"
+#include "jams/interface/config.h"
 
 #include "xyz.h"
 #include <jams/helpers/exception.h>
 
 XyzMonitor::XyzMonitor(const libconfig::Setting &settings)
 : Monitor(settings) {
-  output_step_freq_ = settings["output_steps"];
+  output_step_freq_ = jams::config_required<int>(settings, "output_steps");
 
   // settings for only outputting a slice
-  if (settings.exists("slice_origin") ^ settings.exists("slice_size")) {
-    throw jams::ConfigException(settings, "Xyz monitor requires both slice_origin and slice_size to be specified.");
-  }
+  jams::require_settings_together(settings, {"slice_origin", "slice_size"});
 
   slice_spins.resize(0);
 
   if (settings.exists("slice_origin")) {
-    for (int i = 0; i < 3; ++i) {
-      slice_origin[i] = settings["slice_origin"][i];
-    }
-    for (int i = 0; i < 3; ++i) {
-      slice_size[i] = settings["slice_size"][i];
-    }
+    slice_origin = jams::read_vec_setting<double, 3>(settings["slice_origin"], "slice_origin");
+    slice_size = jams::read_vec_setting<double, 3>(settings["slice_size"], "slice_size");
     // check which spins are inside the slice
     for (int i = 0; i < globals::num_spins; ++i) {
       jams::Vec<double, 3> pos = globals::lattice->lattice_site_position_cart(i);

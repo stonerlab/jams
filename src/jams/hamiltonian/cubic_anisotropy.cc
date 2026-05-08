@@ -87,9 +87,8 @@ CubicAnisotropyHamiltonian::CubicAnisotropyHamiltonian(const Setting &settings, 
 
     std::string order_name;
 
-    if (settings.exists("K1") && settings.exists("K2")) {
-        throw runtime_error("Input only one order of cubic anisotropy");
-    } else if (settings.exists("K1")){
+    jams::require_mutually_exclusive_settings(settings, {"K1", "K2"});
+    if (settings.exists("K1")){
         order_name = "K1";
     } else if (settings.exists("K2")) {
         order_name = "K2";

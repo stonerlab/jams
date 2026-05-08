@@ -60,14 +60,13 @@ jams::Vec<jams::Real, 3> read_axis(const Setting& setting)
 
 jams::TesseralHarmonicNormalisation read_tesseral_normalisation(const Setting& settings)
 {
+    jams::require_mutually_exclusive_settings(settings, {"normalisation", "normalization"});
+
     const Setting* normalisation_setting = nullptr;
     if (settings.exists("normalisation")) {
         normalisation_setting = &settings["normalisation"];
     }
     if (settings.exists("normalization")) {
-        if (normalisation_setting != nullptr) {
-            throw jams::ConfigException(settings, "specify either normalisation or normalization, not both");
-        }
         normalisation_setting = &settings["normalization"];
     }
 

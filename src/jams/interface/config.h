@@ -11,8 +11,11 @@
 #include <jams/helpers/utils.h>
 #include <array>
 #include <cstdint>
+#include <initializer_list>
+#include <string>
 #include <string_view>
 #include <type_traits>
+#include <vector>
 
 
 void overwrite_config_settings(libconfig::Setting& orig, const libconfig::Setting& patch);
@@ -173,6 +176,54 @@ struct config_required_impl<InteractionFileFormat, void> {
         }
     }
 
+    // Returns true if the setting is an array or list.
+    inline bool is_sequence_setting(const libconfig::Setting& setting)
+    {
+      return setting.isArray() || setting.isList();
+    }
+
+    // Throws if the setting is not a sequence of the requested length.
+    inline void require_setting_length(const libconfig::Setting& setting, const char* name, const int length)
+    {
+      if (!is_sequence_setting(setting) || setting.getLength() != length) {
+        throw jams::ConfigException(setting, name, " must contain exactly ", length, " entries");
+      }
+    }
+
+    // Throws if more than one of the named settings exists.
+    inline void require_mutually_exclusive_settings(
+        const libconfig::Setting& setting,
+        std::initializer_list<std::string_view> names)
+    {
+      int count = 0;
+      for (const auto name : names) {
+        if (setting.exists(std::string(name))) {
+          ++count;
+        }
+      }
+
+      if (count > 1) {
+        throw jams::ConfigException(setting, "settings are mutually exclusive");
+      }
+    }
+
+    // Throws if only some of the named settings exist.
+    inline void require_settings_together(
+        const libconfig::Setting& setting,
+        std::initializer_list<std::string_view> names)
+    {
+      int count = 0;
+      for (const auto name : names) {
+        if (setting.exists(std::string(name))) {
+          ++count;
+        }
+      }
+
+      if (count != 0 && count != int(names.size())) {
+        throw jams::ConfigException(setting, "settings must be specified together");
+      }
+    }
+
     // Returns true if the setting is an integer type
     inline bool is_integer_setting(const libconfig::Setting& setting)
     {
@@ -184,6 +235,22 @@ struct config_required_impl<InteractionFileFormat, void> {
     inline bool is_numeric_array_setting(const libconfig::Setting& setting, const int length)
     {
       if (!setting.isArray() || setting.getLength() != length) {
+        return false;
+      }
+
+      for (auto i = 0; i < length; ++i) {
+        if (!setting[i].isNumber()) {
+          return false;
+        }
+      }
+
+      return true;
+    }
+
+    // Returns true if the setting is an array or list of the requested length, with all entries numeric.
+    inline bool is_numeric_sequence_setting(const libconfig::Setting& setting, const int length)
+    {
+      if (!is_sequence_setting(setting) || setting.getLength() != length) {
         return false;
       }
 
@@ -236,6 +303,30 @@ struct config_required_impl<InteractionFileFormat, void> {
       return T(double(setting));
     }
 
+    // Returns a numeric sequence setting read directly from a positional setting.
+    template <typename T>
+    inline std::vector<T> read_numeric_sequence_setting(const libconfig::Setting& setting, const char* name)
+    {
+      if (!is_sequence_setting(setting)) {
+        throw jams::ConfigException(setting, name, " must be an array or list");
+      }
+
+      std::vector<T> result(setting.getLength());
+      for (auto i = 0; i < setting.getLength(); ++i) {
+        result[i] = read_numeric_setting<T>(setting[i], "component");
+      }
+      return result;
+    }
+
+    // Returns a numeric sequence setting with a required length.
+    template <typename T>
+    inline std::vector<T> read_numeric_sequence_setting(
+        const libconfig::Setting& setting, const char* name, const int length)
+    {
+      require_setting_length(setting, name, length);
+      return read_numeric_sequence_setting<T>(setting, name);
+    }
+
     // Returns a numeric Vec setting read directly from a positional setting.
     template <typename T, std::size_t N>
     inline jams::Vec<T, N> read_vec_setting(const libconfig::Setting& setting, const char* name)
@@ -249,6 +340,31 @@ struct config_required_impl<InteractionFileFormat, void> {
         result[i] = read_numeric_setting<T>(setting[i], "component");
       }
       return result;
+    }
+
+    // Returns a sequence of numeric Vec settings read directly from a positional setting.
+    template <typename T, std::size_t N>
+    inline std::vector<jams::Vec<T, N>> read_vec_sequence_setting(
+        const libconfig::Setting& setting, const char* name)
+    {
+      if (!is_sequence_setting(setting)) {
+        throw jams::ConfigException(setting, name, " must be an array or list");
+      }
+
+      std::vector<jams::Vec<T, N>> result(setting.getLength());
+      for (auto i = 0; i < setting.getLength(); ++i) {
+        result[i] = read_vec_setting<T, N>(setting[i], name);
+      }
+      return result;
+    }
+
+    // Returns a sequence of numeric Vec settings with a required length.
+    template <typename T, std::size_t N>
+    inline std::vector<jams::Vec<T, N>> read_vec_sequence_setting(
+        const libconfig::Setting& setting, const char* name, const int length)
+    {
+      require_setting_length(setting, name, length);
+      return read_vec_sequence_setting<T, N>(setting, name);
     }
 
     // Returns a row-major numeric Mat setting read directly from a flat positional setting.

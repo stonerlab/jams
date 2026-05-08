@@ -437,9 +437,8 @@ void Lattice::init_unit_cell(const libconfig::Setting &lattice_settings, const l
   }
 
   if (lattice_settings.exists("orientation_axis")) {
-    if (lattice_settings.exists("orientation_lattice_vector") && lattice_settings.exists("orientation_cartesian_vector")) {
-      throw jams::ConfigException(lattice_settings, "Only one of 'orientation_lattice_vector' or 'orientation_cartesian_vector' can be defined");
-    }
+    jams::require_mutually_exclusive_settings(
+        lattice_settings, {"orientation_lattice_vector", "orientation_cartesian_vector"});
     auto reference_axis = jams::config_required<jams::Vec<double, 3>>(lattice_settings, "orientation_axis");
     if (lattice_settings.exists("orientation_lattice_vector")) {
       auto lattice_vector = jams::config_required<jams::Vec<double, 3>>(lattice_settings, "orientation_lattice_vector");
@@ -1085,9 +1084,9 @@ Lattice::ImpurityMap Lattice::read_impurities_from_config(const libconfig::Setti
       materialA = materials_.id(material_name);
     }
     catch(std::out_of_range &e) {
-      jams::ConfigException(settings, "impurity ", n, " materialA (",
-                            jams::read_string_setting(settings[n][0], "impurity materialA"),
-                            ") does not exist");
+      throw jams::ConfigException(settings, "impurity ", n, " materialA (",
+                                  jams::read_string_setting(settings[n][0], "impurity materialA"),
+                                  ") does not exist");
     }
 
     try {
@@ -1095,15 +1094,15 @@ Lattice::ImpurityMap Lattice::read_impurities_from_config(const libconfig::Setti
       materialB = materials_.id(material_name);
     }
     catch(std::out_of_range &e) {
-      jams::ConfigException(settings, "impurity ", n, " materialB (",
-                            jams::read_string_setting(settings[n][1], "impurity materialB"),
-                            ") does not exist");
+      throw jams::ConfigException(settings, "impurity ", n, " materialB (",
+                                  jams::read_string_setting(settings[n][1], "impurity materialB"),
+                                  ") does not exist");
     }
 
-    auto fraction  = double(settings[n][2]);
+    auto fraction = jams::read_numeric_setting<double>(settings[n][2], "impurity fraction");
 
     if (fraction < 0.0 || fraction >= 1.0) {
-      jams::ConfigException(settings, "impurity ", n, " fraction must be 0 =< x < 1");
+      throw jams::ConfigException(settings, "impurity ", n, " fraction must be 0 =< x < 1");
     }
 
     Impurity imp = {materialB, fraction};

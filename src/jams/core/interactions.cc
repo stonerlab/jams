@@ -266,8 +266,8 @@ interactions_from_settings(libconfig::Setting &setting, const InteractionFileDes
 
     if (desc.type == InteractionFileFormat::KKR) {
       // use zero based indexing
-      J.basis_site_i = int(setting[i][0])-1;
-      J.basis_site_j = int(setting[i][1])-1;
+      J.basis_site_i = jams::read_integer_setting(setting[i][0], "basis site i") - 1;
+      J.basis_site_j = jams::read_integer_setting(setting[i][1], "basis site j") - 1;
     } else {
       J.type_i = jams::read_string_setting(setting[i][0], "interaction type i");
       J.type_j = jams::read_string_setting(setting[i][1], "interaction type j");

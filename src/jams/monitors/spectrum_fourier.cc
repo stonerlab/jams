@@ -98,9 +98,7 @@ SpectrumFourierMonitor::SpectrumFourierMonitor(const libconfig::Setting &setting
   for (int n = 0, nend = cfg_nodes.getLength(); n < nend; ++n) {
 
     // transform into reciprocal lattice vectors
-    jams::Vec<double, 3> cfg_vec = { double(cfg_nodes[n][0]),
-                     double(cfg_nodes[n][1]),
-                     double(cfg_nodes[n][2]) };
+    auto cfg_vec = jams::read_vec_setting<double, 3>(cfg_nodes[n], "brillouin_zone node");
 
     if (debug_is_enabled()) {
       std::cout << "cfg_vec: " << cfg_vec << "\n";

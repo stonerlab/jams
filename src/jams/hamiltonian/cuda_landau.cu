@@ -69,10 +69,19 @@ CudaLandauHamiltonian::CudaLandauHamiltonian(const libconfig::Setting &settings,
   landau_B_.resize(globals::num_spins);
   landau_C_.resize(globals::num_spins);
 
+  const auto num_materials = globals::lattice->num_materials();
+  const auto landau_A_by_material = jams::read_numeric_sequence_setting<jams::Real>(
+      settings["A"], "A", num_materials);
+  const auto landau_B_by_material = jams::read_numeric_sequence_setting<jams::Real>(
+      settings["B"], "B", num_materials);
+  const auto landau_C_by_material = jams::read_numeric_sequence_setting<jams::Real>(
+      settings["C"], "C", num_materials);
+
   for (int i = 0; i < globals::num_spins; ++i) {
-    landau_A_(i) = jams::Real(settings["A"][globals::lattice->lattice_site_material_id(i)]) * input_energy_unit_conversion_;;
-    landau_B_(i) = jams::Real(settings["B"][globals::lattice->lattice_site_material_id(i)]) * input_energy_unit_conversion_;;
-    landau_C_(i) = jams::Real(settings["C"][globals::lattice->lattice_site_material_id(i)]) * input_energy_unit_conversion_;;
+    const auto material_id = globals::lattice->lattice_site_material_id(i);
+    landau_A_(i) = landau_A_by_material[material_id] * input_energy_unit_conversion_;
+    landau_B_(i) = landau_B_by_material[material_id] * input_energy_unit_conversion_;
+    landau_C_(i) = landau_C_by_material[material_id] * input_energy_unit_conversion_;
   }
 
 }

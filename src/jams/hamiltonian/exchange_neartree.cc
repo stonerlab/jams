@@ -74,13 +74,15 @@ ExchangeNeartreeHamiltonian::ExchangeNeartreeHamiltonian(const libconfig::Settin
         throw std::runtime_error("exchange neartree interaction " +  std::to_string(i) + ": material " + type_name_B + " does not exist in the config");
       }
 
-      double radius = double(settings["interactions"][i][2]) * input_distance_unit_conversion_;
+      const auto radius = jams::read_numeric_setting<double>(
+          settings["interactions"][i][2], "interaction radius") * input_distance_unit_conversion_;
 
       if (radius > max_radius) {
         max_radius = radius;
       }
 
-      double jij_value = double(settings["interactions"][i][3]) * input_energy_unit_conversion_;
+      const auto jij_value = jams::read_numeric_setting<double>(
+          settings["interactions"][i][3], "interaction energy") * input_energy_unit_conversion_;
 
       auto type_id_A = globals::lattice->material_index(type_name_A);
       auto type_id_B = globals::lattice->material_index(type_name_B);

@@ -12,6 +12,7 @@
 #include "jams/core/lattice.h"
 #include "jams/helpers/utils.h"
 #include "jams/helpers/output.h"
+#include "jams/interface/config.h"
 
 #include "vtu.h"
 #include <jams/helpers/exception.h>
@@ -22,21 +23,15 @@
 VtuMonitor::VtuMonitor(const libconfig::Setting &settings)
 : Monitor(settings) {
     // settings for only outputting a slice
-    if (settings.exists("slice_origin") ^ settings.exists("slice_size")) {
-      throw jams::ConfigException(settings, "Vtu monitor requires both slice_origin and slice_size to be specified.");
-    }
+    jams::require_settings_together(settings, {"slice_origin", "slice_size"});
 
     num_slice_points = 0;
 
     if (settings.exists("slice_origin")) {
         std::cout << "  slice output enabled\n";
-        for (int i = 0; i < 3; ++i) {
-            slice_origin[i] = settings["slice_origin"][i];
-        }
+        slice_origin = jams::read_vec_setting<double, 3>(settings["slice_origin"], "slice_origin");
         std::cout << "  slice origin " << slice_origin[0] << " " << slice_origin[1] << " " << slice_origin[2] << "\n";
-        for (int i = 0; i < 3; ++i) {
-            slice_size[i] = settings["slice_size"][i];
-        }
+        slice_size = jams::read_vec_setting<double, 3>(settings["slice_size"], "slice_size");
       std::cout << "  slice size " << slice_size[0] << " " << slice_size[1] << " " << slice_size[2] << "\n";
 
         // check which spins are inside the slice
