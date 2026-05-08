@@ -305,6 +305,32 @@ void write_axes_for_spin(jams::MultiArray<jams::Real, 2>& u_axes,
     }
 }
 
+void add_axial_term_to_polynomial(jams::MultiArray<jams::Real, 2>& axial_polynomial_coefficients,
+                                  const unsigned int spin_index,
+                                  const int key,
+                                  const jams::Real coefficient)
+{
+    switch (key) {
+    case jams::tesseral_key(2, 0):
+        axial_polynomial_coefficients(spin_index, 0) += coefficient * jams::Real(-1.0 / 3.0);
+        axial_polynomial_coefficients(spin_index, 1) += coefficient;
+        return;
+    case jams::tesseral_key(4, 0):
+        axial_polynomial_coefficients(spin_index, 0) += coefficient * jams::Real(3.0 / 35.0);
+        axial_polynomial_coefficients(spin_index, 1) += coefficient * jams::Real(-6.0 / 7.0);
+        axial_polynomial_coefficients(spin_index, 2) += coefficient;
+        return;
+    case jams::tesseral_key(6, 0):
+        axial_polynomial_coefficients(spin_index, 0) += coefficient * jams::Real(-5.0 / 231.0);
+        axial_polynomial_coefficients(spin_index, 1) += coefficient * jams::Real(5.0 / 11.0);
+        axial_polynomial_coefficients(spin_index, 2) += coefficient * jams::Real(-15.0 / 11.0);
+        axial_polynomial_coefficients(spin_index, 3) += coefficient;
+        return;
+    default:
+        throw std::invalid_argument("non-axial tesseral key passed to axial polynomial builder");
+    }
+}
+
 } // namespace
 
 bool AnisotropyPolynomialHamiltonian::is_local_axis_setting(const libconfig::Setting& setting)
@@ -429,7 +455,7 @@ AnisotropyPolynomialHamiltonian::AnisotropyPolynomialHamiltonian(
 void AnisotropyPolynomialHamiltonian::initialise_tesseral_storage(const unsigned int size)
 {
     zero(spin_pointer_.resize(size + 1));
-    zero(axial_coefficients_.resize(size, 3));
+    zero(axial_polynomial_coefficients_.resize(size, 4));
     zero(u_axes_.resize(size, 3));
     zero(v_axes_.resize(size, 3));
     zero(w_axes_.resize(size, 3));
@@ -455,7 +481,7 @@ void AnisotropyPolynomialHamiltonian::set_tesseral_terms(
     }
 
     auto total_terms = 0;
-    zero(axial_coefficients_.resize(spin_coefficients.size(), 3));
+    zero(axial_polynomial_coefficients_.resize(spin_coefficients.size(), 4));
     for (auto i = 0u; i < spin_coefficients.size(); ++i) {
         spin_pointer_(i) = total_terms;
         for (const auto& [key, coefficient] : spin_coefficients[i]) {
@@ -465,7 +491,7 @@ void AnisotropyPolynomialHamiltonian::set_tesseral_terms(
 
             const auto axial_index = jams::tesseral_polynomial::axial_coefficient_index_from_key(key);
             if (axial_index >= 0) {
-                axial_coefficients_(i, axial_index) = coefficient;
+                add_axial_term_to_polynomial(axial_polynomial_coefficients_, i, key, coefficient);
             } else {
                 ++total_terms;
             }
@@ -507,7 +533,7 @@ jams::Vec<jams::Real, 3> AnisotropyPolynomialHamiltonian::calculate_field(int i,
         std::as_const(spin_pointer_).host_data(),
         std::as_const(tesseral_keys_).host_data(),
         std::as_const(tesseral_coefficients_).host_data(),
-        std::as_const(axial_coefficients_).host_data(),
+        std::as_const(axial_polynomial_coefficients_).host_data(),
         field);
 
     return {field[0], field[1], field[2]};
@@ -527,7 +553,7 @@ jams::Real AnisotropyPolynomialHamiltonian::calculate_energy(int i, jams::Real t
         std::as_const(spin_pointer_).host_data(),
         std::as_const(tesseral_keys_).host_data(),
         std::as_const(tesseral_coefficients_).host_data(),
-        std::as_const(axial_coefficients_).host_data());
+        std::as_const(axial_polynomial_coefficients_).host_data());
 }
 
 jams::Real AnisotropyPolynomialHamiltonian::calculate_energy_for_spin(int i, const jams::Vec<double, 3> &spin, jams::Real time)
@@ -543,5 +569,5 @@ jams::Real AnisotropyPolynomialHamiltonian::calculate_energy_for_spin(int i, con
         std::as_const(spin_pointer_).host_data(),
         std::as_const(tesseral_keys_).host_data(),
         std::as_const(tesseral_coefficients_).host_data(),
-        std::as_const(axial_coefficients_).host_data());
+        std::as_const(axial_polynomial_coefficients_).host_data());
 }

@@ -142,10 +142,11 @@ protected:
     jams::MultiArray<int, 1> tesseral_keys_;
     jams::MultiArray<jams::Real, 1> tesseral_coefficients_;
 
-    // Coefficients for the axial m=0 terms l=2,4,6, stored separately from
-    // the generic tesseral CSR terms so the common axial path can avoid the
-    // key lookup and full local-axis transform.
-    jams::MultiArray<jams::Real, 2> axial_coefficients_; /// axial_coefficients_(spin_index, l_index)
+    // Polynomial coefficients A0,A2,A4,A6 for the combined axial m=0 terms,
+    // E(z) = A0 + A2 z^2 + A4 z^4 + A6 z^6. Stored separately from the
+    // generic tesseral CSR terms so the common axial path can avoid the key
+    // lookup and full local-axis transform.
+    jams::MultiArray<jams::Real, 2> axial_polynomial_coefficients_; /// axial_polynomial_coefficients_(spin_index, power_index)
 };
 
 #endif //JAMS_ANISOTROPY_POLYNOMIAL_H

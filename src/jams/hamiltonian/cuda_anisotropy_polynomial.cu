@@ -17,7 +17,7 @@ void cuda_anisotropy_polynomial_energy_kernel(
     const int *__restrict__ spin_pointer,
     const int *__restrict__ tesseral_keys,
     const jams::Real *__restrict__ tesseral_coefficients,
-    const jams::Real *__restrict__ axial_coefficients,
+    const jams::Real *__restrict__ axial_polynomial_coefficients,
     jams::Real *__restrict__ energies)
 {
     const unsigned int idx = blockIdx.x * blockDim.x + threadIdx.x;
@@ -41,7 +41,7 @@ void cuda_anisotropy_polynomial_energy_kernel(
         spin_pointer,
         tesseral_keys,
         tesseral_coefficients,
-        axial_coefficients);
+        axial_polynomial_coefficients);
 }
 
 __global__
@@ -54,7 +54,7 @@ void cuda_anisotropy_polynomial_field_kernel(
     const int *__restrict__ spin_pointer,
     const int *__restrict__ tesseral_keys,
     const jams::Real *__restrict__ tesseral_coefficients,
-    const jams::Real *__restrict__ axial_coefficients,
+    const jams::Real *__restrict__ axial_polynomial_coefficients,
     jams::Real *__restrict__ fields)
 {
     const unsigned int idx = blockIdx.x * blockDim.x + threadIdx.x;
@@ -79,7 +79,7 @@ void cuda_anisotropy_polynomial_field_kernel(
         spin_pointer,
         tesseral_keys,
         tesseral_coefficients,
-        axial_coefficients,
+        axial_polynomial_coefficients,
         field);
 
     fields[base + 0] = field[0];
@@ -108,7 +108,7 @@ void CudaAnisotropyPolynomialHamiltonian::calculate_fields(jams::Real time)
         spin_pointer_.device_data(),
         tesseral_keys_.device_data(),
         tesseral_coefficients_.device_data(),
-        axial_coefficients_.device_data(),
+        axial_polynomial_coefficients_.device_data(),
         field_.mutable_device_data());
     DEBUG_CHECK_CUDA_ASYNC_STATUS;
 }
@@ -125,7 +125,7 @@ void CudaAnisotropyPolynomialHamiltonian::calculate_energies(jams::Real time)
         spin_pointer_.device_data(),
         tesseral_keys_.device_data(),
         tesseral_coefficients_.device_data(),
-        axial_coefficients_.device_data(),
+        axial_polynomial_coefficients_.device_data(),
         energy_.mutable_device_data());
     DEBUG_CHECK_CUDA_ASYNC_STATUS;
 }

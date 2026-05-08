@@ -30,9 +30,9 @@ public:
         return spin_pointer_(spin_pointer_.elements() - 1);
     }
 
-    jams::Real axial_coefficient(int spin, int index) const
+    jams::Real axial_polynomial_coefficient(int spin, int index) const
     {
-        return axial_coefficients_(spin, index);
+        return axial_polynomial_coefficients_(spin, index);
     }
 };
 
@@ -319,10 +319,12 @@ TEST_F(CudaAnisotropyPolynomialHamiltonianTests, axial_terms_are_stored_outside_
     for (int i = 0; i < globals::num_spins; ++i) {
         const jams::Vec<double, 3> spin = {globals::s(i, 0), globals::s(i, 1), globals::s(i, 2)};
         const bool is_material_a = globals::lattice->lattice_site_material_id(i) == globals::lattice->material_index("A");
+        const auto z2 = jams::Real(spin[2] * spin[2]);
         const auto expected_energy = is_material_a
-            ? jams::Real(hamiltonian.axial_coefficient(i, 0) * jams::tesseral_monic_polynomial(2, 0, spin[0], spin[1], spin[2])
-                + hamiltonian.axial_coefficient(i, 1) * jams::tesseral_monic_polynomial(4, 0, spin[0], spin[1], spin[2])
-                + hamiltonian.axial_coefficient(i, 2) * jams::tesseral_monic_polynomial(6, 0, spin[0], spin[1], spin[2]))
+            ? (((hamiltonian.axial_polynomial_coefficient(i, 3) * z2
+                    + hamiltonian.axial_polynomial_coefficient(i, 2)) * z2
+                    + hamiltonian.axial_polynomial_coefficient(i, 1)) * z2
+                    + hamiltonian.axial_polynomial_coefficient(i, 0))
             : jams::Real{0};
 
         ASSERT_NEAR(hamiltonian.calculate_energy_for_spin(i, spin, 0.0), expected_energy, 1e-14);

@@ -54,34 +54,18 @@ JAMS_HOST_DEVICE inline T energy_from_local_terms(
 }
 
 template <typename T>
-JAMS_HOST_DEVICE inline T axial_energy_from_coefficients(
-    const T c20,
-    const T c40,
-    const T c60,
-    const T z)
+JAMS_HOST_DEVICE inline T axial_energy_from_polynomial(const T* const polynomial, const T z)
 {
-    return c20 * jams::tesseral_monic_polynomial_l2_0(T{0}, T{0}, z)
-        + c40 * jams::tesseral_monic_polynomial_l4_0(T{0}, T{0}, z)
-        + c60 * jams::tesseral_monic_polynomial_l6_0(T{0}, T{0}, z);
+    const T z2 = z * z;
+    return ((polynomial[3] * z2 + polynomial[2]) * z2 + polynomial[1]) * z2 + polynomial[0];
 }
 
 template <typename T>
-JAMS_HOST_DEVICE inline T axial_negative_gradient_from_coefficients(
-    const T c20,
-    const T c40,
-    const T c60,
-    const T z)
+JAMS_HOST_DEVICE inline T axial_negative_gradient_from_polynomial(const T* const polynomial, const T z)
 {
-    T grad[3];
-    T gradient_z = 0;
-
-    jams::tesseral_monic_polynomial_l2_0_grad(T{0}, T{0}, z, grad);
-    gradient_z += c20 * grad[2];
-    jams::tesseral_monic_polynomial_l4_0_grad(T{0}, T{0}, z, grad);
-    gradient_z += c40 * grad[2];
-    jams::tesseral_monic_polynomial_l6_0_grad(T{0}, T{0}, z, grad);
-    gradient_z += c60 * grad[2];
-
+    const T z2 = z * z;
+    const T gradient_z = z * (T{2} * polynomial[1]
+        + z2 * (T{4} * polynomial[2] + T{6} * polynomial[3] * z2));
     return -gradient_z;
 }
 
@@ -176,16 +160,18 @@ JAMS_HOST_DEVICE inline T energy_for_spin_with_axial_terms(
     const int* const spin_pointer,
     const int* const keys,
     const T* const coefficients,
-    const T* const axial_coefficients)
+    const T* const axial_polynomial_coefficients)
 {
     const int term_begin = spin_pointer[spin_index];
     const int term_end = spin_pointer[spin_index + 1];
-    const int axial_base = 3 * spin_index;
-    const T c20 = axial_coefficients[axial_base + 0];
-    const T c40 = axial_coefficients[axial_base + 1];
-    const T c60 = axial_coefficients[axial_base + 2];
+    const int axial_base = 4 * spin_index;
+    const T* const axial_polynomial = axial_polynomial_coefficients + axial_base;
 
-    if (term_begin == term_end && c20 == T{0} && c40 == T{0} && c60 == T{0}) {
+    if (term_begin == term_end &&
+        axial_polynomial[0] == T{0} &&
+        axial_polynomial[1] == T{0} &&
+        axial_polynomial[2] == T{0} &&
+        axial_polynomial[3] == T{0}) {
         return T{0};
     }
 
@@ -194,7 +180,7 @@ JAMS_HOST_DEVICE inline T energy_for_spin_with_axial_terms(
         const T z = sx_global * w_axes[base + 0]
             + sy_global * w_axes[base + 1]
             + sz_global * w_axes[base + 2];
-        return axial_energy_from_coefficients(c20, c40, c60, z);
+        return axial_energy_from_polynomial(axial_polynomial, z);
     }
 
     T local_spin[3];
@@ -205,7 +191,7 @@ JAMS_HOST_DEVICE inline T energy_for_spin_with_axial_terms(
         w_axes[base + 0], w_axes[base + 1], w_axes[base + 2],
         local_spin);
 
-    return axial_energy_from_coefficients(c20, c40, c60, local_spin[2])
+    return axial_energy_from_polynomial(axial_polynomial, local_spin[2])
         + energy_from_local_terms(
             term_begin,
             term_end,
@@ -282,17 +268,19 @@ JAMS_HOST_DEVICE inline void field_for_spin_with_axial_terms(
     const int* const spin_pointer,
     const int* const keys,
     const T* const coefficients,
-    const T* const axial_coefficients,
+    const T* const axial_polynomial_coefficients,
     T field[3])
 {
     const int term_begin = spin_pointer[spin_index];
     const int term_end = spin_pointer[spin_index + 1];
-    const int axial_base = 3 * spin_index;
-    const T c20 = axial_coefficients[axial_base + 0];
-    const T c40 = axial_coefficients[axial_base + 1];
-    const T c60 = axial_coefficients[axial_base + 2];
+    const int axial_base = 4 * spin_index;
+    const T* const axial_polynomial = axial_polynomial_coefficients + axial_base;
 
-    if (term_begin == term_end && c20 == T{0} && c40 == T{0} && c60 == T{0}) {
+    if (term_begin == term_end &&
+        axial_polynomial[0] == T{0} &&
+        axial_polynomial[1] == T{0} &&
+        axial_polynomial[2] == T{0} &&
+        axial_polynomial[3] == T{0}) {
         field[0] = T{0};
         field[1] = T{0};
         field[2] = T{0};
@@ -306,7 +294,7 @@ JAMS_HOST_DEVICE inline void field_for_spin_with_axial_terms(
 
     if (term_begin == term_end) {
         const T z = sx_global * wx + sy_global * wy + sz_global * wz;
-        const T axial_field_z = axial_negative_gradient_from_coefficients(c20, c40, c60, z);
+        const T axial_field_z = axial_negative_gradient_from_polynomial(axial_polynomial, z);
         field[0] = axial_field_z * wx;
         field[1] = axial_field_z * wy;
         field[2] = axial_field_z * wz;
@@ -338,7 +326,7 @@ JAMS_HOST_DEVICE inline void field_for_spin_with_axial_terms(
         local_spin[1],
         local_spin[2],
         local_field);
-    local_field[2] += axial_negative_gradient_from_coefficients(c20, c40, c60, local_spin[2]);
+    local_field[2] += axial_negative_gradient_from_polynomial(axial_polynomial, local_spin[2]);
 
     local_vector_to_global(
         local_field[0],
