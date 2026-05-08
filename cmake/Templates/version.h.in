@@ -23,6 +23,7 @@ namespace jams {
         constexpr auto option_omp = "@JAMS_BUILD_OMP@";
         constexpr auto option_fastmath = "@JAMS_BUILD_FASTMATH@";
         constexpr auto option_mixed_prec = "@JAMS_BUILD_MIXED_PREC@";
+        constexpr auto option_accelerate_sparse = "@JAMS_USE_ACCELERATE_SPARSE@";
         constexpr auto libconfig_version = "@JAMS_LIBCONFIG_VERSION@";
         constexpr auto libconfig_libraries = "@JAMS_LIBCONFIG_LIBRARIES@";
         constexpr auto highfive_version = "@JAMS_HIGHFIVE_VERSION@";

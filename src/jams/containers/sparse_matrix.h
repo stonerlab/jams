@@ -8,6 +8,7 @@
 #include <cmath>
 #include <functional>
 #include <map>
+#include <stdexcept>
 #include <utility>
 #include <vector>
 #include <type_traits>
@@ -21,6 +22,13 @@
 #if HAS_MKL
 #include <mkl_spblas.h>
 #include <mkl_version.h>
+#endif
+
+#if defined(HAS_ACCELERATE_SPARSE) && HAS_ACCELERATE_SPARSE && !HAS_MKL
+#include <Sparse/BLAS.h>
+#define JAMS_HAS_ACCELERATE_SPARSE 1
+#else
+#define JAMS_HAS_ACCELERATE_SPARSE 0
 #endif
 
 // Since MKL >= 2018 the NIST sparse BLAS interface is deprecated in MKL and
@@ -95,6 +103,11 @@ namespace jams {
           rhs.mkl_matrix_A_handle_ = nullptr;
           #endif
 
+          #if JAMS_HAS_ACCELERATE_SPARSE
+          accelerate_matrix_A_handle_ = rhs.accelerate_matrix_A_handle_;
+          rhs.accelerate_matrix_A_handle_ = nullptr;
+          #endif
+
           #if HAS_CUSPARSE_GENERIC_API
           cusparse_matrix_A_handle_ = rhs.cusparse_matrix_A_handle_;
           rhs.cusparse_matrix_A_handle_ = nullptr;
@@ -149,6 +162,11 @@ namespace jams {
             #if HAS_MKL_INSPECTOR_EXECUTOR_API
             mkl_matrix_A_handle_ = rhs.mkl_matrix_A_handle_;
             rhs.mkl_matrix_A_handle_ = nullptr;
+            #endif
+
+            #if JAMS_HAS_ACCELERATE_SPARSE
+            accelerate_matrix_A_handle_ = rhs.accelerate_matrix_A_handle_;
+            rhs.accelerate_matrix_A_handle_ = nullptr;
             #endif
 
             #if HAS_CUSPARSE_GENERIC_API
@@ -239,6 +257,10 @@ namespace jams {
         sparse_matrix_t mkl_matrix_A_handle_ = nullptr;
         #endif
 
+        #if JAMS_HAS_ACCELERATE_SPARSE
+        sparse_matrix_double accelerate_matrix_A_handle_ = nullptr;
+        #endif
+
         #if HAS_CUSPARSE_GENERIC_API
         cusparseSpMatDescr_t cusparse_matrix_A_handle_ = nullptr;
 
@@ -271,6 +293,13 @@ namespace jams {
           }
           #endif
 
+          #if JAMS_HAS_ACCELERATE_SPARSE
+          if (accelerate_matrix_A_handle_) {
+            sparse_matrix_destroy(accelerate_matrix_A_handle_);
+            accelerate_matrix_A_handle_ = nullptr;
+          }
+          #endif
+
           #if HAS_CUSPARSE_GENERIC_API
           if (cusparse_matrix_A_handle_) {
             cusparseDestroySpMat(cusparse_matrix_A_handle_);
@@ -299,6 +328,64 @@ namespace jams {
           cusparse_buffer_valid_ = false;
           #endif
         }
+
+        #if JAMS_HAS_ACCELERATE_SPARSE
+        void ensure_accelerate_matrix_handle_() {
+          static_assert(std::is_same<T, double>::value, "Accelerate sparse BLAS is only used for double matrices");
+
+          if (accelerate_matrix_A_handle_) {
+            return;
+          }
+
+          accelerate_matrix_A_handle_ = sparse_matrix_create_double(
+              static_cast<sparse_dimension>(num_rows_),
+              static_cast<sparse_dimension>(num_cols_));
+          if (!accelerate_matrix_A_handle_) {
+            throw std::runtime_error("Failed to create Accelerate sparse matrix handle");
+          }
+
+          if (num_non_zero_ == 0) {
+            return;
+          }
+
+          std::vector<sparse_index> row_indices(num_non_zero_);
+          std::vector<sparse_index> col_indices(num_non_zero_);
+
+          const index_type* rows = row_data();
+          const index_type* cols = col_data();
+          const value_type* values = val_data();
+
+          for (index_type row = 0; row < num_rows_; ++row) {
+            for (index_type j = rows[row]; j < rows[row + 1]; ++j) {
+              row_indices[j] = static_cast<sparse_index>(row);
+            }
+          }
+
+          for (index_type j = 0; j < num_non_zero_; ++j) {
+            col_indices[j] = static_cast<sparse_index>(cols[j]);
+          }
+
+          const sparse_status status = sparse_insert_entries_double(
+              accelerate_matrix_A_handle_,
+              static_cast<sparse_dimension>(num_non_zero_),
+              values,
+              row_indices.data(),
+              col_indices.data());
+
+          if (status != SPARSE_SUCCESS) {
+            sparse_matrix_destroy(accelerate_matrix_A_handle_);
+            accelerate_matrix_A_handle_ = nullptr;
+            throw std::runtime_error("Failed to insert values into Accelerate sparse matrix handle");
+          }
+
+          const sparse_status commit_status = sparse_commit(accelerate_matrix_A_handle_);
+          if (commit_status != SPARSE_SUCCESS) {
+            sparse_matrix_destroy(accelerate_matrix_A_handle_);
+            accelerate_matrix_A_handle_ = nullptr;
+            throw std::runtime_error("Failed to commit Accelerate sparse matrix handle");
+          }
+        }
+        #endif
     };
 
 template<typename T>
@@ -355,6 +442,35 @@ void SparseMatrix<T>::multiply(const MultiArray<X, N> &vector_x, MultiArray<Y, N
         }
 
         //            #endif
+      #elif JAMS_HAS_ACCELERATE_SPARSE
+        if constexpr (std::is_same<X, Y>::value &&
+                      std::is_same<T, double>::value &&
+                      std::is_same<X, double>::value) {
+          const double* x = vector_x.data();
+          double* y = vector_y.data();
+          std::fill_n(y, static_cast<std::size_t>(num_rows_), 0.0);
+
+          if (num_non_zero_ == 0) {
+            return;
+          }
+
+          ensure_accelerate_matrix_handle_();
+          const sparse_status status = sparse_matrix_vector_product_dense_double(
+              CblasNoTrans,
+              1.0,
+              accelerate_matrix_A_handle_,
+              x,
+              1,
+              y,
+              1);
+
+          if (status != SPARSE_SUCCESS) {
+            throw std::runtime_error("Accelerate sparse matrix-vector product failed");
+          }
+        } else {
+          jams::Xcsrmv_general(
+              1.0, 0.0, num_rows_, val_.data(), col_.data(), row_.data(), vector_x.data(), vector_y.data());
+        }
       #else
         jams::Xcsrmv_general(
             1.0, 0.0, num_rows_, val_.data(), col_.data(), row_.data(), vector_x.data(), vector_y.data());
@@ -530,5 +646,6 @@ void SparseMatrix<T>::multiply(const MultiArray<X, N> &vector_x, MultiArray<Y, N
 
 #undef HAS_CUSPARSE_GENERIC_API
 #undef HAS_MKL_INSPECTOR_EXECUTOR_API
+#undef JAMS_HAS_ACCELERATE_SPARSE
 
 #endif // JAMS_CONTAINERS_SPARSE_MATRIX_H
