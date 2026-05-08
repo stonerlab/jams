@@ -9,7 +9,8 @@ namespace {
 
 __global__
 void cuda_anisotropy_polynomial_energy_kernel(
-    const int num_spins,
+    const int active_spin_count,
+    const int *__restrict__ active_spin_indices,
     const jams::RealHi *__restrict__ spins,
     const int *__restrict__ spin_profile,
     const jams::Real *__restrict__ u_axes,
@@ -21,11 +22,12 @@ void cuda_anisotropy_polynomial_energy_kernel(
     const jams::Real *__restrict__ axial_polynomial_coefficients,
     jams::Real *__restrict__ energies)
 {
-    const unsigned int idx = blockIdx.x * blockDim.x + threadIdx.x;
-    if (idx >= num_spins) {
+    const unsigned int active_idx = blockIdx.x * blockDim.x + threadIdx.x;
+    if (active_idx >= active_spin_count) {
         return;
     }
 
+    const int idx = active_spin_indices[active_idx];
     const unsigned int base = 3u * idx;
     const jams::Real sx_global = static_cast<jams::Real>(spins[base + 0]);
     const jams::Real sy_global = static_cast<jams::Real>(spins[base + 1]);
@@ -48,7 +50,8 @@ void cuda_anisotropy_polynomial_energy_kernel(
 
 __global__
 void cuda_anisotropy_polynomial_field_kernel(
-    const int num_spins,
+    const int active_spin_count,
+    const int *__restrict__ active_spin_indices,
     const jams::RealHi *__restrict__ spins,
     const int *__restrict__ spin_profile,
     const jams::Real *__restrict__ u_axes,
@@ -60,11 +63,12 @@ void cuda_anisotropy_polynomial_field_kernel(
     const jams::Real *__restrict__ axial_polynomial_coefficients,
     jams::Real *__restrict__ fields)
 {
-    const unsigned int idx = blockIdx.x * blockDim.x + threadIdx.x;
-    if (idx >= num_spins) {
+    const unsigned int active_idx = blockIdx.x * blockDim.x + threadIdx.x;
+    if (active_idx >= active_spin_count) {
         return;
     }
 
+    const int idx = active_spin_indices[active_idx];
     const unsigned int base = 3u * idx;
     const jams::Real sx_global = static_cast<jams::Real>(spins[base + 0]);
     const jams::Real sy_global = static_cast<jams::Real>(spins[base + 1]);
@@ -102,9 +106,22 @@ CudaAnisotropyPolynomialHamiltonian::CudaAnisotropyPolynomialHamiltonian(
 
 void CudaAnisotropyPolynomialHamiltonian::calculate_fields(jams::Real time)
 {
-    const unsigned int num_blocks = (globals::num_spins + dev_blocksize_ - 1) / dev_blocksize_;
+    CHECK_CUDA_STATUS(cudaMemsetAsync(
+        field_.mutable_device_data(),
+        0,
+        field_.bytes(),
+        cuda_stream_.get()));
+
+    const int active_spin_count = active_spin_indices_.elements();
+    if (active_spin_count == 0) {
+        DEBUG_CHECK_CUDA_ASYNC_STATUS;
+        return;
+    }
+
+    const unsigned int num_blocks = (active_spin_count + dev_blocksize_ - 1) / dev_blocksize_;
     cuda_anisotropy_polynomial_field_kernel<<<num_blocks, dev_blocksize_, 0, cuda_stream_.get()>>>(
-        globals::num_spins,
+        active_spin_count,
+        active_spin_indices_.device_data(),
         globals::s.device_data(),
         spin_profile_.device_data(),
         u_axes_.device_data(),
@@ -120,9 +137,22 @@ void CudaAnisotropyPolynomialHamiltonian::calculate_fields(jams::Real time)
 
 void CudaAnisotropyPolynomialHamiltonian::calculate_energies(jams::Real time)
 {
-    const unsigned int num_blocks = (globals::num_spins + dev_blocksize_ - 1) / dev_blocksize_;
+    CHECK_CUDA_STATUS(cudaMemsetAsync(
+        energy_.mutable_device_data(),
+        0,
+        energy_.bytes(),
+        cuda_stream_.get()));
+
+    const int active_spin_count = active_spin_indices_.elements();
+    if (active_spin_count == 0) {
+        DEBUG_CHECK_CUDA_ASYNC_STATUS;
+        return;
+    }
+
+    const unsigned int num_blocks = (active_spin_count + dev_blocksize_ - 1) / dev_blocksize_;
     cuda_anisotropy_polynomial_energy_kernel<<<num_blocks, dev_blocksize_, 0, cuda_stream_.get()>>>(
-        globals::num_spins,
+        active_spin_count,
+        active_spin_indices_.device_data(),
         globals::s.device_data(),
         spin_profile_.device_data(),
         u_axes_.device_data(),

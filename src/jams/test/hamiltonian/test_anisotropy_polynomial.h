@@ -39,6 +39,11 @@ public:
     {
         return spin_profile_.empty() ? 0 : u_axes_.extent(0);
     }
+
+    int active_spin_count() const
+    {
+        return active_spin_indices_.elements();
+    }
 };
 
 class CudaAnisotropyPolynomialHamiltonianTests : public ::testing::Test {
@@ -355,6 +360,26 @@ TEST_F(CudaAnisotropyPolynomialHamiltonianTests, identical_spin_anisotropies_sha
         globals::num_spins);
 
     ASSERT_EQ(hamiltonian.profile_count(), 1);
+}
+
+TEST_F(CudaAnisotropyPolynomialHamiltonianTests, only_spins_with_terms_are_active)
+{
+    libconfig::Config config;
+    config.readString(R"(
+        hamiltonian = {
+          module = "anisotropy-polynomial";
+          energy_units = "meV";
+          anisotropies = (
+            ("A", (2, 0, 1.0))
+          );
+        };
+    )");
+
+    AnisotropyPolynomialHamiltonianTestAccess hamiltonian(
+        config.lookup("hamiltonian"),
+        globals::num_spins);
+
+    ASSERT_EQ(hamiltonian.active_spin_count(), 2);
 }
 
 TEST_F(CudaAnisotropyPolynomialHamiltonianTests, omitted_axes_inherit_explicit_axes_for_same_spin)

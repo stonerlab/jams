@@ -349,6 +349,15 @@ bool profiles_equal(const AnisotropyProfile& lhs, const AnisotropyProfile& rhs)
         && lhs.terms == rhs.terms;
 }
 
+bool profile_has_terms(const AnisotropyProfile& profile)
+{
+    return !profile.terms.empty()
+        || profile.axial_polynomial[0] != jams::Real{0}
+        || profile.axial_polynomial[1] != jams::Real{0}
+        || profile.axial_polynomial[2] != jams::Real{0}
+        || profile.axial_polynomial[3] != jams::Real{0};
+}
+
 int find_or_add_profile(std::vector<AnisotropyProfile>& profiles, const AnisotropyProfile& profile)
 {
     const auto existing = std::find_if(profiles.begin(), profiles.end(),
@@ -488,6 +497,7 @@ AnisotropyPolynomialHamiltonian::AnisotropyPolynomialHamiltonian(
 void AnisotropyPolynomialHamiltonian::initialise_tesseral_storage(const unsigned int size)
 {
     zero(spin_profile_.resize(size));
+    zero(active_spin_indices_.resize(0));
     zero(profile_pointer_.resize(1));
     zero(axial_polynomial_coefficients_.resize(size, 4));
     zero(u_axes_.resize(size, 3));
@@ -564,6 +574,18 @@ void AnisotropyPolynomialHamiltonian::set_tesseral_terms(
         }
     }
     profile_pointer_(profiles.size()) = total_terms;
+
+    std::vector<int> active_spin_indices;
+    active_spin_indices.reserve(spin_coefficients.size());
+    for (auto i = 0u; i < spin_coefficients.size(); ++i) {
+        if (profile_has_terms(profiles[spin_profile_(i)])) {
+            active_spin_indices.push_back(int(i));
+        }
+    }
+    active_spin_indices_.resize(active_spin_indices.size());
+    for (auto i = 0u; i < active_spin_indices.size(); ++i) {
+        active_spin_indices_(i) = active_spin_indices[i];
+    }
 
     tesseral_keys_.resize(total_terms);
     tesseral_coefficients_.resize(total_terms);

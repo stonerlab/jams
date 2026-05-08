@@ -3,6 +3,7 @@
 
 #include <jams/core/globals.h>
 #include <jams/cuda/cuda_array_reduction.h>
+#include <jams/cuda/cuda_common.h>
 
 CudaCrystalFieldHamiltonian::CudaCrystalFieldHamiltonian(
         const libconfig::Setting &settings, const unsigned int size) : CrystalFieldHamiltonian(
@@ -12,11 +13,24 @@ void CudaCrystalFieldHamiltonian::calculate_fields(jams::Real time) {
     dim3 block_size;
     block_size.x = 64;
 
+    CHECK_CUDA_STATUS(cudaMemsetAsync(
+        field_.mutable_device_data(),
+        0,
+        field_.bytes(),
+        cuda_stream_.get()));
+
+    const auto active_spin_count = active_spin_indices_.elements();
+    if (active_spin_count == 0) {
+        DEBUG_CHECK_CUDA_ASYNC_STATUS;
+        return;
+    }
+
     dim3 grid_size;
-    grid_size.x = (globals::num_spins + block_size.x - 1) / block_size.x;
+    grid_size.x = (active_spin_count + block_size.x - 1) / block_size.x;
 
     cuda_crystal_field_kernel<<<grid_size, block_size, 0, cuda_stream_.get() >>>
-            (globals::num_spins,
+            (active_spin_count,
+             active_spin_indices_.device_data(),
              globals::s.device_data(),
              spin_profile_.device_data(),
              u_axes_.device_data(),
@@ -34,11 +48,24 @@ void CudaCrystalFieldHamiltonian::calculate_energies(jams::Real time) {
     dim3 block_size;
     block_size.x = 64;
 
+    CHECK_CUDA_STATUS(cudaMemsetAsync(
+        energy_.mutable_device_data(),
+        0,
+        energy_.bytes(),
+        cuda_stream_.get()));
+
+    const auto active_spin_count = active_spin_indices_.elements();
+    if (active_spin_count == 0) {
+        DEBUG_CHECK_CUDA_ASYNC_STATUS;
+        return;
+    }
+
     dim3 grid_size;
-    grid_size.x = (globals::num_spins + block_size.x - 1) / block_size.x;
+    grid_size.x = (active_spin_count + block_size.x - 1) / block_size.x;
 
     cuda_crystal_field_energy_kernel<<<grid_size, block_size, 0, cuda_stream_.get() >>>
-            (globals::num_spins,
+            (active_spin_count,
+             active_spin_indices_.device_data(),
              globals::s.device_data(),
              spin_profile_.device_data(),
              u_axes_.device_data(),

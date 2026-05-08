@@ -4,7 +4,8 @@
 #include <jams/hamiltonian/tesseral_polynomial_evaluator.h>
 
 __global__ void cuda_crystal_field_energy_kernel(
-    const unsigned int num_spins,
+    const unsigned int active_spin_count,
+    const int* dev_active_spin_indices,
     const jams::RealHi* dev_s,
     const int* dev_spin_profile,
     const jams::Real* dev_u_axes,
@@ -16,11 +17,12 @@ __global__ void cuda_crystal_field_energy_kernel(
     const jams::Real* dev_axial_polynomial_coefficients,
     jams::Real* dev_e)
 {
-  const unsigned int idx = blockIdx.x * blockDim.x + threadIdx.x;
-  if (idx >= num_spins) {
+  const unsigned int active_idx = blockIdx.x * blockDim.x + threadIdx.x;
+  if (active_idx >= active_spin_count) {
     return;
   }
 
+  const int idx = dev_active_spin_indices[active_idx];
   const unsigned int base = 3u * idx;
   const jams::Real sx = static_cast<jams::Real>(dev_s[base + 0]);
   const jams::Real sy = static_cast<jams::Real>(dev_s[base + 1]);
@@ -42,7 +44,8 @@ __global__ void cuda_crystal_field_energy_kernel(
 }
 
 __global__ void cuda_crystal_field_kernel(
-    const unsigned int num_spins,
+    const unsigned int active_spin_count,
+    const int* dev_active_spin_indices,
     const jams::RealHi* dev_s,
     const int* dev_spin_profile,
     const jams::Real* dev_u_axes,
@@ -54,11 +57,12 @@ __global__ void cuda_crystal_field_kernel(
     const jams::Real* dev_axial_polynomial_coefficients,
     jams::Real* dev_h)
 {
-  const unsigned int idx = blockIdx.x * blockDim.x + threadIdx.x;
-  if (idx >= num_spins) {
+  const unsigned int active_idx = blockIdx.x * blockDim.x + threadIdx.x;
+  if (active_idx >= active_spin_count) {
     return;
   }
 
+  const int idx = dev_active_spin_indices[active_idx];
   const unsigned int base = 3u * idx;
   const jams::Real sx = static_cast<jams::Real>(dev_s[base + 0]);
   const jams::Real sy = static_cast<jams::Real>(dev_s[base + 1]);

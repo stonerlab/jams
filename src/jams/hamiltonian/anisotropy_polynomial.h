@@ -134,6 +134,9 @@ protected:
     // Profile index used by each spin.
     jams::MultiArray<int, 1> spin_profile_;
 
+    // Spins whose profile has a non-zero axial polynomial or residual terms.
+    jams::MultiArray<int, 1> active_spin_indices_;
+
     // Local reference axes for each unique anisotropy profile.
     jams::MultiArray<jams::Real,2> u_axes_; /// u_axes_(profile_index, cart_component)
     jams::MultiArray<jams::Real,2> v_axes_; /// v_axes_(profile_index, cart_component)
