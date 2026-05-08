@@ -16,7 +16,12 @@ void CudaCrystalFieldHamiltonian::calculate_fields(jams::Real time) {
     grid_size.x = (globals::num_spins + block_size.x - 1) / block_size.x;
 
     cuda_crystal_field_kernel<<<grid_size, block_size, 0, cuda_stream_.get() >>>
-            (globals::num_spins, globals::s.device_data(), crystal_field_tesseral_coeff_.device_data(), field_.mutable_device_data());
+            (globals::num_spins,
+             globals::s.device_data(),
+             spin_pointer_.device_data(),
+             tesseral_keys_.device_data(),
+             tesseral_coefficients_.device_data(),
+             field_.mutable_device_data());
     DEBUG_CHECK_CUDA_ASYNC_STATUS;
 }
 
@@ -28,7 +33,12 @@ void CudaCrystalFieldHamiltonian::calculate_energies(jams::Real time) {
     grid_size.x = (globals::num_spins + block_size.x - 1) / block_size.x;
 
     cuda_crystal_field_energy_kernel<<<grid_size, block_size, 0, cuda_stream_.get() >>>
-            (globals::num_spins, globals::s.device_data(), crystal_field_tesseral_coeff_.device_data(), energy_.mutable_device_data());
+            (globals::num_spins,
+             globals::s.device_data(),
+             spin_pointer_.device_data(),
+             tesseral_keys_.device_data(),
+             tesseral_coefficients_.device_data(),
+             energy_.mutable_device_data());
     DEBUG_CHECK_CUDA_ASYNC_STATUS;
 }
 

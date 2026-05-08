@@ -3,7 +3,7 @@
 #include <jams/core/globals.h>
 #include <jams/cuda/cuda_array_reduction.h>
 #include <jams/cuda/cuda_common.h>
-#include <jams/hamiltonian/anisotropy_polynomial_eval.h>
+#include <jams/hamiltonian/tesseral_polynomial_evaluator.h>
 
 namespace {
 
@@ -29,7 +29,7 @@ void cuda_anisotropy_polynomial_energy_kernel(
     const jams::Real sy_global = static_cast<jams::Real>(spins[base + 1]);
     const jams::Real sz_global = static_cast<jams::Real>(spins[base + 2]);
 
-    energies[idx] = jams::anisotropy_polynomial::energy_for_spin(
+    energies[idx] = jams::tesseral_polynomial::energy_for_spin(
         int(idx),
         sx_global,
         sy_global,
@@ -65,7 +65,7 @@ void cuda_anisotropy_polynomial_field_kernel(
     const jams::Real sz_global = static_cast<jams::Real>(spins[base + 2]);
 
     jams::Real field[3];
-    jams::anisotropy_polynomial::field_for_spin(
+    jams::tesseral_polynomial::field_for_spin(
         int(idx),
         sx_global,
         sy_global,

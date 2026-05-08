@@ -2,22 +2,15 @@
 
 #include <jams/core/globals.h>
 #include <jams/core/lattice.h>
+#include <jams/hamiltonian/tesseral_polynomial_evaluator.h>
 #include <jams/helpers/exception.h>
 #include <jams/maths/tesseral_harmonics.h>
-#include <array>
 #include <fstream>
 #include <iostream>
+#include <utility>
+#include <vector>
 
 namespace {
-using LmPair = std::pair<int, int>;
-
-constexpr std::array<LmPair, 27> kCrystalFieldTesseralTerms = {{
-    {2, -2}, {2, -1}, {2, 0}, {2, 1}, {2, 2},
-    {4, -4}, {4, -3}, {4, -2}, {4, -1}, {4, 0}, {4, 1}, {4, 2}, {4, 3}, {4, 4},
-    {6, -6}, {6, -5}, {6, -4}, {6, -3}, {6, -2}, {6, -1}, {6, 0}, {6, 1}, {6, 2},
-    {6, 3}, {6, 4}, {6, 5}, {6, 6}
-}};
-
 constexpr int parity_sign(const int m) {
   return (m % 2 == 0) ? 1 : -1;
 }
@@ -26,9 +19,7 @@ constexpr int parity_sign(const int m) {
 CrystalFieldHamiltonian::CrystalFieldHamiltonian(const libconfig::Setting &settings, unsigned int size)
     : Hamiltonian(settings, size),
       energy_cutoff_(jams::config_required<double>(settings, "energy_cutoff")),
-      crystal_field_spin_type_(CrystalFieldSpinType::kSpinUp),
-      spin_has_crystal_field_(false, size),
-      crystal_field_tesseral_coeff_(0.0, kCrystalFieldNumCoeff_, size) {
+      crystal_field_spin_type_(CrystalFieldSpinType::kSpinUp) {
   std::cout << "energy_cutoff: " << energy_cutoff_ << "\n";
 
   auto spin_type_string = lowercase(settings["crystal_field_spin_type"]);
@@ -43,9 +34,12 @@ CrystalFieldHamiltonian::CrystalFieldHamiltonian(const libconfig::Setting &setti
     throw jams::ConfigException(settings["crystal_field_spin_type"], "must be 'up' or 'down'");
   }
 
+  std::vector<std::vector<std::pair<int, double>>> spin_terms(size);
+  std::vector<bool> spin_has_crystal_field(size, false);
+
   for (auto n = 0; n < settings["crystal_field_coefficients"].getLength(); ++n) {
 
-    auto &cf_params = settings["crystal_field_coefficients"][n];
+    const auto &cf_params = settings["crystal_field_coefficients"][n];
 
     // validate settings
     if (cf_params[0].isNumber()) {
@@ -83,7 +77,24 @@ CrystalFieldHamiltonian::CrystalFieldHamiltonian(const libconfig::Setting &setti
       }
     }
 
-    for (auto i = 0; i < globals::num_spins; i++) {
+    std::vector<std::pair<int, double>> crystal_field_terms;
+    for (auto const &[lm, B_lm] : tesseral_coefficients) {
+      const auto &[l, m] = lm;
+      // We don't use the 0,0 coefficients because they are constant energy offsets.
+      if (l == 0 && m == 0) {
+        continue;
+      }
+
+      const auto coefficient = input_energy_unit_conversion_ * stevens_prefactor[l] * B_lm
+          * jams::tesseral_racah_normalisation_scale_lookup<double>(l, m);
+      if (coefficient == 0.0) {
+        continue;
+      }
+
+      crystal_field_terms.emplace_back(jams::tesseral_key(l, m), coefficient);
+    }
+
+    for (auto i = 0u; i < size; i++) {
       if (cf_params[0].isNumber()) {
         if (globals::lattice->lattice_site_basis_index(i) != int(cf_params[0]) - 1) {
           continue;
@@ -96,22 +107,33 @@ CrystalFieldHamiltonian::CrystalFieldHamiltonian(const libconfig::Setting &setti
         }
       }
 
-      if (spin_has_crystal_field_(i)) {
+      if (spin_has_crystal_field[i]) {
         throw std::runtime_error("crystal field is specified more than once for atom " + std::to_string(i));
       }
 
-      auto cf_counter = 0;
-      for (auto const &[lm, B_lm] : tesseral_coefficients) {
-        const auto &[l, m] = lm;
-        // We don't use the 0,0 coefficients because they are constant energy offsets
-        if (l == 0 && m == 0) {
-          continue;
-        }
+      spin_terms[i] = crystal_field_terms;
+      spin_has_crystal_field[i] = true;
+    }
+  }
 
-        crystal_field_tesseral_coeff_(cf_counter++, i) = input_energy_unit_conversion_ * stevens_prefactor[l] * B_lm;
-      }
+  zero(spin_pointer_.resize(size + 1));
 
-      spin_has_crystal_field_(i) = true;
+  auto total_terms = 0;
+  for (auto i = 0u; i < size; ++i) {
+    spin_pointer_(i) = total_terms;
+    total_terms += int(spin_terms[i].size());
+  }
+  spin_pointer_(size) = total_terms;
+
+  tesseral_keys_.resize(total_terms);
+  tesseral_coefficients_.resize(total_terms);
+
+  auto term_index = 0;
+  for (const auto& terms : spin_terms) {
+    for (const auto& [key, coefficient] : terms) {
+      tesseral_keys_(term_index) = key;
+      tesseral_coefficients_(term_index) = coefficient;
+      ++term_index;
     }
   }
 }
@@ -212,39 +234,28 @@ CrystalFieldHamiltonian::TesseralHarmonicCoefficientMap CrystalFieldHamiltonian:
 }
 
 jams::Vec<jams::Real, 3> CrystalFieldHamiltonian::calculate_field(int i, jams::Real time) {
-  if (!spin_has_crystal_field_(i)) {
+  if (spin_pointer_(i) == spin_pointer_(i + 1)) {
     return {0.0, 0.0, 0.0};
   }
 
-  const double sx = globals::s(i, 0);
-  const double sy = globals::s(i, 1);
-  const double sz = globals::s(i, 2);
+  const auto spins = std::as_const(globals::s).host_view();
+  double h[3];
+  jams::tesseral_polynomial::negative_gradient_from_local_terms(
+      spin_pointer_(i),
+      spin_pointer_(i + 1),
+      std::as_const(tesseral_keys_).host_data(),
+      std::as_const(tesseral_coefficients_).host_data(),
+      double(spins(i, 0)),
+      double(spins(i, 1)),
+      double(spins(i, 2)),
+      h);
 
-  jams::Vec<double, 3> h = {0.0, 0.0, 0.0};
-
-  for (auto n = 0u; n < kCrystalFieldTesseralTerms.size(); ++n) {
-    const auto coefficient = crystal_field_tesseral_coeff_(n, i);
-    if (coefficient == 0.0) {
-      continue;
-    }
-
-    const auto [l, m] = kCrystalFieldTesseralTerms[n];
-    const auto scale = jams::tesseral_racah_normalisation_scale_lookup<double>(l, m);
-    const auto key = jams::tesseral_key(l, m);
-
-    double grad[3];
-    jams::tesseral_monic_polynomial_grad_key_lookup(key, sx, sy, sz, grad);
-    const auto coefficient_scale = coefficient * scale;
-    h[0] -= coefficient_scale * grad[0];
-    h[1] -= coefficient_scale * grad[1];
-    h[2] -= coefficient_scale * grad[2];
-  }
-
-  return jams::array_cast<jams::Real>(h);
+  return {jams::Real(h[0]), jams::Real(h[1]), jams::Real(h[2])};
 }
 
 jams::Real CrystalFieldHamiltonian::calculate_energy(int i, jams::Real time) {
-  return crystal_field_energy(i, {globals::s(i,0), globals::s(i,1), globals::s(i,2)});
+  const auto spins = std::as_const(globals::s).host_view();
+  return crystal_field_energy(i, {double(spins(i, 0)), double(spins(i, 1)), double(spins(i, 2))});
 }
 
 jams::Real CrystalFieldHamiltonian::calculate_energy_difference(int i, const jams::Vec<double, 3> &spin_initial, const jams::Vec<double, 3> &spin_final,
@@ -252,27 +263,17 @@ jams::Real CrystalFieldHamiltonian::calculate_energy_difference(int i, const jam
   return crystal_field_energy(i, spin_final) - crystal_field_energy(i, spin_initial);
 }
 jams::Real CrystalFieldHamiltonian::crystal_field_energy(int i, const jams::Vec<double, 3> &s) {
-  if (!spin_has_crystal_field_(i)) {
+  if (spin_pointer_(i) == spin_pointer_(i + 1)) {
     return 0.0;
   }
 
-  const double sx = s[0];
-  const double sy = s[1];
-  const double sz = s[2];
-
-  double energy = 0.0;
-
-  for (auto n = 0u; n < kCrystalFieldTesseralTerms.size(); ++n) {
-    const auto coefficient = crystal_field_tesseral_coeff_(n, i);
-    if (coefficient == 0.0) {
-      continue;
-    }
-
-    const auto [l, m] = kCrystalFieldTesseralTerms[n];
-    const auto scale = jams::tesseral_racah_normalisation_scale_lookup<double>(l, m);
-    const auto key = jams::tesseral_key(l, m);
-    energy += coefficient * scale * jams::tesseral_monic_polynomial_key_lookup(key, sx, sy, sz);
-  }
-
-  return static_cast<jams::Real>(energy);
+  return static_cast<jams::Real>(
+      jams::tesseral_polynomial::energy_from_local_terms(
+          spin_pointer_(i),
+          spin_pointer_(i + 1),
+          std::as_const(tesseral_keys_).host_data(),
+          std::as_const(tesseral_coefficients_).host_data(),
+          s[0],
+          s[1],
+          s[2]));
 }

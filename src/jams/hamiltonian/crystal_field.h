@@ -105,19 +105,15 @@ protected:
 
   static TesseralHarmonicCoefficientMap convert_spherical_to_tesseral(const SphericalHarmonicCoefficientMap& spherical_coefficients, const double zero_epsilon);
 
-  // Maximum number of crystal field coefficients supported. 27 corresponds to l=2,4,6
-  const unsigned int kCrystalFieldNumCoeff_ = 27;
-
   // Energy cutoff in input units
   double energy_cutoff_;
 
   CrystalFieldSpinType crystal_field_spin_type_;
 
-  // Boolean array of whether a spin has a non-zero crystal field
-  jams::MultiArray<bool, 1>  spin_has_crystal_field_;
-
-  // Tesseral crystal field coefficients for each spin (axis 0: coefficient index, 1: spin index)
-  jams::MultiArray<double, 2> crystal_field_tesseral_coeff_;
+  // CSR-style storage of non-zero monic tesseral terms for each spin.
+  jams::MultiArray<int, 1> spin_pointer_;
+  jams::MultiArray<int, 1> tesseral_keys_;
+  jams::MultiArray<double, 1> tesseral_coefficients_;
 
 };
 

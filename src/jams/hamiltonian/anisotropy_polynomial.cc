@@ -2,7 +2,7 @@
 
 #include "jams/core/globals.h"
 #include "jams/core/lattice.h"
-#include "jams/hamiltonian/anisotropy_polynomial_eval.h"
+#include "jams/hamiltonian/tesseral_polynomial_evaluator.h"
 #include "jams/helpers/defaults.h"
 #include "jams/helpers/exception.h"
 #include "jams/helpers/utils.h"
@@ -411,7 +411,7 @@ jams::Vec<jams::Real, 3> AnisotropyPolynomialHamiltonian::calculate_field(int i,
 {
     const auto spins = std::as_const(globals::s).host_view();
     jams::Real field[3];
-    jams::anisotropy_polynomial::field_for_spin(
+    jams::tesseral_polynomial::field_for_spin(
         i,
         jams::Real(spins(i, 0)),
         jams::Real(spins(i, 1)),
@@ -430,7 +430,7 @@ jams::Vec<jams::Real, 3> AnisotropyPolynomialHamiltonian::calculate_field(int i,
 jams::Real AnisotropyPolynomialHamiltonian::calculate_energy(int i, jams::Real time)
 {
     const auto spins = std::as_const(globals::s).host_view();
-    return jams::anisotropy_polynomial::energy_for_spin(
+    return jams::tesseral_polynomial::energy_for_spin(
         i,
         jams::Real(spins(i, 0)),
         jams::Real(spins(i, 1)),
@@ -445,7 +445,7 @@ jams::Real AnisotropyPolynomialHamiltonian::calculate_energy(int i, jams::Real t
 
 jams::Real AnisotropyPolynomialHamiltonian::calculate_energy_for_spin(int i, const jams::Vec<double, 3> &spin, jams::Real time)
 {
-    return jams::anisotropy_polynomial::energy_for_spin(
+    return jams::tesseral_polynomial::energy_for_spin(
         i,
         jams::Real(spin[0]),
         jams::Real(spin[1]),

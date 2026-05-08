@@ -1,9 +1,9 @@
-#ifndef JAMS_ANISOTROPY_POLYNOMIAL_EVAL_H
-#define JAMS_ANISOTROPY_POLYNOMIAL_EVAL_H
+#ifndef JAMS_TESSERAL_POLYNOMIAL_EVALUATOR_H
+#define JAMS_TESSERAL_POLYNOMIAL_EVALUATOR_H
 
 #include "jams/maths/tesseral_harmonics.h"
 
-namespace jams::anisotropy_polynomial {
+namespace jams::tesseral_polynomial {
 
 template <typename T>
 JAMS_HOST_DEVICE inline void local_coordinates(
@@ -176,6 +176,6 @@ JAMS_HOST_DEVICE inline void field_for_spin(
         field);
 }
 
-} // namespace jams::anisotropy_polynomial
+} // namespace jams::tesseral_polynomial
 
-#endif // JAMS_ANISOTROPY_POLYNOMIAL_EVAL_H
+#endif // JAMS_TESSERAL_POLYNOMIAL_EVALUATOR_H
