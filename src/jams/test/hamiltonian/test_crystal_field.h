@@ -255,6 +255,46 @@ TEST_F(CrystalFieldHamiltonianFractionalTargetRuntimeTest, RejectsFractionalUnit
       jams::ConfigException);
 }
 
+TEST_F(CrystalFieldHamiltonianRuntimeTest, RejectsMissingSpinTypeSetting)
+{
+  libconfig::Config config;
+  config.readString(R"(
+      hamiltonian = {
+        module = "crystal-field";
+        energy_units = "meV";
+        energy_cutoff = 1e-14;
+        crystal_field_coefficients = (
+          )" + crystal_field_coefficients_entry() + R"(
+        );
+      };
+  )");
+
+  ASSERT_THROW(
+      CrystalFieldHamiltonianTestAccess(
+          config.lookup("hamiltonian"),
+          globals::num_spins),
+      jams::ConfigException);
+}
+
+TEST_F(CrystalFieldHamiltonianRuntimeTest, RejectsMissingCoefficientSettings)
+{
+  libconfig::Config config;
+  config.readString(R"(
+      hamiltonian = {
+        module = "crystal-field";
+        energy_units = "meV";
+        energy_cutoff = 1e-14;
+        crystal_field_spin_type = "up";
+      };
+  )");
+
+  ASSERT_THROW(
+      CrystalFieldHamiltonianTestAccess(
+          config.lookup("hamiltonian"),
+          globals::num_spins),
+      jams::ConfigException);
+}
+
 TEST_F(CrystalFieldHamiltonianAxesRuntimeTest, ProjectsEnergyAndFieldOntoConfiguredAxes)
 {
   CrystalFieldHamiltonianTestAccess hamiltonian(

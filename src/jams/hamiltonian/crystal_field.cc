@@ -38,7 +38,14 @@ CrystalFieldHamiltonian::CrystalFieldHamiltonian(const libconfig::Setting &setti
       crystal_field_spin_type_(CrystalFieldSpinType::kSpinUp) {
   std::cout << "energy_cutoff: " << energy_cutoff_ << "\n";
 
-  auto spin_type_string = lowercase(settings["crystal_field_spin_type"]);
+  if (!settings.exists("crystal_field_spin_type")) {
+    throw jams::ConfigException(settings, "missing crystal_field_spin_type");
+  }
+  if (!settings["crystal_field_spin_type"].isString()) {
+    throw jams::ConfigException(settings["crystal_field_spin_type"], "must be 'up' or 'down'");
+  }
+
+  auto spin_type_string = lowercase(settings["crystal_field_spin_type"].c_str());
 
   if (spin_type_string == "up") {
     crystal_field_spin_type_ = CrystalFieldSpinType::kSpinUp;
@@ -50,12 +57,24 @@ CrystalFieldHamiltonian::CrystalFieldHamiltonian(const libconfig::Setting &setti
     throw jams::ConfigException(settings["crystal_field_spin_type"], "must be 'up' or 'down'");
   }
 
+  if (!settings.exists("crystal_field_coefficients")) {
+    throw jams::ConfigException(settings, "missing crystal_field_coefficients");
+  }
+
+  const auto& crystal_field_settings = settings["crystal_field_coefficients"];
+  if (!crystal_field_settings.isList()) {
+    throw jams::ConfigException(crystal_field_settings, "crystal_field_coefficients must be a list");
+  }
+  if (crystal_field_settings.getLength() == 0) {
+    throw jams::ConfigException(crystal_field_settings, "crystal_field_coefficients must contain at least one entry");
+  }
+
   std::vector<TesseralKeyCoefficientMap> spin_terms(size);
   std::vector<bool> spin_has_crystal_field(size, false);
 
-  for (auto n = 0; n < settings["crystal_field_coefficients"].getLength(); ++n) {
+  for (auto n = 0; n < crystal_field_settings.getLength(); ++n) {
 
-    const auto &cf_params = settings["crystal_field_coefficients"][n];
+    const auto &cf_params = crystal_field_settings[n];
     if (!cf_params.isList()) {
       throw jams::ConfigException(cf_params, "crystal field coefficients entry must be a list");
     }
