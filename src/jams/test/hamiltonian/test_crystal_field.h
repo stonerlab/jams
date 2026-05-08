@@ -4,6 +4,7 @@
 #include "jams/core/globals.h"
 #include "jams/core/lattice.h"
 #include "jams/hamiltonian/crystal_field.h"
+#include "jams/helpers/exception.h"
 #include "jams/helpers/utils.h"
 #include "jams/maths/tesseral_harmonics.h"
 #include "jams/test/output.h"
@@ -220,6 +221,19 @@ TEST_F(CrystalFieldHamiltonianRuntimeTest, UsesSparseTesseralKeysForEnergyAndFie
   for (auto j = 0; j < 3; ++j) {
     ASSERT_NEAR(globals::s(spin_index, j), global_spin_before[j], tolerance);
   }
+}
+
+TEST_F(CrystalFieldHamiltonianRuntimeTest, RejectsMalformedCoefficientLines)
+{
+  std::ofstream coefficients(coefficient_filename_);
+  coefficients << "2 0 1.0\n";
+  coefficients.close();
+
+  ASSERT_THROW(
+      CrystalFieldHamiltonianTestAccess(
+          globals::config->lookup("hamiltonian"),
+          globals::num_spins),
+      jams::FileException);
 }
 
 TEST_F(CrystalFieldHamiltonianAxesRuntimeTest, ProjectsEnergyAndFieldOntoConfiguredAxes)

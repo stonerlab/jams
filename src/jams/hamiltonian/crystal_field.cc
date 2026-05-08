@@ -6,6 +6,7 @@
 #include <jams/maths/tesseral_harmonics.h>
 #include <fstream>
 #include <iostream>
+#include <sstream>
 #include <utility>
 #include <vector>
 
@@ -162,6 +163,7 @@ CrystalFieldHamiltonian::SphericalHarmonicCoefficientMap CrystalFieldHamiltonian
 
   int line_number = 0;
   for (std::string line; getline(fs, line);) {
+    ++line_number;
     if (string_is_comment(line)) {
       continue;
     }
@@ -171,7 +173,9 @@ CrystalFieldHamiltonian::SphericalHarmonicCoefficientMap CrystalFieldHamiltonian
     int l, m;
     double Re_Blm_up, Im_Blm_up, Re_Blm_down, Im_Blm_down;
 
-    is >> l >> m >> Re_Blm_up >> Im_Blm_up >> Re_Blm_down >> Im_Blm_down;
+    if (!(is >> l >> m >> Re_Blm_up >> Im_Blm_up >> Re_Blm_down >> Im_Blm_down)) {
+      throw jams::FileException(filename, "line ", line_number, ": expected columns l m upRe upIm dnRe dnIm");
+    }
 
     if (!jams::util::is_in_list(l, {0, 2, 4, 6})) {
       throw jams::FileException(filename, "line ", line_number, ": 'l' must be 0, 2, 4 or 6");
@@ -193,7 +197,6 @@ CrystalFieldHamiltonian::SphericalHarmonicCoefficientMap CrystalFieldHamiltonian
 
     coefficients.at({l, m}) = {Re_Blm, Im_Blm};
 
-    line_number++;
   }
 
   return coefficients;
