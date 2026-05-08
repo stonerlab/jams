@@ -50,7 +50,9 @@ public:
   {
     jams::testing::toggle_cout();
 
-    coefficient_filename_ = "jams_crystal_field_coefficients_test.dat";
+    const auto* test_info = ::testing::UnitTest::GetInstance()->current_test_info();
+    coefficient_filename_ = std::string("jams_crystal_field_coefficients_test_")
+        + test_info->test_suite_name() + "_" + test_info->name() + ".dat";
     std::ofstream coefficients(coefficient_filename_);
     coefficients << "2 0 1.0 0.0 0.0 0.0\n";
     coefficients.close();
