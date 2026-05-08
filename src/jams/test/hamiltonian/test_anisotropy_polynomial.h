@@ -29,6 +29,11 @@ public:
     {
         return spin_pointer_(spin_pointer_.elements() - 1);
     }
+
+    jams::Real axial_coefficient(int spin, int index) const
+    {
+        return axial_coefficients_(spin, index);
+    }
 };
 
 class CudaAnisotropyPolynomialHamiltonianTests : public ::testing::Test {
@@ -288,6 +293,39 @@ TEST_F(CudaAnisotropyPolynomialHamiltonianTests, zero_coefficients_are_pruned_fr
         for (auto j = 0; j < 3; ++j) {
             ASSERT_EQ(field[j], 0.0);
         }
+    }
+}
+
+TEST_F(CudaAnisotropyPolynomialHamiltonianTests, axial_terms_are_stored_outside_generic_sparse_storage)
+{
+    set_test_spins();
+
+    libconfig::Config config;
+    config.readString(R"(
+        hamiltonian = {
+          module = "anisotropy-polynomial";
+          energy_units = "meV";
+          anisotropies = (
+            ("A", (2, 0, 1.0), (4, 0, 0.5), (6, 0, -0.25))
+          );
+        };
+    )");
+
+    AnisotropyPolynomialHamiltonianTestAccess hamiltonian(
+        config.lookup("hamiltonian"),
+        globals::num_spins);
+
+    ASSERT_EQ(hamiltonian.total_terms(), 0);
+    for (int i = 0; i < globals::num_spins; ++i) {
+        const jams::Vec<double, 3> spin = {globals::s(i, 0), globals::s(i, 1), globals::s(i, 2)};
+        const bool is_material_a = globals::lattice->lattice_site_material_id(i) == globals::lattice->material_index("A");
+        const auto expected_energy = is_material_a
+            ? jams::Real(hamiltonian.axial_coefficient(i, 0) * jams::tesseral_monic_polynomial(2, 0, spin[0], spin[1], spin[2])
+                + hamiltonian.axial_coefficient(i, 1) * jams::tesseral_monic_polynomial(4, 0, spin[0], spin[1], spin[2])
+                + hamiltonian.axial_coefficient(i, 2) * jams::tesseral_monic_polynomial(6, 0, spin[0], spin[1], spin[2]))
+            : jams::Real{0};
+
+        ASSERT_NEAR(hamiltonian.calculate_energy_for_spin(i, spin, 0.0), expected_energy, 1e-14);
     }
 }
 

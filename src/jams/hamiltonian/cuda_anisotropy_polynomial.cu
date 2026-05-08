@@ -17,6 +17,7 @@ void cuda_anisotropy_polynomial_energy_kernel(
     const int *__restrict__ spin_pointer,
     const int *__restrict__ tesseral_keys,
     const jams::Real *__restrict__ tesseral_coefficients,
+    const jams::Real *__restrict__ axial_coefficients,
     jams::Real *__restrict__ energies)
 {
     const unsigned int idx = blockIdx.x * blockDim.x + threadIdx.x;
@@ -29,7 +30,7 @@ void cuda_anisotropy_polynomial_energy_kernel(
     const jams::Real sy_global = static_cast<jams::Real>(spins[base + 1]);
     const jams::Real sz_global = static_cast<jams::Real>(spins[base + 2]);
 
-    energies[idx] = jams::tesseral_polynomial::energy_for_spin(
+    energies[idx] = jams::tesseral_polynomial::energy_for_spin_with_axial_terms(
         int(idx),
         sx_global,
         sy_global,
@@ -39,7 +40,8 @@ void cuda_anisotropy_polynomial_energy_kernel(
         w_axes,
         spin_pointer,
         tesseral_keys,
-        tesseral_coefficients);
+        tesseral_coefficients,
+        axial_coefficients);
 }
 
 __global__
@@ -52,6 +54,7 @@ void cuda_anisotropy_polynomial_field_kernel(
     const int *__restrict__ spin_pointer,
     const int *__restrict__ tesseral_keys,
     const jams::Real *__restrict__ tesseral_coefficients,
+    const jams::Real *__restrict__ axial_coefficients,
     jams::Real *__restrict__ fields)
 {
     const unsigned int idx = blockIdx.x * blockDim.x + threadIdx.x;
@@ -65,7 +68,7 @@ void cuda_anisotropy_polynomial_field_kernel(
     const jams::Real sz_global = static_cast<jams::Real>(spins[base + 2]);
 
     jams::Real field[3];
-    jams::tesseral_polynomial::field_for_spin(
+    jams::tesseral_polynomial::field_for_spin_with_axial_terms(
         int(idx),
         sx_global,
         sy_global,
@@ -76,6 +79,7 @@ void cuda_anisotropy_polynomial_field_kernel(
         spin_pointer,
         tesseral_keys,
         tesseral_coefficients,
+        axial_coefficients,
         field);
 
     fields[base + 0] = field[0];
@@ -104,6 +108,7 @@ void CudaAnisotropyPolynomialHamiltonian::calculate_fields(jams::Real time)
         spin_pointer_.device_data(),
         tesseral_keys_.device_data(),
         tesseral_coefficients_.device_data(),
+        axial_coefficients_.device_data(),
         field_.mutable_device_data());
     DEBUG_CHECK_CUDA_ASYNC_STATUS;
 }
@@ -120,6 +125,7 @@ void CudaAnisotropyPolynomialHamiltonian::calculate_energies(jams::Real time)
         spin_pointer_.device_data(),
         tesseral_keys_.device_data(),
         tesseral_coefficients_.device_data(),
+        axial_coefficients_.device_data(),
         energy_.mutable_device_data());
     DEBUG_CHECK_CUDA_ASYNC_STATUS;
 }

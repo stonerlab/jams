@@ -12,6 +12,7 @@ __global__ void cuda_crystal_field_energy_kernel(
     const int* dev_spin_pointer,
     const int* dev_tesseral_keys,
     const jams::Real* dev_tesseral_coefficients,
+    const jams::Real* dev_axial_coefficients,
     jams::Real* dev_e)
 {
   const unsigned int idx = blockIdx.x * blockDim.x + threadIdx.x;
@@ -24,7 +25,7 @@ __global__ void cuda_crystal_field_energy_kernel(
   const jams::Real sy = static_cast<jams::Real>(dev_s[base + 1]);
   const jams::Real sz = static_cast<jams::Real>(dev_s[base + 2]);
 
-  dev_e[idx] = jams::tesseral_polynomial::energy_for_spin(
+  dev_e[idx] = jams::tesseral_polynomial::energy_for_spin_with_axial_terms(
       idx,
       sx,
       sy,
@@ -34,7 +35,8 @@ __global__ void cuda_crystal_field_energy_kernel(
       dev_w_axes,
       dev_spin_pointer,
       dev_tesseral_keys,
-      dev_tesseral_coefficients);
+      dev_tesseral_coefficients,
+      dev_axial_coefficients);
 }
 
 __global__ void cuda_crystal_field_kernel(
@@ -46,6 +48,7 @@ __global__ void cuda_crystal_field_kernel(
     const int* dev_spin_pointer,
     const int* dev_tesseral_keys,
     const jams::Real* dev_tesseral_coefficients,
+    const jams::Real* dev_axial_coefficients,
     jams::Real* dev_h)
 {
   const unsigned int idx = blockIdx.x * blockDim.x + threadIdx.x;
@@ -59,7 +62,7 @@ __global__ void cuda_crystal_field_kernel(
   const jams::Real sz = static_cast<jams::Real>(dev_s[base + 2]);
 
   jams::Real h[3] = {0.0, 0.0, 0.0};
-  jams::tesseral_polynomial::field_for_spin(
+  jams::tesseral_polynomial::field_for_spin_with_axial_terms(
       idx,
       sx,
       sy,
@@ -70,6 +73,7 @@ __global__ void cuda_crystal_field_kernel(
       dev_spin_pointer,
       dev_tesseral_keys,
       dev_tesseral_coefficients,
+      dev_axial_coefficients,
       h);
 
   dev_h[base + 0] = static_cast<jams::Real>(h[0]);
