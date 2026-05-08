@@ -4,6 +4,7 @@
 #include <jams/core/lattice.h>
 #include <jams/helpers/exception.h>
 #include <jams/maths/tesseral_harmonics.h>
+#include <cstdint>
 #include <fstream>
 #include <iostream>
 #include <sstream>
@@ -13,6 +14,21 @@
 namespace {
 constexpr int parity_sign(const int m) {
   return (m % 2 == 0) ? 1 : -1;
+}
+
+bool is_integer_setting(const libconfig::Setting& setting)
+{
+  const auto type = setting.getType();
+  return type == libconfig::Setting::TypeInt || type == libconfig::Setting::TypeInt64;
+}
+
+int read_integer_setting(const libconfig::Setting& setting)
+{
+  if (setting.getType() == libconfig::Setting::TypeInt64) {
+    return int(static_cast<int64_t>(setting));
+  }
+
+  return int(setting);
 }
 }
 
@@ -47,17 +63,22 @@ CrystalFieldHamiltonian::CrystalFieldHamiltonian(const libconfig::Setting &setti
       throw jams::ConfigException(cf_params, "crystal field coefficients entry must not be empty");
     }
 
-    // validate settings
-    if (cf_params[0].isNumber()) {
-      if (int(cf_params[0]) < 1 || int(cf_params[0]) > globals::lattice->num_basis_sites()) {
+    int motif_position = -1;
+    int material_id = -1;
+    if (is_integer_setting(cf_params[0])) {
+      motif_position = read_integer_setting(cf_params[0]) - 1;
+      if (motif_position < 0 || motif_position >= globals::lattice->num_basis_sites()) {
         throw jams::ConfigException(cf_params[0],
                                     "unit cell index must be between 1 and ",
                                     globals::lattice->num_basis_sites());
       }
+    } else if (cf_params[0].isNumber()) {
+      throw jams::ConfigException(cf_params[0], "unit cell index must be an integer");
     } else if (cf_params[0].isString()) {
       if (!globals::lattice->material_exists(cf_params[0])) {
         throw jams::ConfigException(cf_params[0], "material ", cf_params[0].c_str(), " does not exist in config file");
       }
+      material_id = globals::lattice->material_index(cf_params[0]);
     } else {
       throw jams::ConfigException(cf_params[0], "must be a unit cell index or material name");
     }
@@ -119,14 +140,12 @@ CrystalFieldHamiltonian::CrystalFieldHamiltonian(const libconfig::Setting &setti
     }
 
     for (auto i = 0u; i < size; i++) {
-      if (cf_params[0].isNumber()) {
-        if (globals::lattice->lattice_site_basis_index(i) != int(cf_params[0]) - 1) {
+      if (motif_position >= 0) {
+        if (int(globals::lattice->lattice_site_basis_index(i)) != motif_position) {
           continue;
         }
-      }
-
-      if (cf_params[0].isString()) {
-        if (globals::lattice->lattice_site_material_name(i) != std::string(cf_params[0])) {
+      } else {
+        if (globals::lattice->lattice_site_material_id(i) != material_id) {
           continue;
         }
       }

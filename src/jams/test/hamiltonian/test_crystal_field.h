@@ -141,6 +141,14 @@ protected:
   }
 };
 
+class CrystalFieldHamiltonianFractionalTargetRuntimeTest : public CrystalFieldHamiltonianRuntimeTest {
+protected:
+  std::string crystal_field_coefficients_entry() const override
+  {
+    return "(1.5, 2.0, 1.0, 0.0, 0.0, \"" + coefficient_filename_ + "\")";
+  }
+};
+
 TEST(CrystalFieldHamiltonianTest, ConvertsPositiveTesseralCoefficients)
 {
   constexpr auto inv_sqrt_two = 0.707106781186547524400844362104849039;
@@ -234,6 +242,15 @@ TEST_F(CrystalFieldHamiltonianRuntimeTest, RejectsMalformedCoefficientLines)
           globals::config->lookup("hamiltonian"),
           globals::num_spins),
       jams::FileException);
+}
+
+TEST_F(CrystalFieldHamiltonianFractionalTargetRuntimeTest, RejectsFractionalUnitCellTarget)
+{
+  ASSERT_THROW(
+      CrystalFieldHamiltonianTestAccess(
+          globals::config->lookup("hamiltonian"),
+          globals::num_spins),
+      jams::ConfigException);
 }
 
 TEST_F(CrystalFieldHamiltonianAxesRuntimeTest, ProjectsEnergyAndFieldOntoConfiguredAxes)
