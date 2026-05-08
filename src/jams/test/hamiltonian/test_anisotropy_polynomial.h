@@ -24,6 +24,11 @@ class AnisotropyPolynomialHamiltonianTestAccess : public AnisotropyPolynomialHam
 public:
     using AnisotropyPolynomialHamiltonian::AnisotropyPolynomialHamiltonian;
     using AnisotropyPolynomialHamiltonian::calculate_energy_for_spin;
+
+    int total_terms() const
+    {
+        return spin_pointer_(spin_pointer_.elements() - 1);
+    }
 };
 
 class CudaAnisotropyPolynomialHamiltonianTests : public ::testing::Test {
@@ -255,6 +260,35 @@ TEST_F(CudaAnisotropyPolynomialHamiltonianTests, empty_anisotropies_are_rejected
     ASSERT_THROW(
         AnisotropyPolynomialHamiltonian(config.lookup("hamiltonian"), globals::num_spins),
         jams::ConfigException);
+}
+
+TEST_F(CudaAnisotropyPolynomialHamiltonianTests, zero_coefficients_are_pruned_from_sparse_storage)
+{
+    libconfig::Config config;
+    config.readString(R"(
+        hamiltonian = {
+          module = "anisotropy-polynomial";
+          energy_units = "meV";
+          anisotropies = (
+            ("A", (2, 0, 1.0), (2, 0, -1.0), (2, 2, 0.0))
+          );
+        };
+    )");
+
+    AnisotropyPolynomialHamiltonianTestAccess hamiltonian(
+        config.lookup("hamiltonian"),
+        globals::num_spins);
+
+    ASSERT_EQ(hamiltonian.total_terms(), 0);
+    for (int i = 0; i < globals::num_spins; ++i) {
+        const jams::Vec<double, 3> spin = {globals::s(i, 0), globals::s(i, 1), globals::s(i, 2)};
+        ASSERT_EQ(hamiltonian.calculate_energy_for_spin(i, spin, 0.0), 0.0);
+
+        const auto field = hamiltonian.calculate_field(i, 0.0);
+        for (auto j = 0; j < 3; ++j) {
+            ASSERT_EQ(field[j], 0.0);
+        }
+    }
 }
 
 TEST_F(CudaAnisotropyPolynomialHamiltonianTests, omitted_axes_inherit_explicit_axes_for_same_spin)

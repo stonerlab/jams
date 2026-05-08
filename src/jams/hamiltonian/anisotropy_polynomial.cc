@@ -175,19 +175,6 @@ bool axes_match(const jams::Vec<jams::Real, 3>& lhs_u,
         && jams::approximately_equal(lhs_w, rhs_w, tolerance);
 }
 
-bool is_coefficient_setting(const Setting& setting)
-{
-    if (!setting.isList() || setting.getLength() != 3) {
-        return false;
-    }
-
-    if (!is_integer_setting(setting[0]) || !is_integer_setting(setting[1]) || !setting[2].isNumber()) {
-        return false;
-    }
-
-    return jams::valid_tesseral_lm(int(setting[0]), int(setting[1]));
-}
-
 std::pair<int, jams::Real> read_coefficient_setting(
     const Setting& setting,
     const double energy_unit_conversion,
@@ -469,7 +456,11 @@ void AnisotropyPolynomialHamiltonian::set_tesseral_terms(
     auto total_terms = 0;
     for (auto i = 0u; i < spin_coefficients.size(); ++i) {
         spin_pointer_(i) = total_terms;
-        total_terms += int(spin_coefficients[i].size());
+        for (const auto& [key, coefficient] : spin_coefficients[i]) {
+            if (coefficient != jams::Real{0}) {
+                ++total_terms;
+            }
+        }
     }
     spin_pointer_(spin_coefficients.size()) = total_terms;
 
@@ -479,6 +470,9 @@ void AnisotropyPolynomialHamiltonian::set_tesseral_terms(
     auto term_index = 0;
     for (const auto& coefficients : spin_coefficients) {
         for (const auto& [key, coefficient] : coefficients) {
+            if (coefficient == jams::Real{0}) {
+                continue;
+            }
             tesseral_keys_(term_index) = key;
             tesseral_coefficients_(term_index) = coefficient;
             ++term_index;
