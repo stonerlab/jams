@@ -46,15 +46,9 @@ struct AnisotropyProfile {
     std::vector<std::pair<int, jams::Real>> terms;
 };
 
-bool is_integer_setting(const Setting& setting)
-{
-    const auto type = setting.getType();
-    return type == Setting::TypeInt || type == Setting::TypeInt64;
-}
-
 int read_integer(const Setting& setting, const char* name)
 {
-    if (!is_integer_setting(setting)) {
+    if (!jams::is_integer_setting(setting)) {
         throw jams::ConfigException(setting, name, " must be an integer");
     }
 
@@ -83,15 +77,7 @@ jams::Real read_real(const Setting& setting, const char* name)
 
 jams::Vec<jams::Real, 3> read_axis(const Setting& setting)
 {
-    if (!setting.isArray() || setting.getLength() != 3) {
-        throw jams::ConfigException(setting, "axis must be an array containing exactly three numeric components");
-    }
-
-    for (auto i = 0; i < 3; ++i) {
-        if (!setting[i].isNumber()) {
-            throw jams::ConfigException(setting[i], "axis component must be numeric");
-        }
-    }
+    jams::is_vec3_setting(setting);
 
     jams::Vec<jams::Real, 3> axis = {
         read_real(setting[0], "axis component"),
@@ -107,20 +93,7 @@ jams::Vec<jams::Real, 3> read_axis(const Setting& setting)
     return axis / length;
 }
 
-bool is_axis_setting(const Setting& setting)
-{
-    if (!setting.isArray() || setting.getLength() != 3) {
-        return false;
-    }
 
-    for (auto i = 0; i < 3; ++i) {
-        if (!setting[i].isNumber()) {
-            return false;
-        }
-    }
-
-    return true;
-}
 
 jams::TesseralHarmonicNormalisation read_tesseral_normalisation(const Setting& settings)
 {
@@ -162,16 +135,6 @@ jams::TesseralHarmonicNormalisation read_tesseral_normalisation(const Setting& s
 
     throw jams::ConfigException(*normalisation_setting,
                                 "normalisation must be one of: monic, condon-shortley, racah, stevens");
-}
-
-bool axes_are_orthogonal(const jams::Vec<jams::Real, 3>& u,
-                         const jams::Vec<jams::Real, 3>& v,
-                         const jams::Vec<jams::Real, 3>& w)
-{
-    const auto tolerance = jams::Real(jams::defaults::lattice_tolerance);
-    return ::approximately_zero(jams::dot(u, v), tolerance)
-        && ::approximately_zero(jams::dot(v, w), tolerance)
-        && ::approximately_zero(jams::dot(w, u), tolerance);
 }
 
 bool axes_match(const jams::Vec<jams::Real, 3>& lhs_u,
@@ -267,7 +230,7 @@ AnisotropyPolynomialSetting read_anisotropy_setting(
 
     AnisotropyPolynomialSetting result;
 
-    if (is_integer_setting(setting[0])) {
+    if (jams::is_integer_setting(setting[0])) {
         result.motif_position = read_integer(setting[0], "unit cell position") - 1;
         if (result.motif_position < 0 || result.motif_position >= globals::lattice->num_basis_sites()) {
             throw jams::ConfigException(setting[0],
@@ -285,11 +248,11 @@ AnisotropyPolynomialSetting read_anisotropy_setting(
     }
 
     auto coefficient_start = 1;
-    const auto has_some_axis_settings = length > 1 && is_axis_setting(setting[1]);
+    const auto has_some_axis_settings = length > 1 && jams::is_vec3_setting(setting[1]);
     if (has_some_axis_settings) {
         result.has_axes = true;
-        if (length > 2 && is_axis_setting(setting[2])) {
-            if (length < 5 || !is_axis_setting(setting[3])) {
+        if (length > 2 && jams::is_vec3_setting(setting[2])) {
+            if (length < 5 || !jams::is_vec3_setting(setting[3])) {
                 throw jams::ConfigException(setting, "anisotropy must specify either one axial axis, all three axes or no axes");
             }
 
@@ -298,7 +261,7 @@ AnisotropyPolynomialSetting read_anisotropy_setting(
             result.v = read_axis(setting[2]);
             result.w = read_axis(setting[3]);
 
-            if (!axes_are_orthogonal(result.u, result.v, result.w)) {
+            if (!jams::vecs_are_orthogonal(result.u, result.v, result.w)) {
                 throw jams::ConfigException(setting, "u, v and w axes must be orthogonal");
             }
 
@@ -415,7 +378,7 @@ int find_or_add_profile(std::vector<AnisotropyProfile>& profiles, const Anisotro
 
 bool AnisotropyPolynomialHamiltonian::is_local_axis_setting(const libconfig::Setting& setting)
 {
-    return is_axis_setting(setting);
+    return jams::is_vec3_setting(setting);
 }
 
 AnisotropyPolynomialHamiltonian::LocalAxes AnisotropyPolynomialHamiltonian::read_optional_local_axes(
@@ -444,7 +407,7 @@ AnisotropyPolynomialHamiltonian::LocalAxes AnisotropyPolynomialHamiltonian::read
         axes.v = read_axis(setting[axis_start_index + 1]);
         axes.w = read_axis(setting[axis_start_index + 2]);
 
-        if (!axes_are_orthogonal(axes.u, axes.v, axes.w)) {
+        if (!jams::vecs_are_orthogonal(axes.u, axes.v, axes.w)) {
             throw jams::ConfigException(setting, "u, v and w axes must be orthogonal");
         }
 

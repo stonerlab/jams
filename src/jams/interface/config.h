@@ -148,6 +148,32 @@ struct config_required_impl<InteractionFileFormat, void> {
         }
     }
 
+    // Returns true if the setting is an integer type
+    inline bool is_integer_setting(const libconfig::Setting& setting)
+    {
+      const auto type = setting.getType();
+      return type == libconfig::Setting::TypeInt || type == libconfig::Setting::TypeInt64;
+    }
+
+    // Returns true if the setting is an array of three numbers
+    inline bool is_vec3_setting(const libconfig::Setting& setting)
+    {
+      if (!setting.isArray() || setting.getLength() != 3) {
+        return false;
+      }
+
+      for (auto i = 0; i < 3; ++i) {
+        if (!setting[i].isNumber()) {
+          return false;
+        }
+      }
+
+      return true;
+    }
+
+
+
+
 
 }
 

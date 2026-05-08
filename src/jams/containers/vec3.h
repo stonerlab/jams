@@ -21,6 +21,25 @@
 
 namespace jams {
 
+namespace detail {
+
+inline constexpr double kVecOrthogonalityTolerance = 1e-4;
+
+template <typename T>
+inline constexpr bool vec_dot_is_zero(const T& value) {
+  using value_type = std::decay_t<T>;
+  static_assert(std::is_arithmetic_v<value_type>,
+                "vecs_are_orthogonal requires arithmetic vector components");
+
+  if constexpr (std::is_floating_point_v<value_type>) {
+    return ::approximately_zero(value, value_type{kVecOrthogonalityTolerance});
+  } else {
+    return value == value_type{0};
+  }
+}
+
+} // namespace detail
+
 /// Returns the fused-multiply-add operation elementwise on the vectors a,b and c.
 /// x_k = (a_k * b_k) + c_k
 template <typename T1>
@@ -69,6 +88,23 @@ inline constexpr auto cross(const jams::Vec<T1,3>& a, const jams::Vec<T2,3>& b) 
           a[0]*b[1] - a[1]*b[0]};
 }
 
+/// Returns true if the supplied length-3 Vecs are mutually orthogonal.
+/// Integral dot products must be exactly zero; floating-point dot products are
+/// compared against a small absolute tolerance.
+template <typename T1, typename T2>
+inline constexpr bool vecs_are_orthogonal(const jams::Vec<T1,3>& u, const jams::Vec<T2,3>& v) {
+  return detail::vec_dot_is_zero(jams::dot(u, v));
+}
+
+/// Returns true if the supplied length-3 Vecs are mutually orthogonal.
+/// Integral dot products must be exactly zero; floating-point dot products are
+/// compared against a small absolute tolerance.
+template <typename T1, typename T2, typename T3>
+inline constexpr bool vecs_are_orthogonal(const jams::Vec<T1,3>& u, const jams::Vec<T2,3>& v, const jams::Vec<T3,3>& w) {
+  return vecs_are_orthogonal(u, v)
+      && vecs_are_orthogonal(v, w)
+      && vecs_are_orthogonal(w, u);
+}
 
 /// Returns the magnitude |a x b|^2 using the identity |a||b| - |a.b|^2
 template <typename T1, typename T2>
