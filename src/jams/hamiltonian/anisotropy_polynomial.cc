@@ -137,6 +137,12 @@ jams::TesseralHarmonicNormalisation read_tesseral_normalisation(const Setting& s
                                 "normalisation must be one of: monic, condon-shortley, racah, stevens");
 }
 
+bool axes_match(const jams::Vec<jams::Real, 3>& lhs, const jams::Vec<jams::Real, 3>& rhs)
+{
+    const auto tolerance = jams::Real(jams::defaults::lattice_tolerance);
+    return jams::vecs_are_approximately_equal(lhs, rhs, tolerance);
+}
+
 bool axes_match(const jams::Vec<jams::Real, 3>& lhs_u,
                 const jams::Vec<jams::Real, 3>& lhs_v,
                 const jams::Vec<jams::Real, 3>& lhs_w,
@@ -144,16 +150,9 @@ bool axes_match(const jams::Vec<jams::Real, 3>& lhs_u,
                 const jams::Vec<jams::Real, 3>& rhs_v,
                 const jams::Vec<jams::Real, 3>& rhs_w)
 {
-    const auto tolerance = jams::Real(jams::defaults::lattice_tolerance);
-    return jams::approximately_equal(lhs_u, rhs_u, tolerance)
-        && jams::approximately_equal(lhs_v, rhs_v, tolerance)
-        && jams::approximately_equal(lhs_w, rhs_w, tolerance);
-}
-
-bool axes_match(const jams::Vec<jams::Real, 3>& lhs, const jams::Vec<jams::Real, 3>& rhs)
-{
-    const auto tolerance = jams::Real(jams::defaults::lattice_tolerance);
-    return jams::approximately_equal(lhs, rhs, tolerance);
+    return axes_match(lhs_u, rhs_u)
+        && axes_match(lhs_v, rhs_v)
+        && axes_match(lhs_w, rhs_w);
 }
 
 bool coefficient_is_axial(const std::pair<int, jams::Real>& coefficient)

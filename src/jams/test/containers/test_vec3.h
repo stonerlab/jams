@@ -187,6 +187,16 @@ TEST(Vec3Test, VecsAreOrthogonalSupportsFloatingPointTolerance) {
   EXPECT_FALSE(jams::vecs_are_orthogonal(x, not_y, z));
 }
 
+TEST(Vec3Test, VecsAreApproximatelyEqualSupportsMixedNumericTypes) {
+  const jams::Vec<double, 3> a{1.0, 2.0, 3.0};
+  const jams::Vec<float, 3> b{1.0f, 2.00001f, 3.0f};
+  const jams::Vec<int, 3> c{1, 2, 3};
+
+  EXPECT_TRUE(jams::vecs_are_approximately_equal(a, b, 1e-4));
+  EXPECT_TRUE(jams::vecs_are_approximately_equal(a, c, 1e-12));
+  EXPECT_FALSE(jams::vecs_are_approximately_equal(a, b, 1e-8));
+}
+
 TEST(Vec3Test, SumAndProductPreservePromotedArithmeticType) {
   const jams::Vec<std::int8_t, 3> sum_values{100, 30, 1};
   const jams::Vec<std::int8_t, 3> product_values{10, 20, 3};
