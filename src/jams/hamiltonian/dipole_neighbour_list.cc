@@ -3,6 +3,7 @@
 #include "jams/helpers/utils.h"
 #include "jams/core/solver.h"
 #include "jams/core/lattice.h"
+#include "jams/interface/config.h"
 
 #include "jams/hamiltonian/dipole_neighbour_list.h"
 #include <jams/lattice/interaction_neartree.h>
@@ -30,12 +31,12 @@ DipoleNeighbourListHamiltonian::DipoleNeighbourListHamiltonian(const libconfig::
   // If we choose an exclusive pair of materials then we change the predicate
   // so that only interactions a-b and b-a are calculated.
   if (settings.exists("exclusive_pair")) {
-    const std::string a = settings["exclusive_pair"][0];
+    const auto a = jams::read_string_setting(settings["exclusive_pair"][0], "exclusive_pair material a");
     if (!globals::lattice->material_exists(a)) {
       throw std::runtime_error("material " + a + " does not exist");
     }
 
-    const std::string b = settings["exclusive_pair"][1];
+    const auto b = jams::read_string_setting(settings["exclusive_pair"][1], "exclusive_pair material b");
     if (!globals::lattice->material_exists(b)) {
       throw std::runtime_error("material " + b + " does not exist");
     }
@@ -130,4 +131,3 @@ jams::Vec<jams::Real, 3> DipoleNeighbourListHamiltonian::calculate_field(const i
   }
   return field;
 }
-

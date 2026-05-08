@@ -11,6 +11,7 @@
 #include "jams/helpers/error.h"
 #include "jams/helpers/exception.h"
 #include "jams/helpers/utils.h"
+#include "jams/interface/config.h"
 
 #include "jams/hamiltonian/applied_field.h"
 #include "jams/hamiltonian/anisotropy_polynomial.h"
@@ -48,7 +49,7 @@
 
 #define DEFINED_HAMILTONIAN(name, type, settings, size) \
   { \
-    if (lowercase(settings["module"]) == name) { \
+    if (lowercase(jams::config_required<std::string>(settings, "module")) == name) { \
       return new type(settings, size); \
     } \
   }
@@ -56,7 +57,7 @@
 #ifdef HAS_CUDA
 #define DEFINED_CUDA_HAMILTONIAN(name, type, settings, size) \
   { \
-    if (lowercase(settings["module"]) == name) { \
+    if (lowercase(jams::config_required<std::string>(settings, "module")) == name) { \
       return new type(settings, size); \
     } \
   }
@@ -68,7 +69,7 @@
 #define CUDA_HAMILTONIAN_NAME(type) Cuda##type
   #define DEFINED_HAMILTONIAN_CUDA_VARIANT(name, type, is_cuda_solver, settings, size) \
   { \
-    if (lowercase(settings["module"]) == name) { \
+    if (lowercase(jams::config_required<std::string>(settings, "module")) == name) { \
       if(is_cuda_solver) { \
         return new CUDA_HAMILTONIAN_NAME(type)(settings, size); \
       } \
@@ -115,7 +116,7 @@ Hamiltonian * Hamiltonian::create(const libconfig::Setting &settings, const unsi
 
 
 
-  throw std::runtime_error("unknown hamiltonian " + std::string(settings["module"].c_str()));
+  throw std::runtime_error("unknown hamiltonian " + jams::config_required<std::string>(settings, "module"));
 }
 
 void Hamiltonian::calculate_fields(jams::Real time)
@@ -199,7 +200,7 @@ Hamiltonian::Hamiltonian(const libconfig::Setting &settings, const unsigned int 
 
   input_distance_unit_conversion_ = internal_distance_unit_conversion.at(input_distance_unit_name_);
 
-  set_name(settings["module"].c_str());
+  set_name(jams::config_required<std::string>(settings, "module"));
   std::cout << "  " << name() << " hamiltonian\n";
 
 

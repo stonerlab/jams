@@ -11,6 +11,7 @@
 #include <jams/helpers/utils.h>
 #include <array>
 #include <cstdint>
+#include <string_view>
 #include <type_traits>
 
 
@@ -44,6 +45,28 @@ inline T config_required(const libconfig::Setting &s, const std::string &name) {
   return config_required_impl<T>::get(s, name);
 }
 
+// Returns true if the setting is a string type.
+inline bool is_string_setting(const libconfig::Setting& setting)
+{
+  return setting.isString();
+}
+
+// Returns true if the setting is a string and equals the requested value.
+inline bool setting_equals_string(const libconfig::Setting& setting, std::string_view value)
+{
+  return is_string_setting(setting) && std::string_view(setting.c_str()) == value;
+}
+
+// Returns a string setting value.
+inline std::string read_string_setting(const libconfig::Setting& setting, const char* name)
+{
+  if (!is_string_setting(setting)) {
+    throw jams::ConfigException(setting, name, " must be a string");
+  }
+
+  return setting.c_str();
+}
+
 // Specialisation for std::array<T, N>
 template<typename T, std::size_t N>
 struct config_required_impl<std::array<T, N>, void> {
@@ -72,7 +95,7 @@ struct config_required_impl<jams::Vec<T, N>, void> {
 template<>
 struct config_required_impl<std::string, void> {
   static std::string get(const libconfig::Setting &setting, const std::string &name) {
-    return setting[name].c_str();
+    return read_string_setting(setting[name], name.c_str());
   }
 };
 

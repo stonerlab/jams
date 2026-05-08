@@ -36,11 +36,11 @@ CrystalFieldHamiltonian::CrystalFieldHamiltonian(const libconfig::Setting &setti
   if (!settings.exists("crystal_field_spin_type")) {
     throw jams::ConfigException(settings, "missing crystal_field_spin_type");
   }
-  if (!settings["crystal_field_spin_type"].isString()) {
+  if (!jams::is_string_setting(settings["crystal_field_spin_type"])) {
     throw jams::ConfigException(settings["crystal_field_spin_type"], "must be 'up' or 'down'");
   }
 
-  auto spin_type_string = lowercase(settings["crystal_field_spin_type"].c_str());
+  auto spin_type_string = lowercase(jams::read_string_setting(settings["crystal_field_spin_type"], "crystal_field_spin_type"));
 
   if (spin_type_string == "up") {
     crystal_field_spin_type_ = CrystalFieldSpinType::kSpinUp;
@@ -88,11 +88,12 @@ CrystalFieldHamiltonian::CrystalFieldHamiltonian(const libconfig::Setting &setti
       }
     } else if (cf_params[0].isNumber()) {
       throw jams::ConfigException(cf_params[0], "unit cell index must be an integer");
-    } else if (cf_params[0].isString()) {
-      if (!globals::lattice->material_exists(cf_params[0])) {
-        throw jams::ConfigException(cf_params[0], "material ", cf_params[0].c_str(), " does not exist in config file");
+    } else if (jams::is_string_setting(cf_params[0])) {
+      const auto material = jams::read_string_setting(cf_params[0], "material");
+      if (!globals::lattice->material_exists(material)) {
+        throw jams::ConfigException(cf_params[0], "material ", material, " does not exist in config file");
       }
-      material_id = globals::lattice->material_index(cf_params[0]);
+      material_id = globals::lattice->material_index(material);
     } else {
       throw jams::ConfigException(cf_params[0], "must be a unit cell index or material name");
     }
@@ -106,7 +107,7 @@ CrystalFieldHamiltonian::CrystalFieldHamiltonian(const libconfig::Setting &setti
           "(target, [u, v, w], J, alphaJ, betaJ, gammaJ, cf_param_filename)");
     }
 
-    if (!cf_params[parameter_start + 4].isString()) {
+    if (!jams::is_string_setting(cf_params[parameter_start + 4])) {
       throw jams::ConfigException(cf_params[parameter_start + 4], "crystal field coefficient filename must be a string");
     }
 
@@ -114,7 +115,8 @@ CrystalFieldHamiltonian::CrystalFieldHamiltonian(const libconfig::Setting &setti
     const double alphaJ = jams::read_numeric_setting<double>(cf_params[parameter_start + 1], "alphaJ");
     const double betaJ = jams::read_numeric_setting<double>(cf_params[parameter_start + 2], "betaJ");
     const double gammaJ = jams::read_numeric_setting<double>(cf_params[parameter_start + 3], "gammaJ");
-    auto cf_coefficient_filename = cf_params[parameter_start + 4].c_str();
+    const auto cf_coefficient_filename = jams::read_string_setting(
+        cf_params[parameter_start + 4], "crystal field coefficient filename");
 
     std::map<int, double> stevens_prefactor;
     stevens_prefactor.insert({2, J * (J - 0.5) * alphaJ});

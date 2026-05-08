@@ -9,6 +9,7 @@
 #include "exchange_neartree.h"
 #include "jams/helpers/error.h"
 #include "jams/helpers/output.h"
+#include "jams/interface/config.h"
 #include <jams/lattice/interaction_neartree.h>
 
 ExchangeNeartreeHamiltonian::ExchangeNeartreeHamiltonian(const libconfig::Setting &settings, const unsigned int size)
@@ -62,8 +63,8 @@ ExchangeNeartreeHamiltonian::ExchangeNeartreeHamiltonian(const libconfig::Settin
 
     double max_radius = 0.0;
     for (int i = 0; i < settings["interactions"].getLength(); ++i) {
-      std::string type_name_A = settings["interactions"][i][0].c_str();
-      std::string type_name_B = settings["interactions"][i][1].c_str();
+      const auto type_name_A = jams::read_string_setting(settings["interactions"][i][0], "material A");
+      const auto type_name_B = jams::read_string_setting(settings["interactions"][i][1], "material B");
 
       if (!globals::lattice->material_exists(type_name_A)) {
         throw std::runtime_error("exchange neartree interaction " +  std::to_string(i) + ": material " + type_name_A + " does not exist in the config");

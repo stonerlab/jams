@@ -8,10 +8,11 @@
 
 #include <stdexcept>
 #include <jams/helpers/error.h>
+#include <jams/interface/config.h>
 
 #define DEFINED_INITIALIZER(module, type, settings) \
 { \
-  if (lowercase(settings["module"]) == module) { \
+  if (lowercase(jams::config_required<std::string>(settings, "module")) == module) { \
     type::execute(settings);                      \
     return;                                                \
   } \
@@ -32,7 +33,7 @@ void jams::InitializerDispatcher::execute(const libconfig::Setting &settings) {
   DEFINED_INITIALIZER("triple-q", InitTripleQ, settings);
 
 
-  throw std::runtime_error("unknown initializer: " + std::string(settings["module"].c_str()));
+  throw std::runtime_error("unknown initializer: " + jams::config_required<std::string>(settings, "module"));
 }
 
 #undef DEFINED_INITIALIZER

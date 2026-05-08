@@ -59,7 +59,7 @@ AnisotropySetting read_anisotropy_setting(Setting &setting) {
   } else if (setting[0].isNumber()) {
     throw runtime_error("uniaxial anisotropy motif position must be an integer");
   } else {
-    result.material = string(setting[0].c_str());
+    result.material = jams::read_string_setting(setting[0], "material");
     if (!globals::lattice->material_exists(result.material)) {
       throw runtime_error("uniaxial anisotropy material is invalid");
     }

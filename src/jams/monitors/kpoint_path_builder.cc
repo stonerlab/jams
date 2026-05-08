@@ -108,7 +108,7 @@ bool KPointPathBuilder::configure_k_list(
 {
   bool full_brillouin_zone_appended = false;
 
-  if (settings.isString() && std::string(settings.c_str()) == "full")
+  if (jams::setting_equals_string(settings, "full"))
   {
     append_full_k_grid(k_points, k_segment_offsets, kspace_size);
     return true;
@@ -129,7 +129,7 @@ bool KPointPathBuilder::configure_k_list(
         append_k_path_segment(k_points, k_segment_offsets, settings[n], kspace_size);
         continue;
       }
-      if (settings[n].isString() && std::string(settings[n].c_str()) == "full")
+      if (jams::setting_equals_string(settings[n], "full"))
       {
         append_full_k_grid(k_points, k_segment_offsets, kspace_size);
         full_brillouin_zone_appended = true;

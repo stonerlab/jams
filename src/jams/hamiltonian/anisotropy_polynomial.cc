@@ -75,11 +75,11 @@ jams::TesseralHarmonicNormalisation read_tesseral_normalisation(const Setting& s
         return jams::TesseralHarmonicNormalisation::monic;
     }
 
-    if (!normalisation_setting->isString()) {
+    if (!jams::is_string_setting(*normalisation_setting)) {
         throw jams::ConfigException(*normalisation_setting, "normalisation must be a string");
     }
 
-    std::string normalisation = lowercase(normalisation_setting->c_str());
+    std::string normalisation = lowercase(jams::read_string_setting(*normalisation_setting, "normalisation"));
     std::replace(normalisation.begin(), normalisation.end(), '_', '-');
     if (normalisation == "monic") {
         return jams::TesseralHarmonicNormalisation::monic;
@@ -196,8 +196,8 @@ AnisotropyPolynomialSetting read_anisotropy_setting(
                                         "unit cell position must be between 1 and ",
                                         globals::lattice->num_basis_sites());
         }
-    } else if (setting[0].isString()) {
-        const std::string material = setting[0].c_str();
+    } else if (jams::is_string_setting(setting[0])) {
+        const auto material = jams::read_string_setting(setting[0], "material");
         if (!globals::lattice->material_exists(material)) {
             throw jams::ConfigException(setting[0], "material ", material, " does not exist in config file");
         }

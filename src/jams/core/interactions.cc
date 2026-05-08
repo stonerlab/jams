@@ -269,8 +269,8 @@ interactions_from_settings(libconfig::Setting &setting, const InteractionFileDes
       J.basis_site_i = int(setting[i][0])-1;
       J.basis_site_j = int(setting[i][1])-1;
     } else {
-      J.type_i = setting[i][0].c_str();
-      J.type_j = setting[i][1].c_str();
+      J.type_i = jams::read_string_setting(setting[i][0], "interaction type i");
+      J.type_j = jams::read_string_setting(setting[i][1], "interaction type j");
     }
 
     J.interaction_vector_cart = jams::read_vec_setting<double, 3>(setting[i][2], "interaction vector");

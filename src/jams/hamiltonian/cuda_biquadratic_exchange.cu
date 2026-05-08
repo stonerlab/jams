@@ -105,10 +105,11 @@ CudaBiquadraticExchangeHamiltonian::CudaBiquadraticExchangeHamiltonian(
   std::cout << "    coordinate format: " << to_string(coord_format) << "\n";
   // exc_file is to maintain backwards compatibility
   if (settings.exists("exc_file")) {
-    std::cout << "    interaction file name " << settings["exc_file"].c_str() << "\n";
-    std::ifstream interaction_file(settings["exc_file"].c_str());
+    const auto file_path = jams::config_required<std::string>(settings, "exc_file");
+    std::cout << "    interaction file name " << file_path << "\n";
+    std::ifstream interaction_file(file_path);
     if (interaction_file.fail()) {
-      throw jams::FileException(settings["exc_file"].c_str(), "failed to open interaction file");
+      throw jams::FileException(file_path.c_str(), "failed to open interaction file");
     }
     neighbour_list_ = generate_neighbour_list(
         interaction_file, coord_format, use_symops, energy_cutoff_,radius_cutoff_, distance_tolerance_, interaction_checks);
@@ -238,4 +239,3 @@ jams::Real CudaBiquadraticExchangeHamiltonian::calculate_energy_difference(int i
   auto e_final = -jams::dot(spin_final, 0.5*field);
   return static_cast<jams::Real>(e_final - e_initial);
 }
-

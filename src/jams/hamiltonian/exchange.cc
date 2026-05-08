@@ -97,11 +97,11 @@ ExchangeHamiltonian::ExchangeHamiltonian(const libconfig::Setting &settings, con
   std::cout << "    coordinate format: " << to_string(coord_format) << "\n";
   // exc_file is to maintain backwards compatibility
   if (settings.exists("exc_file")) {
-    auto file_path = settings["exc_file"].c_str();
+    const auto file_path = jams::config_required<std::string>(settings, "exc_file");
     std::cout << "    interaction file name " << file_path << "\n";
     std::ifstream interaction_file(file_path);
     if (interaction_file.fail()) {
-      throw jams::FileException(file_path, "failed to open file");
+      throw jams::FileException(file_path.c_str(), "failed to open file");
     }
     neighbour_list_ = generate_neighbour_list(
         interaction_file,
