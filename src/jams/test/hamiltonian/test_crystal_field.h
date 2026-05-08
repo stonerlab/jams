@@ -178,16 +178,33 @@ TEST_F(CrystalFieldHamiltonianRuntimeTest, UsesSparseTesseralKeysForEnergyAndFie
   const jams::Vec<double, 3> spin = {0.0, 0.0, 1.0};
   const double stevens_prefactor = 2.0 * (2.0 - 0.5);
   const double monic_scale = jams::tesseral_racah_normalisation_scale_lookup<double>(2, 0);
-  const double coefficient = stevens_prefactor * monic_scale;
+  const auto coefficient = jams::Real(stevens_prefactor * monic_scale);
+  const auto tolerance = 1e-6;
 
   const double expected_energy = coefficient * jams::tesseral_monic_polynomial(2, 0, spin[0], spin[1], spin[2]);
-  ASSERT_NEAR(hamiltonian.crystal_field_energy(spin_index, spin), expected_energy, 1e-14);
+  ASSERT_NEAR(hamiltonian.crystal_field_energy(spin_index, spin), expected_energy, tolerance);
 
   double grad[3];
   jams::tesseral_monic_polynomial_grad_key_lookup(jams::tesseral_key(2, 0), spin[0], spin[1], spin[2], grad);
   const auto field = hamiltonian.calculate_field(spin_index, 0.0);
   for (auto j = 0; j < 3; ++j) {
-    ASSERT_NEAR(field[j], -coefficient * grad[j], 1e-14);
+    ASSERT_NEAR(field[j], -coefficient * grad[j], tolerance);
+  }
+
+  const jams::Vec<double, 3> spin_final = {1.0, 0.0, 0.0};
+  const jams::Vec<double, 3> global_spin_before = {
+      double(globals::s(spin_index, 0)),
+      double(globals::s(spin_index, 1)),
+      double(globals::s(spin_index, 2))};
+  const double expected_final_energy =
+      coefficient * jams::tesseral_monic_polynomial(2, 0, spin_final[0], spin_final[1], spin_final[2]);
+
+  ASSERT_NEAR(
+      hamiltonian.calculate_energy_difference(spin_index, spin, spin_final, 0.0),
+      expected_final_energy - expected_energy,
+      tolerance);
+  for (auto j = 0; j < 3; ++j) {
+    ASSERT_NEAR(globals::s(spin_index, j), global_spin_before[j], tolerance);
   }
 }
 

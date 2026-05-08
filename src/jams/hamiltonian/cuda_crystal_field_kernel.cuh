@@ -5,10 +5,10 @@
 
 __global__ void cuda_crystal_field_energy_kernel(
     const unsigned int num_spins,
-    const double* dev_s,
+    const jams::RealHi* dev_s,
     const int* dev_spin_pointer,
     const int* dev_tesseral_keys,
-    const double* dev_tesseral_coefficients,
+    const jams::Real* dev_tesseral_coefficients,
     jams::Real* dev_e)
 {
   const unsigned int idx = blockIdx.x * blockDim.x + threadIdx.x;
@@ -17,9 +17,9 @@ __global__ void cuda_crystal_field_energy_kernel(
   }
 
   const unsigned int base = 3u * idx;
-  const double sx = dev_s[base + 0];
-  const double sy = dev_s[base + 1];
-  const double sz = dev_s[base + 2];
+  const jams::Real sx = static_cast<jams::Real>(dev_s[base + 0]);
+  const jams::Real sy = static_cast<jams::Real>(dev_s[base + 1]);
+  const jams::Real sz = static_cast<jams::Real>(dev_s[base + 2]);
 
   dev_e[idx] = static_cast<jams::Real>(
       jams::tesseral_polynomial::energy_from_local_terms(
@@ -34,10 +34,10 @@ __global__ void cuda_crystal_field_energy_kernel(
 
 __global__ void cuda_crystal_field_kernel(
     const unsigned int num_spins,
-    const double* dev_s,
+    const jams::RealHi* dev_s,
     const int* dev_spin_pointer,
     const int* dev_tesseral_keys,
-    const double* dev_tesseral_coefficients,
+    const jams::Real* dev_tesseral_coefficients,
     jams::Real* dev_h)
 {
   const unsigned int idx = blockIdx.x * blockDim.x + threadIdx.x;
@@ -46,11 +46,11 @@ __global__ void cuda_crystal_field_kernel(
   }
 
   const unsigned int base = 3u * idx;
-  const double sx = dev_s[base + 0];
-  const double sy = dev_s[base + 1];
-  const double sz = dev_s[base + 2];
+  const jams::Real sx = static_cast<jams::Real>(dev_s[base + 0]);
+  const jams::Real sy = static_cast<jams::Real>(dev_s[base + 1]);
+  const jams::Real sz = static_cast<jams::Real>(dev_s[base + 2]);
 
-  double h[3] = {0.0, 0.0, 0.0};
+  jams::Real h[3] = {0.0, 0.0, 0.0};
   jams::tesseral_polynomial::negative_gradient_from_local_terms(
       dev_spin_pointer[idx],
       dev_spin_pointer[idx + 1],

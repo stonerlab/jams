@@ -3,6 +3,7 @@
 #include "jams/core/hamiltonian.h"
 
 #include <map>
+#include <vector>
 
 ///
 /// Hamiltonian for single-ion anisotropy written as a polynomial expansion in
@@ -107,6 +108,13 @@ public:
     jams::Real calculate_energy(int i, jams::Real time) override;
 
 protected:
+    struct EmptyStorageTag {};
+
+    AnisotropyPolynomialHamiltonian(const libconfig::Setting &settings, const unsigned int size, EmptyStorageTag);
+
+    void initialise_tesseral_storage(const unsigned int size);
+    void set_tesseral_terms(const std::vector<TesseralKeyCoefficientMap>& spin_coefficients);
+
     jams::Real calculate_energy_for_spin(int i, const jams::Vec<double, 3> &spin, jams::Real time) override;
 
     // Local reference axes for the anisotropy of a given spin

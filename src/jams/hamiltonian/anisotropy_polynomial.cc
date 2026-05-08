@@ -12,6 +12,7 @@
 
 #include <algorithm>
 #include <cstdint>
+#include <stdexcept>
 #include <string>
 #include <utility>
 #include <vector>
@@ -337,22 +338,7 @@ AnisotropyPolynomialHamiltonian::AnisotropyPolynomialHamiltonian(const libconfig
         throw jams::ConfigException(anisotropy_settings, "anisotropies must contain at least one entry");
     }
 
-    zero(spin_pointer_.resize(size + 1));
-    zero(u_axes_.resize(size, 3));
-    zero(v_axes_.resize(size, 3));
-    zero(w_axes_.resize(size, 3));
-
-    for (auto i = 0u; i < size; ++i) {
-        u_axes_(i, 0) = kDefaultU[0];
-        u_axes_(i, 1) = kDefaultU[1];
-        u_axes_(i, 2) = kDefaultU[2];
-        v_axes_(i, 0) = kDefaultV[0];
-        v_axes_(i, 1) = kDefaultV[1];
-        v_axes_(i, 2) = kDefaultV[2];
-        w_axes_(i, 0) = kDefaultW[0];
-        w_axes_(i, 1) = kDefaultW[1];
-        w_axes_(i, 2) = kDefaultW[2];
-    }
+    initialise_tesseral_storage(size);
 
     std::vector<TesseralKeyCoefficientMap> spin_coefficients(size);
     std::vector<bool> spin_axes_explicitly_set(size, false);
@@ -387,12 +373,51 @@ AnisotropyPolynomialHamiltonian::AnisotropyPolynomialHamiltonian(const libconfig
         }
     }
 
-    auto total_terms = 0;
+    set_tesseral_terms(spin_coefficients);
+}
+
+AnisotropyPolynomialHamiltonian::AnisotropyPolynomialHamiltonian(
+    const libconfig::Setting& settings,
+    const unsigned int size,
+    EmptyStorageTag)
+    : Hamiltonian(settings, size)
+{
+    initialise_tesseral_storage(size);
+}
+
+void AnisotropyPolynomialHamiltonian::initialise_tesseral_storage(const unsigned int size)
+{
+    zero(spin_pointer_.resize(size + 1));
+    zero(u_axes_.resize(size, 3));
+    zero(v_axes_.resize(size, 3));
+    zero(w_axes_.resize(size, 3));
+
     for (auto i = 0u; i < size; ++i) {
+        u_axes_(i, 0) = kDefaultU[0];
+        u_axes_(i, 1) = kDefaultU[1];
+        u_axes_(i, 2) = kDefaultU[2];
+        v_axes_(i, 0) = kDefaultV[0];
+        v_axes_(i, 1) = kDefaultV[1];
+        v_axes_(i, 2) = kDefaultV[2];
+        w_axes_(i, 0) = kDefaultW[0];
+        w_axes_(i, 1) = kDefaultW[1];
+        w_axes_(i, 2) = kDefaultW[2];
+    }
+}
+
+void AnisotropyPolynomialHamiltonian::set_tesseral_terms(
+    const std::vector<TesseralKeyCoefficientMap>& spin_coefficients)
+{
+    if (spin_pointer_.elements() != spin_coefficients.size() + 1) {
+        throw std::invalid_argument("spin coefficient count does not match Hamiltonian size");
+    }
+
+    auto total_terms = 0;
+    for (auto i = 0u; i < spin_coefficients.size(); ++i) {
         spin_pointer_(i) = total_terms;
         total_terms += int(spin_coefficients[i].size());
     }
-    spin_pointer_(size) = total_terms;
+    spin_pointer_(spin_coefficients.size()) = total_terms;
 
     tesseral_keys_.resize(total_terms);
     tesseral_coefficients_.resize(total_terms);

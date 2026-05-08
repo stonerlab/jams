@@ -1,7 +1,7 @@
 #ifndef JAMS_HAMILTONIAN_CRYSTAL_FIELD_H
 #define JAMS_HAMILTONIAN_CRYSTAL_FIELD_H
 
-#include <jams/core/hamiltonian.h>
+#include <jams/hamiltonian/anisotropy_polynomial.h>
 
 ///
 /// Hamiltonian for crystal fields
@@ -71,7 +71,7 @@
 ///  );
 ///
 
-class CrystalFieldHamiltonian : public Hamiltonian {
+class CrystalFieldHamiltonian : public AnisotropyPolynomialHamiltonian {
 
 public:
   using SphericalHarmonicCoefficientMap = std::map<std::pair<int, int>, std::complex<double>>;
@@ -83,12 +83,6 @@ public:
   };
 
   CrystalFieldHamiltonian(const libconfig::Setting &settings, unsigned int size);
-
-  jams::Vec<jams::Real, 3> calculate_field(int i, jams::Real time) override;
-
-  jams::Real calculate_energy(int i, jams::Real time) override;
-
-  jams::Real calculate_energy_difference(int i, const jams::Vec<double, 3> &spin_initial, const jams::Vec<double, 3> &spin_final, jams::Real time) override;
 
 protected:
   jams::Real crystal_field_energy(int i, const jams::Vec<double, 3>& s);
@@ -109,11 +103,6 @@ protected:
   double energy_cutoff_;
 
   CrystalFieldSpinType crystal_field_spin_type_;
-
-  // CSR-style storage of non-zero monic tesseral terms for each spin.
-  jams::MultiArray<int, 1> spin_pointer_;
-  jams::MultiArray<int, 1> tesseral_keys_;
-  jams::MultiArray<double, 1> tesseral_coefficients_;
 
 };
 

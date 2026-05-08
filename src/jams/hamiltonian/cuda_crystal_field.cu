@@ -44,5 +44,5 @@ void CudaCrystalFieldHamiltonian::calculate_energies(jams::Real time) {
 
 jams::Real CudaCrystalFieldHamiltonian::calculate_total_energy(jams::Real time) {
     calculate_energies(time);
-    return jams::scalar_field_reduce_cuda(energy_);
+    return jams::scalar_field_reduce_cuda(energy_, cuda_stream_.get());
 }
