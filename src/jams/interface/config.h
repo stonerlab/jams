@@ -7,8 +7,10 @@
 
 #include <libconfig.h++>
 #include <jams/core/types.h>
+#include <jams/helpers/exception.h>
 #include <jams/helpers/utils.h>
 #include <array>
+#include <cstdint>
 #include <type_traits>
 
 
@@ -155,20 +157,75 @@ struct config_required_impl<InteractionFileFormat, void> {
       return type == libconfig::Setting::TypeInt || type == libconfig::Setting::TypeInt64;
     }
 
-    // Returns true if the setting is an array of three numbers
-    inline bool is_vec3_setting(const libconfig::Setting& setting)
+    // Returns true if the setting is an array of the requested length, with all entries numeric.
+    inline bool is_numeric_array_setting(const libconfig::Setting& setting, const int length)
     {
-      if (!setting.isArray() || setting.getLength() != 3) {
+      if (!setting.isArray() || setting.getLength() != length) {
         return false;
       }
 
-      for (auto i = 0; i < 3; ++i) {
+      for (auto i = 0; i < length; ++i) {
         if (!setting[i].isNumber()) {
           return false;
         }
       }
 
       return true;
+    }
+
+    // Returns true if the setting is an array of three numbers
+    inline bool is_vec3_setting(const libconfig::Setting& setting)
+    {
+      return is_numeric_array_setting(setting, 3);
+    }
+
+    // Returns an integer setting value. Int64 values are narrowed to int.
+    inline int read_integer_setting(const libconfig::Setting& setting, const char* name)
+    {
+      if (!is_integer_setting(setting)) {
+        throw jams::ConfigException(setting, name, " must be an integer");
+      }
+
+      if (setting.getType() == libconfig::Setting::TypeInt64) {
+        return int(static_cast<int64_t>(setting));
+      }
+
+      return int(setting);
+    }
+
+    // Returns a numeric setting value converted to T.
+    template <typename T>
+    inline T read_numeric_setting(const libconfig::Setting& setting, const char* name)
+    {
+      static_assert(std::is_arithmetic_v<T>, "read_numeric_setting requires an arithmetic type");
+
+      if (!setting.isNumber()) {
+        throw jams::ConfigException(setting, name, " must be numeric");
+      }
+
+      if (setting.getType() == libconfig::Setting::TypeInt) {
+        return T(int(setting));
+      }
+      if (setting.getType() == libconfig::Setting::TypeInt64) {
+        return T(static_cast<int64_t>(setting));
+      }
+
+      return T(double(setting));
+    }
+
+    // Returns a numeric Vec setting read directly from a positional setting.
+    template <typename T, std::size_t N>
+    inline jams::Vec<T, N> read_vec_setting(const libconfig::Setting& setting, const char* name)
+    {
+      if (!is_numeric_array_setting(setting, int(N))) {
+        throw jams::ConfigException(setting, name, " must be an array containing exactly ", N, " numeric components");
+      }
+
+      jams::Vec<T, N> result;
+      for (auto i = 0; i < int(N); ++i) {
+        result[i] = read_numeric_setting<T>(setting[i], "component");
+      }
+      return result;
     }
 
 

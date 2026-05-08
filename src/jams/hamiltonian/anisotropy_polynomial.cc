@@ -6,13 +6,13 @@
 #include "jams/helpers/defaults.h"
 #include "jams/helpers/exception.h"
 #include "jams/helpers/utils.h"
+#include "jams/interface/config.h"
 #include "jams/maths/tesseral_harmonics.h"
 
 #include <libconfig.h++>
 
 #include <algorithm>
 #include <array>
-#include <cstdint>
 #include <iterator>
 #include <stdexcept>
 #include <string>
@@ -46,44 +46,9 @@ struct AnisotropyProfile {
     std::vector<std::pair<int, jams::Real>> terms;
 };
 
-int read_integer(const Setting& setting, const char* name)
-{
-    if (!jams::is_integer_setting(setting)) {
-        throw jams::ConfigException(setting, name, " must be an integer");
-    }
-
-    if (setting.getType() == Setting::TypeInt64) {
-        return int(static_cast<int64_t>(setting));
-    }
-
-    return int(setting);
-}
-
-jams::Real read_real(const Setting& setting, const char* name)
-{
-    if (!setting.isNumber()) {
-        throw jams::ConfigException(setting, name, " must be numeric");
-    }
-
-    if (setting.getType() == Setting::TypeInt) {
-        return jams::Real(int(setting));
-    }
-    if (setting.getType() == Setting::TypeInt64) {
-        return jams::Real(static_cast<int64_t>(setting));
-    }
-
-    return jams::Real(double(setting));
-}
-
 jams::Vec<jams::Real, 3> read_axis(const Setting& setting)
 {
-    jams::is_vec3_setting(setting);
-
-    jams::Vec<jams::Real, 3> axis = {
-        read_real(setting[0], "axis component"),
-        read_real(setting[1], "axis component"),
-        read_real(setting[2], "axis component")
-    };
+    auto axis = jams::read_vec_setting<jams::Real, 3>(setting, "axis");
 
     const auto length = jams::norm(axis);
     if (::approximately_zero(length, decltype(length)(jams::defaults::lattice_tolerance))) {
@@ -92,8 +57,6 @@ jams::Vec<jams::Real, 3> read_axis(const Setting& setting)
 
     return axis / length;
 }
-
-
 
 jams::TesseralHarmonicNormalisation read_tesseral_normalisation(const Setting& settings)
 {
@@ -182,20 +145,17 @@ std::pair<int, jams::Real> read_coefficient_setting(
         throw jams::ConfigException(setting, "coefficient must be a list containing l, m and coefficient");
     }
 
-    const auto l = read_integer(setting[0], "l");
-    const auto m = read_integer(setting[1], "m");
+    const auto l = jams::read_integer_setting(setting[0], "l");
+    const auto m = jams::read_integer_setting(setting[1], "m");
     if (!jams::valid_tesseral_lm(l, m)) {
         throw jams::ConfigException(setting, "l and m must satisfy l = 2, 4 or 6 and -l <= m <= l");
-    }
-
-    if (!setting[2].isNumber()) {
-        throw jams::ConfigException(setting[2], "anisotropy coefficient must be numeric");
     }
 
     const auto normalisation_scale = jams::tesseral_monic_polynomial_normalisation_scale<jams::Real>(
         normalisation, l, m);
     return {jams::tesseral_key(l, m),
-            read_real(setting[2], "anisotropy coefficient") * jams::Real(energy_unit_conversion) * normalisation_scale};
+            jams::read_numeric_setting<jams::Real>(setting[2], "anisotropy coefficient")
+                * jams::Real(energy_unit_conversion) * normalisation_scale};
 }
 
 void read_coefficient_settings(std::vector<std::pair<int, jams::Real>>& coefficients,
@@ -230,7 +190,7 @@ AnisotropyPolynomialSetting read_anisotropy_setting(
     AnisotropyPolynomialSetting result;
 
     if (jams::is_integer_setting(setting[0])) {
-        result.motif_position = read_integer(setting[0], "unit cell position") - 1;
+        result.motif_position = jams::read_integer_setting(setting[0], "unit cell position") - 1;
         if (result.motif_position < 0 || result.motif_position >= globals::lattice->num_basis_sites()) {
             throw jams::ConfigException(setting[0],
                                         "unit cell position must be between 1 and ",
