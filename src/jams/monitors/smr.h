@@ -4,9 +4,11 @@
 #define JAMS_MONITOR_SMR_H
 
 #include <jams/core/monitor.h>
+#include <jams/monitors/spin_grouping.h>
 
 #include <fstream>
 #include <string>
+#include <vector>
 
 class Solver;
 
@@ -21,10 +23,10 @@ public:
 
 private:
     std::ofstream tsv_file;
+    std::vector<jams::monitors::SpinGroup> spin_groups_;
 
     std::string tsv_header();
 
 };
 
 #endif  // JAMS_MONITOR_SMR_H
-

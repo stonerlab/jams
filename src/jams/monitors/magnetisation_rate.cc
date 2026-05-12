@@ -16,40 +16,37 @@
 MagnetisationRateMonitor::MagnetisationRateMonitor(const libconfig::Setting &settings)
 : Monitor(settings),
   tsv_file(jams::output::full_path_filename("dm_dt.tsv")),
+  spin_groups_(jams::monitors::make_spin_groups(jams::monitors::SpinGrouping::MATERIALS)),
   magnetisation_stats_(),
   convergence_geweke_diagnostic_(100.0)   // number much larger than 1
 {
   tsv_file.setf(std::ios::right);
   tsv_file << tsv_header();
-
-  material_count_.resize(globals::lattice->num_materials(), 0);
-  for (auto i = 0; i < globals::num_spins; ++i) {
-    material_count_[globals::lattice->lattice_site_material_id(i)]++;
-  }
 }
 
 void MagnetisationRateMonitor::update(Solver& solver) {
   const auto ds_dt = globals::ds_dt.host_view();
-  std::vector<jams::Vec<double, 3>> dm_dt(globals::lattice->num_materials(), {0.0, 0.0, 0.0});
+  std::vector<jams::Vec<double, 3>> dm_dt(spin_groups_.size(), {0.0, 0.0, 0.0});
 
-  for (auto i = 0; i < globals::num_spins; ++i) {
-    const auto type = globals::lattice->lattice_site_material_id(i);
-    for (auto j = 0; j < 3; ++j) {
-      dm_dt[type][j] += ds_dt(i, j);
+  for (std::size_t group_index = 0; group_index < spin_groups_.size(); ++group_index) {
+    const auto& group = spin_groups_[group_index];
+    for (const auto spin_index : group.indices) {
+      for (auto j = 0; j < 3; ++j) {
+        dm_dt[group_index][j] += ds_dt(spin_index, j);
+      }
     }
-  }
 
-  for (auto type = 0; type < globals::lattice->num_materials(); ++type) {
-    if (material_count_[type] == 0) continue;
-    for (auto j = 0; j < 3; ++j) {
-      dm_dt[type][j] /= static_cast<double>(material_count_[type]);
+    if (!group.indices.empty()) {
+      for (auto j = 0; j < 3; ++j) {
+        dm_dt[group_index][j] /= static_cast<double>(group.indices.size());
+      }
     }
   }
 
   tsv_file.width(12);
   tsv_file << std::scientific << solver.time() << "\t";
 
-  for (auto type = 0; type < globals::lattice->num_materials(); ++type) {
+  for (std::size_t type = 0; type < spin_groups_.size(); ++type) {
     for (auto j = 0; j < 3; ++j) {
       tsv_file << dm_dt[type][j] << "\t";
     }
@@ -57,7 +54,7 @@ void MagnetisationRateMonitor::update(Solver& solver) {
 
     if (convergence_status_ != Monitor::ConvergenceStatus::kDisabled) {
       double total_dm_dt = 0.0;
-      for (auto type = 0; type < globals::lattice->num_materials(); ++type) {
+      for (std::size_t type = 0; type < spin_groups_.size(); ++type) {
         total_dm_dt += jams::norm(dm_dt[type]);
       }
 
@@ -88,11 +85,10 @@ std::string MagnetisationRateMonitor::tsv_header() {
 
   ss << "time\t";
 
-  for (auto i = 0; i < globals::lattice->num_materials(); ++i) {
-    auto name = globals::lattice->material_name(i);
-    ss << name + "_dmx_dt\t";
-    ss << name + "_dmy_dt\t";
-    ss << name + "_dmz_dt\t";
+  for (const auto& group : spin_groups_) {
+    ss << group.name + "_dmx_dt\t";
+    ss << group.name + "_dmy_dt\t";
+    ss << group.name + "_dmz_dt\t";
   }
 
   if (convergence_status_ != ConvergenceStatus::kDisabled) {

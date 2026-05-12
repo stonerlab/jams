@@ -73,6 +73,7 @@
 #include <jams/core/monitor.h>
 #include <jams/interface/config.h>
 #include <jams/containers/multiarray.h>
+#include <jams/monitors/spin_grouping.h>
 
 #include <vector>
 #include <string>
@@ -90,18 +91,11 @@ public:
     inline void post_process() override {};
 
 private:
-    enum class Grouping {
-        NONE,
-        MATERIALS,
-        POSITIONS
-    };
-
-    Grouping grouping_ = Grouping::NONE;
+    jams::monitors::SpinGrouping grouping_ = jams::monitors::SpinGrouping::NONE;
 
     std::string h5_group_root_name_ = "/jams/monitors/magnetisation_layers/";
 
-    std::vector<std::string> group_names_;
-    std::vector<jams::MultiArray<int,1>> group_spin_indices_;
+    std::vector<jams::monitors::SpinGroup> spin_groups_;
     std::vector<int> group_num_layers_;
     std::vector<jams::MultiArray<double,2>>           group_layer_magnetisation_;
     std::vector<std::vector<jams::MultiArray<int,1>>> group_layer_spin_indicies_;

@@ -5,7 +5,7 @@
 
 #include <jams/helpers/output.h>
 #include <jams/core/monitor.h>
-#include <jams/containers/multiarray.h>
+#include <jams/monitors/spin_grouping.h>
 
 #include <fstream>
 #include <vector>
@@ -23,21 +23,13 @@ public:
     void post_process() override {};
 
 private:
-    enum class Grouping {
-        NONE,
-        MATERIALS,
-        POSITIONS
-    };
-
     jams::output::TsvWriter make_tsv_writer(const libconfig::Setting &settings);
 
-
-    Grouping grouping_ = Grouping::MATERIALS;
+    jams::monitors::SpinGrouping grouping_ = jams::monitors::SpinGrouping::MATERIALS;
     bool normalize_magnetisation_ = true;
-    std::vector<jams::MultiArray<int,1>> group_spin_indices_;
+    std::vector<jams::monitors::SpinGroup> spin_groups_;
 
     jams::output::TsvWriter tsv_;
 };
 
 #endif  // JAMS_MONITOR_MAGNETISATION_H
-

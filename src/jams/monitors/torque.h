@@ -4,12 +4,15 @@
 #define JAMS_MONITOR_TORQUE_H
 
 #include <jams/core/monitor.h>
+#include <jams/containers/vec3.h>
+#include <jams/helpers/stats.h>
+#include <jams/monitors/spin_grouping.h>
 
 #include <fstream>
 #include <array>
+#include <vector>
 
 class Solver;
-class Stats;
 
 ///
 /// Calculates the average torque per spin from each Hamiltonian term as
@@ -29,12 +32,30 @@ public:
     ConvergenceStatus convergence_status() override;
 
 private:
-    std::ofstream tsv_file;
-    std::string   tsv_header();
+    using TorqueComponents = jams::Vec<double, 3>;
+    using HamiltonianTorques = std::vector<TorqueComponents>;
+    using GroupedTorques = std::vector<HamiltonianTorques>;
 
-    std::array<Stats, 3> torque_stats_;
-    jams::Vec<double, 3> convergence_geweke_diagnostic_;
+    std::ofstream tsv_file_;
+    std::string   tsv_header();
+    void write_value(double value);
+    void write_unavailable_value();
+    GroupedTorques calculate_torques(Solver& solver);
+    TorqueComponents total_group_torque(const HamiltonianTorques& torques) const;
+    std::string torque_column_name(
+        const jams::monitors::SpinGroup& group,
+        const std::string& hamiltonian_name,
+        const std::string& component) const;
+    std::string convergence_column_name(
+        const jams::monitors::SpinGroup& group,
+        const std::string& component) const;
+
+    jams::monitors::SpinGrouping grouping_ = jams::monitors::SpinGrouping::NONE;
+    std::vector<jams::monitors::SpinGroup> spin_groups_;
+    int precision_ = 8;
+
+    std::vector<std::array<Stats, 3>> torque_stats_;
+    std::vector<TorqueComponents> convergence_geweke_diagnostic_;
 };
 
 #endif  // JAMS_MONITOR_TORQUE_H
-

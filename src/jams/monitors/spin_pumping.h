@@ -4,6 +4,7 @@
 #define JAMS_MONITOR_SPIN_PUMPING_H
 
 #include <jams/core/monitor.h>
+#include <jams/monitors/spin_grouping.h>
 
 #include <fstream>
 #include <string>
@@ -27,7 +28,7 @@ private:
     std::string      tsv_header();
 
     std::ofstream    tsv_file_;
-    std::vector<int> material_count_;
+    std::vector<jams::monitors::SpinGroup> spin_groups_;
 
     jams::MultiArray<double,2> s_old_;
 

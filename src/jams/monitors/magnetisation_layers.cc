@@ -20,56 +20,10 @@ MagnetisationLayersMonitor::MagnetisationLayersMonitor(
   auto layer_thickness = jams::config_optional<double>(settings, "layer_thickness", 0.0);
   auto distance_tolerance = jams::config_optional<double>(settings, "distance_tolerance", jams::defaults::lattice_tolerance);
 
-  auto grouping_str = jams::config_optional<std::string>(settings, "grouping", "materials");
+  grouping_ = jams::monitors::parse_spin_grouping(settings, "materials", "magnetisation");
+  spin_groups_ = jams::monitors::make_spin_groups(grouping_);
 
-  if (lowercase(grouping_str) == "none") {
-    grouping_ = Grouping::NONE;
-  } else if (lowercase(grouping_str) == "materials") {
-    grouping_ = Grouping::MATERIALS;
-  } else if (lowercase(grouping_str) == "positions") {
-    grouping_ = Grouping::POSITIONS;
-  } else {
-    throw std::runtime_error("unknown magnetisation grouping: " + grouping_str);
-  }
-
-  if (grouping_ == Grouping::NONE) {
-    jams::MultiArray<int,1> indices(globals::num_spins);
-    for (auto i = 0; i < globals::num_spins; ++i) {
-      indices(i) = i;
-    }
-    group_spin_indices_.push_back(indices);
-    group_names_.push_back("total");
-  } else if (grouping_ == Grouping::MATERIALS) {
-    auto num_groups = globals::lattice->num_materials();
-    std::vector<std::vector<int>> material_index_groups(num_groups);
-    for (auto i = 0; i < globals::num_spins; ++i) {
-      auto group_idx = globals::lattice->lattice_site_material_id(i);
-      material_index_groups[group_idx].push_back(i);
-    }
-
-    group_spin_indices_.resize(num_groups);
-    group_names_.resize(num_groups);
-    for (auto group_idx = 0; group_idx < num_groups; ++group_idx) {
-      group_spin_indices_[group_idx] = jams::MultiArray<int,1>(material_index_groups[group_idx].begin(), material_index_groups[group_idx].end());
-      group_names_[group_idx] = globals::lattice->material_name(group_idx);
-    }
-
-  } else if (grouping_ == Grouping::POSITIONS) {
-    std::vector<std::vector<int>> position_index_groups(globals::lattice->num_basis_sites());
-    for (auto i = 0; i < globals::num_spins; ++i) {
-      auto position = globals::lattice->lattice_site_basis_index(i);
-      position_index_groups[position].push_back(i);
-    }
-
-    group_spin_indices_.resize(position_index_groups.size());
-    group_names_.resize(position_index_groups.size());
-    for (auto n = 0; n < position_index_groups.size(); ++n) {
-      group_spin_indices_[n] = jams::MultiArray<int,1>(position_index_groups[n].begin(), position_index_groups[n].end());
-      group_names_[n] = std::to_string(n);
-    }
-  }
-
-  auto num_groups = group_spin_indices_.size();
+  auto num_groups = spin_groups_.size();
   group_num_layers_.resize(num_groups);
   group_layer_spin_indicies_.resize(num_groups);
   group_layer_magnetisation_.resize(num_groups);
@@ -78,8 +32,8 @@ MagnetisationLayersMonitor::MagnetisationLayersMonitor(
   HighFive::File file(jams::output::full_path_filename("monitors.h5"),
                       HighFive::File::ReadWrite | HighFive::File::Create | HighFive::File::Truncate);
 
-  for (int group_idx = 0; group_idx < group_spin_indices_.size(); ++group_idx) {
-    auto num_group_spins = group_spin_indices_[group_idx].size();
+  for (std::size_t group_idx = 0; group_idx < spin_groups_.size(); ++group_idx) {
+    const auto& spin_group = spin_groups_[group_idx];
 
     // construct a rotation matrix which will rotate the system so that the norm
     // is always along z
@@ -90,7 +44,7 @@ MagnetisationLayersMonitor::MagnetisationLayersMonitor(
     // Find the minimum value of z in the rotated system. This will be used as the
     // baseline for layers with a finite thickness.
     double z_min = std::numeric_limits<double>::max();
-    for (auto i : group_spin_indices_[group_idx]) {
+    for (auto i : spin_group.indices) {
       auto r = rotation_matrix * ::globals::lattice->lattice_site_position_cart(i)
                * globals::lattice->parameter() * kMeterToNanometer;
       rotated_z_position[i] = r[2];
@@ -113,7 +67,7 @@ MagnetisationLayersMonitor::MagnetisationLayersMonitor(
     std::map<double, std::vector<int>, decltype(comp_less)> unique_positions(
         comp_less);
 
-    for (auto i : group_spin_indices_[group_idx]) {
+    for (auto i : spin_group.indices) {
       unique_positions[rotated_z_position[i]].push_back(i);
     }
 
@@ -155,7 +109,7 @@ MagnetisationLayersMonitor::MagnetisationLayersMonitor(
       ++counter;
     }
 
-    HighFive::Group h5_group = file.createGroup(h5_group_root_name_ +"/groups/" + group_names_[group_idx] + "/");
+    HighFive::Group h5_group = file.createGroup(h5_group_root_name_ +"/groups/" + spin_group.name + "/");
     {
       auto dataset = h5_group.createDataSet<int>(
           "num_layers",HighFive::DataSpace::From(group_num_layers_[group_idx]));
@@ -220,9 +174,9 @@ void MagnetisationLayersMonitor::update(Solver& solver) {
   const auto& spins = globals::s;
   const auto& moments = globals::mus;
 
-  for (int group_idx = 0; group_idx < group_spin_indices_.size(); ++group_idx) {
+  for (std::size_t group_idx = 0; group_idx < spin_groups_.size(); ++group_idx) {
 
-    auto spin_group = timeseries_group.createGroup(group_names_[group_idx]);
+    auto spin_group = timeseries_group.createGroup(spin_groups_[group_idx].name);
 
     // Loop over layers and calculate the magnetisation
     for (auto layer_index = 0; layer_index < group_num_layers_[group_idx]; ++layer_index) {
