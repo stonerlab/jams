@@ -75,6 +75,7 @@
 #include <algorithm>
 #include <cassert>
 #include <complex>
+#include <concepts>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
@@ -143,6 +144,9 @@ struct is_std_complex<std::complex<T>> : std::true_type { };
 template<class T>
 inline constexpr bool synced_memory_byte_zeroable_v =
     std::is_arithmetic_v<T> || is_std_complex<T>::value;
+
+template<class T>
+concept synced_memory_value = std::is_trivially_copyable_v<T>;
 } // namespace jams::detail
 
 #if HAS_CUDA
@@ -165,7 +169,7 @@ public:
     using const_pointer = const value_type *;
     using size_type = std::size_t;
 
-    static_assert(std::is_trivially_copyable_v<T>,
+    static_assert(detail::synced_memory_value<T>,
       "SyncedMemory<T> requires trivially copyable T (uses memcpy)");
 
 private:
@@ -204,7 +208,7 @@ public:
 
     /// Construct a synced memory object with a size and values taken from
     /// the range between the 'first' and 'last' input iterators.
-    template<class InputIt, std::enable_if_t<detail::is_iterator_v<InputIt>, bool> = true>
+    template<std::input_iterator InputIt>
     SyncedMemory(InputIt first, InputIt last);
 
     /// Construct a synced memory object from another similar object.
@@ -366,10 +370,9 @@ SyncedMemory<T>::SyncedMemory(SyncedMemory::size_type size, const T &x)
 
 
 template<class T>
-template<class InputIt, std::enable_if_t<detail::is_iterator_v<InputIt>, bool>>
+template<std::input_iterator InputIt>
 SyncedMemory<T>::SyncedMemory(InputIt first, InputIt last) {
-  using category = typename std::iterator_traits<InputIt>::iterator_category;
-  if constexpr (std::is_base_of_v<std::forward_iterator_tag, category>) {
+  if constexpr (std::forward_iterator<InputIt>) {
     assign_from_forward_range(first, last);
   } else {
     assign_from_input_range(first, last);
