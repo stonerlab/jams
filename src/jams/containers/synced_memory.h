@@ -83,6 +83,7 @@
 #include <iterator>
 #include <limits>
 #include <new>
+#include <span>
 #include <stdexcept>
 #include <string>
 #include <type_traits>
@@ -168,6 +169,8 @@ public:
     using pointer = value_type *;
     using const_pointer = const value_type *;
     using size_type = std::size_t;
+    using span_type = std::span<value_type>;
+    using const_span_type = std::span<const value_type>;
 
     static_assert(detail::synced_memory_value<T>,
       "SyncedMemory<T> requires trivially copyable T (uses memcpy)");
@@ -271,11 +274,17 @@ public:
     /// Return const_pointer to start of host data.
     const_pointer host_data() const;
 
+    /// Return a read-only span over current host data.
+    [[nodiscard]] const_span_type host_span() const;
+
     /// Return const_pointer to start of device (GPU) data.
     const_pointer device_data() const;
 
     /// Return mutable pointer to start of host data
     pointer mutable_host_data();
+
+    /// Return a mutable span over current host data.
+    [[nodiscard]] span_type mutable_host_span();
 
     /// Return mutable pointer to start of device (GPU) data
     pointer mutable_device_data();
@@ -554,6 +563,13 @@ typename SyncedMemory<T>::const_pointer SyncedMemory<T>::host_data() const {
 
 template<class T>
 inline
+typename SyncedMemory<T>::const_span_type SyncedMemory<T>::host_span() const {
+  return const_span_type(host_data(), size_);
+}
+
+
+template<class T>
+inline
 typename SyncedMemory<T>::const_pointer SyncedMemory<T>::device_data() const {
   ensure_device_current();
   return device_ptr_;
@@ -566,6 +582,13 @@ typename SyncedMemory<T>::pointer SyncedMemory<T>::mutable_host_data() {
   ensure_host_current();
   mark_host_modified();
   return host_ptr_;
+}
+
+
+template<class T>
+inline
+typename SyncedMemory<T>::span_type SyncedMemory<T>::mutable_host_span() {
+  return span_type(mutable_host_data(), size_);
 }
 
 
