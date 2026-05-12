@@ -6,9 +6,8 @@
 #define INCLUDED_JAMS_MONITORS_TOPOLOGICAL_CHARGE_FINITE_DIFF
 
 #include <jams/core/monitor.h>
+#include <jams/helpers/output.h>
 
-#include <fstream>
-#include <string>
 #include <vector>
 
 /// @class TopologicalFiniteDiffChargeMonitor
@@ -64,13 +63,9 @@ class TopologicalFiniteDiffChargeMonitor : public Monitor {
   ConvergenceStatus convergence_status() override;
 
  private:
-  static std::string tsv_header();
-
   double local_topological_charge(const int i) const;
 
-
-  std::string name_ = "topological-charge-finite-diff";
-  std::ofstream outfile;
+  jams::output::TsvWriter tsv_;
 
   // basically a CSR matrix
   std::vector<std::vector<int>> dx_indices_;
@@ -87,6 +82,5 @@ class TopologicalFiniteDiffChargeMonitor : public Monitor {
 };
 
 #endif //INCLUDED_JAMS_MONITORS_TOPOLOGICAL_CHARGE_FINITE_DIFF
-
 
 

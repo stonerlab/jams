@@ -1,7 +1,8 @@
 // Copyright 2014 Joseph Barker. All rights reserved.
 
 #include <string>
-#include <iomanip>
+#include <utility>
+#include <vector>
 
 #include "jams/helpers/consts.h"
 #include "jams/core/globals.h"
@@ -13,11 +14,8 @@
 
 SpinTemperatureMonitor::SpinTemperatureMonitor(const libconfig::Setting &settings)
 : Monitor(settings),
-tsv_file(jams::output::full_path_filename("spin_T.tsv"))
-{
-  tsv_file.setf(std::ios::right);
-  tsv_file << tsv_header();
-}
+  tsv_(make_tsv_writer())
+{}
 
 void SpinTemperatureMonitor::update(Solver& solver) {
   const auto spins = globals::s.host_view();
@@ -38,20 +36,16 @@ void SpinTemperatureMonitor::update(Solver& solver) {
 
   const auto spin_temperature = sum_s_cross_h / (2.0 * kBoltzmannIU * sum_s_dot_h);
 
-  tsv_file.width(12);
-  tsv_file << std::scientific << solver.time() << "\t";
-  tsv_file << std::fixed << solver.physics()->temperature() << "\t";
-  tsv_file << std::scientific << spin_temperature << "\n";
+  tsv_.write_row_values(solver.time(), solver.physics()->temperature(), spin_temperature);
 }
 
-std::string SpinTemperatureMonitor::tsv_header() {
-  std::stringstream ss;
-  ss.width(12);
+jams::output::TsvWriter SpinTemperatureMonitor::make_tsv_writer() const {
+  std::vector<jams::output::ColDef> cols = {
+      {"time", "picoseconds"},
+      {"thermostat_T", "K", jams::output::ColFmt::Fixed},
+      {"spin_T", "K"}};
 
-  ss << "time\t";
-  ss << "thermostat_T" << "\t";
-  ss << "spin_T" << "\t";
-  ss << std::endl;
-
-  return ss.str();
+  return jams::output::TsvWriter(
+      jams::output::monitor_filename(name(), "tsv"),
+      std::move(cols));
 }

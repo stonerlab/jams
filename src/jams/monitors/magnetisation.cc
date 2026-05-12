@@ -83,7 +83,7 @@ jams::output::TsvWriter MagnetisationMonitor::make_tsv_writer(const libconfig::S
   }
 
   return jams::output::TsvWriter(
-    jams::output::full_path_filename("mag.tsv"),
+    jams::output::monitor_filename(name(), "tsv"),
     std::move(cols),
     precision
   );

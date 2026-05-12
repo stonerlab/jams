@@ -23,13 +23,6 @@ class Solver;
 // with the monitor. This may mean performing the FFT twice, but presumably the structure factor is being
 // calculated much less frequently than every integration step.
 
-namespace {
-    std::ostream& float_format(std::ostream& out)
-    {
-      return out << std::setprecision(8) << std::setw(12) << std::fixed;
-    }
-}
-
 SpectrumFourierMonitor::SpectrumFourierMonitor(const libconfig::Setting &settings)
 : Monitor(settings) {
   settings.lookupValue("output_sublattice", output_sublattice_enabled_);
@@ -269,39 +262,40 @@ void SpectrumFourierMonitor::fft_time() {
     // output DSF for each position in the unit cell
 
     if (output_sublattice_enabled_) {
-      std::ofstream unit_cell_sqw_file(jams::output::full_path_filename("sqw_" + std::to_string(unit_cell_atom) + ".tsv"));
-      unit_cell_sqw_file.width(12);
-      unit_cell_sqw_file << "k_index\t";
-      unit_cell_sqw_file << "k_total\t";
-      unit_cell_sqw_file << "u\t";
-      unit_cell_sqw_file << "v\t";
-      unit_cell_sqw_file << "w\t";
-      unit_cell_sqw_file << "freq\t";
-      unit_cell_sqw_file << "re_sx\t";
-      unit_cell_sqw_file << "im_sx\t";
-      unit_cell_sqw_file << "re_sy\t";
-      unit_cell_sqw_file << "im_sy\t";
-      unit_cell_sqw_file << "re_sz\t";
-      unit_cell_sqw_file << "im_sz\n";
+      jams::output::TsvWriter unit_cell_sqw_tsv(
+          jams::output::monitor_filename(name() + "_sqw_" + std::to_string(unit_cell_atom), "tsv"),
+          {{"k_index", "none", jams::output::ColFmt::Integer},
+           {"k_total", "lattice constants^-1", jams::output::ColFmt::Fixed},
+           {"u", "rlu", jams::output::ColFmt::Fixed},
+           {"v", "rlu", jams::output::ColFmt::Fixed},
+           {"w", "rlu", jams::output::ColFmt::Fixed},
+           {"freq", "Hz", jams::output::ColFmt::Fixed},
+           {"re_sx", "dimensionless"},
+           {"im_sx", "dimensionless"},
+           {"re_sy", "dimensionless"},
+           {"im_sy", "dimensionless"},
+           {"re_sz", "dimensionless"},
+           {"im_sz", "dimensionless"}});
 
       for (auto i = 0; i < (time_points / 2) + 1; ++i) {
         double total_length = 0.0;
         for (auto j = 0; j < space_points; ++j) {
-          unit_cell_sqw_file << std::setw(5) << std::fixed << j << "\t";
-          unit_cell_sqw_file << float_format << total_length << "\t";
-          unit_cell_sqw_file << float_format << b_uvw_points[j][0] / double(::globals::lattice->kspace_size()[0]) << "\t";
-          unit_cell_sqw_file << float_format << b_uvw_points[j][1] / double(::globals::lattice->kspace_size()[1]) << "\t";
-          unit_cell_sqw_file << float_format << b_uvw_points[j][2] / double(::globals::lattice->kspace_size()[2]) << "\t";
-          unit_cell_sqw_file << float_format << i * freq_delta / 1e12 << "\t";
-          unit_cell_sqw_file << float_format << norm * fft_sqw_x(i, j).real() << "\t" << norm * fft_sqw_x(i, j).imag() << "\t";
-          unit_cell_sqw_file << float_format << norm * fft_sqw_y(i, j).real() << "\t" << norm * fft_sqw_y(i, j).imag() << "\t";
-          unit_cell_sqw_file << float_format << norm * fft_sqw_z(i, j).real() << "\t" << norm * fft_sqw_z(i, j).imag() << "\n";
+          unit_cell_sqw_tsv.write_row_values(
+              j,
+              total_length,
+              b_uvw_points[j][0] / double(::globals::lattice->kspace_size()[0]),
+              b_uvw_points[j][1] / double(::globals::lattice->kspace_size()[1]),
+              b_uvw_points[j][2] / double(::globals::lattice->kspace_size()[2]),
+              i * freq_delta / 1e12,
+              norm * fft_sqw_x(i, j).real(),
+              norm * fft_sqw_x(i, j).imag(),
+              norm * fft_sqw_y(i, j).real(),
+              norm * fft_sqw_y(i, j).imag(),
+              norm * fft_sqw_z(i, j).real(),
+              norm * fft_sqw_z(i, j).imag());
           total_length += bz_lengths[j];
         }
-        unit_cell_sqw_file << std::endl;
       }
-
-      unit_cell_sqw_file.close();
     }
 
     for (auto i = 0; i < time_points; ++i) {
@@ -313,18 +307,17 @@ void SpectrumFourierMonitor::fft_time() {
     }
   }
 
-  std::ofstream sqwfile(jams::output::full_path_filename("sqw.tsv"));
-
-  sqwfile.width(12);
-  sqwfile << "k_index\t";
-  sqwfile << "k_total\t";
-  sqwfile << "u\t";
-  sqwfile << "v\t";
-  sqwfile << "w\t";
-  sqwfile << "freq\t";
-  sqwfile << "abs_sx\t";
-  sqwfile << "abs_sy\t";
-  sqwfile << "abs_sz\n";
+  jams::output::TsvWriter sqw_tsv(
+      jams::output::monitor_filename(name() + "_sqw", "tsv"),
+      {{"k_index", "none", jams::output::ColFmt::Integer},
+       {"k_total", "lattice constants^-1", jams::output::ColFmt::Fixed},
+       {"u", "rlu", jams::output::ColFmt::Fixed},
+       {"v", "rlu", jams::output::ColFmt::Fixed},
+       {"w", "rlu", jams::output::ColFmt::Fixed},
+       {"freq", "Hz", jams::output::ColFmt::Fixed},
+       {"abs_sx", "dimensionless"},
+       {"abs_sy", "dimensionless"},
+       {"abs_sz", "dimensionless"}});
 
   double total_length = 0.0;
   double region_length = 0.0;
@@ -332,24 +325,21 @@ void SpectrumFourierMonitor::fft_time() {
     for (auto i = 0; i < (time_points/2) + 1; ++i) {
       region_length = 0.0;
       for (auto j = bz_points_path_count[bz_region]; j < bz_points_path_count[bz_region+1]; ++j) {
-        sqwfile << std::setw(5) << std::fixed << j << "\t";
-        sqwfile << float_format << region_length + total_length + 0.5 * bz_lengths[j] << "\t";
-        sqwfile << float_format << b_uvw_points[j][0] / double(::globals::lattice->kspace_size()[0]) << "\t";
-        sqwfile << float_format << b_uvw_points[j][1] / double(::globals::lattice->kspace_size()[1]) << "\t";
-        sqwfile << float_format << b_uvw_points[j][2] / double(::globals::lattice->kspace_size()[2]) << "\t";
-        sqwfile << float_format << i*freq_delta / 1e12 << "\t";
-        sqwfile << float_format << sqrt(total_sqw_x(i,j)) << "\t";
-        sqwfile << float_format << sqrt(total_sqw_y(i,j)) << "\t";
-        sqwfile << float_format << sqrt(total_sqw_z(i,j)) << "\n";
+        sqw_tsv.write_row_values(
+            j,
+            region_length + total_length + 0.5 * bz_lengths[j],
+            b_uvw_points[j][0] / double(::globals::lattice->kspace_size()[0]),
+            b_uvw_points[j][1] / double(::globals::lattice->kspace_size()[1]),
+            b_uvw_points[j][2] / double(::globals::lattice->kspace_size()[2]),
+            i * freq_delta / 1e12,
+            sqrt(total_sqw_x(i,j)),
+            sqrt(total_sqw_y(i,j)),
+            sqrt(total_sqw_z(i,j)));
         region_length += bz_lengths[j];
       }
-      sqwfile << std::endl;
     }
-    sqwfile << std::endl;
     total_length += region_length;
   }
-
-  sqwfile.close();
 
   fftw_destroy_plan(fft_plan_time_x);
   fftw_destroy_plan(fft_plan_time_y);

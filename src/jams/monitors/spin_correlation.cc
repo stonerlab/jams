@@ -1,4 +1,3 @@
-#include <fstream>
 #include "jams/monitors/spin_correlation.h"
 
 #include "jams/core/globals.h"
@@ -95,22 +94,26 @@ void SpinCorrelationMonitor::post_process() {
   }
 
   {
-    std::ofstream of(jams::output::full_path_filename("corr_outplane.tsv"));
-    of << "delta_r\tCzz\n";
+    jams::output::TsvWriter tsv(
+        jams::output::monitor_filename(name() + "_outplane", "tsv"),
+        {{"delta_r", "lattice constants", jams::output::ColFmt::Fixed},
+         {"Czz", "dimensionless"}});
     for (auto x : out_of_plane_sz_corr_histogram_) {
       auto delta_r = sqrt(x.first);
       auto Czz = (x.second.total / double(x.second.count));
-      of << std::fixed << delta_r << "\t" << std::scientific << Czz << "\n";
+      tsv.write_row_values(delta_r, Czz);
     }
   }
 
   {
-    std::ofstream of(jams::output::full_path_filename("corr_inplane.tsv"));
-    of << "delta_r\tCzz\n";
+    jams::output::TsvWriter tsv(
+        jams::output::monitor_filename(name() + "_inplane", "tsv"),
+        {{"delta_r", "lattice constants", jams::output::ColFmt::Fixed},
+         {"Czz", "dimensionless"}});
     for (auto x : in_plane_sz_corr_histogram_) {
         auto delta_r = sqrt(x.first);
         auto Czz = (x.second.total / double(x.second.count));
-        of << std::fixed << delta_r << "\t" << std::scientific << Czz << "\n";
+        tsv.write_row_values(delta_r, Czz);
     }
   }
 }

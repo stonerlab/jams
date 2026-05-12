@@ -1,6 +1,8 @@
 // Copyright 2014 Joseph Barker. All rights reserved.
 
 #include <algorithm>
+#include <memory>
+#include <stdexcept>
 #include <string>
 #include <type_traits>
 #include <jams/interface/config.h>
@@ -120,12 +122,26 @@ void Solver::update_thermostat() {
 
 
 void Solver::register_monitor(Monitor* monitor) {
-  monitors_.push_back(static_cast<std::unique_ptr<Monitor>>(monitor));
+  auto owned_monitor = std::unique_ptr<Monitor>(monitor);
+  if (std::any_of(monitors_.begin(), monitors_.end(), [&](const auto& existing) {
+        return existing->name() == owned_monitor->name();
+      })) {
+    throw std::runtime_error("duplicate monitor instance name '" + owned_monitor->name() + "'");
+  }
+
+  monitors_.push_back(std::move(owned_monitor));
 }
 
 
 void Solver::register_hamiltonian(Hamiltonian* hamiltonian) {
-  hamiltonians_.push_back(static_cast<std::unique_ptr<Hamiltonian>>(hamiltonian));
+  auto owned_hamiltonian = std::unique_ptr<Hamiltonian>(hamiltonian);
+  if (std::any_of(hamiltonians_.begin(), hamiltonians_.end(), [&](const auto& existing) {
+        return existing->name() == owned_hamiltonian->name();
+      })) {
+    throw std::runtime_error("duplicate hamiltonian instance name '" + owned_hamiltonian->name() + "'");
+  }
+
+  hamiltonians_.push_back(std::move(owned_hamiltonian));
 }
 
 

@@ -4,11 +4,10 @@
 #define JAMS_MONITOR_MAGNETISATION_RATE_H
 
 #include <jams/core/monitor.h>
+#include <jams/helpers/output.h>
 #include <jams/helpers/stats.h>
 #include <jams/monitors/spin_grouping.h>
 
-#include <fstream>
-#include <string>
 #include <vector>
 
 class Solver;
@@ -25,10 +24,11 @@ public:
     ConvergenceStatus convergence_status() override;
 
 private:
-    std::ofstream tsv_file;
-    std::string   tsv_header();
-
+    jams::output::TsvWriter make_tsv_writer() const;
+    jams::monitors::SpinGrouping grouping_ = jams::monitors::SpinGrouping::MATERIALS;
     std::vector<jams::monitors::SpinGroup> spin_groups_;
+    int precision_ = 8;
+    jams::output::TsvWriter tsv_;
     Stats magnetisation_stats_;
     double convergence_geweke_diagnostic_;
 };

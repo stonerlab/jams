@@ -22,8 +22,8 @@
 /// different numbers of atoms (but the same magnetic moment) then the total
 /// magnetisation of those layers will be different.
 ///
-/// The data is written to a h5 file "<simulation_name>_monitor.h5" in the
-/// group "/jams/monitors/magnetisation_layers". The group contains the
+/// The data is written to the monitor h5 file in the group
+/// "/jams/monitors/<monitor-name>". The group contains the
 /// datasets:
 ///
 /// - num_layers:       The number of layers calculated
@@ -35,9 +35,9 @@
 /// - layer_spin_count: Number of spins in each layer
 ///                     (shape = [num_layers], type = int)
 ///
-/// For each output a new group is made in /jams/monitors/magnetisation_layers
+/// For each output a new group is made in /jams/monitors/<monitor-name>
 /// with the solver iteration as the group name (zero padded of length 9).
-/// e.g. /jams/monitors/magnetisation_layers/000000000 will be the first output.
+/// e.g. /jams/monitors/magnetisation-layers/000000000 will be the first output.
 /// Each of these groups has the attribute "time" which is the solver time
 /// at the output iteration. The group contains the datasets:
 ///
@@ -93,12 +93,12 @@ public:
 private:
     jams::monitors::SpinGrouping grouping_ = jams::monitors::SpinGrouping::NONE;
 
-    std::string h5_group_root_name_ = "/jams/monitors/magnetisation_layers/";
+    std::string h5_group_root_name_;
 
     std::vector<jams::monitors::SpinGroup> spin_groups_;
     std::vector<int> group_num_layers_;
     std::vector<jams::MultiArray<double,2>>           group_layer_magnetisation_;
-    std::vector<std::vector<jams::MultiArray<int,1>>> group_layer_spin_indicies_;
+    std::vector<std::vector<jams::MultiArray<int,1>>> group_layer_spin_indices_;
 };
 
 #endif

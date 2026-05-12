@@ -4,10 +4,9 @@
 #define JAMS_MONITOR_SMR_H
 
 #include <jams/core/monitor.h>
+#include <jams/helpers/output.h>
 #include <jams/monitors/spin_grouping.h>
 
-#include <fstream>
-#include <string>
 #include <vector>
 
 class Solver;
@@ -22,11 +21,11 @@ public:
     void post_process() override {};
 
 private:
-    std::ofstream tsv_file;
+    jams::output::TsvWriter make_tsv_writer() const;
+    jams::monitors::SpinGrouping grouping_ = jams::monitors::SpinGrouping::MATERIALS;
     std::vector<jams::monitors::SpinGroup> spin_groups_;
-
-    std::string tsv_header();
-
+    int precision_ = 8;
+    jams::output::TsvWriter tsv_;
 };
 
 #endif  // JAMS_MONITOR_SMR_H

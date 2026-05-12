@@ -192,7 +192,6 @@ Hamiltonian::Hamiltonian(const libconfig::Setting &settings, const unsigned int 
 
   input_distance_unit_conversion_ = internal_distance_unit_conversion.at(input_distance_unit_name_);
 
-  set_name(settings["module"].c_str());
   std::cout << "  " << name() << " hamiltonian\n";
 
 

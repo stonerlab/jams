@@ -3,7 +3,9 @@
 //
 
 #include <cerrno>
+#include <cctype>
 #include <cstring>
+#include <filesystem>
 #include <iostream>
 #include <fstream>
 
@@ -74,6 +76,59 @@ namespace jams {
           auto sep = base.empty() ? "" : "_";
           auto ext = file_extension(ending);
           return output_path() + ::globals::simulation_name + sep + base + "_" + zero_pad_number(num, width) + "." + ext;
+        }
+
+        std::string safe_filename_token(std::string token) {
+          if (token.empty()) {
+            throw std::runtime_error("output filename token must not be empty");
+          }
+
+          for (auto& ch : token) {
+            const auto uch = static_cast<unsigned char>(ch);
+            if (!std::isalnum(uch) && ch != '.' && ch != '_' && ch != '-') {
+              ch = '_';
+            }
+          }
+
+          return token;
+        }
+
+        std::string instance_filename(
+            const std::string& instance_group,
+            const std::string& instance_name,
+            const std::string& extension) {
+          namespace fs = std::filesystem;
+
+          auto ext = extension;
+          while (!ext.empty() && ext.front() == '.') {
+            ext.erase(ext.begin());
+          }
+          if (ext.empty()) {
+            throw std::runtime_error("output extension must not be empty");
+          }
+
+          auto directory = fs::path(output_path()) / (::globals::simulation_name + "_" + safe_filename_token(instance_group));
+          fs::create_directories(directory);
+
+          auto filename = safe_filename_token(instance_name) + "." + ext;
+          return (directory / filename).string();
+        }
+
+        std::string monitor_filename(const std::string& monitor_name, const std::string& extension) {
+          return instance_filename("monitors", monitor_name, extension);
+        }
+
+        std::string monitor_filename_series(
+            const std::string& monitor_name,
+            const std::string& extension,
+            int num,
+            int width) {
+          const auto base = safe_filename_token(monitor_name) + "_" + zero_pad_number(num, width);
+          return monitor_filename(base, extension);
+        }
+
+        std::string hamiltonian_filename(const std::string& hamiltonian_name, const std::string& extension) {
+          return instance_filename("hamiltonians", hamiltonian_name, extension);
         }
 
 

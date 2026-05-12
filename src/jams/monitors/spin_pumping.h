@@ -4,10 +4,9 @@
 #define JAMS_MONITOR_SPIN_PUMPING_H
 
 #include <jams/core/monitor.h>
+#include <jams/helpers/output.h>
 #include <jams/monitors/spin_grouping.h>
 
-#include <fstream>
-#include <string>
 #include <vector>
 #include <jams/containers/multiarray.h>
 
@@ -25,10 +24,11 @@ public:
     bool is_updating(const int &iteration) override;
 
 private:
-    std::string      tsv_header();
-
-    std::ofstream    tsv_file_;
+    jams::output::TsvWriter make_tsv_writer() const;
+    jams::monitors::SpinGrouping grouping_ = jams::monitors::SpinGrouping::MATERIALS;
     std::vector<jams::monitors::SpinGroup> spin_groups_;
+    int precision_ = 8;
+    jams::output::TsvWriter tsv_;
 
     jams::MultiArray<double,2> s_old_;
 

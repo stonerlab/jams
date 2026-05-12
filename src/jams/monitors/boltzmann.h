@@ -4,8 +4,8 @@
 #define JAMS_MONITOR_BOLTZMANN_H
 
 #include <jams/core/monitor.h>
+#include <jams/helpers/output.h>
 
-#include <fstream>
 #include <vector>
 
 class BoltzmannMonitor : public Monitor {
@@ -20,7 +20,7 @@ private:
     std::vector<double> bins_;
     double total_;
     double delay_time_;
-    std::ofstream tsv_file;
+    jams::output::TsvWriter tsv_;
 };
 
 #endif  // JAMS_MONITOR_BOLTZMANN_H

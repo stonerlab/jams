@@ -51,7 +51,7 @@ void XyzMonitor::update(Solver& solver) {
     int outcount = solver.iteration()/output_step_freq_;  // int divisible by modulo above
 
     const auto spins = globals::s.host_view();
-    std::ofstream xyz_state_file(jams::output::full_path_filename_series(".xyz", outcount));
+    std::ofstream xyz_state_file(jams::output::monitor_filename_series(name(), "xyz", outcount));
 
     // file header
     xyz_state_file << "#";

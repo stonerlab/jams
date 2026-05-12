@@ -4,6 +4,7 @@
 
 #include <string>
 #include <cmath>
+#include <vector>
 
 #include "jams/core/solver.h"
 #include "jams/core/types.h"
@@ -17,7 +18,9 @@ BoltzmannMonitor::BoltzmannMonitor(const libconfig::Setting &settings)
 bins_(90, 0.0),
 total_(0),
 delay_time_(jams::config_optional<double>(settings, "delay_time", 0.0)/1e-12),
-tsv_file(jams::output::full_path_filename("blt.tsv")) {
+tsv_(jams::output::monitor_filename(name(), "tsv"),
+     {{"theta_deg", "degrees", jams::output::ColFmt::Fixed},
+      {"probability", "dimensionless"}}) {
 }
 
 void BoltzmannMonitor::update(Solver& solver) {
@@ -40,11 +43,9 @@ void BoltzmannMonitor::update(Solver& solver) {
 
 void BoltzmannMonitor::post_process()
 {
-  tsv_file << "theta_deg probability\n";
   if (total_ > 0.0) {
     for (int i = 0; i < 90; ++i) {
-      tsv_file << i * 2 + 1.0 << "\t" << bins_[i] / total_ << "\n";
+      tsv_.write_row_values(i * 2 + 1.0, bins_[i] / total_);
     }
-    tsv_file << "\n" << std::endl;
   }
 }

@@ -5,7 +5,6 @@
 #include <jams/core/solver.h>
 #include <jams/helpers/maths.h>
 
-#include <fstream>
 #include <memory>
 #include <jams/helpers/output.h>
 #include <jams/core/globals.h>
@@ -125,8 +124,7 @@ FieldPulseHamiltonian::FieldPulseHamiltonian(const libconfig::Setting &settings,
     throw std::runtime_error("Unknown field pulse type " + pulse_type);
   }
 
-  std::ofstream pulse_file(jams::output::full_path_filename("field_pulse.tsv"));
-  output_pulse(pulse_file);
+  output_pulse();
 }
 
 jams::Vec<jams::Real, 3> FieldPulseHamiltonian::calculate_field(int i, jams::Real time) {
@@ -142,19 +140,17 @@ jams::Real FieldPulseHamiltonian::calculate_energy(int i, jams::Real time) {
 }
 
 
-void FieldPulseHamiltonian::output_pulse(std::ofstream& os) {
-  if (!os.is_open()) {
-    os.open(jams::output::full_path_filename("field_pulse.tsv"));
-    os << "time  Hx  Hy  Hz\n";
-  }
-
+void FieldPulseHamiltonian::output_pulse() const {
+  jams::output::TsvWriter tsv(
+      jams::output::hamiltonian_filename(name(), "tsv"),
+      {{"time", "picoseconds"},
+       {"Hx", "T", jams::output::ColFmt::Fixed},
+       {"Hy", "T", jams::output::ColFmt::Fixed},
+       {"Hz", "T", jams::output::ColFmt::Fixed}});
 
   for (auto i = 0; i < globals::solver->max_steps(); ++i) {
     auto time = i * globals::solver->time_step();
     auto field = temporal_field_pulse_->max_field(time);
-    os << jams::fmt::sci << time;
-    os << jams::fmt::decimal << field[0];
-    os << jams::fmt::decimal << field[1];
-    os << jams::fmt::decimal << field[2] << "\n";
+    tsv.write_row_values(time, field[0], field[1], field[2]);
   }
 }

@@ -34,7 +34,7 @@ void EnergyMonitor::update(Solver& solver) {
 }
 
 
-jams::output::TsvWriter EnergyMonitor::make_tsv_writer(const libconfig::Setting &settings) {
+jams::output::TsvWriter EnergyMonitor::make_tsv_writer(const libconfig::Setting &settings) const {
   auto precision = jams::config_optional<int>(settings, "precision", 8);
 
   std::vector<jams::output::ColDef> cols;
@@ -45,9 +45,8 @@ jams::output::TsvWriter EnergyMonitor::make_tsv_writer(const libconfig::Setting 
   }
 
   return jams::output::TsvWriter(
-      jams::output::full_path_filename("eng.tsv"),
+      jams::output::monitor_filename(name(), "tsv"),
       std::move(cols),
       precision
   );
 }
-

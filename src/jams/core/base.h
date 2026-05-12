@@ -24,7 +24,11 @@ public:
     inline const std::string& name() const;
     inline void set_name(const std::string &value);
 
+    inline const std::string& module_name() const;
+    inline void set_module_name(const std::string &value);
+
 private:
+    std::string module_name_;
     std::string name_;
     bool verbose_ = false;
     bool debug_   = false;
@@ -54,5 +58,12 @@ inline void Base::set_name(const std::string &value) {
   name_ = value;
 }
 
+inline const std::string& Base::module_name() const {
+  return module_name_;
+}
+
+inline void Base::set_module_name(const std::string& value) {
+  module_name_ = value;
+}
 
 #endif //JAMS_BASE_H

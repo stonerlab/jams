@@ -1,7 +1,7 @@
 // Copyright 2014 Joseph Barker. All rights reserved.
 
 #include <string>
-#include <iomanip>
+#include <utility>
 #include <vector>
 #include <iostream>
 
@@ -9,19 +9,19 @@
 #include "jams/core/lattice.h"
 #include "jams/core/solver.h"
 #include "jams/helpers/output.h"
+#include "jams/interface/config.h"
 
 #include "smr.h"
 
 SMRMonitor::SMRMonitor(const libconfig::Setting &settings)
 : Monitor(settings),
-  tsv_file(jams::output::full_path_filename("smr.tsv")),
-  spin_groups_(jams::monitors::make_spin_groups(jams::monitors::SpinGrouping::MATERIALS))
+  grouping_(jams::monitors::parse_spin_grouping(settings, "materials", "smr")),
+  spin_groups_(jams::monitors::make_spin_groups(grouping_)),
+  precision_(jams::config_optional<int>(settings, "precision", 8)),
+  tsv_(make_tsv_writer())
 {
   std::cout << "\ninitialising SMR monitor\n";
   std::cout << "  assumes axes j->x, t->y, n->z\n";
-
-  tsv_file.setf(std::ios::right);
-  tsv_file << tsv_header();
 }
 
 void SMRMonitor::update(Solver& solver) {
@@ -65,31 +65,35 @@ void SMRMonitor::update(Solver& solver) {
     }
   }
 
-  tsv_file << std::setw(12) << std::scientific << solver.time() << "\t";
+  std::vector<double> values;
+  values.reserve(tsv_.num_cols());
+  values.push_back(solver.time());
 
   for (std::size_t i = 0; i < spin_groups_.size(); ++i) {
-    tsv_file << std::setw(12) << mtsq_para[i] << "\t" << mtsq_perp[i] << "\t";
-    tsv_file << std::setw(12) << mjmt_para[i] << "\t" << mjmt_perp[i] << "\t";
-    tsv_file << std::setw(12) << mn[i] << "\t";
+    values.push_back(mtsq_para[i]);
+    values.push_back(mtsq_perp[i]);
+    values.push_back(mjmt_para[i]);
+    values.push_back(mjmt_perp[i]);
+    values.push_back(mn[i]);
   }
 
-  tsv_file << std::endl;
+  tsv_.write_row(values);
 }
 
-std::string SMRMonitor::tsv_header() {
-  std::stringstream ss;
-  ss.width(12);
+jams::output::TsvWriter SMRMonitor::make_tsv_writer() const {
+  std::vector<jams::output::ColDef> cols;
+  cols.push_back({"time", "picoseconds"});
 
-  ss << "time\t";
   for (const auto& group : spin_groups_) {
-    ss << group.name + "_mtsq_para" << "\t";
-    ss << group.name + "_mtsq_perp" << "\t";
-    ss << group.name + "_mjmt_para" << "\t";
-    ss << group.name + "_mjmt_perp" << "\t";
-    ss << group.name + "_mn" << "\t";
+    for (const auto& component : {"mtsq_para", "mtsq_perp", "mjmt_para", "mjmt_perp", "mn"}) {
+      cols.push_back({
+          jams::monitors::grouped_column_name(grouping_, group.name, component),
+          "dimensionless"});
+    }
   }
 
-  ss << std::endl;
-
-  return ss.str();
+  return jams::output::TsvWriter(
+      jams::output::monitor_filename(name(), "tsv"),
+      std::move(cols),
+      precision_);
 }

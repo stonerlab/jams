@@ -41,11 +41,11 @@ void MagnonDensityMonitor::update(Solver& solver)
 
 void MagnonDensityMonitor::output_magnon_density()
 {
-    std::ofstream ofs(jams::output::full_path_filename("magnon_density.tsv"));
-    ofs << jams::fmt::decimal << " f_THz";
-    ofs << jams::fmt::decimal << " E_meV";
-    ofs << jams::fmt::decimal << " magnon_density_meV^-1_m^-3";
-    ofs << std::endl;
+    jams::output::TsvWriter tsv(
+        jams::output::monitor_filename(name(), "tsv"),
+        {{"f_THz", "THz", jams::output::ColFmt::Fixed},
+         {"E_meV", "meV", jams::output::ColFmt::Fixed},
+         {"magnon_density_meV^-1_m^-3", "meV^-1 m^-3"}});
 
     const int time_points = periodogram_length();
 
@@ -102,13 +102,11 @@ void MagnonDensityMonitor::output_magnon_density()
                                                        : static_cast<int>(f) - static_cast<int>(time_points);
         const auto freq_thz = static_cast<double>(freq_index) * frequency_resolution_thz();
 
-        ofs << jams::fmt::decimal << freq_thz;
-        ofs << jams::fmt::decimal << freq_thz * kTHz2meV;
-        ofs << jams::fmt::sci << (prefactor * wfreq / kTHz2meV) * cumulative_magnon_density_(static_cast<std::size_t>(f));
-        ofs << "\n";
+        tsv.write_row_values(
+            freq_thz,
+            freq_thz * kTHz2meV,
+            (prefactor * wfreq / kTHz2meV) * cumulative_magnon_density_(static_cast<std::size_t>(f)));
     }
-
-    ofs.close();
 }
 
 void MagnonDensityMonitor::accumulate_magnon_density()

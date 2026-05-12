@@ -10,9 +10,9 @@
 #include <jams/containers/multiarray.h>
 #include <jams/core/monitor.h>
 #include <jams/cuda/cuda_stream.h>
+#include <jams/helpers/output.h>
 
 #include <string>
-#include <fstream>
 
 jams::Vec<double, 3> execute_cuda_thermal_current_kernel(
     CudaStream &stream,
@@ -33,9 +33,6 @@ public:
     void update(Solver& solver);
     void post_process() override {};
 
-    inline std::string name() const {return "cuda-thermal-current";}
-
-
 private:
     CudaStream stream;
 
@@ -43,7 +40,7 @@ private:
 
     ThreeSpinList generate_three_spin_from_two_spin_interactions(const jams::InteractionList<jams::Mat<double, 3, 3>, 2>& nbr_list);
 
-    std::ofstream outfile;
+    jams::output::TsvWriter tsv_;
 
     jams::InteractionMatrix<jams::Vec<double, 3>, double> interaction_matrix_;
 

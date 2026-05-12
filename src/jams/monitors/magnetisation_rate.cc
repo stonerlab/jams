@@ -2,7 +2,8 @@
 
 #include <cmath>
 #include <string>
-#include <iomanip>
+#include <utility>
+#include <vector>
 #include "jams/helpers/consts.h"
 
 #include "jams/core/globals.h"
@@ -10,19 +11,19 @@
 #include "jams/core/physics.h"
 #include "jams/core/solver.h"
 #include "jams/helpers/output.h"
+#include "jams/interface/config.h"
 
 #include "magnetisation_rate.h"
 
 MagnetisationRateMonitor::MagnetisationRateMonitor(const libconfig::Setting &settings)
 : Monitor(settings),
-  tsv_file(jams::output::full_path_filename("dm_dt.tsv")),
-  spin_groups_(jams::monitors::make_spin_groups(jams::monitors::SpinGrouping::MATERIALS)),
+  grouping_(jams::monitors::parse_spin_grouping(settings, "materials", "magnetisation-rate")),
+  spin_groups_(jams::monitors::make_spin_groups(grouping_)),
+  precision_(jams::config_optional<int>(settings, "precision", 8)),
+  tsv_(make_tsv_writer()),
   magnetisation_stats_(),
   convergence_geweke_diagnostic_(100.0)   // number much larger than 1
-{
-  tsv_file.setf(std::ios::right);
-  tsv_file << tsv_header();
-}
+{}
 
 void MagnetisationRateMonitor::update(Solver& solver) {
   const auto ds_dt = globals::ds_dt.host_view();
@@ -43,12 +44,13 @@ void MagnetisationRateMonitor::update(Solver& solver) {
     }
   }
 
-  tsv_file.width(12);
-  tsv_file << std::scientific << solver.time() << "\t";
+  std::vector<double> values;
+  values.reserve(tsv_.num_cols());
+  values.push_back(solver.time());
 
   for (std::size_t type = 0; type < spin_groups_.size(); ++type) {
     for (auto j = 0; j < 3; ++j) {
-      tsv_file << dm_dt[type][j] << "\t";
+      values.push_back(dm_dt[type][j]);
     }
   }
 
@@ -61,10 +63,10 @@ void MagnetisationRateMonitor::update(Solver& solver) {
       magnetisation_stats_.add(total_dm_dt);
       double nse = 0.0;
       magnetisation_stats_.geweke(convergence_geweke_diagnostic_, nse);
-      tsv_file << convergence_geweke_diagnostic_;
+      values.push_back(convergence_geweke_diagnostic_);
     }
 
-    tsv_file << std::endl;
+  tsv_.write_row(values);
 }
 
 Monitor::ConvergenceStatus MagnetisationRateMonitor::convergence_status() {
@@ -72,29 +74,30 @@ Monitor::ConvergenceStatus MagnetisationRateMonitor::convergence_status() {
     return convergence_status_;
   }
 
-  if (std::abs(convergence_geweke_diagnostic_) < convergence_tolerance_) {
-    convergence_status_ = ConvergenceStatus::kConverged;
-  }
-
-  return ConvergenceStatus::kNotConverged;
+  convergence_status_ = std::abs(convergence_geweke_diagnostic_) < convergence_tolerance_
+      ? ConvergenceStatus::kConverged
+      : ConvergenceStatus::kNotConverged;
+  return convergence_status_;
 }
 
-std::string MagnetisationRateMonitor::tsv_header() {
-  std::stringstream ss;
-  ss.width(12);
-
-  ss << "time\t";
+jams::output::TsvWriter MagnetisationRateMonitor::make_tsv_writer() const {
+  std::vector<jams::output::ColDef> cols;
+  cols.push_back({"time", "picoseconds"});
 
   for (const auto& group : spin_groups_) {
-    ss << group.name + "_dmx_dt\t";
-    ss << group.name + "_dmy_dt\t";
-    ss << group.name + "_dmz_dt\t";
+    for (const auto& component : {"dmx_dt", "dmy_dt", "dmz_dt"}) {
+      cols.push_back({
+          jams::monitors::grouped_column_name(grouping_, group.name, component),
+          "ps^-1"});
+    }
   }
 
   if (convergence_status_ != ConvergenceStatus::kDisabled) {
-    ss << "geweke_abs_dm_dt\t";
+    cols.push_back({"geweke_abs_dm_dt", "dimensionless"});
   }
-  ss << std::endl;
 
-  return ss.str();
+  return jams::output::TsvWriter(
+      jams::output::monitor_filename(name(), "tsv"),
+      std::move(cols),
+      precision_);
 }

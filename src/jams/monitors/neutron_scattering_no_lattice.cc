@@ -16,6 +16,8 @@
 #include "jams/helpers/neutrons.h"
 #include <jams/helpers/mixed_precision.h>
 
+#include <utility>
+
 NeutronScatteringNoLatticeMonitor::NeutronScatteringNoLatticeMonitor(const libconfig::Setting &settings)
 : Monitor(settings),
  neartree_(globals::lattice->get_supercell().a1(),
@@ -223,41 +225,62 @@ void NeutronScatteringNoLatticeMonitor::output_static_structure_factor() {
   const auto num_time_points = kspace_spins_timeseries_.extent(0);
 
 
-  std::ofstream ofs(jams::output::full_path_filename("static_structure_factor.tsv"));
-
-  ofs << "index\t" << "qx\t" << "qy\t" << "qz\t" << "q_A-1\t";
-  ofs << "Sxx_re\t" << "Sxx_im\t" << "Sxy_re\t" << "Sxy_im\t" << "Sxz_re\t" << "Sxz_im\t";
-  ofs << "Syx_re\t" << "Syx_im\t" << "Syy_re\t" << "Syy_im\t" << "Syz_re\t" << "Syz_im\t";
-  ofs << "Szx_re\t" << "Szx_im\t" << "Szy_re\t" << "Szy_im\t" << "Szz_re\t" << "Szz_im\n";
+  std::vector<jams::output::ColDef> cols = {
+      {"index", "none", jams::output::ColFmt::Integer},
+      {"qx", "lattice constants^-1", jams::output::ColFmt::Fixed},
+      {"qy", "lattice constants^-1", jams::output::ColFmt::Fixed},
+      {"qz", "lattice constants^-1", jams::output::ColFmt::Fixed},
+      {"q_A-1", "angstrom^-1", jams::output::ColFmt::Fixed}};
+  for (const auto a : {"x", "y", "z"}) {
+    for (const auto b : {"x", "y", "z"}) {
+      cols.push_back({"S" + std::string(a) + b + "_re", "dimensionless"});
+      cols.push_back({"S" + std::string(a) + b + "_im", "dimensionless"});
+    }
+  }
+  jams::output::TsvWriter tsv(
+      jams::output::monitor_filename(name() + "_static_structure_factor", "tsv"),
+      std::move(cols));
 
   for (auto k = 0; k < kspace_path_.size(); ++k) {
-    ofs << jams::fmt::integer << k << "\t";
-    ofs << jams::fmt::decimal << kspace_path_(k) << "\t";
-    ofs << jams::fmt::decimal << kTwoPi * jams::norm(kspace_path_(k)) / (
-        globals::lattice->parameter() * 1e10) << "\t";
+    std::vector<double> values;
+    values.reserve(tsv.num_cols());
+    values.push_back(k);
+    values.push_back(kspace_path_(k)[0]);
+    values.push_back(kspace_path_(k)[1]);
+    values.push_back(kspace_path_(k)[2]);
+    values.push_back(kTwoPi * jams::norm(kspace_path_(k)) / (
+        globals::lattice->parameter() * 1e10));
     for (auto i : {0,1,2}) {
       for (auto j : {0,1,2}) {
         auto s_a = static_structure_factor(k)[i] / double(num_time_points);
         auto s_b = static_structure_factor(k)[j] / double(num_time_points);
         auto s_ab = std::conj(s_a) * s_b;
-        ofs << jams::fmt::sci << s_ab.real() << "\t";
-        ofs << jams::fmt::sci << s_ab.imag() << "\t";
+        values.push_back(s_ab.real());
+        values.push_back(s_ab.imag());
       }
     }
-    ofs << "\n";
+    tsv.write_row(values);
   }
-  ofs.close();
 }
 
 void NeutronScatteringNoLatticeMonitor::output_neutron_cross_section() {
-    std::ofstream ofs(jams::output::full_path_filename("neutron_scattering.tsv"));
-
-    ofs << "index\t" << "qx\t" << "qy\t" << "qz\t" << "q_A-1\t";
-    ofs << "freq_THz\t" << "energy_meV\t" << "sigma_unpol_re\t" << "sigma_unpol_im\t";
+    std::vector<jams::output::ColDef> cols = {
+        {"index", "none", jams::output::ColFmt::Integer},
+        {"qx", "lattice constants^-1", jams::output::ColFmt::Fixed},
+        {"qy", "lattice constants^-1", jams::output::ColFmt::Fixed},
+        {"qz", "lattice constants^-1", jams::output::ColFmt::Fixed},
+        {"q_A-1", "angstrom^-1", jams::output::ColFmt::Fixed},
+        {"freq_THz", "THz", jams::output::ColFmt::Fixed},
+        {"energy_meV", "meV", jams::output::ColFmt::Fixed},
+        {"sigma_unpol_re", "barn sr^-1 J^-1 unitcell^-1"},
+        {"sigma_unpol_im", "barn sr^-1 J^-1 unitcell^-1"}};
     for (auto k = 0; k < total_polarized_neutron_cross_sections_.extent(0); ++k) {
-      ofs << "sigma_pol" << std::to_string(k) << "_re\t" << "sigma_pol" << std::to_string(k) << "_im\t";
+      cols.push_back({"sigma_pol" + std::to_string(k) + "_re", "barn sr^-1 J^-1 unitcell^-1"});
+      cols.push_back({"sigma_pol" + std::to_string(k) + "_im", "barn sr^-1 J^-1 unitcell^-1"});
     }
-    ofs << "\n";
+    jams::output::TsvWriter tsv(
+        jams::output::monitor_filename(name(), "tsv"),
+        std::move(cols));
 
     // sample time is here because the fourier transform in time is not an integral
     // but a discrete sum
@@ -269,25 +292,26 @@ void NeutronScatteringNoLatticeMonitor::output_neutron_cross_section() {
 
     for (auto i = 0; i < (time_points / 2) + 1; ++i) {
       for (auto j = 0; j < kspace_path_.size(); ++j) {
-        ofs << jams::fmt::integer << j << "\t";
-        ofs << jams::fmt::decimal << kspace_path_(j) << "\t";
-        ofs << jams::fmt::decimal << kTwoPi * jams::norm(kspace_path_(j)) / (
-            globals::lattice->parameter() * 1e10) << "\t";
-        ofs << jams::fmt::decimal << (i * freq_delta) << "\t"; // THz
-        ofs << jams::fmt::decimal << (i * freq_delta) * 4.135668 << "\t"; // meV
+        std::vector<double> values;
+        values.reserve(tsv.num_cols());
+        values.push_back(j);
+        values.push_back(kspace_path_(j)[0]);
+        values.push_back(kspace_path_(j)[1]);
+        values.push_back(kspace_path_(j)[2]);
+        values.push_back(kTwoPi * jams::norm(kspace_path_(j)) / (
+            globals::lattice->parameter() * 1e10));
+        values.push_back(i * freq_delta);
+        values.push_back((i * freq_delta) * 4.135668);
         // cross section output units are Barns Steradian^-1 Joules^-1 unitcell^-1
-        ofs << jams::fmt::sci << barns_unitcell * total_unpolarized_neutron_cross_section_(i, j).real() << "\t";
-        ofs << jams::fmt::sci << barns_unitcell * total_unpolarized_neutron_cross_section_(i, j).imag() << "\t";
+        values.push_back(barns_unitcell * total_unpolarized_neutron_cross_section_(i, j).real());
+        values.push_back(barns_unitcell * total_unpolarized_neutron_cross_section_(i, j).imag());
         for (auto k = 0; k < total_polarized_neutron_cross_sections_.extent(0); ++k) {
-          ofs << jams::fmt::sci << barns_unitcell * total_polarized_neutron_cross_sections_(k, i, j).real() << "\t";
-          ofs << jams::fmt::sci << barns_unitcell * total_polarized_neutron_cross_sections_(k, i, j).imag() << "\t";
+          values.push_back(barns_unitcell * total_polarized_neutron_cross_sections_(k, i, j).real());
+          values.push_back(barns_unitcell * total_polarized_neutron_cross_sections_(k, i, j).imag());
         }
-        ofs << "\n";
+        tsv.write_row(values);
       }
-      ofs << std::endl;
     }
-
-    ofs.close();
 }
 
 
@@ -434,11 +458,21 @@ void NeutronScatteringNoLatticeMonitor::output_fixed_spectrum() {
 
   fftw_execute(fft_plan);
 
-  std::ofstream debug(jams::output::full_path_filename("debug.tsv"));
+  jams::output::TsvWriter debug(
+      jams::output::monitor_filename(name() + "_debug", "tsv"),
+      {{"t", "steps", jams::output::ColFmt::Integer},
+       {"s00_re", "dimensionless"},
+       {"s00_im", "dimensionless"},
+       {"s01_re", "dimensionless"},
+       {"s01_im", "dimensionless"}});
   for (auto t = 0; t < num_time_samples; ++t) {
-    debug << t << " " << spin_frequencies_(0, 0, t).real() << " " << spin_frequencies_(0, 0, t).imag() << " " << spin_frequencies_(0, 1, t).real() << " " << spin_frequencies_(0, 1, t).imag() << std::endl;
+    debug.write_row_values(
+        t,
+        spin_frequencies_(0, 0, t).real(),
+        spin_frequencies_(0, 0, t).imag(),
+        spin_frequencies_(0, 1, t).real(),
+        spin_frequencies_(0, 1, t).imag());
   }
-  debug.close();
 
 
   element_scale(spin_frequencies_, 1.0 / double(num_time_samples));
@@ -507,11 +541,17 @@ void NeutronScatteringNoLatticeMonitor::output_fixed_spectrum() {
       }
     }
   }
-  std::ofstream ofs(jams::output::full_path_filename("neutron_scattering_fixed.tsv"));
-
-  ofs << "index\t" << "qx\t" << "qy\t" << "qz\t" << "q_A-1\t";
-  ofs << "freq_THz\t" << "energy_meV\t" << "sigma_unpol_re\t" << "sigma_unpol_im\t";
-  ofs << "\n";
+  jams::output::TsvWriter fixed_tsv(
+      jams::output::monitor_filename(name() + "_fixed", "tsv"),
+      {{"index", "none", jams::output::ColFmt::Integer},
+       {"qx", "lattice constants^-1", jams::output::ColFmt::Fixed},
+       {"qy", "lattice constants^-1", jams::output::ColFmt::Fixed},
+       {"qz", "lattice constants^-1", jams::output::ColFmt::Fixed},
+       {"q_A-1", "angstrom^-1", jams::output::ColFmt::Fixed},
+       {"freq_THz", "THz", jams::output::ColFmt::Fixed},
+       {"energy_meV", "meV", jams::output::ColFmt::Fixed},
+       {"sigma_unpol_re", "barn sr^-1 J^-1 unitcell^-1"},
+       {"sigma_unpol_im", "barn sr^-1 J^-1 unitcell^-1"}});
 
   // sample time is here because the fourier transform in time is not an integral
   // but a discrete sum
@@ -522,21 +562,19 @@ void NeutronScatteringNoLatticeMonitor::output_fixed_spectrum() {
 
   for (auto w = 0; w <  num_time_samples / 2 + 1; ++w) {
     for (auto k = 0; k < kspace_path_.size(); ++k) {
-      ofs << jams::fmt::integer << k << "\t";
-      ofs << jams::fmt::decimal << kspace_path_(k) << "\t";
-      ofs << jams::fmt::decimal << kTwoPi * jams::norm(kspace_path_(k)) / (
-          globals::lattice->parameter() * 1e10) << "\t";
-      ofs << jams::fmt::decimal << (w * freq_delta) << "\t"; // THz
-      ofs << jams::fmt::decimal << (w * freq_delta) * 4.135668 << "\t"; // meV
       // cross section output units are Barns Steradian^-1 Joules^-1 unitcell^-1
-      ofs << jams::fmt::sci << barns_unitcell * sqw(k, w).real() << "\t";
-      ofs << jams::fmt::sci << barns_unitcell * sqw(k, w).imag() << "\t";
-      ofs << "\n";
+      fixed_tsv.write_row_values(
+          k,
+          kspace_path_(k)[0],
+          kspace_path_(k)[1],
+          kspace_path_(k)[2],
+          kTwoPi * jams::norm(kspace_path_(k)) / (globals::lattice->parameter() * 1e10),
+          w * freq_delta,
+          (w * freq_delta) * 4.135668,
+          barns_unitcell * sqw(k, w).real(),
+          barns_unitcell * sqw(k, w).imag());
     }
-    ofs << std::endl;
   }
-
-  ofs.close();
 
   fftw_destroy_plan(fft_plan);
 

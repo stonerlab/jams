@@ -22,14 +22,15 @@ MagnetisationLayersMonitor::MagnetisationLayersMonitor(
 
   grouping_ = jams::monitors::parse_spin_grouping(settings, "materials", "magnetisation");
   spin_groups_ = jams::monitors::make_spin_groups(grouping_);
+  h5_group_root_name_ = "/jams/monitors/" + name() + "/";
 
   auto num_groups = spin_groups_.size();
   group_num_layers_.resize(num_groups);
-  group_layer_spin_indicies_.resize(num_groups);
+  group_layer_spin_indices_.resize(num_groups);
   group_layer_magnetisation_.resize(num_groups);
 
   // Create a new h5 file, truncating any old file if it exists.
-  HighFive::File file(jams::output::full_path_filename("monitors.h5"),
+  HighFive::File file(jams::output::monitor_filename(name(), "h5"),
                       HighFive::File::ReadWrite | HighFive::File::Create | HighFive::File::Truncate);
 
   for (std::size_t group_idx = 0; group_idx < spin_groups_.size(); ++group_idx) {
@@ -73,7 +74,7 @@ MagnetisationLayersMonitor::MagnetisationLayersMonitor(
 
     auto num_layers = unique_positions.size();
     group_num_layers_[group_idx] = num_layers;
-    group_layer_spin_indicies_[group_idx].resize(num_layers);
+    group_layer_spin_indices_[group_idx].resize(num_layers);
     group_layer_magnetisation_[group_idx].resize(num_layers, 3);
 
     // Move all the data into MultiArrays
@@ -97,10 +98,10 @@ MagnetisationLayersMonitor::MagnetisationLayersMonitor(
 
       layer_positions(counter) = z_layer_pos;
       layer_spin_count(counter) = z.second.size();
-      group_layer_spin_indicies_[group_idx][counter] = jams::MultiArray<int, 1>(z.second);
+      group_layer_spin_indices_[group_idx][counter] = jams::MultiArray<int, 1>(z.second);
 
       layer_saturation_moment(counter) = 0.0;
-      for (const auto spin_index : group_layer_spin_indicies_[group_idx][counter].host_span()) {
+      for (const auto spin_index : group_layer_spin_indices_[group_idx][counter].host_span()) {
         layer_saturation_moment(counter) += moments(spin_index) / kBohrMagnetonIU;
       }
 
@@ -161,7 +162,7 @@ MagnetisationLayersMonitor::MagnetisationLayersMonitor(
 void MagnetisationLayersMonitor::update(Solver& solver) {
   // Open the h5 file to write new data
   HighFive::File file(
-      jams::output::full_path_filename("monitors.h5"), HighFive::File::ReadWrite);
+      jams::output::monitor_filename(name(), "h5"), HighFive::File::ReadWrite);
 
   HighFive::Group timeseries_group = file.createGroup(h5_group_root_name_ + "/timeseries/" +  zero_pad_number(solver.iteration(),9));
 
@@ -179,7 +180,7 @@ void MagnetisationLayersMonitor::update(Solver& solver) {
     // Loop over layers and calculate the magnetisation
     for (auto layer_index = 0; layer_index < group_num_layers_[group_idx]; ++layer_index) {
       jams::Vec<double, 3> mag = jams::sum_spins_moments(spins, moments,
-                                           group_layer_spin_indicies_[group_idx][layer_index]);
+                                           group_layer_spin_indices_[group_idx][layer_index]);
 
       // internally we use meV T^-1 for mus so convert back to Bohr magneton
       group_layer_magnetisation_[group_idx](layer_index, 0) = mag[0] / kBohrMagnetonIU;

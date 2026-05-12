@@ -5,9 +5,8 @@
 #include <string>
 #include <algorithm>
 #include <numeric>
-#include <iomanip>
-#include <fstream>
 #include <stdexcept>
+#include <utility>
 
 #include "jams/helpers/output.h"
 #include "jams/core/solver.h"
@@ -196,14 +195,26 @@ jams::MultiArray<jams::ComplexHi, 3> NeutronScatteringMonitor::calculate_polariz
 void NeutronScatteringMonitor::output_neutron_cross_section() {
 
   for (auto n = 0; n < k_segment_offsets_.size() - 1; ++n) {
-    std::ofstream ofs(jams::output::full_path_filename_series("neutron_scattering_path.tsv", n));
-
-    ofs << "index\t" << "q_total\t" << "h\t" << "k\t" << "l\t" << "qx\t" << "qy\t" << "qz\t";
-    ofs << "freq_THz\t" << "energy_meV\t" << "sigma_unpol_re\t" << "sigma_unpol_im\t";
+    std::vector<jams::output::ColDef> cols = {
+        {"index", "none", jams::output::ColFmt::Integer},
+        {"q_total", "lattice constants^-1", jams::output::ColFmt::Fixed},
+        {"h", "rlu", jams::output::ColFmt::Fixed},
+        {"k", "rlu", jams::output::ColFmt::Fixed},
+        {"l", "rlu", jams::output::ColFmt::Fixed},
+        {"qx", "lattice constants^-1", jams::output::ColFmt::Fixed},
+        {"qy", "lattice constants^-1", jams::output::ColFmt::Fixed},
+        {"qz", "lattice constants^-1", jams::output::ColFmt::Fixed},
+        {"freq_THz", "THz", jams::output::ColFmt::Fixed},
+        {"energy_meV", "meV", jams::output::ColFmt::Fixed},
+        {"sigma_unpol_re", "barn sr^-1 J^-1 unitcell^-1"},
+        {"sigma_unpol_im", "barn sr^-1 J^-1 unitcell^-1"}};
     for (auto k = 0; k < total_polarized_neutron_cross_sections_.extent(0); ++k) {
-      ofs << "sigma_pol" << std::to_string(k) << "_re\t" << "sigma_pol" << std::to_string(k) << "_im\t";
+      cols.push_back({"sigma_pol" + std::to_string(k) + "_re", "barn sr^-1 J^-1 unitcell^-1"});
+      cols.push_back({"sigma_pol" + std::to_string(k) + "_im", "barn sr^-1 J^-1 unitcell^-1"});
     }
-    ofs << "\n";
+    jams::output::TsvWriter tsv(
+        jams::output::monitor_filename_series(name() + "_path", "tsv", n),
+        std::move(cols));
 
     // sample time is here because the fourier transform in time is not an integral
     // but a discrete sum
@@ -217,25 +228,28 @@ void NeutronScatteringMonitor::output_neutron_cross_section() {
     for (auto i = 0; i < (time_points / 2) + 1; ++i) {
       double total_distance = 0.0;
       for (auto j = path_begin; j < path_end; ++j) {
-        ofs << jams::fmt::integer << j << "\t";
-        ofs << jams::fmt::decimal << total_distance << "\t";
-        ofs << jams::fmt::decimal << k_points_[j].hkl << "\t";
-        ofs << jams::fmt::decimal << k_points_[j].xyz << "\t";
-        ofs << jams::fmt::decimal << i * frequency_resolution_thz() << "\t"; // THz
-        ofs << jams::fmt::decimal << i * frequency_resolution_thz() * 4.135668 << "\t"; // meV
+        std::vector<double> values;
+        values.reserve(tsv.num_cols());
+        values.push_back(j);
+        values.push_back(total_distance);
+        values.push_back(k_points_[j].hkl[0]);
+        values.push_back(k_points_[j].hkl[1]);
+        values.push_back(k_points_[j].hkl[2]);
+        values.push_back(k_points_[j].xyz[0]);
+        values.push_back(k_points_[j].xyz[1]);
+        values.push_back(k_points_[j].xyz[2]);
+        values.push_back(i * frequency_resolution_thz());
+        values.push_back(i * frequency_resolution_thz() * 4.135668);
         // cross section output units are Barns Steradian^-1 Joules^-1 unitcell^-1
-        ofs << jams::fmt::sci << barns_unitcell * total_unpolarized_neutron_cross_section_(i, j).real() << "\t";
-        ofs << jams::fmt::sci << barns_unitcell * total_unpolarized_neutron_cross_section_(i, j).imag() << "\t";
+        values.push_back(barns_unitcell * total_unpolarized_neutron_cross_section_(i, j).real());
+        values.push_back(barns_unitcell * total_unpolarized_neutron_cross_section_(i, j).imag());
         for (auto k = 0; k < total_polarized_neutron_cross_sections_.extent(0); ++k) {
-          ofs << jams::fmt::sci << barns_unitcell * total_polarized_neutron_cross_sections_(k, i, j).real() << "\t";
-          ofs << jams::fmt::sci << barns_unitcell * total_polarized_neutron_cross_sections_(k, i, j).imag() << "\t";
+          values.push_back(barns_unitcell * total_polarized_neutron_cross_sections_(k, i, j).real());
+          values.push_back(barns_unitcell * total_polarized_neutron_cross_sections_(k, i, j).imag());
         }
+        tsv.write_row(values);
         total_distance += jams::norm(k_points_[j].xyz - k_points_[j+1].xyz);
-        ofs << "\n";
       }
-      ofs << std::endl;
     }
-
-    ofs.close();
   }
 }

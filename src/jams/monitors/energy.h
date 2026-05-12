@@ -21,7 +21,7 @@ public:
     void post_process() override {};
 
 private:
-    static jams::output::TsvWriter make_tsv_writer(const libconfig::Setting &settings);
+    jams::output::TsvWriter make_tsv_writer(const libconfig::Setting &settings) const;
     jams::output::TsvWriter tsv_;
 };
 

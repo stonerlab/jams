@@ -3,7 +3,6 @@
 
 #include <jams/core/hamiltonian.h>
 
-#include <iosfwd>
 #include <memory>
 
 ///
@@ -40,7 +39,7 @@ public:
     jams::Real calculate_energy(int i, jams::Real time) override;
 
 private:
-    void output_pulse(std::ofstream& pulse_file);
+    void output_pulse() const;
 
     std::unique_ptr<TemporalFieldPulse> temporal_field_pulse_;
 };
