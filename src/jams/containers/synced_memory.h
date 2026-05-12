@@ -83,6 +83,7 @@
 #include <iterator>
 #include <limits>
 #include <new>
+#include <ranges>
 #include <span>
 #include <source_location>
 #include <stdexcept>
@@ -127,17 +128,6 @@ inline void report_cuda_free_failure(cudaError_t status, const char* operation) 
   std::terminate();
 }
 #endif
-
-template <class T, class = void>
-struct is_iterator : std::false_type { };
-
-template <class T>
-struct is_iterator<T, std::void_t<
-                      typename std::iterator_traits<T>::iterator_category
->> : std::true_type { };
-
-template <class T>
-inline constexpr bool is_iterator_v = is_iterator<T>::value;
 
 template<class T>
 struct is_std_complex : std::false_type { };
@@ -212,6 +202,11 @@ public:
     /// the range between the 'first' and 'last' input iterators.
     template<std::input_iterator InputIt>
     SyncedMemory(InputIt first, InputIt last);
+
+    /// Construct a synced memory object with values taken from an input range.
+    template<std::ranges::input_range Range>
+    requires std::convertible_to<std::ranges::range_reference_t<Range>, T>
+    explicit SyncedMemory(Range&& values);
 
     /// Construct a synced memory object from another similar object.
     SyncedMemory(const SyncedMemory &rhs);
@@ -342,11 +337,11 @@ private:
 
     void remove_valid(Validity validity) const noexcept;
 
-    template<class InputIt>
-    void assign_from_input_range(InputIt first, InputIt last);
+    template<class InputIt, class Sentinel>
+    void assign_from_input_range(InputIt first, Sentinel last);
 
-    template<class ForwardIt>
-    void assign_from_forward_range(ForwardIt first, ForwardIt last);
+    template<class ForwardIt, class Sentinel>
+    void assign_from_forward_range(ForwardIt first, Sentinel last);
 };
 
 // ============================================================================
@@ -384,6 +379,18 @@ SyncedMemory<T>::SyncedMemory(InputIt first, InputIt last) {
     assign_from_forward_range(first, last);
   } else {
     assign_from_input_range(first, last);
+  }
+}
+
+
+template<class T>
+template<std::ranges::input_range Range>
+requires std::convertible_to<std::ranges::range_reference_t<Range>, T>
+SyncedMemory<T>::SyncedMemory(Range&& values) {
+  if constexpr (std::ranges::forward_range<Range>) {
+    assign_from_forward_range(std::ranges::begin(values), std::ranges::end(values));
+  } else {
+    assign_from_input_range(std::ranges::begin(values), std::ranges::end(values));
   }
 }
 
@@ -975,30 +982,35 @@ void SyncedMemory<T>::clear() noexcept { resize(0); }
 
 
 template<class T>
-template<class InputIt>
-void SyncedMemory<T>::assign_from_input_range(InputIt first, InputIt last) {
-  std::vector<T> values(first, last);
+template<class InputIt, class Sentinel>
+void SyncedMemory<T>::assign_from_input_range(InputIt first, Sentinel last) {
+  std::vector<T> values;
+  for (; first != last; ++first) {
+    values.push_back(static_cast<T>(*first));
+  }
   size_ = values.size();
   if (size_ == 0) {
     return;
   }
 
   allocate_host_memory(size_);
-  std::copy(values.begin(), values.end(), host_ptr_);
+  std::ranges::copy(values, host_ptr_);
   set_valid(Validity::host);
 }
 
 
 template<class T>
-template<class ForwardIt>
-void SyncedMemory<T>::assign_from_forward_range(ForwardIt first, ForwardIt last) {
-  size_ = static_cast<size_type>(std::distance(first, last));
+template<class ForwardIt, class Sentinel>
+void SyncedMemory<T>::assign_from_forward_range(ForwardIt first, Sentinel last) {
+  const auto range_size = std::ranges::distance(first, last);
+  assert(range_size >= 0);
+  size_ = static_cast<size_type>(range_size);
   if (size_ == 0) {
     return;
   }
 
   allocate_host_memory(size_);
-  std::copy(first, last, host_ptr_);
+  std::ranges::copy(first, last, host_ptr_);
   set_valid(Validity::host);
 }
 

@@ -39,6 +39,7 @@
 #include <cassert>
 #include <concepts>
 #include <limits>
+#include <ranges>
 #include <span>
 #include <stdexcept>
 #include <type_traits>
@@ -119,6 +120,17 @@ namespace jams {
         template<std::size_t Dim, typename... Args>
         concept valid_extent_args =
             sizeof...(Args) == Dim && (multiarray_extent<Args> && ...);
+
+        template<typename T, std::size_t Dim>
+        struct is_multiarray_extent_array : std::false_type {};
+
+        template<typename Integral, std::size_t ArrayDim, std::size_t Dim>
+        struct is_multiarray_extent_array<std::array<Integral, ArrayDim>, Dim>
+            : std::bool_constant<ArrayDim == Dim && multiarray_extent<Integral>> {};
+
+        template<typename T, std::size_t Dim>
+        inline constexpr bool is_multiarray_extent_array_v =
+            is_multiarray_extent_array<std::remove_cvref_t<T>, Dim>::value;
 
         template<typename Size, std::size_t Dim, typename... Args>
         requires valid_extent_args<Dim, Args...>
@@ -463,9 +475,19 @@ namespace jams {
             size_(detail::make_size_container<size_type>(v)),
             data_(detail::checked_product(size_), x) {}
 
-        template<class InputIt, std::enable_if_t<(Dim_ == 1 && detail::is_iterator<InputIt>::value), bool> = true>
+        template<std::input_iterator InputIt>
+        requires (Dim_ == 1)
         inline MultiArray(InputIt first, InputIt last)
             : data_(first, last) {
+          size_ = {detail::checked_integral_cast<size_type>(data_.size())};
+        }
+
+        template<std::ranges::input_range Range>
+        requires (Dim_ == 1 &&
+                  std::convertible_to<std::ranges::range_reference_t<Range>, value_type> &&
+                  !detail::is_multiarray_extent_array_v<Range, Dim_>)
+        inline explicit MultiArray(Range&& values)
+            : data_(std::forward<Range>(values)) {
           size_ = {detail::checked_integral_cast<size_type>(data_.size())};
         }
 

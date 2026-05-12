@@ -9,6 +9,7 @@
 #include <complex>
 #include <iterator>
 #include <gmock/gmock-matchers.h>
+#include <ranges>
 #include <sstream>
 #include <type_traits>
 #include <utility>
@@ -134,6 +135,24 @@ TEST(SyncedMemoryApiTest, BytesThrowsOnSizeOverflow) {
   const auto max_elements = std::numeric_limits<std::size_t>::max() / sizeof(int);
   EXPECT_EQ(Memory::bytes(max_elements), max_elements * sizeof(int));
   EXPECT_THROW(Memory::bytes(max_elements + 1), std::overflow_error);
+}
+
+TEST(SyncedMemoryApiTest, RangeConstructionAcceptsForwardAndInputRanges) {
+  using namespace jams;
+  using testing::ElementsAre;
+
+  const std::vector<int> source = {4, 8, 15, 16, 23, 42};
+  SyncedMemory<int> forward_range(source);
+  EXPECT_EQ(forward_range.size(), source.size());
+  EXPECT_THAT(std::vector<int>(forward_range.host_data(), forward_range.host_data() + forward_range.size()),
+              ElementsAre(4, 8, 15, 16, 23, 42));
+
+  std::istringstream input("9 2 6 5");
+  auto input_range = std::ranges::istream_view<int>(input);
+  SyncedMemory<int> single_pass_range(input_range);
+  EXPECT_EQ(single_pass_range.size(), 4u);
+  EXPECT_THAT(std::vector<int>(single_pass_range.host_data(), single_pass_range.host_data() + single_pass_range.size()),
+              ElementsAre(9, 2, 6, 5));
 }
 
 TEST(SyncedMemoryApiTest, ZeroValueInitializesNonNumericHostValues) {

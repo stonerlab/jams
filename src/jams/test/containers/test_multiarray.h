@@ -348,6 +348,23 @@ TEST(MultiArrayFinalApiTest, OneDimensionalRandomAccessIteratorConstructionUsesE
               testing::ElementsAre(10, 20, 30));
 }
 
+TEST(MultiArrayFinalApiTest, OneDimensionalRangeConstructionUsesRangeValues) {
+  using namespace jams;
+
+  const std::vector<int> source = {3, 1, 4, 1, 5};
+  MultiArray<int, 1> from_vector(source);
+  EXPECT_EQ(from_vector.size(), source.size());
+  EXPECT_EQ(from_vector.extent(0), source.size());
+  EXPECT_THAT(std::vector<int>(from_vector.data(), from_vector.data() + from_vector.size()),
+              testing::ElementsAre(3, 1, 4, 1, 5));
+
+  MultiArray<int, 1> from_view(std::views::iota(1, 5));
+  EXPECT_EQ(from_view.size(), 4u);
+  EXPECT_EQ(from_view.extent(0), 4u);
+  EXPECT_THAT(std::vector<int>(from_view.data(), from_view.data() + from_view.size()),
+              testing::ElementsAre(1, 2, 3, 4));
+}
+
 TEST(MultiArrayFinalApiTest, OneDimensionalIntegralConstructionDoesNotSelectIteratorOverload) {
   using namespace jams;
 
