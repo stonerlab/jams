@@ -84,6 +84,7 @@
 #include <limits>
 #include <new>
 #include <span>
+#include <source_location>
 #include <stdexcept>
 #include <string>
 #include <type_traits>
@@ -105,9 +106,11 @@ inline void print_synced_memory_event(const char* event) noexcept {
 }
 
 #if HAS_CUDA
-inline void check_cuda_status(cudaError_t status, const char* file, int line) {
+inline void check_cuda_status(
+    cudaError_t status,
+    const std::source_location location = std::source_location::current()) {
   if (status != cudaSuccess) {
-    throw std::runtime_error(std::string(file) + ":" + std::to_string(line) +
+    throw std::runtime_error(std::string(location.file_name()) + ":" + std::to_string(location.line()) +
                              " CUDA error: " + cudaGetErrorString(status));
   }
 }
@@ -149,10 +152,6 @@ inline constexpr bool synced_memory_byte_zeroable_v =
 template<class T>
 concept synced_memory_value = std::is_trivially_copyable_v<T>;
 } // namespace jams::detail
-
-#if HAS_CUDA
-#define SYNCED_MEMORY_CHECK_CUDA_STATUS(x) ::jams::detail::check_cuda_status((x), __FILE__, __LINE__)
-#endif
 
 namespace jams {
 
@@ -405,7 +404,7 @@ SyncedMemory<T>::SyncedMemory(const SyncedMemory &rhs)
     if constexpr (detail::synced_memory_print_memcpy) {
       detail::print_synced_memory_event("cudaMemcpyDeviceToDevice");
     }
-    SYNCED_MEMORY_CHECK_CUDA_STATUS(cudaMemcpy(device_ptr_, rhs.device_ptr_, bytes(size_), cudaMemcpyDeviceToDevice));
+    ::jams::detail::check_cuda_status(cudaMemcpy(device_ptr_, rhs.device_ptr_, bytes(size_), cudaMemcpyDeviceToDevice));
     set_valid(Validity::device);
   }
 #endif
@@ -499,7 +498,7 @@ SyncedMemory<T>::allocate_device_memory(const SyncedMemory::size_type size) cons
   if (status == cudaErrorMemoryAllocation) {
     throw std::bad_alloc();
   }
-  SYNCED_MEMORY_CHECK_CUDA_STATUS(status);
+  ::jams::detail::check_cuda_status(status);
   device_ptr_ = static_cast<pointer>(raw);
   assert(device_ptr_);
 #else
@@ -526,7 +525,7 @@ void SyncedMemory<T>::allocate_host_memory(const SyncedMemory::size_type size) c
     if (status == cudaErrorMemoryAllocation) {
       throw std::bad_alloc();
     }
-    SYNCED_MEMORY_CHECK_CUDA_STATUS(status);
+    ::jams::detail::check_cuda_status(status);
     host_ptr_ = static_cast<pointer>(raw);
     assert(host_ptr_);
     host_cuda_malloc_ = true;
@@ -620,7 +619,7 @@ void SyncedMemory<T>::ensure_host_current() const {
       detail::print_synced_memory_event("cudaMemcpyDeviceToHost");
     }
     assert(device_ptr_ && host_ptr_);
-    SYNCED_MEMORY_CHECK_CUDA_STATUS(cudaMemcpy(host_ptr_, device_ptr_, bytes(size_), cudaMemcpyDeviceToHost));
+    ::jams::detail::check_cuda_status(cudaMemcpy(host_ptr_, device_ptr_, bytes(size_), cudaMemcpyDeviceToHost));
     add_valid(Validity::host);
 #endif
     return;
@@ -660,7 +659,7 @@ void SyncedMemory<T>::ensure_device_current() const {
       detail::print_synced_memory_event("cudaMemcpyHostToDevice");
     }
     assert(device_ptr_ && host_ptr_);
-    SYNCED_MEMORY_CHECK_CUDA_STATUS(cudaMemcpy(device_ptr_, host_ptr_, bytes(size_),
+    ::jams::detail::check_cuda_status(cudaMemcpy(device_ptr_, host_ptr_, bytes(size_),
                                                cudaMemcpyHostToDevice));
     add_valid(Validity::device);
     return;
@@ -711,10 +710,10 @@ void SyncedMemory<T>::zero_device() const {
   }
   assert(device_ptr_);
   if constexpr (detail::synced_memory_byte_zeroable_v<T>) {
-    SYNCED_MEMORY_CHECK_CUDA_STATUS(cudaMemset(device_ptr_, 0, bytes(size_)));
+    ::jams::detail::check_cuda_status(cudaMemset(device_ptr_, 0, bytes(size_)));
   } else {
     const std::vector<T> zeros(size_, T{});
-    SYNCED_MEMORY_CHECK_CUDA_STATUS(cudaMemcpy(device_ptr_, zeros.data(), bytes(size_),
+    ::jams::detail::check_cuda_status(cudaMemcpy(device_ptr_, zeros.data(), bytes(size_),
                                                cudaMemcpyHostToDevice));
   }
 #endif
@@ -761,7 +760,7 @@ void SyncedMemory<T>::zero() {
         detail::print_synced_memory_event("cudaMemcpyHostToDevice");
       }
       assert(host_ptr_);
-      SYNCED_MEMORY_CHECK_CUDA_STATUS(cudaMemcpy(device_ptr_, host_ptr_, bytes(size_),
+      ::jams::detail::check_cuda_status(cudaMemcpy(device_ptr_, host_ptr_, bytes(size_),
                                                  cudaMemcpyHostToDevice));
     }
     add_valid(Validity::device);
@@ -855,7 +854,7 @@ typename SyncedMemory<T>::size_type SyncedMemory<T>::max_size_device() const {
   #if HAS_CUDA
   std::size_t free_bytes = 0;
   std::size_t total_bytes = 0;
-  SYNCED_MEMORY_CHECK_CUDA_STATUS(cudaMemGetInfo(&free_bytes, &total_bytes));
+  ::jams::detail::check_cuda_status(cudaMemGetInfo(&free_bytes, &total_bytes));
   return std::min(max_size_host(), free_bytes / sizeof(value_type));
   #else
   return 0;
@@ -1005,9 +1004,6 @@ void SyncedMemory<T>::assign_from_forward_range(ForwardIt first, ForwardIt last)
 
 
 } // namespace jams
-
-
-#undef SYNCED_MEMORY_CHECK_CUDA_STATUS
 
 #endif
 // ----------------------------- END-OF-FILE ----------------------------------
