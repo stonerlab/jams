@@ -39,6 +39,7 @@
 #include <cassert>
 #include <concepts>
 #include <limits>
+#include <span>
 #include <stdexcept>
 #include <type_traits>
 #include <utility>
@@ -194,8 +195,16 @@ namespace jams {
         using stride_container_type = std::array<std::size_t, Dim_>;
         /// Pointer to host data. Const views expose const pointers.
         using pointer = Tp_*;
+        /// Const pointer to host data.
+        using const_pointer = const value_type*;
         /// Reference to a host element. Const views expose const references.
         using reference = Tp_&;
+        /// Iterator over host data. Const views expose const iterators.
+        using iterator = pointer;
+        /// Read-only iterator over host data.
+        using const_iterator = const_pointer;
+        /// Span over host data. Const views expose read-only spans.
+        using span_type = std::span<Tp_>;
 
         static_assert(Dim_ > 0, "MultiArrayHostView dimension must be greater than zero");
         static_assert(std::is_integral_v<Idx_>, "MultiArrayHostView index type must be integral");
@@ -239,6 +248,31 @@ namespace jams {
           return shape_;
         }
 
+        /// Return a flat span over the captured host storage.
+        [[nodiscard]] constexpr span_type flat_span() const noexcept {
+          return span_type(data_, static_cast<std::size_t>(elements_));
+        }
+
+        /// Return an iterator to the first captured host element.
+        [[nodiscard]] constexpr iterator begin() const noexcept {
+          return data_;
+        }
+
+        /// Return an iterator one past the last captured host element.
+        [[nodiscard]] constexpr iterator end() const noexcept {
+          return data_ ? data_ + static_cast<std::size_t>(elements_) : data_;
+        }
+
+        /// Return a read-only iterator to the first captured host element.
+        [[nodiscard]] constexpr const_iterator cbegin() const noexcept {
+          return data_;
+        }
+
+        /// Return a read-only iterator one past the last captured host element.
+        [[nodiscard]] constexpr const_iterator cend() const noexcept {
+          return data_ ? data_ + static_cast<std::size_t>(elements_) : data_;
+        }
+
         /// Return the row-major stride of dimension n, in elements.
         [[nodiscard]] constexpr std::size_t stride(const dim_type n) const noexcept {
           assert(n < Dim_);
@@ -270,7 +304,17 @@ namespace jams {
         [[nodiscard]] constexpr pointer row_data(const size_type n) const noexcept {
           static_assert(Dim_ >= 1, "row_data requires at least one dimension");
           assert(index_in_bounds(n, shape_[0]));
-          return data_ + static_cast<std::size_t>(n) * strides_[0];
+          return data_ ? data_ + static_cast<std::size_t>(n) * strides_[0] : data_;
+        }
+
+        /**
+         * Return a span over the contiguous block at index n in dimension 0.
+         *
+         * For a 2D row-major array this is row n. For higher-rank arrays it is
+         * the contiguous block with first index n.
+         */
+        [[nodiscard]] constexpr span_type row_span(const size_type n) const noexcept {
+          return span_type(row_data(n), strides_[0]);
         }
 
     private:
@@ -351,6 +395,8 @@ namespace jams {
         using const_pointer = const value_type *;
         using iterator = pointer;
         using const_iterator = const_pointer;
+        using span_type = std::span<value_type>;
+        using const_span_type = std::span<const value_type>;
         using host_view_type = MultiArrayHostView<value_type, Dim_, size_type>;
         using const_host_view_type = MultiArrayHostView<const value_type, Dim_, size_type>;
 
@@ -503,6 +549,36 @@ namespace jams {
 
         inline const_pointer host_data() const {
           return data_.host_data();
+        }
+
+        /**
+         * Return a read-only span over host storage.
+         *
+         * This may synchronize device data to host memory. It does not mark host
+         * storage modified, even when called on a non-const MultiArray.
+         */
+        [[nodiscard]] inline const_span_type host_span() {
+          return data_.host_span();
+        }
+
+        /**
+         * Return a read-only span over host storage.
+         *
+         * This may synchronize device data to host memory. It does not mark host
+         * storage modified.
+         */
+        [[nodiscard]] inline const_span_type host_span() const {
+          return data_.host_span();
+        }
+
+        /**
+         * Return a writable span over host storage.
+         *
+         * This marks host storage modified and device storage stale once when
+         * the span is created.
+         */
+        [[nodiscard]] inline span_type mutable_host_span() {
+          return data_.mutable_host_span();
         }
 
         /**
