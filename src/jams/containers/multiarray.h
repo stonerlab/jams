@@ -37,6 +37,7 @@
 #include <array>
 #include <algorithm>
 #include <cassert>
+#include <concepts>
 #include <limits>
 #include <stdexcept>
 #include <type_traits>
@@ -109,18 +110,23 @@ namespace jams {
           return row_major_index_array_impl(dims, idx, std::make_index_sequence<N>{});
         }
 
+        template<typename T>
+        concept multiarray_extent =
+            std::integral<std::remove_cvref_t<T>> &&
+            !std::same_as<std::remove_cvref_t<T>, bool>;
+
         template<std::size_t Dim, typename... Args>
-        inline constexpr bool valid_extent_args_v =
-            sizeof...(Args) == Dim && (std::is_integral_v<std::decay_t<Args>> && ...);
+        concept valid_extent_args =
+            sizeof...(Args) == Dim && (multiarray_extent<Args> && ...);
 
         template<typename Size, std::size_t Dim, typename... Args>
+        requires valid_extent_args<Dim, Args...>
         constexpr std::array<Size, Dim> make_size_container(Args... args) {
-          static_assert(sizeof...(Args) == Dim,
-                        "number of MultiArray indicies does not match the MultiArray dimension");
           return {checked_integral_cast<Size>(args)...};
         }
 
         template<typename Size, typename Integral, std::size_t Dim>
+        requires multiarray_extent<Integral>
         constexpr std::array<Size, Dim> make_size_container(const std::array<Integral, Dim>& values) {
           return checked_array_cast<Size>(values);
         }
@@ -382,14 +388,16 @@ namespace jams {
         }
 
         // Construct using dimensions as arguments.
-        template<typename... Args, std::enable_if_t<detail::valid_extent_args_v<Dim_, Args...>, int> = 0>
+        template<typename... Args>
+        requires detail::valid_extent_args<Dim_, Args...>
         inline explicit MultiArray(const Args... args)
             : MultiArray(detail::make_size_container<size_type, Dim_>(args...)) {
           static_assert(sizeof...(args) == Dim_,
                         "number of MultiArray indicies in constructor does not match the MultiArray dimension");
         }
 
-        template<typename... Args, std::enable_if_t<detail::valid_extent_args_v<Dim_, Args...>, int> = 0>
+        template<typename... Args>
+        requires detail::valid_extent_args<Dim_, Args...>
         inline explicit MultiArray(const value_type& x, const Args... args)
             : MultiArray(x, detail::make_size_container<size_type, Dim_>(args...)) {
           static_assert(sizeof...(args) == Dim_,
@@ -398,11 +406,13 @@ namespace jams {
 
         // Construct using dimensions in an array.
         template<typename Integral_>
+        requires detail::multiarray_extent<Integral_>
         inline explicit MultiArray(const std::array<Integral_, Dim_> &v) :
             size_(detail::make_size_container<size_type>(v)),
             data_(detail::checked_product(size_)) {}
 
       template<typename Integral_>
+      requires detail::multiarray_extent<Integral_>
       inline explicit MultiArray(const value_type& x, const std::array<Integral_, Dim_> v) :
             size_(detail::make_size_container<size_type>(v)),
             data_(detail::checked_product(size_), x) {}
@@ -603,9 +613,8 @@ namespace jams {
         }
 
         template<typename... Args>
+        requires detail::valid_extent_args<Dim_, Args...>
         inline MultiArray& resize(const Args &... args) {
-          static_assert(sizeof...(args) == Dim_,
-                        "number of MultiArray indicies in resize does not match the MultiArray dimension");
           const auto new_size = detail::make_size_container<size_type, Dim_>(args...);
           data_.resize(detail::checked_product(new_size));
           size_ = new_size;
@@ -613,6 +622,7 @@ namespace jams {
         }
 
         template<typename Integral_>
+        requires detail::multiarray_extent<Integral_>
         inline MultiArray& resize(const std::array<Integral_, Dim_> &v) {
           const auto new_size = detail::make_size_container<size_type>(v);
           data_.resize(detail::checked_product(new_size));
