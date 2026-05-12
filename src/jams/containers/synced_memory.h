@@ -367,8 +367,7 @@ SyncedMemory<T>::SyncedMemory(SyncedMemory::size_type size, const T &x)
     }
   }
 
-  pointer p = mutable_host_data();
-  std::fill(p, p + size_, x);
+  std::ranges::fill(mutable_host_span(), x);
 }
 
 
@@ -739,7 +738,7 @@ void SyncedMemory<T>::zero_host() const {
   if constexpr (detail::synced_memory_byte_zeroable_v<T>) {
     memset(host_ptr_, 0, bytes(size_));
   } else {
-    std::fill_n(host_ptr_, size_, T{});
+    std::ranges::fill(std::span<T>(host_ptr_, size_), T{});
   }
 }
 

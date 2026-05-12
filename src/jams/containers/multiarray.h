@@ -132,6 +132,11 @@ namespace jams {
         inline constexpr bool is_multiarray_extent_array_v =
             is_multiarray_extent_array<std::remove_cvref_t<T>, Dim>::value;
 
+        template<multiarray_extent Size>
+        [[nodiscard]] constexpr bool index_in_bounds(const Size index, const Size extent) noexcept {
+          return !std::cmp_less(index, 0) && std::cmp_less(index, extent);
+        }
+
         template<typename Size, std::size_t Dim, typename... Args>
         requires valid_extent_args<Dim, Args...>
         constexpr std::array<Size, Dim> make_size_container(Args... args) {
@@ -315,7 +320,7 @@ namespace jams {
          */
         [[nodiscard]] constexpr pointer row_data(const size_type n) const noexcept {
           static_assert(Dim_ >= 1, "row_data requires at least one dimension");
-          assert(index_in_bounds(n, shape_[0]));
+          assert(detail::index_in_bounds(n, shape_[0]));
           return data_ ? data_ + static_cast<std::size_t>(n) * strides_[0] : data_;
         }
 
@@ -330,19 +335,9 @@ namespace jams {
         }
 
     private:
-        [[nodiscard]] static constexpr bool index_in_bounds(const size_type index, const size_type extent) noexcept {
-          using unsigned_size_type = std::make_unsigned_t<size_type>;
-          if constexpr (std::is_signed_v<size_type>) {
-            if (index < 0) {
-              return false;
-            }
-          }
-          return static_cast<unsigned_size_type>(index) < static_cast<unsigned_size_type>(extent);
-        }
-
         [[nodiscard]] constexpr bool indices_in_bounds(const size_container_type& indices) const noexcept {
           for (dim_type dim = 0; dim < Dim_; ++dim) {
-            if (!index_in_bounds(indices[dim], shape_[dim])) {
+            if (!detail::index_in_bounds(indices[dim], shape_[dim])) {
               return false;
             }
           }
@@ -707,7 +702,7 @@ namespace jams {
               return;
             }
           }
-          std::fill_n(data_.mutable_host_data(), data_.size(), value);
+          std::ranges::fill(mutable_host_span(), value);
         }
 
         template<typename... Args>
@@ -730,14 +725,8 @@ namespace jams {
 
     private:
         [[nodiscard]] bool indices_in_bounds(const size_container_type& indices) const noexcept {
-          using unsigned_size_type = std::make_unsigned_t<size_type>;
           for (dim_type dim = 0; dim < Dim_; ++dim) {
-            if constexpr (std::is_signed_v<size_type>) {
-              if (indices[dim] < 0) {
-                return false;
-              }
-            }
-            if (static_cast<unsigned_size_type>(indices[dim]) >= static_cast<unsigned_size_type>(size_[dim])) {
+            if (!detail::index_in_bounds(indices[dim], size_[dim])) {
               return false;
             }
           }
@@ -800,14 +789,19 @@ namespace jams {
 
     template<class FTp_, std::size_t FDim_, class FIdx_, class Tp2_>
     inline void element_scale(MultiArray<FTp_, FDim_, FIdx_>& x, const Tp2_& y) {
-      std::transform(x.begin(), x.end(), x.begin(), [y](const FTp_ &a) { return a * y; });
+      auto values = x.mutable_host_span();
+      std::ranges::transform(values, values.begin(), [y](const FTp_ &a) { return a * y; });
     }
 
     template<class FTp_, std::size_t FDim_, class FIdx_>
     inline void element_sum(MultiArray<FTp_, FDim_, FIdx_>& x, const MultiArray<FTp_, FDim_, FIdx_>& y) {
       assert(x.elements() == y.elements());
-      std::transform(y.begin(), y.end(), x.begin(), x.begin(),
-                     [](const FTp_&x, const FTp_ &y) -> FTp_ { return x + y; });
+      auto x_values = x.mutable_host_span();
+      const auto y_values = y.host_span();
+      std::ranges::transform(y_values, x_values, x_values.begin(),
+                             [](const FTp_& y_value, const FTp_& x_value) -> FTp_ {
+                               return x_value + y_value;
+                             });
     }
 
 
