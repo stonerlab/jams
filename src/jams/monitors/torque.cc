@@ -86,7 +86,7 @@ TorqueMonitor::GroupedTorques TorqueMonitor::calculate_torques(Solver& solver) {
       const auto& group = spin_groups_[group_index];
 
       TorqueComponents torque = {0.0, 0.0, 0.0};
-      for (const auto spin_index : group.indices) {
+      for (const auto spin_index : group.indices_span()) {
         // Calculate the local torque on a lattice site (\vec{S} \times \vec{H})
         const TorqueComponents spin = {
             spins(spin_index, 0),
@@ -100,8 +100,8 @@ TorqueMonitor::GroupedTorques TorqueMonitor::calculate_torques(Solver& solver) {
         torque += jams::cross(spin, field);
       }
 
-      if (!group.indices.empty()) {
-        torque = torque / static_cast<double>(group.indices.size());
+      if (!group.empty()) {
+        torque = torque / static_cast<double>(group.size());
       }
 
       torques[group_index][hamiltonian_index] = torque;

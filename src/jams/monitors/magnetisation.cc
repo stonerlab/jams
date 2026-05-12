@@ -30,7 +30,7 @@ void MagnetisationMonitor::update(Solver& solver) {
   values.push_back(solver.time());
 
   for (const auto& group : spin_groups_) {
-    if (group.indices.empty()) {
+    if (group.empty()) {
       values.push_back(0.0);
       values.push_back(0.0);
       values.push_back(0.0);
@@ -38,10 +38,10 @@ void MagnetisationMonitor::update(Solver& solver) {
       continue;
     }
 
-    jams::Vec<double, 3> mag = jams::sum_spins_moments(spins, moments, group.indices);
+    jams::Vec<double, 3> mag = jams::sum_spins_moments(spins, moments, group.indices_array());
     double normalising_factor = 1.0;
     if (normalize_magnetisation_) {
-      normalising_factor = 1.0 / jams::scalar_field_indexed_reduce(moments, group.indices);
+      normalising_factor = 1.0 / jams::scalar_field_indexed_reduce(moments, group.indices_array());
     } else {
       // internally we use meV T^-1 for mus so convert back to Bohr magneton
       normalising_factor = 1.0 / kBohrMagnetonIU;
@@ -74,22 +74,11 @@ jams::output::TsvWriter MagnetisationMonitor::make_tsv_writer(const libconfig::S
 
   cols.push_back({"time", "picoseconds"});
 
-  switch (grouping_) {
-    case jams::monitors::SpinGrouping::NONE: {
-      for (const auto &name : {"mx", "my", "mz", "m"}) {
-        cols.push_back({name, mag_unit});
-      }
-      break;
-    }
-
-    case jams::monitors::SpinGrouping::MATERIALS:
-    case jams::monitors::SpinGrouping::POSITIONS: {
-      for (const auto& group : spin_groups_) {
-        for (const auto &suffix : {"_mx", "_my", "_mz", "_m"}) {
-          cols.push_back({group.name + suffix, mag_unit});
-        }
-      }
-      break;
+  for (const auto& group : spin_groups_) {
+    for (const auto& component : {"mx", "my", "mz", "m"}) {
+      cols.push_back({
+          jams::monitors::grouped_column_name(grouping_, group.name, component),
+          mag_unit});
     }
   }
 

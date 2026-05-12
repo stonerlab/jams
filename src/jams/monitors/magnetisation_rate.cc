@@ -30,15 +30,15 @@ void MagnetisationRateMonitor::update(Solver& solver) {
 
   for (std::size_t group_index = 0; group_index < spin_groups_.size(); ++group_index) {
     const auto& group = spin_groups_[group_index];
-    for (const auto spin_index : group.indices) {
+    for (const auto spin_index : group.indices_span()) {
       for (auto j = 0; j < 3; ++j) {
         dm_dt[group_index][j] += ds_dt(spin_index, j);
       }
     }
 
-    if (!group.indices.empty()) {
+    if (!group.empty()) {
       for (auto j = 0; j < 3; ++j) {
-        dm_dt[group_index][j] /= static_cast<double>(group.indices.size());
+        dm_dt[group_index][j] /= static_cast<double>(group.size());
       }
     }
   }

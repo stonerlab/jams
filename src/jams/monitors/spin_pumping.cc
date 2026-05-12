@@ -37,7 +37,7 @@ void SpinPumpingMonitor::update(Solver& solver) {
   double d_timestep = 1.0/solver.time_step();
 
   for (std::size_t group_index = 0; group_index < spin_groups_.size(); ++group_index) {
-    for (const auto i : spin_groups_[group_index].indices) {
+    for (const auto i : spin_groups_[group_index].indices_span()) {
       jams::Vec<double, 3> s_i = {spins(i,0), spins(i, 1), spins(i,2)};
       jams::Vec<double, 3> s_old_i = {s_old_(i,0), s_old_(i, 1), s_old_(i,2)};
       jams::Vec<double, 3> ds_dt_i = (s_i - s_old_i) * d_timestep;
@@ -51,9 +51,9 @@ void SpinPumpingMonitor::update(Solver& solver) {
   tsv_file_ << std::scientific << solver.time() << "\t";
 
   for (std::size_t type = 0; type < spin_groups_.size(); ++type) {
-    auto norm = spin_groups_[type].indices.empty()
+    auto norm = spin_groups_[type].empty()
         ? 0.0
-        : 1.0 / static_cast<double>(spin_groups_[type].indices.size());
+        : 1.0 / static_cast<double>(spin_groups_[type].size());
     for (auto j = 0; j < 3; ++j) {
       tsv_file_ << std::scientific << spin_pumping_real[type][j] * norm  << "\t";
     }

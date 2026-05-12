@@ -44,7 +44,7 @@ MagnetisationLayersMonitor::MagnetisationLayersMonitor(
     // Find the minimum value of z in the rotated system. This will be used as the
     // baseline for layers with a finite thickness.
     double z_min = std::numeric_limits<double>::max();
-    for (auto i : spin_group.indices) {
+    for (auto i : spin_group.indices_span()) {
       auto r = rotation_matrix * ::globals::lattice->lattice_site_position_cart(i)
                * globals::lattice->parameter() * kMeterToNanometer;
       rotated_z_position[i] = r[2];
@@ -67,7 +67,7 @@ MagnetisationLayersMonitor::MagnetisationLayersMonitor(
     std::map<double, std::vector<int>, decltype(comp_less)> unique_positions(
         comp_less);
 
-    for (auto i : spin_group.indices) {
+    for (auto i : spin_group.indices_span()) {
       unique_positions[rotated_z_position[i]].push_back(i);
     }
 
@@ -97,12 +97,10 @@ MagnetisationLayersMonitor::MagnetisationLayersMonitor(
 
       layer_positions(counter) = z_layer_pos;
       layer_spin_count(counter) = z.second.size();
-      group_layer_spin_indicies_[group_idx][counter].resize(z.second.size());
+      group_layer_spin_indicies_[group_idx][counter] = jams::MultiArray<int, 1>(z.second);
 
       layer_saturation_moment(counter) = 0.0;
-      for (auto i = 0; i < z.second.size(); ++i) {
-        auto spin_index = z.second[i];
-        group_layer_spin_indicies_[group_idx][counter](i) = spin_index;
+      for (const auto spin_index : group_layer_spin_indicies_[group_idx][counter].host_span()) {
         layer_saturation_moment(counter) += moments(spin_index) / kBohrMagnetonIU;
       }
 

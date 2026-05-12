@@ -36,12 +36,13 @@ void SMRMonitor::update(Solver& solver) {
   std::vector<double> mn(spin_groups_.size(), 0.0);
 
   for (std::size_t group_index = 0; group_index < spin_groups_.size(); ++group_index) {
+    const auto& group = spin_groups_[group_index];
     // Uses the WMI geometry from M. Althammer,Phys. Rev. B 87, 224401 (2013).
     // assuming axes:
     // j -> x
     // t -> y
     // n -> z
-    for (const auto i : spin_groups_[group_index].indices) {
+    for (const auto i : group.indices_span()) {
       mtsq_para[group_index] +=  spins(i, 1) * spins(i, 1);
       mtsq_perp[group_index] +=  spins(i, 0) * spins(i, 0);
       mjmt_para[group_index] +=  spins(i, 0) * spins(i, 1);
@@ -52,8 +53,8 @@ void SMRMonitor::update(Solver& solver) {
   }
 
   for (std::size_t i = 0; i < spin_groups_.size(); ++i) {
-    if (!spin_groups_[i].indices.empty()) {
-      const auto norm = 1.0 / static_cast<double>(spin_groups_[i].indices.size());
+    if (!spin_groups_[i].empty()) {
+      const auto norm = 1.0 / static_cast<double>(spin_groups_[i].size());
       mtsq_para[i] = mtsq_para[i] * norm;
       mtsq_perp[i] = mtsq_perp[i] * norm;
 

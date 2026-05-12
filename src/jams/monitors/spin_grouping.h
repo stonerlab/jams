@@ -40,6 +40,10 @@ struct SpinGroup {
     return indices.host_span();
   }
 
+  [[nodiscard]] const index_array_type& indices_array() const noexcept {
+    return indices;
+  }
+
   [[nodiscard]] bool empty() const noexcept {
     return indices.empty();
   }
