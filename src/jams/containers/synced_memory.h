@@ -77,7 +77,6 @@
 #include <complex>
 #include <concepts>
 #include <cstdio>
-#include <cstdlib>
 #include <cstring>
 #include <exception>
 #include <iterator>
@@ -101,6 +100,14 @@ inline constexpr std::size_t synced_memory_host_alignment = 64;
 // If SyncedMemory is used in a global context then free() can call CUDA
 // routines after the CUDA context has been unloaded.
 inline constexpr bool synced_memory_allow_global = true;
+
+template<class T>
+[[nodiscard]] constexpr std::size_t synced_memory_host_allocation_alignment() noexcept {
+  constexpr std::size_t host_alignment = synced_memory_host_alignment;
+  static_assert((host_alignment & (host_alignment - 1)) == 0,
+                "synced_memory_host_alignment must be a power of two");
+  return std::max<std::size_t>(host_alignment, alignof(T));
+}
 
 inline void print_synced_memory_event(const char* event) noexcept {
   std::fprintf(stderr, "INFO(SyncedMemory): %s\n", event);
@@ -539,18 +546,8 @@ void SyncedMemory<T>::allocate_host_memory(const SyncedMemory::size_type size) c
   }
 #endif
 
-  // Ensure the returned pointer satisfies alignment requirements for T.
-  // posix_memalign requires alignment to be a power of two and a multiple of sizeof(void*).
-  constexpr std::size_t host_alignment = detail::synced_memory_host_alignment;
-  const std::size_t alignment = std::max<std::size_t>(host_alignment, alignof(T));
-  static_assert((host_alignment & (host_alignment - 1)) == 0,
-                "synced_memory_host_alignment must be a power of two");
-
-  void* raw = nullptr;
-  if (posix_memalign(&raw, alignment, allocation_bytes) != 0) {
-    throw std::bad_alloc();
-  }
-  host_ptr_ = reinterpret_cast<pointer>(raw);
+  const auto alignment = std::align_val_t(detail::synced_memory_host_allocation_alignment<T>());
+  host_ptr_ = static_cast<pointer>(::operator new(allocation_bytes, alignment));
   host_cuda_malloc_ = false;
 
   // host_ptr_ must be allocated by the end of the function
@@ -806,7 +803,8 @@ void SyncedMemory<T>::release_host_memory() const noexcept {
       return;
     }
     #endif
-    free(host_ptr_);
+    const auto alignment = std::align_val_t(detail::synced_memory_host_allocation_alignment<T>());
+    ::operator delete(host_ptr_, alignment);
     host_ptr_ = nullptr;
   }
   host_cuda_malloc_ = false;
