@@ -7,9 +7,15 @@
 
 #include <libconfig.h++>
 #include <jams/core/types.h>
+#include <jams/helpers/exception.h>
 #include <jams/helpers/utils.h>
 #include <array>
+#include <cstdint>
+#include <initializer_list>
+#include <string>
+#include <string_view>
 #include <type_traits>
+#include <vector>
 
 
 void overwrite_config_settings(libconfig::Setting& orig, const libconfig::Setting& patch);
@@ -42,6 +48,28 @@ inline T config_required(const libconfig::Setting &s, const std::string &name) {
   return config_required_impl<T>::get(s, name);
 }
 
+// Returns true if the setting is a string type.
+inline bool is_string_setting(const libconfig::Setting& setting)
+{
+  return setting.isString();
+}
+
+// Returns true if the setting is a string and equals the requested value.
+inline bool setting_equals_string(const libconfig::Setting& setting, std::string_view value)
+{
+  return is_string_setting(setting) && std::string_view(setting.c_str()) == value;
+}
+
+// Returns a string setting value.
+inline std::string read_string_setting(const libconfig::Setting& setting, const char* name)
+{
+  if (!is_string_setting(setting)) {
+    throw jams::ConfigException(setting, name, " must be a string");
+  }
+
+  return setting.c_str();
+}
+
 // Specialisation for std::array<T, N>
 template<typename T, std::size_t N>
 struct config_required_impl<std::array<T, N>, void> {
@@ -70,7 +98,7 @@ struct config_required_impl<jams::Vec<T, N>, void> {
 template<>
 struct config_required_impl<std::string, void> {
   static std::string get(const libconfig::Setting &setting, const std::string &name) {
-    return setting[name].c_str();
+    return read_string_setting(setting[name], name.c_str());
   }
 };
 
@@ -147,6 +175,218 @@ struct config_required_impl<InteractionFileFormat, void> {
           return def;
         }
     }
+
+    // Returns true if the setting is an array or list.
+    inline bool is_sequence_setting(const libconfig::Setting& setting)
+    {
+      return setting.isArray() || setting.isList();
+    }
+
+    // Throws if the setting is not a sequence of the requested length.
+    inline void require_setting_length(const libconfig::Setting& setting, const char* name, const int length)
+    {
+      if (!is_sequence_setting(setting) || setting.getLength() != length) {
+        throw jams::ConfigException(setting, name, " must contain exactly ", length, " entries");
+      }
+    }
+
+    // Throws if more than one of the named settings exists.
+    inline void require_mutually_exclusive_settings(
+        const libconfig::Setting& setting,
+        std::initializer_list<std::string_view> names)
+    {
+      int count = 0;
+      for (const auto name : names) {
+        if (setting.exists(std::string(name))) {
+          ++count;
+        }
+      }
+
+      if (count > 1) {
+        throw jams::ConfigException(setting, "settings are mutually exclusive");
+      }
+    }
+
+    // Throws if only some of the named settings exist.
+    inline void require_settings_together(
+        const libconfig::Setting& setting,
+        std::initializer_list<std::string_view> names)
+    {
+      int count = 0;
+      for (const auto name : names) {
+        if (setting.exists(std::string(name))) {
+          ++count;
+        }
+      }
+
+      if (count != 0 && count != int(names.size())) {
+        throw jams::ConfigException(setting, "settings must be specified together");
+      }
+    }
+
+    // Returns true if the setting is an integer type
+    inline bool is_integer_setting(const libconfig::Setting& setting)
+    {
+      const auto type = setting.getType();
+      return type == libconfig::Setting::TypeInt || type == libconfig::Setting::TypeInt64;
+    }
+
+    // Returns true if the setting is an array of the requested length, with all entries numeric.
+    inline bool is_numeric_array_setting(const libconfig::Setting& setting, const int length)
+    {
+      if (!setting.isArray() || setting.getLength() != length) {
+        return false;
+      }
+
+      for (auto i = 0; i < length; ++i) {
+        if (!setting[i].isNumber()) {
+          return false;
+        }
+      }
+
+      return true;
+    }
+
+    // Returns true if the setting is an array or list of the requested length, with all entries numeric.
+    inline bool is_numeric_sequence_setting(const libconfig::Setting& setting, const int length)
+    {
+      if (!is_sequence_setting(setting) || setting.getLength() != length) {
+        return false;
+      }
+
+      for (auto i = 0; i < length; ++i) {
+        if (!setting[i].isNumber()) {
+          return false;
+        }
+      }
+
+      return true;
+    }
+
+    // Returns true if the setting is an array of three numbers
+    inline bool is_vec3_setting(const libconfig::Setting& setting)
+    {
+      return is_numeric_array_setting(setting, 3);
+    }
+
+    // Returns an integer setting value. Int64 values are narrowed to int.
+    inline int read_integer_setting(const libconfig::Setting& setting, const char* name)
+    {
+      if (!is_integer_setting(setting)) {
+        throw jams::ConfigException(setting, name, " must be an integer");
+      }
+
+      if (setting.getType() == libconfig::Setting::TypeInt64) {
+        return int(static_cast<int64_t>(setting));
+      }
+
+      return int(setting);
+    }
+
+    // Returns a numeric setting value converted to T.
+    template <typename T>
+    inline T read_numeric_setting(const libconfig::Setting& setting, const char* name)
+    {
+      static_assert(std::is_arithmetic_v<T>, "read_numeric_setting requires an arithmetic type");
+
+      if (!setting.isNumber()) {
+        throw jams::ConfigException(setting, name, " must be numeric");
+      }
+
+      if (setting.getType() == libconfig::Setting::TypeInt) {
+        return T(int(setting));
+      }
+      if (setting.getType() == libconfig::Setting::TypeInt64) {
+        return T(static_cast<int64_t>(setting));
+      }
+
+      return T(double(setting));
+    }
+
+    // Returns a numeric sequence setting read directly from a positional setting.
+    template <typename T>
+    inline std::vector<T> read_numeric_sequence_setting(const libconfig::Setting& setting, const char* name)
+    {
+      if (!is_sequence_setting(setting)) {
+        throw jams::ConfigException(setting, name, " must be an array or list");
+      }
+
+      std::vector<T> result(setting.getLength());
+      for (auto i = 0; i < setting.getLength(); ++i) {
+        result[i] = read_numeric_setting<T>(setting[i], "component");
+      }
+      return result;
+    }
+
+    // Returns a numeric sequence setting with a required length.
+    template <typename T>
+    inline std::vector<T> read_numeric_sequence_setting(
+        const libconfig::Setting& setting, const char* name, const int length)
+    {
+      require_setting_length(setting, name, length);
+      return read_numeric_sequence_setting<T>(setting, name);
+    }
+
+    // Returns a numeric Vec setting read directly from a positional setting.
+    template <typename T, std::size_t N>
+    inline jams::Vec<T, N> read_vec_setting(const libconfig::Setting& setting, const char* name)
+    {
+      if (!is_numeric_array_setting(setting, int(N))) {
+        throw jams::ConfigException(setting, name, " must be an array containing exactly ", N, " numeric components");
+      }
+
+      jams::Vec<T, N> result;
+      for (auto i = 0; i < int(N); ++i) {
+        result[i] = read_numeric_setting<T>(setting[i], "component");
+      }
+      return result;
+    }
+
+    // Returns a sequence of numeric Vec settings read directly from a positional setting.
+    template <typename T, std::size_t N>
+    inline std::vector<jams::Vec<T, N>> read_vec_sequence_setting(
+        const libconfig::Setting& setting, const char* name)
+    {
+      if (!is_sequence_setting(setting)) {
+        throw jams::ConfigException(setting, name, " must be an array or list");
+      }
+
+      std::vector<jams::Vec<T, N>> result(setting.getLength());
+      for (auto i = 0; i < setting.getLength(); ++i) {
+        result[i] = read_vec_setting<T, N>(setting[i], name);
+      }
+      return result;
+    }
+
+    // Returns a sequence of numeric Vec settings with a required length.
+    template <typename T, std::size_t N>
+    inline std::vector<jams::Vec<T, N>> read_vec_sequence_setting(
+        const libconfig::Setting& setting, const char* name, const int length)
+    {
+      require_setting_length(setting, name, length);
+      return read_vec_sequence_setting<T, N>(setting, name);
+    }
+
+    // Returns a row-major numeric Mat setting read directly from a flat positional setting.
+    template <typename T, std::size_t Rows, std::size_t Cols>
+    inline jams::Mat<T, Rows, Cols> read_mat_setting(const libconfig::Setting& setting, const char* name)
+    {
+      constexpr auto length = int(Rows * Cols);
+      if (!is_numeric_array_setting(setting, length)) {
+        throw jams::ConfigException(setting, name, " must be an array containing exactly ", length, " numeric components");
+      }
+
+      jams::Mat<T, Rows, Cols> result;
+      for (auto row = 0; row < int(Rows); ++row) {
+        for (auto col = 0; col < int(Cols); ++col) {
+          result[row][col] = read_numeric_setting<T>(setting[row * int(Cols) + col], "component");
+        }
+      }
+      return result;
+    }
+
+
+
 
 
 }

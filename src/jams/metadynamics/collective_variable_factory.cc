@@ -14,7 +14,7 @@
 
 #define DEFINED_METADYNAMICS_CVAR(name, type, settings) \
 { \
-  if (lowercase(settings["name"]) == name) { \
+  if (lowercase(jams::config_required<std::string>(settings, "name")) == name) { \
     return new type(settings); \
   } \
 }
@@ -37,7 +37,7 @@ jams::CollectiveVariableFactory::create(const libconfig::Setting &settings) {
                             CVarSkyrmionCoreCoordinate,settings);
 
   throw std::runtime_error("unknown metadynamics collective variable: "
-  + std::string(settings["collective_variable"].c_str()));
+  + jams::config_required<std::string>(settings, "collective_variable"));
 }
 
 #undef DEFINED_METADYNAMICS_CVAR

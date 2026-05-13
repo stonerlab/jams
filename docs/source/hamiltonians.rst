@@ -1,4 +1,5 @@
 .. _hamiltonians:
+
 Hamiltonians
 ############
 

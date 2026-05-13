@@ -3,6 +3,7 @@
 
 #include "gtest/gtest.h"
 
+#include <algorithm>
 #include <array>
 #include <cmath>
 #include <stdexcept>
@@ -234,6 +235,78 @@ std::vector<std::pair<int, int>> supported_tesseral_harmonics()
   return lm;
 }
 
+double condon_shortley_scale_squared_times_pi(const int l, const int m)
+{
+  switch (jams::tesseral_key(l, m)) {
+    case jams::tesseral_key(2, -2): return fraction(15, 4);
+    case jams::tesseral_key(2, -1): return fraction(15, 4);
+    case jams::tesseral_key(2,  0): return fraction(45, 16);
+    case jams::tesseral_key(2,  1): return fraction(15, 4);
+    case jams::tesseral_key(2,  2): return fraction(15, 16);
+
+    case jams::tesseral_key(4, -4): return fraction(315, 4);
+    case jams::tesseral_key(4, -3): return fraction(2835, 32);
+    case jams::tesseral_key(4, -2): return fraction(2205, 16);
+    case jams::tesseral_key(4, -1): return fraction(2205, 32);
+    case jams::tesseral_key(4,  0): return fraction(11025, 256);
+    case jams::tesseral_key(4,  1): return fraction(2205, 32);
+    case jams::tesseral_key(4,  2): return fraction(2205, 16);
+    case jams::tesseral_key(4,  3): return fraction(315, 2);
+    case jams::tesseral_key(4,  4): return fraction(315, 256);
+
+    case jams::tesseral_key(6, -6): return fraction(27027, 512);
+    case jams::tesseral_key(6, -5): return fraction(225225, 512);
+    case jams::tesseral_key(6, -4): return fraction(99099, 16);
+    case jams::tesseral_key(6, -3): return fraction(165165, 32);
+    case jams::tesseral_key(6, -2): return fraction(1486485, 512);
+    case jams::tesseral_key(6, -1): return fraction(297297, 256);
+    case jams::tesseral_key(6,  0): return fraction(693693, 1024);
+    case jams::tesseral_key(6,  1): return fraction(297297, 256);
+    case jams::tesseral_key(6,  2): return fraction(1486485, 512);
+    case jams::tesseral_key(6,  3): return fraction(165165, 32);
+    case jams::tesseral_key(6,  4): return fraction(99099, 1024);
+    case jams::tesseral_key(6,  5): return fraction(9009, 512);
+    case jams::tesseral_key(6,  6): return fraction(3003, 2048);
+    default: throw std::invalid_argument("unsupported tesseral harmonic");
+  }
+}
+
+double stevens_scale(const int l, const int m)
+{
+  switch (jams::tesseral_key(l, m)) {
+    case jams::tesseral_key(2, -2): return 2.0;
+    case jams::tesseral_key(2, -1): return 1.0;
+    case jams::tesseral_key(2,  0): return 3.0;
+    case jams::tesseral_key(2,  1): return 1.0;
+    case jams::tesseral_key(2,  2): return 1.0;
+
+    case jams::tesseral_key(4, -4): return -8.0;
+    case jams::tesseral_key(4, -3): return 3.0;
+    case jams::tesseral_key(4, -2): return 14.0;
+    case jams::tesseral_key(4, -1): return 7.0;
+    case jams::tesseral_key(4,  0): return 35.0;
+    case jams::tesseral_key(4,  1): return 7.0;
+    case jams::tesseral_key(4,  2): return -14.0;
+    case jams::tesseral_key(4,  3): return -4.0;
+    case jams::tesseral_key(4,  4): return 1.0;
+
+    case jams::tesseral_key(6, -6): return 6.0;
+    case jams::tesseral_key(6, -5): return 5.0;
+    case jams::tesseral_key(6, -4): return -88.0;
+    case jams::tesseral_key(6, -3): return -44.0;
+    case jams::tesseral_key(6, -2): return 66.0;
+    case jams::tesseral_key(6, -1): return 33.0;
+    case jams::tesseral_key(6,  0): return 231.0;
+    case jams::tesseral_key(6,  1): return 33.0;
+    case jams::tesseral_key(6,  2): return -66.0;
+    case jams::tesseral_key(6,  3): return -44.0;
+    case jams::tesseral_key(6,  4): return 11.0;
+    case jams::tesseral_key(6,  5): return 1.0;
+    case jams::tesseral_key(6,  6): return 1.0;
+    default: throw std::invalid_argument("unsupported tesseral harmonic");
+  }
+}
+
 } // namespace
 
 TEST(TesseralHarmonicsTest, CartesianFunctionsAndGradientsMatchSphericalAtUnitRadius)
@@ -257,8 +330,8 @@ TEST(TesseralHarmonicsTest, CartesianFunctionsAndGradientsMatchSphericalAtUnitRa
         EXPECT_NEAR(cartesian_value, spherical_value, tolerance)
             << "l=" << l << " m=" << m << " theta=" << theta << " phi=" << phi;
 
-        const auto cartesian_gradient = jams::tesseral_monic_polynomial_grad_key_lookup(
-            key, x, y, z);
+        double cartesian_gradient[3];
+        jams::tesseral_monic_polynomial_grad_key_lookup(key, x, y, z, cartesian_gradient);
         const auto spherical_derivatives = tesseral_monic_polynomial_spherical_derivatives(
             l, m, r, theta, phi);
         const auto spherical_gradient = spherical_gradient_to_cartesian(
@@ -271,6 +344,67 @@ TEST(TesseralHarmonicsTest, CartesianFunctionsAndGradientsMatchSphericalAtUnitRa
       }
     }
   }
+}
+
+TEST(TesseralHarmonicsTest, NormalisationScaleFactors)
+{
+  constexpr double relative_tolerance = 1e-14;
+
+  for (const auto& [l, m] : supported_tesseral_harmonics()) {
+    EXPECT_DOUBLE_EQ(
+        jams::tesseral_monic_polynomial_normalisation_scale<double>(
+            jams::TesseralHarmonicNormalisation::monic, l, m),
+        1.0);
+
+    const auto scale = jams::tesseral_monic_polynomial_normalisation_scale<double>(
+        jams::TesseralHarmonicNormalisation::condon_shortley, l, m);
+    const auto expected = condon_shortley_scale_squared_times_pi(l, m);
+    EXPECT_NEAR(scale * scale * M_PI,
+                expected,
+                relative_tolerance * std::max(1.0, std::abs(expected)))
+        << "l=" << l << " m=" << m;
+
+    const auto racah_scale = jams::tesseral_monic_polynomial_normalisation_scale<double>(
+        jams::TesseralHarmonicNormalisation::racah, l, m);
+    EXPECT_DOUBLE_EQ(racah_scale, jams::tesseral_racah_normalisation_scale_lookup<double>(l, m));
+    const auto expected_racah_scale_squared =
+        4.0 * condon_shortley_scale_squared_times_pi(l, m) / static_cast<double>(2 * l + 1);
+    EXPECT_NEAR(racah_scale * racah_scale,
+                expected_racah_scale_squared,
+                relative_tolerance * std::max(1.0, std::abs(expected_racah_scale_squared)))
+        << "l=" << l << " m=" << m;
+
+    EXPECT_DOUBLE_EQ(
+        jams::tesseral_monic_polynomial_normalisation_scale<double>(
+            jams::TesseralHarmonicNormalisation::stevens, l, m),
+        stevens_scale(l, m));
+  }
+
+  constexpr double z = 0.42;
+  const auto racah_l2_m0 = jams::tesseral_monic_polynomial_normalisation_scale<double>(
+      jams::TesseralHarmonicNormalisation::racah, 2, 0)
+      * jams::tesseral_monic_polynomial_l2_0(0.0, 0.0, z);
+  EXPECT_NEAR(racah_l2_m0, 0.5 * (3.0 * z * z - 1.0), 1e-15);
+
+  const auto racah_l4_m0 = jams::tesseral_monic_polynomial_normalisation_scale<double>(
+      jams::TesseralHarmonicNormalisation::racah, 4, 0)
+      * jams::tesseral_monic_polynomial_l4_0(0.0, 0.0, z);
+  EXPECT_NEAR(racah_l4_m0,
+              0.125 * (3.0 - 30.0 * z * z + 35.0 * z * z * z * z),
+              1e-15);
+
+  const auto z2 = z * z;
+  const auto z4 = z2 * z2;
+  const auto z6 = z4 * z2;
+  const auto racah_l6_m0 = jams::tesseral_monic_polynomial_normalisation_scale<double>(
+      jams::TesseralHarmonicNormalisation::racah, 6, 0)
+      * jams::tesseral_monic_polynomial_l6_0(0.0, 0.0, z);
+  EXPECT_NEAR(racah_l6_m0, (231.0 * z6 - 315.0 * z4 + 105.0 * z2 - 5.0) / 16.0, 1e-15);
+
+  const auto stevens_l2_m0 = jams::tesseral_monic_polynomial_normalisation_scale<double>(
+      jams::TesseralHarmonicNormalisation::stevens, 2, 0)
+      * jams::tesseral_monic_polynomial_l2_0(0.0, 0.0, z);
+  EXPECT_NEAR(stevens_l2_m0, 3.0 * z * z - 1.0, 1e-15);
 }
 
 #endif // JAMS_TEST_TESSERAL_HARMONICS_H

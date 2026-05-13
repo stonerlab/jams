@@ -4,6 +4,7 @@
 #include "jams/hamiltonian/exchange_functional.h"
 #include "jams/core/lattice.h"
 #include "jams/core/globals.h"
+#include "jams/interface/config.h"
 
 #include <jams/lattice/interaction_neartree.h>
 
@@ -17,10 +18,11 @@ ExchangeFunctionalHamiltonian::ExchangeFunctionalHamiltonian(const libconfig::Se
 
   double max_cutoff_radius = 0.0;
   for (auto n = 0; n < settings["interactions"].getLength(); ++n) {
-    auto type_i = std::string(settings["interactions"][n][0]);
-    auto type_j = std::string(settings["interactions"][n][1]);
-    auto functional_name = std::string(settings["interactions"][n][2]);
-    auto r_cutoff = input_distance_unit_conversion_ * double(settings["interactions"][n][3]);
+    const auto type_i = jams::read_string_setting(settings["interactions"][n][0], "material i");
+    const auto type_j = jams::read_string_setting(settings["interactions"][n][1], "material j");
+    const auto functional_name = jams::read_string_setting(settings["interactions"][n][2], "exchange functional");
+    const auto r_cutoff = input_distance_unit_conversion_
+        * jams::read_numeric_setting<double>(settings["interactions"][n][3], "cutoff radius");
 
     // Check that this pair (in either order) has not been specified before
     const auto key_ij = std::make_pair(type_i, type_j);
@@ -46,7 +48,7 @@ ExchangeFunctionalHamiltonian::ExchangeFunctionalHamiltonian(const libconfig::Se
 
     std::vector<double> params;
     for (auto k = 4; k < settings["interactions"][n].getLength(); ++k) {
-      params.push_back(settings["interactions"][n][k]);
+      params.push_back(jams::read_numeric_setting<double>(settings["interactions"][n][k], "functional parameter"));
     }
 
     auto exchange_functional = functional_from_params(functional_name, params);
@@ -214,5 +216,3 @@ ExchangeFunctionalHamiltonian::output_exchange_functional(std::ostream &os,
     r += delta_r;
   }
 }
-
-

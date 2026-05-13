@@ -12,7 +12,8 @@ release = ''
 # -- General configuration ---------------------------------------------------
 
 extensions = [
-    'sphinx.ext.mathjax'
+    'sphinx.ext.mathjax',
+    'sphinx_git',
 ]
 
 mathjax_path = 'https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js'
@@ -23,4 +24,3 @@ templates_path = ['_templates']
 html_theme = 'sphinx_rtd_theme'
 
 html_static_path = ['_static']
-

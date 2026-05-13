@@ -5,6 +5,7 @@
 #include <jams/core/globals.h>
 #include <jams/core/interactions.h>
 #include <jams/cuda/cuda_device_vector_ops.h>
+#include <jams/interface/config.h>
 
 #include <fstream>
 
@@ -37,20 +38,18 @@ CudaBiquadraticExchangeHamiltonian::CudaBiquadraticExchangeHamiltonian(
     const libconfig::Setting &settings, unsigned int size)
 : Hamiltonian(settings, size),
   sparse_matrix_builder_(size, size) {
-  bool use_symops = true;
-  settings.lookupValue("symops", use_symops);
+  const auto use_symops = jams::config_optional<bool>(settings, "symops", true);
 
   // this is in the units specified by 'unit_name' in the input
-  energy_cutoff_ = 0.0;
-  settings.lookupValue("energy_cutoff", energy_cutoff_);
+  energy_cutoff_ = jams::config_optional<double>(settings, "energy_cutoff", 0.0);
   std::cout << "    interaction energy cutoff " << energy_cutoff_ << "\n";
 
-  radius_cutoff_ = 100.0;  // lattice parameters
-  settings.lookupValue("radius_cutoff", radius_cutoff_);
+  radius_cutoff_ = jams::config_optional<double>(settings, "radius_cutoff", 100.0);  // lattice parameters
   std::cout << "    interaction radius cutoff " << radius_cutoff_ << "\n";
 
-  distance_tolerance_ = jams::defaults::lattice_tolerance; // fractional coordinate units
-  settings.lookupValue("distance_tolerance", distance_tolerance_);
+  // fractional coordinate units
+  distance_tolerance_ = jams::config_optional<double>(
+      settings, "distance_tolerance", jams::defaults::lattice_tolerance);
   std::cout << "    distance_tolerance " << distance_tolerance_ << "\n";
 
   safety_check_distance_tolerance(distance_tolerance_);
@@ -84,49 +83,33 @@ CudaBiquadraticExchangeHamiltonian::CudaBiquadraticExchangeHamiltonian(
 
   std::vector<InteractionChecks> interaction_checks;
 
-  if (!settings.exists("check_no_zero_motif_neighbour_count")) {
+  if (jams::config_optional<bool>(settings, "check_no_zero_motif_neighbour_count", true)) {
     interaction_checks.push_back(InteractionChecks::kNoZeroMotifNeighbourCount);
-  } else {
-    if (bool(settings["check_no_zero_motif_neighbour_count"]) == true) {
-      interaction_checks.push_back(InteractionChecks::kNoZeroMotifNeighbourCount);
-    }
   }
 
-  if (!settings.exists("check_identical_motif_neighbour_count")) {
+  if (jams::config_optional<bool>(settings, "check_identical_motif_neighbour_count", true)) {
     interaction_checks.push_back(InteractionChecks::kIdenticalMotifNeighbourCount);
-  } else {
-    if (bool(settings["check_identical_motif_neighbour_count"]) == true) {
-      interaction_checks.push_back(InteractionChecks::kIdenticalMotifNeighbourCount);
-    }
   }
 
-  if (!settings.exists("check_identical_motif_total_exchange")) {
+  if (jams::config_optional<bool>(settings, "check_identical_motif_total_exchange", true)) {
     interaction_checks.push_back(InteractionChecks::kIdenticalMotifTotalExchange);
-  } else {
-    if (bool(settings["check_identical_motif_total_exchange"]) == true) {
-      interaction_checks.push_back(InteractionChecks::kIdenticalMotifTotalExchange);
-    }
   }
 
-  jams::SparseMatrixSymmetryCheck sparse_matrix_checks = jams::SparseMatrixSymmetryCheck::Symmetric;
+  const auto sparse_matrix_checks = jams::config_optional<bool>(settings, "check_sparse_matrix_symmetry", true)
+      ? jams::SparseMatrixSymmetryCheck::Symmetric
+      : jams::SparseMatrixSymmetryCheck::None;
 
-  if (settings.exists("check_sparse_matrix_symmetry")) {
-    if (bool(settings["check_sparse_matrix_symmetry"]) == false) {
-      sparse_matrix_checks = jams::SparseMatrixSymmetryCheck::None;
-    }
-  }
-
-  std::string coordinate_format_name = "CARTESIAN";
-  settings.lookupValue("coordinate_format", coordinate_format_name);
-  CoordinateFormat coord_format = coordinate_format_from_string(coordinate_format_name);
+  const auto coord_format = jams::config_optional<CoordinateFormat>(
+      settings, "coordinate_format", CoordinateFormat::CARTESIAN);
 
   std::cout << "    coordinate format: " << to_string(coord_format) << "\n";
   // exc_file is to maintain backwards compatibility
   if (settings.exists("exc_file")) {
-    std::cout << "    interaction file name " << settings["exc_file"].c_str() << "\n";
-    std::ifstream interaction_file(settings["exc_file"].c_str());
+    const auto file_path = jams::config_required<std::string>(settings, "exc_file");
+    std::cout << "    interaction file name " << file_path << "\n";
+    std::ifstream interaction_file(file_path);
     if (interaction_file.fail()) {
-      throw jams::FileException(settings["exc_file"].c_str(), "failed to open interaction file");
+      throw jams::FileException(file_path.c_str(), "failed to open interaction file");
     }
     neighbour_list_ = generate_neighbour_list(
         interaction_file, coord_format, use_symops, energy_cutoff_,radius_cutoff_, distance_tolerance_, interaction_checks);
@@ -256,5 +239,3 @@ jams::Real CudaBiquadraticExchangeHamiltonian::calculate_energy_difference(int i
   auto e_final = -jams::dot(spin_final, 0.5*field);
   return static_cast<jams::Real>(e_final - e_initial);
 }
-
-

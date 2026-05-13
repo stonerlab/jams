@@ -29,6 +29,7 @@
 #include "jams/monitors/unitcell_average.h"
 #include "jams/monitors/vtu.h"
 #include "jams/monitors/xyz.h"
+#include "jams/interface/config.h"
 
 #ifdef HAS_CUDA
   #include "jams/monitors/neutron_scattering_no_lattice.h"
@@ -38,7 +39,7 @@
 
 #define DEFINED_MONITOR(name, type, settings) \
 { \
-  if (lowercase(settings["module"]) == name) { \
+  if (lowercase(jams::config_required<std::string>(settings, "module")) == name) { \
     return new type(settings); \
   } \
 }
@@ -110,5 +111,5 @@ Monitor* Monitor::create(const libconfig::Setting &settings) {
   DEFINED_MONITOR("cuda-neutron-scattering-no-lattice", CudaNeutronScatteringNoLatticeMonitor, settings);
 #endif
 
-  throw std::runtime_error("unknown monitor " + std::string(settings["module"].c_str()));
+  throw std::runtime_error("unknown monitor " + jams::config_required<std::string>(settings, "module"));
 }

@@ -111,6 +111,7 @@ set(JAMS_SOURCES_CUDA
         cuda/cuda_solver.cu
         cuda/cuda_spin_ops.cu
         cuda/cuda_minimum_image.cu
+        hamiltonian/cuda_anisotropy_polynomial.cu
         hamiltonian/cuda_applied_field.cu
         hamiltonian/cuda_biquadratic_exchange.cu
         hamiltonian/cuda_cubic_anisotropy.cu

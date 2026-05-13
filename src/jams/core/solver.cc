@@ -38,7 +38,7 @@
 
 #define DEFINED_SOLVER(name, type, settings) \
 { \
-if (lowercase(settings["module"]) == name) { \
+if (lowercase(jams::config_required<std::string>(settings, "module")) == name) { \
 std::cout << name << " solver \n"; \
 return new type(settings); \
 } \
@@ -95,7 +95,7 @@ Solver* Solver::create(const libconfig::Setting &settings) {
   DEFINED_SOLVER("llg-rkmk4-gpu", CUDALLGRKMK4Solver, settings);
 #endif
 
-  throw std::runtime_error("unknown solver " + std::string(settings["module"].c_str()));
+  throw std::runtime_error("unknown solver " + jams::config_required<std::string>(settings, "module"));
 }
 
 

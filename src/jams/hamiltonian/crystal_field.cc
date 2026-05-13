@@ -3,61 +3,198 @@
 #include <jams/core/globals.h>
 #include <jams/core/lattice.h>
 #include <jams/helpers/exception.h>
+#include <jams/hamiltonian/tesseral_polynomial_evaluator.h>
+#include <jams/interface/config.h>
+#include <jams/maths/tesseral_harmonics.h>
+#include <algorithm>
 #include <fstream>
 #include <iostream>
+#include <optional>
+#include <set>
+#include <sstream>
+#include <utility>
+#include <vector>
 
-CrystalFieldHamiltonian::CrystalFieldHamiltonian(const libconfig::Setting &settings, unsigned int size)
-    : Hamiltonian(settings, size),
-      energy_cutoff_(jams::config_required<double>(settings, "energy_cutoff")),
-      crystal_field_spin_type_(CrystalFieldSpinType::kSpinUp),
-      spin_has_crystal_field_(false, size),
-      crystal_field_tesseral_coeff_(0.0, kCrystalFieldNumCoeff_, size) {
-  std::cout << "energy_cutoff: " << energy_cutoff_ << "\n";
+namespace {
+constexpr int parity_sign(const int m) {
+  return (m % 2 == 0) ? 1 : -1;
+}
 
-  auto spin_type_string = lowercase(settings["crystal_field_spin_type"]);
+bool terms_are_axial(const AnisotropyPolynomialHamiltonian::TesseralKeyCoefficientMap& terms)
+{
+  return std::all_of(terms.begin(), terms.end(), [](const auto& term) {
+    return term.second == jams::Real{0}
+        || jams::tesseral_polynomial::axial_coefficient_index_from_key(term.first) >= 0;
+  });
+}
 
-  if (spin_type_string == "up") {
-    crystal_field_spin_type_ = CrystalFieldSpinType::kSpinUp;
-    std::cout << "crystal_field_spin_type: up\n";
-  } else if (spin_type_string == "down") {
-    crystal_field_spin_type_ = CrystalFieldSpinType::kSpinUp;
-    std::cout << "crystal_field_spin_type: down\n";
-  } else {
-    throw jams::ConfigException(settings["crystal_field_spin_type"], "must be 'up' or 'down'");
+bool is_valid_crystal_field_l(const int l)
+{
+  return jams::util::is_in_list(l, {0, 2, 4, 6});
+}
+
+CrystalFieldHamiltonian::SphericalHarmonicCoefficientMap zero_spherical_coefficients()
+{
+  CrystalFieldHamiltonian::SphericalHarmonicCoefficientMap coefficients;
+  for (auto l : {0, 2, 4, 6}) {
+    for (auto m = -l; m <= l; ++m) {
+      coefficients.insert({{l, m}, {0.0, 0.0}});
+    }
+  }
+  return coefficients;
+}
+
+CrystalFieldHamiltonian::CrystalFieldSpinType read_crystal_field_spin_type_setting(
+    const libconfig::Setting& setting)
+{
+  if (!jams::is_string_setting(setting)) {
+    throw jams::ConfigException(setting, "crystal_field_spin_type must be 'up' or 'down'");
   }
 
-  for (auto n = 0; n < settings["crystal_field_coefficients"].getLength(); ++n) {
+  auto spin_type_string = lowercase(jams::read_string_setting(setting, "crystal_field_spin_type"));
 
-    auto &cf_params = settings["crystal_field_coefficients"][n];
+  if (spin_type_string == "up") {
+    return CrystalFieldHamiltonian::CrystalFieldSpinType::kSpinUp;
+  }
+  if (spin_type_string == "down") {
+    return CrystalFieldHamiltonian::CrystalFieldSpinType::kSpinDown;
+  }
 
-    // validate settings
-    if (cf_params[0].isNumber()) {
-      if (int(cf_params[0]) < 1 || int(cf_params[0]) > globals::lattice->num_basis_sites()) {
+  throw jams::ConfigException(setting, "crystal_field_spin_type must be 'up' or 'down'");
+}
+
+std::optional<CrystalFieldHamiltonian::CrystalFieldSpinType> read_optional_crystal_field_spin_type(
+    const libconfig::Setting& settings)
+{
+  if (!settings.exists("crystal_field_spin_type")) {
+    return std::nullopt;
+  }
+
+  return read_crystal_field_spin_type_setting(settings["crystal_field_spin_type"]);
+}
+
+const char* crystal_field_spin_type_name(const CrystalFieldHamiltonian::CrystalFieldSpinType spin_type)
+{
+  switch (spin_type) {
+    case CrystalFieldHamiltonian::CrystalFieldSpinType::kSpinUp:
+      return "up";
+    case CrystalFieldHamiltonian::CrystalFieldSpinType::kSpinDown:
+      return "down";
+  }
+
+  throw std::invalid_argument("invalid crystal field spin type");
+}
+
+std::map<int, double> stevens_prefactors(
+    const double J,
+    const double alphaJ,
+    const double betaJ,
+    const double gammaJ)
+{
+  return {
+      {2, J * (J - 0.5) * alphaJ},
+      {4, J * (J - 0.5) * (J - 1) * (J - 1.5) * betaJ},
+      {6, J * (J - 0.5) * (J - 1) * (J - 1.5) * (J - 2) * (J - 2.5) * gammaJ}
+  };
+}
+}
+
+CrystalFieldHamiltonian::CrystalFieldHamiltonian(const libconfig::Setting &settings, unsigned int size)
+    : AnisotropyPolynomialHamiltonian(settings, size, EmptyStorageTag{}),
+      energy_cutoff_(jams::config_required<double>(settings, "energy_cutoff")) {
+  std::cout << "energy_cutoff: " << energy_cutoff_ << "\n";
+
+  const auto crystal_field_spin_type = read_optional_crystal_field_spin_type(settings);
+  if (crystal_field_spin_type.has_value()) {
+    std::cout << "crystal_field_spin_type: " << crystal_field_spin_type_name(*crystal_field_spin_type) << "\n";
+  }
+
+  if (!settings.exists("crystal_field_coefficients")) {
+    throw jams::ConfigException(settings, "missing crystal_field_coefficients");
+  }
+
+  const auto& crystal_field_settings = settings["crystal_field_coefficients"];
+  if (!crystal_field_settings.isList()) {
+    throw jams::ConfigException(crystal_field_settings, "crystal_field_coefficients must be a list");
+  }
+  if (crystal_field_settings.getLength() == 0) {
+    throw jams::ConfigException(crystal_field_settings, "crystal_field_coefficients must contain at least one entry");
+  }
+
+  std::vector<TesseralKeyCoefficientMap> spin_terms(size);
+  std::vector<bool> spin_has_crystal_field(size, false);
+
+  for (auto n = 0; n < crystal_field_settings.getLength(); ++n) {
+
+    const auto &cf_params = crystal_field_settings[n];
+    if (!cf_params.isList()) {
+      throw jams::ConfigException(cf_params, "crystal field coefficients entry must be a list");
+    }
+    if (cf_params.getLength() == 0) {
+      throw jams::ConfigException(cf_params, "crystal field coefficients entry must not be empty");
+    }
+
+    int motif_position = -1;
+    int material_id = -1;
+    if (jams::is_integer_setting(cf_params[0])) {
+      motif_position = jams::read_integer_setting(cf_params[0], "unit cell index") - 1;
+      if (motif_position < 0 || motif_position >= globals::lattice->num_basis_sites()) {
         throw jams::ConfigException(cf_params[0],
                                     "unit cell index must be between 1 and ",
                                     globals::lattice->num_basis_sites());
       }
-    } else if (cf_params[0].isString()) {
-      if (!globals::lattice->material_exists(cf_params[0])) {
-        throw jams::ConfigException(cf_params[0], "material ", cf_params[0].c_str(), " does not exist in config file");
+    } else if (cf_params[0].isNumber()) {
+      throw jams::ConfigException(cf_params[0], "unit cell index must be an integer");
+    } else if (jams::is_string_setting(cf_params[0])) {
+      const auto material = jams::read_string_setting(cf_params[0], "material");
+      if (!globals::lattice->material_exists(material)) {
+        throw jams::ConfigException(cf_params[0], "material ", material, " does not exist in config file");
       }
+      material_id = globals::lattice->material_index(material);
     } else {
       throw jams::ConfigException(cf_params[0], "must be a unit cell index or material name");
     }
 
-    double J = cf_params[1];
-    double alphaJ = cf_params[2];
-    double betaJ = cf_params[3];
-    double gammaJ = cf_params[4];
-    auto cf_coefficient_filename = cf_params[5].c_str();
+    int parameter_start = 1;
+    const auto local_axes = read_optional_local_axes(cf_params, 1, "crystal field", parameter_start);
+    if (cf_params.getLength() < parameter_start + 5) {
+      throw jams::ConfigException(
+          cf_params,
+          "crystal field coefficients entry must have format "
+          "(target, [u, v, w], J, alphaJ, betaJ, gammaJ, cf_param_filename) or "
+          "(target, [u, v, w], J, alphaJ, betaJ, gammaJ, (l, m, real, imaginary), ...)");
+    }
 
-    std::map<int, double> stevens_prefactor;
-    stevens_prefactor.insert({2, J * (J - 0.5) * alphaJ});
-    stevens_prefactor.insert({4, J * (J - 0.5) * (J - 1) * (J - 1.5) * betaJ});
-    stevens_prefactor.insert({6, J * (J - 0.5) * (J - 1) * (J - 1.5) * (J - 2) * (J - 2.5) * gammaJ});
+    const double J = jams::read_numeric_setting<double>(cf_params[parameter_start], "J");
+    const double alphaJ = jams::read_numeric_setting<double>(cf_params[parameter_start + 1], "alphaJ");
+    const double betaJ = jams::read_numeric_setting<double>(cf_params[parameter_start + 2], "betaJ");
+    const double gammaJ = jams::read_numeric_setting<double>(cf_params[parameter_start + 3], "gammaJ");
+    const auto stevens_prefactor = stevens_prefactors(J, alphaJ, betaJ, gammaJ);
 
-    auto tesseral_coefficients = convert_spherical_to_tesseral(
-        read_crystal_field_coefficients_from_file(cf_coefficient_filename), energy_cutoff_);
+    SphericalHarmonicCoefficientMap spherical_coefficients;
+    const auto coefficient_start = parameter_start + 4;
+    if (jams::is_string_setting(cf_params[coefficient_start])) {
+      if (cf_params.getLength() != coefficient_start + 1) {
+        throw jams::ConfigException(
+            cf_params,
+            "file-based crystal field coefficients entry must have format "
+            "(target, [u, v, w], J, alphaJ, betaJ, gammaJ, cf_param_filename)");
+      }
+      if (!crystal_field_spin_type.has_value()) {
+        throw jams::ConfigException(
+            settings,
+            "crystal_field_spin_type is required when crystal field coefficients are read from a file");
+      }
+
+      const auto cf_coefficient_filename = jams::read_string_setting(
+          cf_params[coefficient_start], "crystal field coefficient filename");
+      spherical_coefficients = read_crystal_field_coefficients_from_file(
+          cf_coefficient_filename, *crystal_field_spin_type);
+    } else {
+      spherical_coefficients = read_crystal_field_coefficients_from_config(cf_params, coefficient_start);
+    }
+
+    auto tesseral_coefficients = convert_spherical_to_tesseral(spherical_coefficients, energy_cutoff_);
 
     if (debug_is_enabled()) {
       std::cout << "tesseral harmonic coefficients " << n << ":" << std::endl;
@@ -66,58 +203,65 @@ CrystalFieldHamiltonian::CrystalFieldHamiltonian(const libconfig::Setting &setti
       }
     }
 
-    for (auto i = 0; i < globals::num_spins; i++) {
-      if (cf_params[0].isNumber()) {
-        if (globals::lattice->lattice_site_basis_index(i) != int(cf_params[0]) - 1) {
+    TesseralKeyCoefficientMap crystal_field_terms;
+    for (auto const &[lm, B_lm] : tesseral_coefficients) {
+      const auto &[l, m] = lm;
+      // We don't use the 0,0 coefficients because they are constant energy offsets.
+      if (l == 0 && m == 0) {
+        continue;
+      }
+
+      const auto coefficient = input_energy_unit_conversion_ * stevens_prefactor.at(l) * B_lm
+          * jams::tesseral_racah_normalisation_scale_lookup<double>(l, m);
+      if (coefficient == 0.0) {
+        continue;
+      }
+
+      crystal_field_terms[jams::tesseral_key(l, m)] = jams::Real(coefficient);
+    }
+    if (local_axes.has_axes && !local_axes.has_full_axes && !terms_are_axial(crystal_field_terms)) {
+      throw jams::ConfigException(
+          cf_params,
+          "a single crystal-field axis can only be used when all non-zero tesseral terms have m = 0");
+    }
+
+    for (auto i = 0u; i < size; i++) {
+      if (motif_position >= 0) {
+        if (int(globals::lattice->lattice_site_basis_index(i)) != motif_position) {
+          continue;
+        }
+      } else {
+        if (globals::lattice->lattice_site_material_id(i) != material_id) {
           continue;
         }
       }
 
-      if (cf_params[0].isString()) {
-        if (globals::lattice->lattice_site_material_name(i) != std::string(cf_params[0])) {
-          continue;
-        }
-      }
-
-      if (spin_has_crystal_field_(i)) {
+      if (spin_has_crystal_field[i]) {
         throw std::runtime_error("crystal field is specified more than once for atom " + std::to_string(i));
       }
 
-      auto cf_counter = 0;
-      for (auto const &[lm, B_lm] : tesseral_coefficients) {
-        const auto &[l, m] = lm;
-        // We don't use the 0,0 coefficients because they are constant energy offsets
-        if (l == 0 && m == 0) {
-          continue;
-        }
-
-        crystal_field_tesseral_coeff_(cf_counter++, i) = input_energy_unit_conversion_ * stevens_prefactor[l] * B_lm;
-      }
-
-      spin_has_crystal_field_(i) = true;
+      write_local_axes_for_spin(int(i), local_axes);
+      spin_terms[i] = crystal_field_terms;
+      spin_has_crystal_field[i] = true;
     }
   }
+
+  set_tesseral_terms(spin_terms);
 }
 
 CrystalFieldHamiltonian::SphericalHarmonicCoefficientMap CrystalFieldHamiltonian::read_crystal_field_coefficients_from_file(
-    const std::string& filename) {
+    const std::string& filename,
+    const CrystalFieldSpinType spin_type) {
   std::ifstream fs(filename);
   if (fs.fail()) {
     throw jams::FileException(filename, "failed to open file");
   }
 
-  SphericalHarmonicCoefficientMap coefficients;
-
-  // We first populate an empty coefficient map. This ensures that the map is always full and ordered
-  // so that it is always a consistent length.
-  for (auto l : {0, 2, 4, 6}) {
-    for (auto m = -l; m <= l; ++m) {
-      coefficients.insert({{l, m}, {0, 0}});
-    }
-  }
+  auto coefficients = zero_spherical_coefficients();
 
   int line_number = 0;
   for (std::string line; getline(fs, line);) {
+    ++line_number;
     if (string_is_comment(line)) {
       continue;
     }
@@ -127,9 +271,11 @@ CrystalFieldHamiltonian::SphericalHarmonicCoefficientMap CrystalFieldHamiltonian
     int l, m;
     double Re_Blm_up, Im_Blm_up, Re_Blm_down, Im_Blm_down;
 
-    is >> l >> m >> Re_Blm_up >> Im_Blm_up >> Re_Blm_down >> Im_Blm_down;
+    if (!(is >> l >> m >> Re_Blm_up >> Im_Blm_up >> Re_Blm_down >> Im_Blm_down)) {
+      throw jams::FileException(filename, "line ", line_number, ": expected columns l m upRe upIm dnRe dnIm");
+    }
 
-    if (!jams::util::is_in_list(l, {0, 2, 4, 6})) {
+    if (!is_valid_crystal_field_l(l)) {
       throw jams::FileException(filename, "line ", line_number, ": 'l' must be 0, 2, 4 or 6");
     }
 
@@ -144,12 +290,69 @@ CrystalFieldHamiltonian::SphericalHarmonicCoefficientMap CrystalFieldHamiltonian
     // harmonics which are purely real. The averaging means that it becomes harder to check that the real part is
     // purely real.
 
-    const auto &[Re_Blm, Im_Blm] = (crystal_field_spin_type_ == CrystalFieldSpinType::kSpinUp)
+    const auto &[Re_Blm, Im_Blm] = (spin_type == CrystalFieldSpinType::kSpinUp)
                                    ? std::tie(Re_Blm_up, Im_Blm_up) : std::tie(Re_Blm_down, Im_Blm_down);
 
     coefficients.at({l, m}) = {Re_Blm, Im_Blm};
 
-    line_number++;
+  }
+
+  return coefficients;
+}
+
+CrystalFieldHamiltonian::SphericalHarmonicCoefficientMap CrystalFieldHamiltonian::read_crystal_field_coefficients_from_config(
+    const libconfig::Setting& cf_params,
+    const int coefficient_start_index)
+{
+  auto coefficients = zero_spherical_coefficients();
+  std::set<std::pair<int, int>> specified_coefficients;
+
+  for (auto i = coefficient_start_index; i < cf_params.getLength(); ++i) {
+    const auto& coefficient_setting = cf_params[i];
+    if (!coefficient_setting.isList() || coefficient_setting.getLength() != 4) {
+      throw jams::ConfigException(
+          coefficient_setting,
+          "crystal field coefficient must have format (l, m, real, imaginary)");
+    }
+
+    const int l = jams::read_integer_setting(coefficient_setting[0], "l");
+    const int m = jams::read_integer_setting(coefficient_setting[1], "m");
+    const double real = jams::read_numeric_setting<double>(coefficient_setting[2], "real");
+    const double imaginary = jams::read_numeric_setting<double>(coefficient_setting[3], "imaginary");
+
+    if (!is_valid_crystal_field_l(l)) {
+      throw jams::ConfigException(coefficient_setting[0], "l must be 0, 2, 4 or 6");
+    }
+
+    if (m < -l || m > l) {
+      throw jams::ConfigException(coefficient_setting[1], "m must be -l <= m <= l");
+    }
+
+    const auto lm = std::make_pair(l, m);
+    if (!specified_coefficients.insert(lm).second) {
+      throw jams::ConfigException(coefficient_setting, "crystal field coefficient is specified more than once");
+    }
+
+    coefficients.at(lm) = {real, imaginary};
+  }
+
+  for (auto l : {2, 4, 6}) {
+    for (auto m = 1; m <= l; ++m) {
+      const auto positive_m = std::make_pair(l, m);
+      const auto negative_m = std::make_pair(l, -m);
+      const auto has_positive_m = specified_coefficients.count(positive_m) > 0;
+      const auto has_negative_m = specified_coefficients.count(negative_m) > 0;
+
+      if (has_positive_m == has_negative_m) {
+        continue;
+      }
+
+      if (has_positive_m) {
+        coefficients.at(negative_m) = static_cast<double>(parity_sign(m)) * std::conj(coefficients.at(positive_m));
+      } else {
+        coefficients.at(positive_m) = static_cast<double>(parity_sign(m)) * std::conj(coefficients.at(negative_m));
+      }
+    }
   }
 
   return coefficients;
@@ -167,11 +370,12 @@ CrystalFieldHamiltonian::TesseralHarmonicCoefficientMap CrystalFieldHamiltonian:
       if (m == 0) {
         C_lm = spherical_coefficients.at({l, m});
       } else if (m > 0) {
-        C_lm =
-            kSqrtOne_Two * (spherical_coefficients.at({l, -m}) + std::pow(-1, m) * spherical_coefficients.at({l, m}));
+        const auto phase = static_cast<double>(parity_sign(m));
+        C_lm = kSqrtOne_Two * (spherical_coefficients.at({l, -m}) + phase * spherical_coefficients.at({l, m}));
       } else if (m < 0) {
+        const auto phase = static_cast<double>(parity_sign(m));
         C_lm = kImagOne * kSqrtOne_Two
-            * (spherical_coefficients.at({l, m}) - std::pow(-1, m) * spherical_coefficients.at({l, -m}));
+            * (phase * spherical_coefficients.at({l, -m}) - spherical_coefficients.at({l, m}));
       }
 
       // We need to check that the imaginary parts are very close to zero. However, this depends on the units
@@ -193,276 +397,6 @@ CrystalFieldHamiltonian::TesseralHarmonicCoefficientMap CrystalFieldHamiltonian:
   return tesseral_coefficients;
 }
 
-jams::Vec<jams::Real, 3> CrystalFieldHamiltonian::calculate_field(int i, jams::Real time) {
-  const double sx = globals::s(i, 0);
-  const double sy = globals::s(i, 1);
-  const double sz = globals::s(i, 2);
-
-  jams::Vec<double, 3> h = {0.0, 0.0, 0.0};
-
-// -C_{2,-2} dZ_{2,-2}/dS
-  double C2_2 = crystal_field_tesseral_coeff_(0, i);
-  h[0] += C2_2*( -1.7320508075688772*sx*(2.*(sy*sy) + sz*sz) );
-  h[1] += C2_2*( -1.7320508075688772*sy*(-2. + 2.*(sy*sy) + sz*sz) );
-  h[2] += C2_2*( -1.7320508075688772*sz*(-1. + 2.*(sy*sy) + sz*sz) );
-
-// -C_{2,-1} dZ_{2,-1}/dS
-  double C2_1 = crystal_field_tesseral_coeff_(1, i);
-  h[0] += C2_1*( 1.7320508075688772*sz*(-1. + 2.*(sy*sy) + 2.*(sz*sz)) );
-  h[1] += C2_1*( -3.4641016151377544*sx*sy*sz );
-  h[2] += C2_1*( -1.7320508075688772*sx*(-1. + 2.*(sz*sz)) );
-
-// -C_{2,0} dZ_{2,0}/dS
-  double C20 = crystal_field_tesseral_coeff_(2, i);
-  h[0] += C20*( 3.*sx*(sz*sz) );
-  h[1] += C20*( 3.*sy*(sz*sz) );
-  h[2] += C20*( 3.*sz*(-1. + sz*sz) );
-
-// -C_{2,1} dZ_{2,1}/dS
-  double C21 = crystal_field_tesseral_coeff_(3, i);
-  h[0] += C21*( 1.7320508075688772*sz*(-1. + 2.*(sy*sy) + 2.*(sz*sz)) );
-  h[1] += C21*( -3.4641016151377544*sx*sy*sz );
-  h[2] += C21*( -1.7320508075688772*sx*(-1. + 2.*(sz*sz)) );
-
-// -C_{2,2} dZ_{2,2}/dS
-  double C22 = crystal_field_tesseral_coeff_(4, i);
-  h[0] += C22*( -1.7320508075688772*sx*(2.*(sy*sy) + sz*sz) );
-  h[1] += C22*( -1.7320508075688772*sy*(-2. + 2.*(sy*sy) + sz*sz) );
-  h[2] += C22*( -1.7320508075688772*sz*(-1. + 2.*(sy*sy) + sz*sz) );
-
-// -C_{4,-4} dZ_{4,-4}/dS
-  double C4_4 = crystal_field_tesseral_coeff_(5, i);
-  h[0] += C4_4*( 2.958039891549808*sx*(8.*(sy*sy*sy*sy) - 1.*(sz*sz) + sz*sz*sz*sz + sy*sy*(-4. + 8.*(sz*sz))) );
-  h[1] += C4_4*( 2.958039891549808*sy*(4. + 8.*(sy*sy*sy*sy) - 5.*(sz*sz) + sz*sz*sz*sz + 4.*(sy*sy)*(-3. + 2.*(sz*sz))) );
-  h[2] += C4_4*( 2.958039891549808*(sx*sx*sx*sx - 6.*(sx*sx)*(sy*sy) + sy*sy*sy*sy)*sz );
-
-// -C_{4,-3} dZ_{4,-3}/dS
-  double C4_3 = crystal_field_tesseral_coeff_(6, i);
-  h[0] += C4_3*( -2.091650066335189*sz*(1. + 16.*(sy*sy*sy*sy) - 5.*(sz*sz) + 4.*(sz*sz*sz*sz) + 2.*(sy*sy)*(-7. + 10.*(sz*sz))) );
-  h[1] += C4_3*( 4.183300132670378*sx*sy*sz*(-5. + 8.*(sy*sy) + 2.*(sz*sz)) );
-  h[2] += C4_3*( 2.091650066335189*sx*(-1. + 4.*(sy*sy) + sz*sz)*(-1. + 4.*(sz*sz)) );
-
-// -C_{4,-2} dZ_{4,-2}/dS
-  double C4_2 = crystal_field_tesseral_coeff_(7, i);
-  h[0] += C4_2*( -2.23606797749979*sx*(-1.*(sy*sy) + 2.*(-2. + 7.*(sy*sy))*(sz*sz) + 7.*(sz*sz*sz*sz)) );
-  h[1] += C4_2*( -2.23606797749979*sy*(1. - 11.*(sz*sz) + 7.*(sz*sz*sz*sz) + sy*sy*(-1. + 14.*(sz*sz))) );
-  h[2] += C4_2*( -2.23606797749979*sz*(-1. + 2.*(sy*sy) + sz*sz)*(-4. + 7.*(sz*sz)) );
-
-// -C_{4,-1} dZ_{4,-1}/dS
-  double C4_1 = crystal_field_tesseral_coeff_(8, i);
-  h[0] += C4_1*( 0.7905694150420949*sz*(3. - 27.*(sz*sz) + 28.*(sz*sz*sz*sz) + sy*sy*(-6. + 28.*(sz*sz))) );
-  h[1] += C4_1*( -1.5811388300841898*sx*sy*sz*(-3. + 14.*(sz*sz)) );
-  h[2] += C4_1*( -0.7905694150420949*sx*(3. - 27.*(sz*sz) + 28.*(sz*sz*sz*sz)) );
-
-// -C_{4,0} dZ_{4,0}/dS
-  double C40 = crystal_field_tesseral_coeff_(9, i);
-  h[0] += C40*( -2.5*sx*(sz*sz)*(3. - 7.*(sz*sz)) );
-  h[1] += C40*( -2.5*sy*(sz*sz)*(3. - 7.*(sz*sz)) );
-  h[2] += C40*( 2.5*sz*(3. - 10.*(sz*sz) + 7.*(sz*sz*sz*sz)) );
-
-// -C_{4,1} dZ_{4,1}/dS
-  double C41 = crystal_field_tesseral_coeff_(10, i);
-  h[0] += C41*( 0.7905694150420949*sz*(3. - 27.*(sz*sz) + 28.*(sz*sz*sz*sz) + sy*sy*(-6. + 28.*(sz*sz))) );
-  h[1] += C41*( -1.5811388300841898*sx*sy*sz*(-3. + 14.*(sz*sz)) );
-  h[2] += C41*( -0.7905694150420949*sx*(3. - 27.*(sz*sz) + 28.*(sz*sz*sz*sz)) );
-
-// -C_{4,2} dZ_{4,2}/dS
-  double C42 = crystal_field_tesseral_coeff_(11, i);
-  h[0] += C42*( -2.23606797749979*sx*(-1.*(sy*sy) + 2.*(-2. + 7.*(sy*sy))*(sz*sz) + 7.*(sz*sz*sz*sz)) );
-  h[1] += C42*( -2.23606797749979*sy*(1. - 11.*(sz*sz) + 7.*(sz*sz*sz*sz) + sy*sy*(-1. + 14.*(sz*sz))) );
-  h[2] += C42*( -2.23606797749979*sz*(-1. + 2.*(sy*sy) + sz*sz)*(-4. + 7.*(sz*sz)) );
-
-// -C_{4,3} dZ_{4,3}/dS
-  double C43 = crystal_field_tesseral_coeff_(12, i);
-  h[0] += C43*( -2.091650066335189*sz*(1. + 16.*(sy*sy*sy*sy) - 5.*(sz*sz) + 4.*(sz*sz*sz*sz) + 2.*(sy*sy)*(-7. + 10.*(sz*sz))) );
-  h[1] += C43*( 4.183300132670378*sx*sy*sz*(-5. + 8.*(sy*sy) + 2.*(sz*sz)) );
-  h[2] += C43*( 2.091650066335189*sx*(-1. + 4.*(sy*sy) + sz*sz)*(-1. + 4.*(sz*sz)) );
-
-// -C_{4,4} dZ_{4,4}/dS
-  double C44 = crystal_field_tesseral_coeff_(13, i);
-  h[0] += C44*( 2.958039891549808*sx*(8.*(sy*sy*sy*sy) - 1.*(sz*sz) + sz*sz*sz*sz + sy*sy*(-4. + 8.*(sz*sz))) );
-  h[1] += C44*( 2.958039891549808*sy*(4. + 8.*(sy*sy*sy*sy) - 5.*(sz*sz) + sz*sz*sz*sz + 4.*(sy*sy)*(-3. + 2.*(sz*sz))) );
-  h[2] += C44*( 2.958039891549808*(sx*sx*sx*sx - 6.*(sx*sx)*(sy*sy) + sy*sy*sy*sy)*sz );
-
-// -C_{6,-6} dZ_{6,-6}/dS
-  double C6_6 = crystal_field_tesseral_coeff_(14, i);
-  h[0] += C6_6*( -4.030159736288377*sx*(6.*(sy*sy*sy*sy*sy*sy) + 5.*(sy*sy*sy*sy)*(sz*sz) - 10.*(sx*sx)*(sy*sy)*(2.*(sy*sy) + sz*sz) + sx*sx*sx*sx*(6.*(sy*sy) + sz*sz)) );
-  h[1] += C6_6*( 4.030159736288377*sy*(6.*(sx*sx*sx*sx*sx*sx) - 20.*(sx*sx*sx*sx)*(sy*sy) + 6.*(sx*sx)*(sy*sy*sy*sy) + (5.*(sx*sx*sx*sx) - 10.*(sx*sx)*(sy*sy) + sy*sy*sy*sy)*(sz*sz)) );
-  h[2] += C6_6*( 4.030159736288377*(sx*sx*sx*sx*sx*sx - 15.*(sx*sx*sx*sx)*(sy*sy) + 15.*(sx*sx)*(sy*sy*sy*sy) - 1.*(sy*sy*sy*sy*sy*sy))*sz );
-
-// -C_{6,-5} dZ_{6,-5}/dS
-  double C6_5 = crystal_field_tesseral_coeff_(15, i);
-  h[0] += C6_5*( 2.3268138086232857*sz*(-1.*(sx*sx*sx*sx*sx*sx) + 35.*(sx*sx*sx*sx)*(sy*sy) - 55.*(sx*sx)*(sy*sy*sy*sy) + 5.*(sy*sy*sy*sy*sy*sy) + 5.*(sx*sx*sx*sx - 6.*(sx*sx)*(sy*sy) + sy*sy*sy*sy)*(sz*sz)) );
-  h[1] += C6_5*( -4.653627617246571*sx*sy*sz*(13. - 56.*(sy*sy) + 48.*(sy*sy*sy*sy) + 4.*(-4. + 9.*(sy*sy))*(sz*sz) + 3.*(sz*sz*sz*sz)) );
-  h[2] += C6_5*( -2.3268138086232857*sx*(sx*sx*sx*sx - 10.*(sx*sx)*(sy*sy) + 5.*(sy*sy*sy*sy))*(-1. + 6.*(sz*sz)) );
-
-// -C_{6,-4} dZ_{6,-4}/dS
-  double C6_4 = crystal_field_tesseral_coeff_(16, i);
-  h[0] += C6_4*( 0.9921567416492215*sx*(13.*(sz*sz) - 46.*(sz*sz*sz*sz) + 33.*(sz*sz*sz*sz*sz*sz) + 8.*(sy*sy*sy*sy)*(-2. + 33.*(sz*sz)) + 8.*(sy*sy)*(1. - 24.*(sz*sz) + 33.*(sz*sz*sz*sz))) );
-  h[1] += C6_4*( 0.9921567416492215*sy*(-8. + 109.*(sz*sz) - 134.*(sz*sz*sz*sz) + 33.*(sz*sz*sz*sz*sz*sz) + 8.*(sy*sy*sy*sy)*(-2. + 33.*(sz*sz)) + 8.*(sy*sy)*(3. - 46.*(sz*sz) + 33.*(sz*sz*sz*sz))) );
-  h[2] += C6_4*( -0.9921567416492215*(sx*sx*sx*sx - 6.*(sx*sx)*(sy*sy) + sy*sy*sy*sy)*sz*(13. - 33.*(sz*sz)) );
-
-// -C_{6,-3} dZ_{6,-3}/dS
-  double C6_3 = crystal_field_tesseral_coeff_(17, i);
-  h[0] += C6_3*( -2.7171331399105196*sz*(-1. + 16.*(sz*sz) - 37.*(sz*sz*sz*sz) + 22.*(sz*sz*sz*sz*sz*sz) + 8.*(sy*sy*sy*sy)*(-2. + 11.*(sz*sz)) + 2.*(sy*sy)*(7. - 54.*(sz*sz) + 55.*(sz*sz*sz*sz))) );
-  h[1] += C6_3*( 5.434266279821039*sx*sy*sz*(5. - 24.*(sz*sz) + 11.*(sz*sz*sz*sz) + sy*sy*(-8. + 44.*(sz*sz))) );
-  h[2] += C6_3*( 2.7171331399105196*sx*(-1. + 4.*(sy*sy) + sz*sz)*(1. - 15.*(sz*sz) + 22.*(sz*sz*sz*sz)) );
-
-// -C_{6,-2} dZ_{6,-2}/dS
-  double C6_2 = crystal_field_tesseral_coeff_(18, i);
-  h[0] += C6_2*( -0.9057110466368399*sx*(2.*(sy*sy) + (19. - 72.*(sy*sy))*(sz*sz) + 6.*(-17. + 33.*(sy*sy))*(sz*sz*sz*sz) + 99.*(sz*sz*sz*sz*sz*sz)) );
-  h[1] += C6_2*( -0.9057110466368399*sy*(-2. + 55.*(sz*sz) - 168.*(sz*sz*sz*sz) + 99.*(sz*sz*sz*sz*sz*sz) + 2.*(sy*sy)*(1. - 36.*(sz*sz) + 99.*(sz*sz*sz*sz))) );
-  h[2] += C6_2*( -0.9057110466368399*sz*(-1. + 2.*(sy*sy) + sz*sz)*(19. - 102.*(sz*sz) + 99.*(sz*sz*sz*sz)) );
-
-// -C_{6,-1} dZ_{6,-1}/dS
-  double C6_1 = crystal_field_tesseral_coeff_(19, i);
-  h[0] += C6_1*( -0.57282196186948*sz*(5. - 100.*(sz*sz) + 285.*(sz*sz*sz*sz) - 198.*(sz*sz*sz*sz*sz*sz) - 2.*(sy*sy)*(5. - 60.*(sz*sz) + 99.*(sz*sz*sz*sz))) );
-  h[1] += C6_1*( -1.14564392373896*sx*sy*sz*(5. - 60.*(sz*sz) + 99.*(sz*sz*sz*sz)) );
-  h[2] += C6_1*( -0.57282196186948*sx*(-5. + 100.*(sz*sz) - 285.*(sz*sz*sz*sz) + 198.*(sz*sz*sz*sz*sz*sz)) );
-
-// -C_{6,0} dZ_{6,0}/dS
-  double C60 = crystal_field_tesseral_coeff_(20, i);
-  h[0] += C60*( 2.625*sx*(sz*sz)*(5. - 30.*(sz*sz) + 33.*(sz*sz*sz*sz)) );
-  h[1] += C60*( 2.625*sy*(sz*sz)*(5. - 30.*(sz*sz) + 33.*(sz*sz*sz*sz)) );
-  h[2] += C60*( 2.625*sz*(-5. + 35.*(sz*sz) - 63.*(sz*sz*sz*sz) + 33.*(sz*sz*sz*sz*sz*sz)) );
-
-// -C_{6,1} dZ_{6,1}/dS
-  double C61 = crystal_field_tesseral_coeff_(21, i);
-  h[0] += C61*( -0.57282196186948*sz*(5. - 100.*(sz*sz) + 285.*(sz*sz*sz*sz) - 198.*(sz*sz*sz*sz*sz*sz) - 2.*(sy*sy)*(5. - 60.*(sz*sz) + 99.*(sz*sz*sz*sz))) );
-  h[1] += C61*( -1.14564392373896*sx*sy*sz*(5. - 60.*(sz*sz) + 99.*(sz*sz*sz*sz)) );
-  h[2] += C61*( -0.57282196186948*sx*(-5. + 100.*(sz*sz) - 285.*(sz*sz*sz*sz) + 198.*(sz*sz*sz*sz*sz*sz)) );
-
-// -C_{6,2} dZ_{6,2}/dS
-  double C62 = crystal_field_tesseral_coeff_(22, i);
-  h[0] += C62*( -0.9057110466368399*sx*(2.*(sy*sy) + (19. - 72.*(sy*sy))*(sz*sz) + 6.*(-17. + 33.*(sy*sy))*(sz*sz*sz*sz) + 99.*(sz*sz*sz*sz*sz*sz)) );
-  h[1] += C62*( -0.9057110466368399*sy*(-2. + 55.*(sz*sz) - 168.*(sz*sz*sz*sz) + 99.*(sz*sz*sz*sz*sz*sz) + 2.*(sy*sy)*(1. - 36.*(sz*sz) + 99.*(sz*sz*sz*sz))) );
-  h[2] += C62*( -0.9057110466368399*sz*(-1. + 2.*(sy*sy) + sz*sz)*(19. - 102.*(sz*sz) + 99.*(sz*sz*sz*sz)) );
-
-// -C_{6,3} dZ_{6,3}/dS
-  double C63 = crystal_field_tesseral_coeff_(23, i);
-  h[0] += C63*( -2.7171331399105196*sz*(-1. + 16.*(sz*sz) - 37.*(sz*sz*sz*sz) + 22.*(sz*sz*sz*sz*sz*sz) + 8.*(sy*sy*sy*sy)*(-2. + 11.*(sz*sz)) + 2.*(sy*sy)*(7. - 54.*(sz*sz) + 55.*(sz*sz*sz*sz))) );
-  h[1] += C63*( 5.434266279821039*sx*sy*sz*(5. - 24.*(sz*sz) + 11.*(sz*sz*sz*sz) + sy*sy*(-8. + 44.*(sz*sz))) );
-  h[2] += C63*( 2.7171331399105196*sx*(-1. + 4.*(sy*sy) + sz*sz)*(1. - 15.*(sz*sz) + 22.*(sz*sz*sz*sz)) );
-
-// -C_{6,4} dZ_{6,4}/dS
-  double C64 = crystal_field_tesseral_coeff_(24, i);
-  h[0] += C64*( 0.9921567416492215*sx*(13.*(sz*sz) - 46.*(sz*sz*sz*sz) + 33.*(sz*sz*sz*sz*sz*sz) + 8.*(sy*sy*sy*sy)*(-2. + 33.*(sz*sz)) + 8.*(sy*sy)*(1. - 24.*(sz*sz) + 33.*(sz*sz*sz*sz))) );
-  h[1] += C64*( 0.9921567416492215*sy*(-8. + 109.*(sz*sz) - 134.*(sz*sz*sz*sz) + 33.*(sz*sz*sz*sz*sz*sz) + 8.*(sy*sy*sy*sy)*(-2. + 33.*(sz*sz)) + 8.*(sy*sy)*(3. - 46.*(sz*sz) + 33.*(sz*sz*sz*sz))) );
-  h[2] += C64*( -0.9921567416492215*(sx*sx*sx*sx - 6.*(sx*sx)*(sy*sy) + sy*sy*sy*sy)*sz*(13. - 33.*(sz*sz)) );
-
-// -C_{6,5} dZ_{6,5}/dS
-  double C65 = crystal_field_tesseral_coeff_(25, i);
-  h[0] += C65*( 2.3268138086232857*sz*(-1.*(sx*sx*sx*sx*sx*sx) + 35.*(sx*sx*sx*sx)*(sy*sy) - 55.*(sx*sx)*(sy*sy*sy*sy) + 5.*(sy*sy*sy*sy*sy*sy) + 5.*(sx*sx*sx*sx - 6.*(sx*sx)*(sy*sy) + sy*sy*sy*sy)*(sz*sz)) );
-  h[1] += C65*( -4.653627617246571*sx*sy*sz*(13. - 56.*(sy*sy) + 48.*(sy*sy*sy*sy) + 4.*(-4. + 9.*(sy*sy))*(sz*sz) + 3.*(sz*sz*sz*sz)) );
-  h[2] += C65*( -2.3268138086232857*sx*(sx*sx*sx*sx - 10.*(sx*sx)*(sy*sy) + 5.*(sy*sy*sy*sy))*(-1. + 6.*(sz*sz)) );
-
-// -C_{6,6} dZ_{6,6}/dS
-  double C66 = crystal_field_tesseral_coeff_(26, i);
-  h[0] += C66*( -4.030159736288377*sx*(6.*(sy*sy*sy*sy*sy*sy) + 5.*(sy*sy*sy*sy)*(sz*sz) - 10.*(sx*sx)*(sy*sy)*(2.*(sy*sy) + sz*sz) + sx*sx*sx*sx*(6.*(sy*sy) + sz*sz)) );
-  h[1] += C66*( 4.030159736288377*sy*(6.*(sx*sx*sx*sx*sx*sx) - 20.*(sx*sx*sx*sx)*(sy*sy) + 6.*(sx*sx)*(sy*sy*sy*sy) + (5.*(sx*sx*sx*sx) - 10.*(sx*sx)*(sy*sy) + sy*sy*sy*sy)*(sz*sz)) );
-  h[2] += C66*( 4.030159736288377*(sx*sx*sx*sx*sx*sx - 15.*(sx*sx*sx*sx)*(sy*sy) + 15.*(sx*sx)*(sy*sy*sy*sy) - 1.*(sy*sy*sy*sy*sy*sy))*sz );
-
-  return jams::array_cast<jams::Real>(h);
-}
-
-jams::Real CrystalFieldHamiltonian::calculate_energy(int i, jams::Real time) {
-  return crystal_field_energy(i, {globals::s(i,0), globals::s(i,1), globals::s(i,2)});
-}
-
-jams::Real CrystalFieldHamiltonian::calculate_energy_difference(int i, const jams::Vec<double, 3> &spin_initial, const jams::Vec<double, 3> &spin_final,
-                                                            jams::Real time) {
-  return crystal_field_energy(i, spin_final) - crystal_field_energy(i, spin_initial);
-}
 jams::Real CrystalFieldHamiltonian::crystal_field_energy(int i, const jams::Vec<double, 3> &s) {
-  if (!spin_has_crystal_field_(i)) {
-    return 0.0;
-  }
-
-  const double sx = s[0];
-  const double sy = s[1];
-  const double sz = s[2];
-
-  double energy = 0.0;
-
-// C_{2,-2} Z_{2,-2}
-  energy += crystal_field_tesseral_coeff_(0, i) * 0.8660254037844386*(sx - 1.*sy)*(sx + sy);
-
-// C_{2,-1} Z_{2,-1}
-  energy += crystal_field_tesseral_coeff_(1, i) * -1.7320508075688772*sx*sz;
-
-// C_{2,0} Z_{2,0}
-  energy += crystal_field_tesseral_coeff_(2, i) * 0.5*(-1. + 3.*(sz*sz));
-
-// C_{2,1} Z_{2,1}
-  energy += crystal_field_tesseral_coeff_(3, i) * -1.7320508075688772*sx*sz;
-
-// C_{2,2} Z_{2,2}
-  energy += crystal_field_tesseral_coeff_(4, i) * 0.8660254037844386*(sx - 1.*sy)*(sx + sy);
-
-// C_{4,-4} Z_{4,-4}
-  energy += crystal_field_tesseral_coeff_(5, i) * 0.739509972887452*(sx*sx*sx*sx - 6.*(sx*sx)*(sy*sy) + sy*sy*sy*sy);
-
-// C_{4,-3} Z_{4,-3}
-  energy += crystal_field_tesseral_coeff_(6, i) * 2.091650066335189*sx*sz*(-1. + 4.*(sy*sy) + sz*sz);
-
-// C_{4,-2} Z_{4,-2}
-  energy += crystal_field_tesseral_coeff_(7, i) * -0.5590169943749475*(-1. + 2.*(sy*sy) + sz*sz)*(-1. + 7.*(sz*sz));
-
-// C_{4,-1} Z_{4,-1}
-  energy += crystal_field_tesseral_coeff_(8, i) * 0.7905694150420949*sx*sz*(3. - 7.*(sz*sz));
-
-// C_{4,0} Z_{4,0}
-  energy += crystal_field_tesseral_coeff_(9, i) * 0.125*(3. - 30.*(sz*sz) + 35.*(sz*sz*sz*sz));
-
-// C_{4,1} Z_{4,1}
-  energy += crystal_field_tesseral_coeff_(10, i) * 0.7905694150420949*sx*sz*(3. - 7.*(sz*sz));
-
-// C_{4,2} Z_{4,2}
-  energy += crystal_field_tesseral_coeff_(11, i) * -0.5590169943749475*(-1. + 2.*(sy*sy) + sz*sz)*(-1. + 7.*(sz*sz));
-
-// C_{4,3} Z_{4,3}
-  energy += crystal_field_tesseral_coeff_(12, i) * 2.091650066335189*sx*sz*(-1. + 4.*(sy*sy) + sz*sz);
-
-// C_{4,4} Z_{4,4}
-  energy += crystal_field_tesseral_coeff_(13, i) * 0.739509972887452*(sx*sx*sx*sx - 6.*(sx*sx)*(sy*sy) + sy*sy*sy*sy);
-
-// C_{6,-6} Z_{6,-6}
-  energy += crystal_field_tesseral_coeff_(14, i) * 0.6716932893813962*(sx*sx*sx*sx*sx*sx - 15.*(sx*sx*sx*sx)*(sy*sy) + 15.*(sx*sx)*(sy*sy*sy*sy) - 1.*(sy*sy*sy*sy*sy*sy));
-
-// C_{6,-5} Z_{6,-5}
-  energy += crystal_field_tesseral_coeff_(15, i) * -2.3268138086232857*sx*(sx*sx*sx*sx - 10.*(sx*sx)*(sy*sy) + 5.*(sy*sy*sy*sy))*sz;
-
-// C_{6,-4} Z_{6,-4}
-  energy += crystal_field_tesseral_coeff_(16, i) * 0.49607837082461076*(sx*sx*sx*sx - 6.*(sx*sx)*(sy*sy) + sy*sy*sy*sy)*(-1. + 11.*(sz*sz));
-
-// C_{6,-3} Z_{6,-3}
-  energy += crystal_field_tesseral_coeff_(17, i) * 0.9057110466368399*sx*sz*(-1. + 4.*(sy*sy) + sz*sz)*(-3. + 11.*(sz*sz));
-
-// C_{6,-2} Z_{6,-2}
-  energy += crystal_field_tesseral_coeff_(18, i) * -0.45285552331841994*(-1. + 2.*(sy*sy) + sz*sz)*(1. - 18.*(sz*sz) + 33.*(sz*sz*sz*sz));
-
-// C_{6,-1} Z_{6,-1}
-  energy += crystal_field_tesseral_coeff_(19, i) * -0.57282196186948*sx*sz*(5. - 30.*(sz*sz) + 33.*(sz*sz*sz*sz));
-
-// C_{6,0} Z_{6,0}
-  energy += crystal_field_tesseral_coeff_(20, i) * 0.0625*(-5. + 21.*(sz*sz)*(5. - 15.*(sz*sz) + 11.*(sz*sz*sz*sz)));
-
-// C_{6,1} Z_{6,1}
-  energy += crystal_field_tesseral_coeff_(21, i) * -0.57282196186948*sx*sz*(5. - 30.*(sz*sz) + 33.*(sz*sz*sz*sz));
-
-// C_{6,2} Z_{6,2}
-  energy += crystal_field_tesseral_coeff_(22, i) * -0.45285552331841994*(-1. + 2.*(sy*sy) + sz*sz)*(1. - 18.*(sz*sz) + 33.*(sz*sz*sz*sz));
-
-// C_{6,3} Z_{6,3}
-  energy += crystal_field_tesseral_coeff_(23, i) * 0.9057110466368399*sx*sz*(-1. + 4.*(sy*sy) + sz*sz)*(-3. + 11.*(sz*sz));
-
-// C_{6,4} Z_{6,4}
-  energy += crystal_field_tesseral_coeff_(24, i) * 0.49607837082461076*(sx*sx*sx*sx - 6.*(sx*sx)*(sy*sy) + sy*sy*sy*sy)*(-1. + 11.*(sz*sz));
-
-// C_{6,5} Z_{6,5}
-  energy += crystal_field_tesseral_coeff_(25, i) * -2.3268138086232857*sx*(sx*sx*sx*sx - 10.*(sx*sx)*(sy*sy) + 5.*(sy*sy*sy*sy))*sz;
-
-// C_{6,6} Z_{6,6}
-  energy += crystal_field_tesseral_coeff_(26, i) * 0.6716932893813962*(sx*sx*sx*sx*sx*sx - 15.*(sx*sx*sx*sx)*(sy*sy) + 15.*(sx*sx)*(sy*sy*sy*sy) - 1.*(sy*sy*sy*sy*sy*sy));
-  return static_cast<jams::Real>(energy);
+  return calculate_energy_for_spin(i, s, 0.0);
 }

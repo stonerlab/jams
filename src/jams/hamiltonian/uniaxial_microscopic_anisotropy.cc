@@ -7,6 +7,7 @@
 #include "jams/helpers/error.h"
 #include "jams/hamiltonian/uniaxial_microscopic_anisotropy.h"
 #include <jams/helpers/exception.h>
+#include <jams/interface/config.h>
 
 UniaxialMicroscopicAnisotropyHamiltonian::UniaxialMicroscopicAnisotropyHamiltonian(const libconfig::Setting &settings, const unsigned int num_spins)
         : Hamiltonian(settings, num_spins) {
@@ -18,50 +19,26 @@ UniaxialMicroscopicAnisotropyHamiltonian::UniaxialMicroscopicAnisotropyHamiltoni
 
   std::vector<int> cfg_mca_order;
   std::vector<std::vector<jams::Real>> cfg_mca_value;
+  const auto num_materials = globals::lattice->num_materials();
+  const auto read_mca_values = [&](const char* name, const int order) {
+    if (!settings.exists(name)) {
+      return;
+    }
+
+    auto values = jams::read_numeric_sequence_setting<jams::Real>(
+        settings[name], name, num_materials);
+    for (auto& value : values) {
+      value *= input_energy_unit_conversion_;
+    }
+
+    cfg_mca_order.push_back(order);
+    cfg_mca_value.push_back(values);
+  };
 
   // deal with magnetocrystalline anisotropy coefficients
-  if (settings.exists("d2z")) {
-    if (settings["d2z"].getLength() != globals::lattice->num_materials()) {
-      throw jams::ConfigException(settings["d2z"], "must be specified for every material");
-    }
-    cfg_mca_order.push_back(2);
-
-    std::vector<jams::Real> values(settings["d2z"].getLength());
-    for (auto i = 0; i < settings["d2z"].getLength(); ++i) {
-      values[i] = jams::Real(settings["d2z"][i]) * input_energy_unit_conversion_;
-    }
-
-    cfg_mca_value.push_back(values);
-  }
-
-  if (settings.exists("d4z")) {
-    if (settings["d4z"].getLength() != globals::lattice->num_materials()) {
-      throw jams::ConfigException(settings["d4z"], "must be specified for every material");
-    }
-    cfg_mca_order.push_back(4);
-
-    std::vector<jams::Real> values(settings["d4z"].getLength());
-    for (auto i = 0; i < settings["d4z"].getLength(); ++i) {
-      values[i] = jams::Real(settings["d4z"][i]) * input_energy_unit_conversion_;
-    }
-
-    cfg_mca_value.push_back(values);
-  }
-
-  if (settings.exists("d6z")) {
-    if (settings["d6z"].getLength() != globals::lattice->num_materials()) {
-      throw jams::ConfigException(settings["d6z"], "must be specified for every material");
-
-    }
-    cfg_mca_order.push_back(6);
-
-    std::vector<jams::Real> values(settings["d6z"].getLength());
-    for (auto i = 0; i < settings["d6z"].getLength(); ++i) {
-      values[i] = jams::Real(settings["d6z"][i]) * input_energy_unit_conversion_;
-    }
-
-    cfg_mca_value.push_back(values);
-  }
+  read_mca_values("d2z", 2);
+  read_mca_values("d4z", 4);
+  read_mca_values("d6z", 6);
 
   mca_order_.resize(cfg_mca_order.size());
   for (auto i = 0; i < cfg_mca_order.size(); ++i){

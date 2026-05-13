@@ -11,6 +11,7 @@
 #include "jams/helpers/utils.h"
 #include "jams/core/solver.h"
 #include "jams/core/lattice.h"
+#include "jams/interface/config.h"
 #include <jams/lattice/minimum_image.h>
 
 #include "jams/hamiltonian/dipole_bruteforce.h"
@@ -20,7 +21,7 @@
 DipoleBruteforceHamiltonian::DipoleBruteforceHamiltonian(const libconfig::Setting &settings, const unsigned int size)
     : Hamiltonian(settings, size) {
 
-  settings.lookupValue("r_cutoff", r_cutoff_);
+  r_cutoff_ = jams::config_required<jams::Real>(settings, "r_cutoff");
   std::cout << "  r_cutoff " << r_cutoff_ << "\n";
 
   if (r_cutoff_ > globals::lattice->max_interaction_radius()) {

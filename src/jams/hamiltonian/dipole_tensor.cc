@@ -6,12 +6,13 @@
 #include "jams/helpers/consts.h"
 #include "jams/helpers/utils.h"
 #include "jams/helpers/timer.h"
+#include <jams/interface/config.h>
 #include <jams/lattice/interaction_neartree.h>
 
 DipoleTensorHamiltonian::DipoleTensorHamiltonian(const libconfig::Setting &settings, const unsigned int size)
     : SparseInteractionHamiltonian(settings, size) {
 
-  settings.lookupValue("r_cutoff", r_cutoff_);
+  r_cutoff_ = jams::config_required<jams::Real>(settings, "r_cutoff");
   std::cout << "  r_cutoff " << r_cutoff_ << "\n";
 
   if (r_cutoff_ > globals::lattice->max_interaction_radius()) {
