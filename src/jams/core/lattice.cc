@@ -35,6 +35,7 @@ extern "C"{
 #include "jams/interface/highfive.h"
 #include "jams/helpers/load.h"
 #include "jams/helpers/interaction_calculator.h"
+#include "jams/interface/config.h"
 #include "lattice.h"
 #include <jams/maths/parallelepiped.h>
 #include <jams/lattice/minimum_image.h>
@@ -261,7 +262,7 @@ void Lattice::read_basis_sites_from_config(const libconfig::Setting &positions, 
   basis_sites_.clear();
 
   for (int i = 0; i < positions.getLength(); ++i) {
-    atom_name = positions[i][0].c_str();
+    atom_name = jams::read_string_setting(positions[i][0], "atom name");
 
     // check the material type is defined
     if (!materials_.contains(atom_name)) {
@@ -436,9 +437,8 @@ void Lattice::init_unit_cell(const libconfig::Setting &lattice_settings, const l
   }
 
   if (lattice_settings.exists("orientation_axis")) {
-    if (lattice_settings.exists("orientation_lattice_vector") && lattice_settings.exists("orientation_cartesian_vector")) {
-      throw jams::ConfigException(lattice_settings, "Only one of 'orientation_lattice_vector' or 'orientation_cartesian_vector' can be defined");
-    }
+    jams::require_mutually_exclusive_settings(
+        lattice_settings, {"orientation_lattice_vector", "orientation_cartesian_vector"});
     auto reference_axis = jams::config_required<jams::Vec<double, 3>>(lattice_settings, "orientation_axis");
     if (lattice_settings.exists("orientation_lattice_vector")) {
       auto lattice_vector = jams::config_required<jams::Vec<double, 3>>(lattice_settings, "orientation_lattice_vector");
@@ -470,7 +470,7 @@ void Lattice::init_unit_cell(const libconfig::Setting &lattice_settings, const l
     position_filename = globals::simulation_name + ".cfg";
     read_basis_sites_from_config(unitcell_settings["positions"], cfg_coordinate_format);
   } else {
-    position_filename = unitcell_settings["positions"].c_str();
+    position_filename = jams::read_string_setting(unitcell_settings["positions"], "positions");
     read_basis_sites_from_file(position_filename, cfg_coordinate_format);
   }
 
@@ -1080,23 +1080,29 @@ Lattice::ImpurityMap Lattice::read_impurities_from_config(const libconfig::Setti
   size_t materialA, materialB;
   for (auto n = 0; n < settings.getLength(); ++n) {
     try {
-      materialA = materials_.id(settings[n][0].c_str());
+      const auto material_name = jams::read_string_setting(settings[n][0], "impurity materialA");
+      materialA = materials_.id(material_name);
     }
     catch(std::out_of_range &e) {
-      jams::ConfigException(settings, "impurity ", n, " materialA (", settings[n][0].c_str(), ") does not exist");
+      throw jams::ConfigException(settings, "impurity ", n, " materialA (",
+                                  jams::read_string_setting(settings[n][0], "impurity materialA"),
+                                  ") does not exist");
     }
 
     try {
-      materialB = materials_.id(settings[n][1].c_str());
+      const auto material_name = jams::read_string_setting(settings[n][1], "impurity materialB");
+      materialB = materials_.id(material_name);
     }
     catch(std::out_of_range &e) {
-      jams::ConfigException(settings, "impurity ", n, " materialB (", settings[n][1].c_str(), ") does not exist");
+      throw jams::ConfigException(settings, "impurity ", n, " materialB (",
+                                  jams::read_string_setting(settings[n][1], "impurity materialB"),
+                                  ") does not exist");
     }
 
-    auto fraction  = double(settings[n][2]);
+    auto fraction = jams::read_numeric_setting<double>(settings[n][2], "impurity fraction");
 
     if (fraction < 0.0 || fraction >= 1.0) {
-      jams::ConfigException(settings, "impurity ", n, " fraction must be 0 =< x < 1");
+      throw jams::ConfigException(settings, "impurity ", n, " fraction must be 0 =< x < 1");
     }
 
     Impurity imp = {materialB, fraction};

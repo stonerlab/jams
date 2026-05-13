@@ -101,6 +101,11 @@ public:
 #endif
 
 protected:
+    // calculate the energy of spin i for a proposed spin direction without
+    // changing globals::s. Hamiltonians that use the base energy-difference
+    // implementation must override this.
+    virtual jams::Real calculate_energy_for_spin(int i, const jams::Vec<double, 3> &spin, jams::Real time);
+
     std::string input_energy_unit_name_; // name of energy unit in input
     double input_energy_unit_conversion_ = 1.0; // conversion factor from input energy to JAMS native units
 

@@ -162,6 +162,41 @@ TEST(Vec3Test, DotSquaredUsesSquaredDotProductType) {
   EXPECT_EQ(jams::dot_squared(a, a), 10000);
 }
 
+TEST(Vec3Test, VecsAreOrthogonalSupportsTwoAndThreeIntegerVecs) {
+  constexpr jams::Vec<int, 3> x{1, 0, 0};
+  constexpr jams::Vec<int, 3> y{0, 2, 0};
+  constexpr jams::Vec<int, 3> z{0, 0, -3};
+  constexpr jams::Vec<int, 3> diagonal{1, 1, 0};
+
+  static_assert(jams::vecs_are_orthogonal(x, y));
+  static_assert(jams::vecs_are_orthogonal(x, y, z));
+
+  EXPECT_FALSE(jams::vecs_are_orthogonal(x, diagonal));
+  EXPECT_FALSE(jams::vecs_are_orthogonal(x, diagonal, z));
+}
+
+TEST(Vec3Test, VecsAreOrthogonalSupportsFloatingPointTolerance) {
+  const jams::Vec<double, 3> x{1.0, 0.0, 0.0};
+  const jams::Vec<double, 3> nearly_y{5e-5, 1.0, 0.0};
+  const jams::Vec<double, 3> not_y{2e-4, 1.0, 0.0};
+  const jams::Vec<float, 3> z{0.0f, 0.0f, 1.0f};
+
+  EXPECT_TRUE(jams::vecs_are_orthogonal(x, nearly_y));
+  EXPECT_TRUE(jams::vecs_are_orthogonal(x, nearly_y, z));
+  EXPECT_FALSE(jams::vecs_are_orthogonal(x, not_y));
+  EXPECT_FALSE(jams::vecs_are_orthogonal(x, not_y, z));
+}
+
+TEST(Vec3Test, VecsAreApproximatelyEqualSupportsMixedNumericTypes) {
+  const jams::Vec<double, 3> a{1.0, 2.0, 3.0};
+  const jams::Vec<float, 3> b{1.0f, 2.00001f, 3.0f};
+  const jams::Vec<int, 3> c{1, 2, 3};
+
+  EXPECT_TRUE(jams::vecs_are_approximately_equal(a, b, 1e-4));
+  EXPECT_TRUE(jams::vecs_are_approximately_equal(a, c, 1e-12));
+  EXPECT_FALSE(jams::vecs_are_approximately_equal(a, b, 1e-8));
+}
+
 TEST(Vec3Test, SumAndProductPreservePromotedArithmeticType) {
   const jams::Vec<std::int8_t, 3> sum_values{100, 30, 1};
   const jams::Vec<std::int8_t, 3> product_values{10, 20, 3};

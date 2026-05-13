@@ -18,6 +18,9 @@ public:
     jams::Vec<jams::Real, 3> calculate_field(int i, jams::Real time) override;
     jams::Real calculate_energy(int i, jams::Real time) override;
 
+protected:
+    jams::Real calculate_energy_for_spin(int i, const jams::Vec<double, 3> &spin, jams::Real time) override;
+
 private:
     // write information about the random axes to outfile
     void output_anisotropy_axes(jams::output::TsvWriter& tsv);

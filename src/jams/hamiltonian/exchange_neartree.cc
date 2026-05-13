@@ -9,6 +9,7 @@
 #include "exchange_neartree.h"
 #include "jams/helpers/error.h"
 #include "jams/helpers/output.h"
+#include "jams/interface/config.h"
 #include <jams/lattice/interaction_neartree.h>
 
 ExchangeNeartreeHamiltonian::ExchangeNeartreeHamiltonian(const libconfig::Setting &settings, const unsigned int size)
@@ -62,8 +63,8 @@ ExchangeNeartreeHamiltonian::ExchangeNeartreeHamiltonian(const libconfig::Settin
 
     double max_radius = 0.0;
     for (int i = 0; i < settings["interactions"].getLength(); ++i) {
-      std::string type_name_A = settings["interactions"][i][0].c_str();
-      std::string type_name_B = settings["interactions"][i][1].c_str();
+      const auto type_name_A = jams::read_string_setting(settings["interactions"][i][0], "material A");
+      const auto type_name_B = jams::read_string_setting(settings["interactions"][i][1], "material B");
 
       if (!globals::lattice->material_exists(type_name_A)) {
         throw std::runtime_error("exchange neartree interaction " +  std::to_string(i) + ": material " + type_name_A + " does not exist in the config");
@@ -73,13 +74,15 @@ ExchangeNeartreeHamiltonian::ExchangeNeartreeHamiltonian(const libconfig::Settin
         throw std::runtime_error("exchange neartree interaction " +  std::to_string(i) + ": material " + type_name_B + " does not exist in the config");
       }
 
-      double radius = double(settings["interactions"][i][2]) * input_distance_unit_conversion_;
+      const auto radius = jams::read_numeric_setting<double>(
+          settings["interactions"][i][2], "interaction radius") * input_distance_unit_conversion_;
 
       if (radius > max_radius) {
         max_radius = radius;
       }
 
-      double jij_value = double(settings["interactions"][i][3]) * input_energy_unit_conversion_;
+      const auto jij_value = jams::read_numeric_setting<double>(
+          settings["interactions"][i][3], "interaction energy") * input_energy_unit_conversion_;
 
       auto type_id_A = globals::lattice->material_index(type_name_A);
       auto type_id_B = globals::lattice->material_index(type_name_B);

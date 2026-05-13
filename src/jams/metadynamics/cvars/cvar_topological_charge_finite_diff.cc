@@ -4,6 +4,7 @@
 #include <jams/core/lattice.h>
 #include <jams/core/interactions.h>
 #include <jams/helpers/montecarlo.h>
+#include <jams/interface/config.h>
 
 jams::CVarTopologicalChargeFiniteDiff::CVarTopologicalChargeFiniteDiff(
     const libconfig::Setting &settings) {
@@ -38,7 +39,7 @@ jams::CVarTopologicalChargeFiniteDiff::CVarTopologicalChargeFiniteDiff(
   }
 
   if(settings.exists("stencil")) {
-    std::string stencil_name = settings["stencil"].c_str();
+    const auto stencil_name = jams::config_required<std::string>(settings, "stencil");
 
     // if there is a stencil setting then reset the stencil here so that we can
     // check later if an unsupported stencil/lattice combination was chosen

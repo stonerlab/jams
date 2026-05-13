@@ -9,6 +9,7 @@
 #include "jams/helpers/consts.h"
 #include "jams/helpers/error.h"
 #include "jams/hamiltonian/cubic_anisotropy.h"
+#include "jams/interface/config.h"
 
 #include <iostream>
 
@@ -51,12 +52,12 @@ CubicAnisotropySetting read_anisotropy_setting_cube(Setting &setting, std::strin
     }
 
     if (setting.isList()) {
-        result.energy = setting[0];
-        result.u = jams::normalize(jams::Vec<double, 3>{setting[1][0], setting[1][1], setting[1][2]});
-        result.v = jams::normalize(jams::Vec<double, 3>{setting[2][0], setting[2][1], setting[2][2]});
-        result.w = jams::normalize(jams::Vec<double, 3>{setting[3][0], setting[3][1], setting[3][2]});
+        result.energy = jams::read_numeric_setting<double>(setting[0], "cubic anisotropy energy");
+        result.u = jams::normalize(jams::read_vec_setting<double, 3>(setting[1], "u axis"));
+        result.v = jams::normalize(jams::read_vec_setting<double, 3>(setting[2], "v axis"));
+        result.w = jams::normalize(jams::read_vec_setting<double, 3>(setting[3], "w axis"));
     } else if (setting.isScalar()) {
-        result.energy = setting;
+        result.energy = jams::read_numeric_setting<double>(setting, "cubic anisotropy energy");
     } else {
         throw runtime_error("Incorrectly formatted cubic anisotropy");
     }
@@ -64,9 +65,7 @@ CubicAnisotropySetting read_anisotropy_setting_cube(Setting &setting, std::strin
 
   // The three axes must be orthogonal and normalised. We normalised when we read the input
   // but the orthogonality must be checked.
-  if (!approximately_zero(jams::dot(result.u, result.v), jams::defaults::lattice_tolerance)
-  || !approximately_zero(jams::dot(result.v, result.w), jams::defaults::lattice_tolerance)
-  || !approximately_zero(jams::dot(result.w, result.u), jams::defaults::lattice_tolerance))
+  if (!jams::vecs_are_orthogonal(result.u, result.v, result.w))
   {
     throw runtime_error("Cubic anisotropy UVW axes must be orthogonal");
   }
@@ -88,9 +87,8 @@ CubicAnisotropyHamiltonian::CubicAnisotropyHamiltonian(const Setting &settings, 
 
     std::string order_name;
 
-    if (settings.exists("K1") && settings.exists("K2")) {
-        throw runtime_error("Input only one order of cubic anisotropy");
-    } else if (settings.exists("K1")){
+    jams::require_mutually_exclusive_settings(settings, {"K1", "K2"});
+    if (settings.exists("K1")){
         order_name = "K1";
     } else if (settings.exists("K2")) {
         order_name = "K2";

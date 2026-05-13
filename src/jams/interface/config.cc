@@ -157,7 +157,7 @@ void overwrite_config_settings(libconfig::Setting& orig, const libconfig::Settin
 
 libconfig::Setting& config_find_setting_by_key_value_pair(const libconfig::Setting& settings, const std::string& key, const std::string& value) {
   for (auto i = 0; i < settings.getLength(); ++i) {
-    std::string module_name = settings[i][key].c_str();
+    const auto module_name = jams::read_string_setting(settings[i][key], key.c_str());
     if (module_name == value) {
       return settings[i];
     }

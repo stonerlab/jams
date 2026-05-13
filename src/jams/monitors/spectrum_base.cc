@@ -8,6 +8,7 @@
 #include "jams/core/globals.h"
 #include "jams/core/lattice.h"
 #include "jams/core/solver.h"
+#include "jams/interface/config.h"
 #include "jams/interface/fft.h"
 #include "jams/interface/lapack_tridiagonal.h"
 #include "jams/monitors/kpoint_path_builder.h"
@@ -360,13 +361,9 @@ void SpectrumBaseMonitor::configure_temporal_estimator_(libconfig::Setting& sett
           "multitaper_bandwidth_thz has been removed; use dimensionless multitaper_bandwidth");
     }
 
-    const bool has_bandwidth = settings.exists("multitaper_bandwidth");
+    jams::require_mutually_exclusive_settings(
+        settings, {"multitaper_bandwidth", "multitaper_time_bandwidth"});
     const bool has_time_bandwidth = settings.exists("multitaper_time_bandwidth");
-    if (has_bandwidth && has_time_bandwidth)
-    {
-      throw std::runtime_error(
-          "Specify only one of multitaper_bandwidth or multitaper_time_bandwidth");
-    }
 
     if (has_time_bandwidth)
     {

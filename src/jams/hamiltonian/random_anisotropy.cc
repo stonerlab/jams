@@ -17,21 +17,19 @@
 #include "jams/helpers/random.h"
 #include "jams/helpers/output.h"
 #include <jams/helpers/exception.h>
+#include <jams/interface/config.h>
 
 RandomAnisotropyHamiltonian::RandomAnisotropyHamiltonian(const libconfig::Setting &settings, const unsigned int size)
         : Hamiltonian(settings, size),
           magnitude_(size, 0.0),
           direction_(size, {0.0, 0.0, 0.0})
 {
-  // validate settings
-  if (settings["magnitude"].getLength() != globals::lattice->num_materials()) {
-    throw jams::ConfigException(settings["magnitude"], "magnitude must be specified for every material");
-  }
-
+  const auto num_materials = globals::lattice->num_materials();
+  const auto magnitudes = jams::read_numeric_sequence_setting<jams::Real>(
+      settings["magnitude"], "magnitude", num_materials);
+  std::vector<jams::Real> sigmas(num_materials, jams::Real{0});
   if (settings.exists("sigma")) {
-    if (settings["sigma"].getLength() != globals::lattice->num_materials()) {
-      throw jams::ConfigException(settings["sigma"], "sigma must be specified for every material");
-    }
+    sigmas = jams::read_numeric_sequence_setting<jams::Real>(settings["sigma"], "sigma", num_materials);
   }
 
   struct RandomAnisotropyProperties {
@@ -40,10 +38,11 @@ RandomAnisotropyHamiltonian::RandomAnisotropyHamiltonian(const libconfig::Settin
   };
 
   std::vector<RandomAnisotropyProperties> properties;
-  for (auto i = 0; i < settings["magnitude"].getLength(); ++i) {
+  properties.reserve(num_materials);
+  for (auto i = 0; i < num_materials; ++i) {
     properties.push_back({
-                             static_cast<jams::Real>(jams::Real(settings["magnitude"][i]) * input_energy_unit_conversion_),
-            settings.exists("sigma") ? jams::Real(settings["sigma"][i]) : jams::Real(0)});
+        static_cast<jams::Real>(magnitudes[i] * input_energy_unit_conversion_),
+        sigmas[i]});
   }
 
   auto seed = jams::config_optional<unsigned>(settings, "seed", jams::instance().random_generator()());
@@ -76,7 +75,12 @@ RandomAnisotropyHamiltonian::RandomAnisotropyHamiltonian(const libconfig::Settin
 
 
 jams::Real RandomAnisotropyHamiltonian::calculate_energy(const int i, jams::Real time) {
-  return -magnitude_[i] * pow2(direction_[i][0] * globals::s(i, 0) + direction_[i][1] * globals::s(i, 1) + direction_[i][2] * globals::s(i, 2));
+  return calculate_energy_for_spin(i, {globals::s(i, 0), globals::s(i, 1), globals::s(i, 2)}, time);
+}
+
+jams::Real RandomAnisotropyHamiltonian::calculate_energy_for_spin(const int i, const jams::Vec<double, 3>& spin, jams::Real time) {
+  const auto s = jams::array_cast<jams::Real>(spin);
+  return -magnitude_[i] * pow2(jams::dot(direction_[i], s));
 }
 
 

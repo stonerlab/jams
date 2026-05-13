@@ -72,7 +72,7 @@ The move to use for a given Monte Carlo step is chosen randomly but the same
 move is used for every trial move within one step.
 
 Statistics about how many moves were accepted of each type are printed to the
-terminal every :option:`output_write_steps` steps.
+terminal every :code:`output_write_steps` steps.
 
 .. describe:: move_fraction_uniform = 0.0
 
@@ -85,11 +85,11 @@ random angle on the sphere.
 .. describe:: move_fraction_angle = 1.0
 
 Fraction between 0 and 1 of trial moves which move a spin by a limited angle.
-The size of the angle is controlled by  :option:`move_angle_sigma`.
+The size of the angle is controlled by  :code:`move_angle_sigma`.
 
 .. describe:: move_angle_sigma = 0.5
 
-The size of :math:`\sigma` in :option:`move_fraction_angle`.
+The size of :math:`\sigma` in :code:`move_fraction_angle`.
 
 .. math::
 	  (S_x, S_y, S_z) \rightarrow (S_x, S_y, S_z) + \sigma(\sin\theta\cos\phi, \sin\theta\sin\phi, \cos\theta) \quad \mathrm{where}\quad \theta\sim[0,\pi],\phi\sim[0,2\pi)

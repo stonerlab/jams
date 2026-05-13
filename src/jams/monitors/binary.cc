@@ -7,13 +7,13 @@
 #include "jams/core/globals.h"
 #include "jams/helpers/utils.h"
 #include "jams/helpers/output.h"
+#include "jams/interface/config.h"
 
 #include "binary.h"
 
 BinaryMonitor::BinaryMonitor(const libconfig::Setting &settings)
 : Monitor(settings) {
-  is_file_overwrite_mode = false;
-  settings.lookupValue("overwrite", is_file_overwrite_mode);
+  is_file_overwrite_mode = jams::config_optional<bool>(settings, "overwrite", false);
 }
 
 void BinaryMonitor::update(Solver& solver) {

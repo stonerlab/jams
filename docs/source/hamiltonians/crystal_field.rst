@@ -72,10 +72,12 @@ Settings
     the input should be checked. Units for the cutoff are the same as :code:`energy_units` so the cutoff and the
     interpretation of a negligible energy should be with respect to these units.
 
-.. describe:: crystal_field_spin_type (required | "up" or "down")
+.. describe:: crystal_field_spin_type (optional | "up" or "down")
 
-    The crystal field input file contains data for both spin up and spin down. This setting selects which data to use.
-    The choice should be made based on the physics of the local moment and the filling of the f-shell.
+    Required when any crystal field coefficient entry reads coefficients from a file. The crystal field input file
+    contains data for both spin up and spin down. This setting selects which data to use. The choice should be made
+    based on the physics of the local moment and the filling of the f-shell. Inline coefficients do not use this
+    setting because the selected values are specified directly.
 
 .. describe:: crystal_field_coefficients (required | list)
 
@@ -83,6 +85,12 @@ Settings
     is another list with the format: :code:`(material, J, alphaJ, betaJ, gammaJ, cf_param_filename)`, where
     :code:`material` can be a material name or unit cell position, and :code:`cf_param_filename` is a filename
     for the file which contains the crystal field coefficients :math:`B_{l,m}` for that material.
+
+    Coefficients can also be specified inline with the format
+    :code:`(material, J, alphaJ, betaJ, gammaJ, (l, m, real, imaginary), ...)`. These inline values are the complex
+    spherical crystal-field coefficients :math:`B_{l,m}`. If only one side of a non-zero :math:`\pm m` pair is
+    specified, the other side is inferred using :math:`B_{l,-m} = (-1)^m B^*_{l,m}`. Other missing inline coefficients
+    are set to zero.
 
 Crystal Field File Format
 #########################
@@ -107,5 +115,23 @@ Example
         crystal_field_spin_type = "down";
         crystal_field_coefficients = (
           ("Tb", 6, -0.01010101, 0.00012244, -0.00000112, "Tb.CFparameters.dat"));
+      }
+    );
+
+Inline coefficients do not need :code:`crystal_field_spin_type`:
+
+.. code-block:: none
+
+    hamiltonians = (
+      {
+        module = "crystal-field";
+        debug = false;
+        energy_units = "Kelvin"
+        energy_cutoff = 1e-1;
+        crystal_field_coefficients = (
+          ("Sm_1a", 2.5, 0.041269841, 0.0025012, 0.0,
+           (2, -2, -0.7692698426335154, -2.1810119871698825),
+           (2,  0, -767.0712291753692, 0.0))
+        );
       }
     );

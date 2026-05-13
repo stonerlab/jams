@@ -5,6 +5,7 @@
 #include "jams/monitors/kpoint_path_builder.h"
 
 #include "jams/core/lattice.h"
+#include "jams/interface/config.h"
 #include "jams/interface/fft.h"
 
 #include <algorithm>
@@ -62,12 +63,7 @@ void KPointPathBuilder::append_k_path_segment(
   std::vector<jams::Vec<double, 3>> hkl_path_nodes(settings.getLength());
   for (auto i = 0; i < settings.getLength(); ++i)
   {
-    if (!settings[i].isArray())
-    {
-      throw std::runtime_error("SpectrumBaseMonitor::configure_continuous_kpath failed hkl node is not an Array");
-    }
-
-    hkl_path_nodes[i] = jams::Vec<double, 3>{settings[i][0], settings[i][1], settings[i][2]};
+    hkl_path_nodes[i] = jams::read_vec_setting<double, 3>(settings[i], "hkl node");
   }
 
   for (auto i = 1; i < hkl_path_nodes.size(); ++i)
@@ -112,7 +108,7 @@ bool KPointPathBuilder::configure_k_list(
 {
   bool full_brillouin_zone_appended = false;
 
-  if (settings.isString() && std::string(settings.c_str()) == "full")
+  if (jams::setting_equals_string(settings, "full"))
   {
     append_full_k_grid(k_points, k_segment_offsets, kspace_size);
     return true;
@@ -133,7 +129,7 @@ bool KPointPathBuilder::configure_k_list(
         append_k_path_segment(k_points, k_segment_offsets, settings[n], kspace_size);
         continue;
       }
-      if (settings[n].isString() && std::string(settings[n].c_str()) == "full")
+      if (jams::setting_equals_string(settings[n], "full"))
       {
         append_full_k_grid(k_points, k_segment_offsets, kspace_size);
         full_brillouin_zone_appended = true;

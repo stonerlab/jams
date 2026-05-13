@@ -6,6 +6,7 @@
 #include "jams/helpers/consts.h"
 #include "jams/helpers/error.h"
 #include "jams/hamiltonian/uniaxial_anisotropy.h"
+#include <jams/interface/config.h>
 #include <jams/helpers/exception.h>
 
 using libconfig::Setting;
@@ -50,20 +51,21 @@ AnisotropySetting read_anisotropy_setting(Setting &setting) {
   }
   AnisotropySetting result;
 
-  if (setting[0].isNumber()) {
-    result.motif_position = int(setting[0]);
-    result.motif_position--;
+  if (jams::is_integer_setting(setting[0])) {
+    result.motif_position = jams::read_integer_setting(setting[0], "unit cell position") - 1;
     if (result.motif_position < 0 || result.motif_position >= globals::lattice->num_basis_sites()) {
       throw runtime_error("uniaxial anisotropy motif position is invalid");
     }
+  } else if (setting[0].isNumber()) {
+    throw runtime_error("uniaxial anisotropy motif position must be an integer");
   } else {
-    result.material = string(setting[0].c_str());
+    result.material = jams::read_string_setting(setting[0], "material");
     if (!globals::lattice->material_exists(result.material)) {
       throw runtime_error("uniaxial anisotropy material is invalid");
     }
   }
-  result.axis = jams::normalize(jams::Vec<jams::Real, 3>{setting[1][0], setting[1][1], setting[1][2]});
-  result.energy = jams::Real(setting[2]);
+  result.axis = jams::normalize(jams::read_vec_setting<jams::Real, 3>(setting[1], "axis"));
+  result.energy = jams::read_numeric_setting<jams::Real>(setting[2], "anisotropy energy");
   return result;
 }
 

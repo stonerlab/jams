@@ -126,12 +126,14 @@ jams::Vec<jams::Real, 3> AppliedFieldHamiltonian::calculate_field(int i, jams::R
 }
 
 jams::Real AppliedFieldHamiltonian::calculate_energy(int i, jams::Real time) {
-  auto field = calculate_field(i, time);
-  return -( globals::s(i,0) * field[0]
-          + globals::s(i,1) * field[1]
-          + globals::s(i,2) * field[2]);
+  return calculate_energy_for_spin(i, {globals::s(i, 0), globals::s(i, 1), globals::s(i, 2)}, time);
 }
 
-
+jams::Real AppliedFieldHamiltonian::calculate_energy_for_spin(int i, const jams::Vec<double, 3>& spin, jams::Real time) {
+  auto field = calculate_field(i, time);
+  return -( spin[0] * field[0]
+          + spin[1] * field[1]
+          + spin[2] * field[2]);
+}
 
 

@@ -16,6 +16,9 @@ public:
 
     jams::Real calculate_energy(int i, jams::Real time) override;
 
+protected:
+    jams::Real calculate_energy_for_spin(int i, const jams::Vec<double, 3> &spin, jams::Real time) override;
+
 private:
     jams::MultiArray<jams::Real, 2> dc_local_field_;
     jams::MultiArray<jams::Real, 2> ac_local_field_;

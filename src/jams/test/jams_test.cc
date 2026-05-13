@@ -7,10 +7,12 @@
 #include <jams/lattice/minimum_image.t.h>
 #include <jams/lattice/interaction_neartree.t.h>
 
+#include "jams/test/hamiltonian/test_crystal_field.h"
 #include "jams/test/hamiltonian/test_dipole.h"
 
 #ifdef HAS_CUDA
 #include <jams/cuda/cuda_array_reduction.t.h>
+#include "jams/test/hamiltonian/test_anisotropy_polynomial.h"
 #include "jams/test/thermostats/test_cuda_quantum_spde_noise.h"
 #endif
 

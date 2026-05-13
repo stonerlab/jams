@@ -15,6 +15,7 @@
 #include "jams/core/lattice.h"
 #include "jams/helpers/consts.h"
 #include "jams/interface/fft.h"
+#include "jams/interface/config.h"
 #include "neutron_scattering.h"
 #include "jams/helpers/neutrons.h"
 #include <jams/helpers/mixed_precision.h>
@@ -56,8 +57,7 @@ void NeutronScatteringMonitor::configure_form_factors(libconfig::Setting &settin
 
 void NeutronScatteringMonitor::configure_polarizations(libconfig::Setting &settings) {
   for (auto i = 0; i < settings.getLength(); ++i) {
-    neutron_polarizations_.push_back({
-                                         double{settings[i][0]}, double{settings[i][1]}, double{settings[i][2]}});
+    neutron_polarizations_.push_back(jams::read_vec_setting<double, 3>(settings[i], "polarization"));
   }
 }
 

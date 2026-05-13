@@ -9,7 +9,9 @@
 #include "jams/core/units.h"
 #include "jams/helpers/defaults.h"
 #include "jams/helpers/error.h"
+#include "jams/helpers/exception.h"
 #include "jams/helpers/utils.h"
+#include "jams/interface/config.h"
 
 #include "jams/hamiltonian/applied_field.h"
 #include "jams/hamiltonian/anisotropy_polynomial.h"
@@ -30,6 +32,7 @@
 #include "jams/hamiltonian/crystal_field.h"
 
 #if HAS_CUDA
+  #include "jams/hamiltonian/cuda_anisotropy_polynomial.h"
   #include "jams/hamiltonian/cuda_applied_field.h"
   #include "jams/hamiltonian/cuda_biquadratic_exchange.h"
   #include "jams/hamiltonian/cuda_cubic_anisotropy.h"
@@ -46,7 +49,7 @@
 
 #define DEFINED_HAMILTONIAN(name, type, settings, size) \
   { \
-    if (lowercase(settings["module"]) == name) { \
+    if (lowercase(jams::config_required<std::string>(settings, "module")) == name) { \
       return new type(settings, size); \
     } \
   }
@@ -54,7 +57,7 @@
 #ifdef HAS_CUDA
 #define DEFINED_CUDA_HAMILTONIAN(name, type, settings, size) \
   { \
-    if (lowercase(settings["module"]) == name) { \
+    if (lowercase(jams::config_required<std::string>(settings, "module")) == name) { \
       return new type(settings, size); \
     } \
   }
@@ -66,7 +69,7 @@
 #define CUDA_HAMILTONIAN_NAME(type) Cuda##type
   #define DEFINED_HAMILTONIAN_CUDA_VARIANT(name, type, is_cuda_solver, settings, size) \
   { \
-    if (lowercase(settings["module"]) == name) { \
+    if (lowercase(jams::config_required<std::string>(settings, "module")) == name) { \
       if(is_cuda_solver) { \
         return new CUDA_HAMILTONIAN_NAME(type)(settings, size); \
       } \
@@ -84,7 +87,6 @@ Hamiltonian * Hamiltonian::create(const libconfig::Setting &settings, const unsi
     throw jams::removed_feature_error("dipole hamiltonians now have specific names and 'strategy' has been removed");
   }
 
-  DEFINED_HAMILTONIAN("anisotropy-polynomial", AnisotropyPolynomialHamiltonian, settings, size);
   DEFINED_HAMILTONIAN("exchange", ExchangeHamiltonian, settings, size);
   DEFINED_HAMILTONIAN("exchange-functional", ExchangeFunctionalHamiltonian, settings, size);
   DEFINED_HAMILTONIAN("exchange-neartree", ExchangeNeartreeHamiltonian, settings, size);
@@ -95,6 +97,7 @@ Hamiltonian * Hamiltonian::create(const libconfig::Setting &settings, const unsi
   DEFINED_CUDA_HAMILTONIAN("landau", CudaLandauHamiltonian, settings, size);
   DEFINED_CUDA_HAMILTONIAN("biquadratic-exchange", CudaBiquadraticExchangeHamiltonian, settings, size);
 
+  DEFINED_HAMILTONIAN_CUDA_VARIANT("anisotropy-polynomial", AnisotropyPolynomialHamiltonian, is_cuda_solver, settings, size);
   DEFINED_HAMILTONIAN_CUDA_VARIANT("applied-field", AppliedFieldHamiltonian, is_cuda_solver, settings, size);
   DEFINED_HAMILTONIAN_CUDA_VARIANT("crystal-field", CrystalFieldHamiltonian, is_cuda_solver, settings, size);
   DEFINED_HAMILTONIAN_CUDA_VARIANT("random-anisotropy", RandomAnisotropyHamiltonian, is_cuda_solver, settings, size);
@@ -113,7 +116,7 @@ Hamiltonian * Hamiltonian::create(const libconfig::Setting &settings, const unsi
 
 
 
-  throw std::runtime_error("unknown hamiltonian " + std::string(settings["module"].c_str()));
+  throw std::runtime_error("unknown hamiltonian " + jams::config_required<std::string>(settings, "module"));
 }
 
 void Hamiltonian::calculate_fields(jams::Real time)
@@ -146,10 +149,15 @@ jams::Real Hamiltonian::calculate_total_energy(jams::Real time)
 jams::Real Hamiltonian::calculate_energy_difference(int i, const jams::Vec<double, 3>& spin_initial, const jams::Vec<double, 3>& spin_final,
   jams::Real time)
 {
-  const jams::Real e_initial = -jams::dot(jams::array_cast<jams::Real>(spin_initial), calculate_field(i, time));
-  const jams::Real e_final = -jams::dot(jams::array_cast<jams::Real>(spin_final), calculate_field(i, time));
+  const jams::Real e_initial = calculate_energy_for_spin(i, spin_initial, time);
+  const jams::Real e_final = calculate_energy_for_spin(i, spin_final, time);
 
   return (e_final - e_initial);
+}
+
+jams::Real Hamiltonian::calculate_energy_for_spin(int i, const jams::Vec<double, 3>& spin, jams::Real time)
+{
+  throw jams::unimplemented_error("Hamiltonian::calculate_energy_for_spin");
 }
 
 Hamiltonian::Hamiltonian(const libconfig::Setting &settings, const unsigned int size)
@@ -192,6 +200,7 @@ Hamiltonian::Hamiltonian(const libconfig::Setting &settings, const unsigned int 
 
   input_distance_unit_conversion_ = internal_distance_unit_conversion.at(input_distance_unit_name_);
 
+  set_name(jams::config_required<std::string>(settings, "module"));
   std::cout << "  " << name() << " hamiltonian\n";
 
 

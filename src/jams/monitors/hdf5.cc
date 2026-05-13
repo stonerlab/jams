@@ -13,6 +13,7 @@
 #include "jams/core/lattice.h"
 #include "jams/helpers/utils.h"
 #include "jams/helpers/slice.h"
+#include "jams/interface/config.h"
 #include "jams/interface/highfive.h"
 #include "jams/helpers/output.h"
 
@@ -35,7 +36,7 @@ Hdf5Monitor::Hdf5Monitor(const libconfig::Setting &settings)
     }
 
     // compression options
-    settings.lookupValue("compressed", compression_enabled_);
+    compression_enabled_ = jams::config_optional<bool>(settings, "compressed", compression_enabled_);
   std::cout << "  compressed " << compression_enabled_ << "\n";
 
     if (settings.exists("slice")) {
