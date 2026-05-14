@@ -27,7 +27,7 @@ void MagnetisationMonitor::update(Solver& solver) {
   const auto& moments = globals::mus;
   auto values = make_reserved<double>(tsv_.num_cols());
 
-  values.push_back(solver.time());
+  solver.append_monitor_coordinates(values);
 
   for (const auto& group : spin_groups_) {
     if (group.empty()) {
@@ -65,14 +65,12 @@ jams::output::TsvWriter MagnetisationMonitor::make_tsv_writer(const libconfig::S
   normalize_magnetisation_ = jams::config_optional<bool>(settings, "normalize", true);
 
   auto precision = jams::config_optional<int>(settings, "precision", 8);
-  std::vector<jams::output::ColDef> cols;
+  auto cols = globals::solver->monitor_coordinate_columns();
 
   std::string mag_unit = "dimensionless";
   if (!normalize_magnetisation_) {
     mag_unit = "bohr magnetons";
   }
-
-  cols.push_back({"time", "picoseconds"});
 
   for (const auto& group : spin_groups_) {
     for (const auto& component : {"mx", "my", "mz", "m"}) {

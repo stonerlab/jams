@@ -29,7 +29,9 @@ void TorqueMonitor::update(Solver& solver) {
   std::vector<std::optional<double>> values;
   values.reserve(tsv_.num_cols());
 
-  values.push_back(solver.time());
+  for (const auto coordinate : solver.monitor_coordinates()) {
+    values.push_back(coordinate);
+  }
 
   for (const auto& group_torques : torques) {
     for (const auto& torque : group_torques) {
@@ -141,8 +143,7 @@ Monitor::ConvergenceStatus TorqueMonitor::convergence_status() {
 }
 
 jams::output::TsvWriter TorqueMonitor::make_tsv_writer() const {
-  std::vector<jams::output::ColDef> cols;
-  cols.push_back({"time", "picoseconds"});
+  auto cols = globals::solver->monitor_coordinate_columns();
 
   for (const auto& group : spin_groups_) {
     for (const auto& hamiltonian : globals::solver->hamiltonians()) {

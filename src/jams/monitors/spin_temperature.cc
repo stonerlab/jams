@@ -36,14 +36,18 @@ void SpinTemperatureMonitor::update(Solver& solver) {
 
   const auto spin_temperature = sum_s_cross_h / (2.0 * kBoltzmannIU * sum_s_dot_h);
 
-  tsv_.write_row_values(solver.time(), solver.physics()->temperature(), spin_temperature);
+  std::vector<double> values;
+  values.reserve(tsv_.num_cols());
+  solver.append_monitor_coordinates(values);
+  values.push_back(solver.physics()->temperature());
+  values.push_back(spin_temperature);
+  tsv_.write_row(values);
 }
 
 jams::output::TsvWriter SpinTemperatureMonitor::make_tsv_writer() const {
-  std::vector<jams::output::ColDef> cols = {
-      {"time", "picoseconds"},
-      {"thermostat_T", "K", jams::output::ColFmt::Fixed},
-      {"spin_T", "K"}};
+  auto cols = globals::solver->monitor_coordinate_columns();
+  cols.push_back({"thermostat_T", "K", jams::output::ColFmt::Fixed});
+  cols.push_back({"spin_T", "K"});
 
   return jams::output::TsvWriter(
       jams::output::monitor_filename(name(), "tsv"),

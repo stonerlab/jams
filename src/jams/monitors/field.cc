@@ -35,7 +35,7 @@ void FieldMonitor::update(Solver& solver) {
 
   std::vector<double> values;
   values.reserve(tsv_.num_cols());
-  values.push_back(solver.time());
+  solver.append_monitor_coordinates(values);
 
   for (const auto& field : total_field) {
     for (auto n = 0; n < 3; ++n) {
@@ -47,8 +47,7 @@ void FieldMonitor::update(Solver& solver) {
 }
 
 jams::output::TsvWriter FieldMonitor::make_tsv_writer() const {
-  std::vector<jams::output::ColDef> cols;
-  cols.push_back({"time", "picoseconds"});
+  auto cols = globals::solver->monitor_coordinate_columns();
 
   for (const auto& hamiltonian : globals::solver->hamiltonians()) {
     cols.push_back({hamiltonian->name() + "_hx", "T"});

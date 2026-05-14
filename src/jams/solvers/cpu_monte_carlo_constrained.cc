@@ -117,6 +117,14 @@ void ConstrainedMCSolver::run() {
   }
 }
 
+std::vector<jams::output::ColDef> ConstrainedMCSolver::monitor_coordinate_columns() const {
+  return {{"step", "steps", jams::output::ColFmt::Integer}};
+}
+
+void ConstrainedMCSolver::append_monitor_coordinates(std::vector<double>& values) const {
+  values.push_back(iteration());
+}
+
 unsigned ConstrainedMCSolver::AsselinAlgorithm(const std::function<jams::Vec<double, 3>(jams::Vec<double, 3>)>& trial_spin_move) {
   std::uniform_real_distribution<> uniform_distribution;
 

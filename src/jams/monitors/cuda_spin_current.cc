@@ -3,6 +3,9 @@
 //
 
 #include "version.h"
+#include <utility>
+#include <vector>
+
 #include <jams/common.h>
 #include "jams/core/globals.h"
 #include "jams/core/interactions.h"
@@ -57,11 +60,11 @@ CudaSpinCurrentMonitor::CudaSpinCurrentMonitor(const libconfig::Setting &setting
   spin_current_ry_z.resize(globals::num_spins);
   spin_current_rz_z.resize(globals::num_spins);
 
-  tsv_.open(jams::output::monitor_filename(name(), "tsv"),
-            {{"time", "picoseconds"},
-             {"js_z_rx", "m s^-1"},
-             {"js_z_ry", "m s^-1"},
-             {"js_z_rz", "m s^-1"}});
+  auto cols = globals::solver->monitor_coordinate_columns();
+  cols.push_back({"js_z_rx", "m s^-1"});
+  cols.push_back({"js_z_ry", "m s^-1"});
+  cols.push_back({"js_z_rz", "m s^-1"});
+  tsv_.open(jams::output::monitor_filename(name(), "tsv"), std::move(cols));
 }
 
 void CudaSpinCurrentMonitor::update(Solver& solver) {
@@ -88,11 +91,13 @@ void CudaSpinCurrentMonitor::update(Solver& solver) {
   // by the lattice constant and convert 1/ps to 1/s.
   const double units = globals::lattice->parameter() * 1e12;
 
-  tsv_.write_row_values(
-      solver.time(),
-      units * js_z[0],
-      units * js_z[1],
-      units * js_z[2]);
+  std::vector<double> values;
+  values.reserve(tsv_.num_cols());
+  solver.append_monitor_coordinates(values);
+  values.push_back(units * js_z[0]);
+  values.push_back(units * js_z[1]);
+  values.push_back(units * js_z[2]);
+  tsv_.write_row(values);
 
   if (do_h5_output && solver.iteration()%h5_output_steps == 0) {
     int outcount = solver.iteration()/h5_output_steps;  // int divisible by modulo above

@@ -3,6 +3,9 @@
 //
 
 #include <jams/helpers/exception.h>
+#include <utility>
+#include <vector>
+
 #include <jams/core/interactions.h>
 #include <jams/helpers/error.h>
 #include <jams/helpers/consts.h>
@@ -42,11 +45,11 @@ CudaThermalCurrentMonitor::CudaThermalCurrentMonitor(const libconfig::Setting &s
   zero(thermal_current_ry_.resize(globals::num_spins));
   zero(thermal_current_rz_.resize(globals::num_spins));
 
-  tsv_.open(jams::output::monitor_filename(name(), "tsv"),
-            {{"time", "picoseconds"},
-             {"jq_rx", "internal"},
-             {"jq_ry", "internal"},
-             {"jq_rz", "internal"}});
+  auto cols = globals::solver->monitor_coordinate_columns();
+  cols.push_back({"jq_rx", "internal"});
+  cols.push_back({"jq_ry", "internal"});
+  cols.push_back({"jq_rz", "internal"});
+  tsv_.open(jams::output::monitor_filename(name(), "tsv"), std::move(cols));
 }
 
 void CudaThermalCurrentMonitor::update(Solver& solver) {
@@ -54,7 +57,13 @@ void CudaThermalCurrentMonitor::update(Solver& solver) {
   jams::Vec<double, 3> js = execute_cuda_thermal_current_kernel(
           stream, spins, interaction_matrix_, thermal_current_rx_, thermal_current_ry_, thermal_current_rz_);
 
-  tsv_.write_row_values(solver.time(), js[0], js[1], js[2]);
+  std::vector<double> values;
+  values.reserve(tsv_.num_cols());
+  solver.append_monitor_coordinates(values);
+  values.push_back(js[0]);
+  values.push_back(js[1]);
+  values.push_back(js[2]);
+  tsv_.write_row(values);
 }
 
 CudaThermalCurrentMonitor::~CudaThermalCurrentMonitor() {

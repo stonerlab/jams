@@ -19,11 +19,10 @@ StabilityMonitor::StabilityMonitor(const libconfig::Setting& settings)
 
 
 jams::output::TsvWriter StabilityMonitor::make_tsv_writer() const {
-  std::vector<jams::output::ColDef> cols = {
-      {"time", "picoseconds"},
-      {"max_S_err", "dimensionless"},
-      {"mean_S_err", "dimensionless"},
-      {"rms_S_err", "dimensionless"}};
+  auto cols = globals::solver->monitor_coordinate_columns();
+  cols.push_back({"max_S_err", "dimensionless"});
+  cols.push_back({"mean_S_err", "dimensionless"});
+  cols.push_back({"rms_S_err", "dimensionless"});
 
   return jams::output::TsvWriter(
       jams::output::monitor_filename(name(), "tsv"),
@@ -47,5 +46,11 @@ void StabilityMonitor::update(Solver& solver)
     S_err_mean /= globals::num_spins;
     S2_err_mean /= globals::num_spins;
 
-    tsv_.write_row_values(solver.time(), max_S_err, S_err_mean, std::sqrt(S2_err_mean));
+    std::vector<double> values;
+    values.reserve(tsv_.num_cols());
+    solver.append_monitor_coordinates(values);
+    values.push_back(max_S_err);
+    values.push_back(S_err_mean);
+    values.push_back(std::sqrt(S2_err_mean));
+    tsv_.write_row(values);
 }

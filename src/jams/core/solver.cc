@@ -157,6 +157,21 @@ bool Solver::is_running() {
   return iteration_ < max_steps_;
 }
 
+std::vector<jams::output::ColDef> Solver::monitor_coordinate_columns() const {
+  return {{"time", "picoseconds", jams::output::ColFmt::Scientific}};
+}
+
+std::vector<double> Solver::monitor_coordinates() const {
+  std::vector<double> values;
+  values.reserve(monitor_coordinate_columns().size());
+  append_monitor_coordinates(values);
+  return values;
+}
+
+void Solver::append_monitor_coordinates(std::vector<double>& values) const {
+  values.push_back(time());
+}
+
 Monitor::ConvergenceStatus Solver::convergence_status() {
   if (iteration_ < min_steps_) {
     return Monitor::ConvergenceStatus::kNotConverged;

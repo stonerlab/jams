@@ -48,7 +48,7 @@ void SpinPumpingMonitor::update(Solver& solver) {
 
   std::vector<double> values;
   values.reserve(tsv_.num_cols());
-  values.push_back(solver.time());
+  solver.append_monitor_coordinates(values);
 
   for (std::size_t type = 0; type < spin_groups_.size(); ++type) {
     auto norm = spin_groups_[type].empty()
@@ -66,8 +66,7 @@ void SpinPumpingMonitor::update(Solver& solver) {
 }
 
 jams::output::TsvWriter SpinPumpingMonitor::make_tsv_writer() const {
-  std::vector<jams::output::ColDef> cols;
-  cols.push_back({"time", "picoseconds"});
+  auto cols = globals::solver->monitor_coordinate_columns();
 
   for (const auto& group : spin_groups_) {
     for (const auto& component : {"Re_J_x", "Re_J_y", "Re_J_z", "Im_J_x", "Im_J_y", "Im_J_z"}) {

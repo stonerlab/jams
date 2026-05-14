@@ -46,7 +46,7 @@ void MagnetisationRateMonitor::update(Solver& solver) {
 
   std::vector<double> values;
   values.reserve(tsv_.num_cols());
-  values.push_back(solver.time());
+  solver.append_monitor_coordinates(values);
 
   for (std::size_t type = 0; type < spin_groups_.size(); ++type) {
     for (auto j = 0; j < 3; ++j) {
@@ -81,8 +81,7 @@ Monitor::ConvergenceStatus MagnetisationRateMonitor::convergence_status() {
 }
 
 jams::output::TsvWriter MagnetisationRateMonitor::make_tsv_writer() const {
-  std::vector<jams::output::ColDef> cols;
-  cols.push_back({"time", "picoseconds"});
+  auto cols = globals::solver->monitor_coordinate_columns();
 
   for (const auto& group : spin_groups_) {
     for (const auto& component : {"dmx_dt", "dmy_dt", "dmz_dt"}) {

@@ -67,7 +67,7 @@ void SMRMonitor::update(Solver& solver) {
 
   std::vector<double> values;
   values.reserve(tsv_.num_cols());
-  values.push_back(solver.time());
+  solver.append_monitor_coordinates(values);
 
   for (std::size_t i = 0; i < spin_groups_.size(); ++i) {
     values.push_back(mtsq_para[i]);
@@ -81,8 +81,7 @@ void SMRMonitor::update(Solver& solver) {
 }
 
 jams::output::TsvWriter SMRMonitor::make_tsv_writer() const {
-  std::vector<jams::output::ColDef> cols;
-  cols.push_back({"time", "picoseconds"});
+  auto cols = globals::solver->monitor_coordinate_columns();
 
   for (const auto& group : spin_groups_) {
     for (const auto& component : {"mtsq_para", "mtsq_perp", "mjmt_para", "mjmt_perp", "mn"}) {

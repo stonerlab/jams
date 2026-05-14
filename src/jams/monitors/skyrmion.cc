@@ -55,7 +55,7 @@ void SkyrmionMonitor::update(Solver& solver) {
 
     std::vector<double> values;
     values.reserve(tsv_.num_cols());
-    values.push_back(solver.time());
+    solver.append_monitor_coordinates(values);
     values.push_back(solver.physics()->temperature());
 
     for (double threshold : thresholds) {
@@ -189,8 +189,7 @@ void SkyrmionMonitor::calc_center_of_mass(std::vector<jams::Vec<double, 3> > &r_
 SkyrmionMonitor::~SkyrmionMonitor() = default;
 
 jams::output::TsvWriter SkyrmionMonitor::make_tsv_writer() const {
-  std::vector<jams::output::ColDef> cols;
-  cols.push_back({"time", "picoseconds"});
+  auto cols = globals::solver->monitor_coordinate_columns();
   cols.push_back({"temperature", "K", jams::output::ColFmt::Fixed});
 
   for (const auto threshold : thresholds) {

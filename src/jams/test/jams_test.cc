@@ -9,6 +9,7 @@
 
 #include "jams/test/hamiltonian/test_crystal_field.h"
 #include "jams/test/hamiltonian/test_dipole.h"
+#include "jams/test/solvers/test_cpu_rotations.h"
 
 #ifdef HAS_CUDA
 #include <jams/cuda/cuda_array_reduction.t.h>
