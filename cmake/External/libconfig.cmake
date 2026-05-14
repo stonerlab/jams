@@ -28,6 +28,12 @@ if (DEFINED JAMS_LIBCONFIG_VERSION)
 
     add_subdirectory(${libconfig_SOURCE_DIR} ${libconfig_BINARY_DIR} EXCLUDE_FROM_ALL)
     target_include_directories(config++ PUBLIC $<BUILD_INTERFACE:${libconfig_SOURCE_DIR}/lib>)
+    if (APPLE)
+        set_source_files_properties(
+                "${libconfig_SOURCE_DIR}/lib/wincompat.c"
+                TARGET_DIRECTORY config config++
+                PROPERTIES HEADER_FILE_ONLY TRUE)
+    endif()
 
     add_library(libconfig ALIAS config++)
     set(JAMS_LIBCONFIG_LIBRARIES "built-in (git)")

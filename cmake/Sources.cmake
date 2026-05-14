@@ -36,7 +36,6 @@ set(JAMS_SOURCES_CXX
         helpers/maths.cc
         helpers/neutrons.cc
         helpers/output.cc
-        helpers/slice.cc
         helpers/spinops.cc
         helpers/stats.cc
         helpers/utils.cc
@@ -51,8 +50,6 @@ set(JAMS_SOURCES_CXX
         interface/system.cc
         metadynamics/collective_variable_factory.cc
         metadynamics/metadynamics_potential.cc
-        metadynamics/collective_variable.cc
-        metadynamics/caching_collective_variable.cc
         metadynamics/cvars/cvar_magnetisation.cc
         metadynamics/cvars/cvar_skyrmion_center_coordinate.cc
         metadynamics/cvars/cvar_topological_charge.cc
