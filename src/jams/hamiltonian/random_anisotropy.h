@@ -5,8 +5,8 @@
 #define JAMS_HAMILTONIAN_RANDOM_ANISOTROPY_H
 
 #include <jams/core/hamiltonian.h>
+#include <jams/helpers/output.h>
 
-#include <iosfwd>
 #include <vector>
 
 class RandomAnisotropyHamiltonian : public Hamiltonian {
@@ -23,7 +23,7 @@ protected:
 
 private:
     // write information about the random axes to outfile
-    void output_anisotropy_axes(std::ofstream &outfile);
+    void output_anisotropy_axes(jams::output::TsvWriter& tsv);
 
     std::vector<jams::Vec<jams::Real, 3>> direction_; // local uniaxial anisotropy direction
     std::vector<jams::Real> magnitude_; // magnitude of local anisotropy

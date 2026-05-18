@@ -116,11 +116,21 @@ void CudaNeutronScatteringNoLatticeMonitor::output_spectrum() {
   CHECK_CUFFT_STATUS(
       cufftDestroy(fft_plan));
 
-  std::ofstream debug(jams::output::full_path_filename("debug.tsv"));
+  jams::output::TsvWriter debug(
+      jams::output::monitor_filename(name() + "_debug", "tsv"),
+      {{"t", "steps", jams::output::ColFmt::Integer},
+       {"s00_re", "dimensionless"},
+       {"s00_im", "dimensionless"},
+       {"s01_re", "dimensionless"},
+       {"s01_im", "dimensionless"}});
   for (auto t = 0; t < num_time_samples / 2 + 1; ++t) {
-    debug << t << " " << spin_frequencies_(t, 0, 0).real() << " " << spin_frequencies_(t, 0, 0).imag() << " " << spin_frequencies_(t, 0, 1).real() << " " << spin_frequencies_(t, 0, 1).imag() << std::endl;
+    debug.write_row_values(
+        t,
+        spin_frequencies_(t, 0, 0).real(),
+        spin_frequencies_(t, 0, 0).imag(),
+        spin_frequencies_(t, 0, 1).real(),
+        spin_frequencies_(t, 0, 1).imag());
   }
-  debug.close();
 
 
   // Calculate conj(S_i^a(w)) S_j^b(w) for every i and store in a structure like Sw(i, w) (i.e. a frequency spectrum for every spin)
@@ -164,11 +174,17 @@ void CudaNeutronScatteringNoLatticeMonitor::output_spectrum() {
       DEBUG_CHECK_CUDA_ASYNC_STATUS;
   }
 
-  std::ofstream ofs(jams::output::full_path_filename("neutron_scattering_fixed.tsv"));
-
-  ofs << "index\t" << "qx\t" << "qy\t" << "qz\t" << "q_A-1\t";
-  ofs << "freq_THz\t" << "energy_meV\t" << "sigma_unpol_re\t" << "sigma_unpol_im\t";
-  ofs << "\n";
+  jams::output::TsvWriter fixed_tsv(
+      jams::output::monitor_filename(name() + "_fixed", "tsv"),
+      {{"index", "none", jams::output::ColFmt::Integer},
+       {"qx", "lattice constants^-1", jams::output::ColFmt::Fixed},
+       {"qy", "lattice constants^-1", jams::output::ColFmt::Fixed},
+       {"qz", "lattice constants^-1", jams::output::ColFmt::Fixed},
+       {"q_A-1", "angstrom^-1", jams::output::ColFmt::Fixed},
+       {"freq_THz", "THz", jams::output::ColFmt::Fixed},
+       {"energy_meV", "meV", jams::output::ColFmt::Fixed},
+       {"sigma_unpol_re", "barn sr^-1 J^-1 unitcell^-1"},
+       {"sigma_unpol_im", "barn sr^-1 J^-1 unitcell^-1"}});
 
   // sample time is here because the fourier transform in time is not an integral
   // but a discrete sum
@@ -179,21 +195,19 @@ void CudaNeutronScatteringNoLatticeMonitor::output_spectrum() {
 
   for (auto w = 0; w <  num_time_samples / 2 + 1; ++w) {
     for (auto k = 0; k < kspace_path_.size(); ++k) {
-      ofs << jams::fmt::integer << k << "\t";
-      ofs << jams::fmt::decimal << kspace_path_(k) << "\t";
-      ofs << jams::fmt::decimal << kTwoPi * jams::norm(kspace_path_(k)) / (
-          globals::lattice->parameter() * 1e10) << "\t";
-      ofs << jams::fmt::decimal << (w * freq_delta) << "\t"; // THz
-      ofs << jams::fmt::decimal << (w * freq_delta) * 4.135668 << "\t"; // meV
       // cross section output units are Barns Steradian^-1 Joules^-1 unitcell^-1
-      ofs << jams::fmt::sci << barns_unitcell * total_unpolarized_neutron_cross_section_(k, w).real() << "\t";
-      ofs << jams::fmt::sci << barns_unitcell * total_unpolarized_neutron_cross_section_(k, w).imag() << "\t";
-      ofs << "\n";
+      fixed_tsv.write_row_values(
+          k,
+          kspace_path_(k)[0],
+          kspace_path_(k)[1],
+          kspace_path_(k)[2],
+          kTwoPi * jams::norm(kspace_path_(k)) / (globals::lattice->parameter() * 1e10),
+          w * freq_delta,
+          (w * freq_delta) * 4.135668,
+          barns_unitcell * total_unpolarized_neutron_cross_section_(k, w).real(),
+          barns_unitcell * total_unpolarized_neutron_cross_section_(k, w).imag());
     }
-    ofs << std::endl;
   }
-
-  ofs.close();
 
 
 }

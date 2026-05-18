@@ -75,13 +75,16 @@
 #include <algorithm>
 #include <cassert>
 #include <complex>
+#include <concepts>
 #include <cstdio>
-#include <cstdlib>
 #include <cstring>
 #include <exception>
 #include <iterator>
 #include <limits>
 #include <new>
+#include <ranges>
+#include <span>
+#include <source_location>
 #include <stdexcept>
 #include <string>
 #include <type_traits>
@@ -98,14 +101,24 @@ inline constexpr std::size_t synced_memory_host_alignment = 64;
 // routines after the CUDA context has been unloaded.
 inline constexpr bool synced_memory_allow_global = true;
 
+template<class T>
+[[nodiscard]] constexpr std::size_t synced_memory_host_allocation_alignment() noexcept {
+  constexpr std::size_t host_alignment = synced_memory_host_alignment;
+  static_assert((host_alignment & (host_alignment - 1)) == 0,
+                "synced_memory_host_alignment must be a power of two");
+  return std::max<std::size_t>(host_alignment, alignof(T));
+}
+
 inline void print_synced_memory_event(const char* event) noexcept {
   std::fprintf(stderr, "INFO(SyncedMemory): %s\n", event);
 }
 
 #if HAS_CUDA
-inline void check_cuda_status(cudaError_t status, const char* file, int line) {
+inline void check_cuda_status(
+    cudaError_t status,
+    const std::source_location location = std::source_location::current()) {
   if (status != cudaSuccess) {
-    throw std::runtime_error(std::string(file) + ":" + std::to_string(line) +
+    throw std::runtime_error(std::string(location.file_name()) + ":" + std::to_string(location.line()) +
                              " CUDA error: " + cudaGetErrorString(status));
   }
 }
@@ -123,17 +136,6 @@ inline void report_cuda_free_failure(cudaError_t status, const char* operation) 
 }
 #endif
 
-template <class T, class = void>
-struct is_iterator : std::false_type { };
-
-template <class T>
-struct is_iterator<T, std::void_t<
-                      typename std::iterator_traits<T>::iterator_category
->> : std::true_type { };
-
-template <class T>
-inline constexpr bool is_iterator_v = is_iterator<T>::value;
-
 template<class T>
 struct is_std_complex : std::false_type { };
 
@@ -143,11 +145,10 @@ struct is_std_complex<std::complex<T>> : std::true_type { };
 template<class T>
 inline constexpr bool synced_memory_byte_zeroable_v =
     std::is_arithmetic_v<T> || is_std_complex<T>::value;
-} // namespace jams::detail
 
-#if HAS_CUDA
-#define SYNCED_MEMORY_CHECK_CUDA_STATUS(x) ::jams::detail::check_cuda_status((x), __FILE__, __LINE__)
-#endif
+template<class T>
+concept synced_memory_value = std::is_trivially_copyable_v<T>;
+} // namespace jams::detail
 
 namespace jams {
 
@@ -164,8 +165,10 @@ public:
     using pointer = value_type *;
     using const_pointer = const value_type *;
     using size_type = std::size_t;
+    using span_type = std::span<value_type>;
+    using const_span_type = std::span<const value_type>;
 
-    static_assert(std::is_trivially_copyable_v<T>,
+    static_assert(detail::synced_memory_value<T>,
       "SyncedMemory<T> requires trivially copyable T (uses memcpy)");
 
 private:
@@ -204,8 +207,13 @@ public:
 
     /// Construct a synced memory object with a size and values taken from
     /// the range between the 'first' and 'last' input iterators.
-    template<class InputIt, std::enable_if_t<detail::is_iterator_v<InputIt>, bool> = true>
+    template<std::input_iterator InputIt>
     SyncedMemory(InputIt first, InputIt last);
+
+    /// Construct a synced memory object with values taken from an input range.
+    template<std::ranges::input_range Range>
+    requires std::convertible_to<std::ranges::range_reference_t<Range>, T>
+    explicit SyncedMemory(Range&& values);
 
     /// Construct a synced memory object from another similar object.
     SyncedMemory(const SyncedMemory &rhs);
@@ -267,11 +275,17 @@ public:
     /// Return const_pointer to start of host data.
     const_pointer host_data() const;
 
+    /// Return a read-only span over current host data.
+    [[nodiscard]] const_span_type host_span() const;
+
     /// Return const_pointer to start of device (GPU) data.
     const_pointer device_data() const;
 
     /// Return mutable pointer to start of host data
     pointer mutable_host_data();
+
+    /// Return a mutable span over current host data.
+    [[nodiscard]] span_type mutable_host_span();
 
     /// Return mutable pointer to start of device (GPU) data
     pointer mutable_device_data();
@@ -330,11 +344,11 @@ private:
 
     void remove_valid(Validity validity) const noexcept;
 
-    template<class InputIt>
-    void assign_from_input_range(InputIt first, InputIt last);
+    template<class InputIt, class Sentinel>
+    void assign_from_input_range(InputIt first, Sentinel last);
 
-    template<class ForwardIt>
-    void assign_from_forward_range(ForwardIt first, ForwardIt last);
+    template<class ForwardIt, class Sentinel>
+    void assign_from_forward_range(ForwardIt first, Sentinel last);
 };
 
 // ============================================================================
@@ -360,19 +374,29 @@ SyncedMemory<T>::SyncedMemory(SyncedMemory::size_type size, const T &x)
     }
   }
 
-  pointer p = mutable_host_data();
-  std::fill(p, p + size_, x);
+  std::ranges::fill(mutable_host_span(), x);
 }
 
 
 template<class T>
-template<class InputIt, std::enable_if_t<detail::is_iterator_v<InputIt>, bool>>
+template<std::input_iterator InputIt>
 SyncedMemory<T>::SyncedMemory(InputIt first, InputIt last) {
-  using category = typename std::iterator_traits<InputIt>::iterator_category;
-  if constexpr (std::is_base_of_v<std::forward_iterator_tag, category>) {
+  if constexpr (std::forward_iterator<InputIt>) {
     assign_from_forward_range(first, last);
   } else {
     assign_from_input_range(first, last);
+  }
+}
+
+
+template<class T>
+template<std::ranges::input_range Range>
+requires std::convertible_to<std::ranges::range_reference_t<Range>, T>
+SyncedMemory<T>::SyncedMemory(Range&& values) {
+  if constexpr (std::ranges::forward_range<Range>) {
+    assign_from_forward_range(std::ranges::begin(values), std::ranges::end(values));
+  } else {
+    assign_from_input_range(std::ranges::begin(values), std::ranges::end(values));
   }
 }
 
@@ -393,7 +417,7 @@ SyncedMemory<T>::SyncedMemory(const SyncedMemory &rhs)
     if constexpr (detail::synced_memory_print_memcpy) {
       detail::print_synced_memory_event("cudaMemcpyDeviceToDevice");
     }
-    SYNCED_MEMORY_CHECK_CUDA_STATUS(cudaMemcpy(device_ptr_, rhs.device_ptr_, bytes(size_), cudaMemcpyDeviceToDevice));
+    ::jams::detail::check_cuda_status(cudaMemcpy(device_ptr_, rhs.device_ptr_, bytes(size_), cudaMemcpyDeviceToDevice));
     set_valid(Validity::device);
   }
 #endif
@@ -487,7 +511,7 @@ SyncedMemory<T>::allocate_device_memory(const SyncedMemory::size_type size) cons
   if (status == cudaErrorMemoryAllocation) {
     throw std::bad_alloc();
   }
-  SYNCED_MEMORY_CHECK_CUDA_STATUS(status);
+  ::jams::detail::check_cuda_status(status);
   device_ptr_ = static_cast<pointer>(raw);
   assert(device_ptr_);
 #else
@@ -514,7 +538,7 @@ void SyncedMemory<T>::allocate_host_memory(const SyncedMemory::size_type size) c
     if (status == cudaErrorMemoryAllocation) {
       throw std::bad_alloc();
     }
-    SYNCED_MEMORY_CHECK_CUDA_STATUS(status);
+    ::jams::detail::check_cuda_status(status);
     host_ptr_ = static_cast<pointer>(raw);
     assert(host_ptr_);
     host_cuda_malloc_ = true;
@@ -522,18 +546,8 @@ void SyncedMemory<T>::allocate_host_memory(const SyncedMemory::size_type size) c
   }
 #endif
 
-  // Ensure the returned pointer satisfies alignment requirements for T.
-  // posix_memalign requires alignment to be a power of two and a multiple of sizeof(void*).
-  constexpr std::size_t host_alignment = detail::synced_memory_host_alignment;
-  const std::size_t alignment = std::max<std::size_t>(host_alignment, alignof(T));
-  static_assert((host_alignment & (host_alignment - 1)) == 0,
-                "synced_memory_host_alignment must be a power of two");
-
-  void* raw = nullptr;
-  if (posix_memalign(&raw, alignment, allocation_bytes) != 0) {
-    throw std::bad_alloc();
-  }
-  host_ptr_ = reinterpret_cast<pointer>(raw);
+  const auto alignment = std::align_val_t(detail::synced_memory_host_allocation_alignment<T>());
+  host_ptr_ = static_cast<pointer>(::operator new(allocation_bytes, alignment));
   host_cuda_malloc_ = false;
 
   // host_ptr_ must be allocated by the end of the function
@@ -551,6 +565,13 @@ typename SyncedMemory<T>::const_pointer SyncedMemory<T>::host_data() const {
 
 template<class T>
 inline
+typename SyncedMemory<T>::const_span_type SyncedMemory<T>::host_span() const {
+  return const_span_type(host_data(), size_);
+}
+
+
+template<class T>
+inline
 typename SyncedMemory<T>::const_pointer SyncedMemory<T>::device_data() const {
   ensure_device_current();
   return device_ptr_;
@@ -563,6 +584,13 @@ typename SyncedMemory<T>::pointer SyncedMemory<T>::mutable_host_data() {
   ensure_host_current();
   mark_host_modified();
   return host_ptr_;
+}
+
+
+template<class T>
+inline
+typename SyncedMemory<T>::span_type SyncedMemory<T>::mutable_host_span() {
+  return span_type(mutable_host_data(), size_);
 }
 
 
@@ -594,7 +622,7 @@ void SyncedMemory<T>::ensure_host_current() const {
       detail::print_synced_memory_event("cudaMemcpyDeviceToHost");
     }
     assert(device_ptr_ && host_ptr_);
-    SYNCED_MEMORY_CHECK_CUDA_STATUS(cudaMemcpy(host_ptr_, device_ptr_, bytes(size_), cudaMemcpyDeviceToHost));
+    ::jams::detail::check_cuda_status(cudaMemcpy(host_ptr_, device_ptr_, bytes(size_), cudaMemcpyDeviceToHost));
     add_valid(Validity::host);
 #endif
     return;
@@ -634,7 +662,7 @@ void SyncedMemory<T>::ensure_device_current() const {
       detail::print_synced_memory_event("cudaMemcpyHostToDevice");
     }
     assert(device_ptr_ && host_ptr_);
-    SYNCED_MEMORY_CHECK_CUDA_STATUS(cudaMemcpy(device_ptr_, host_ptr_, bytes(size_),
+    ::jams::detail::check_cuda_status(cudaMemcpy(device_ptr_, host_ptr_, bytes(size_),
                                                cudaMemcpyHostToDevice));
     add_valid(Validity::device);
     return;
@@ -685,10 +713,10 @@ void SyncedMemory<T>::zero_device() const {
   }
   assert(device_ptr_);
   if constexpr (detail::synced_memory_byte_zeroable_v<T>) {
-    SYNCED_MEMORY_CHECK_CUDA_STATUS(cudaMemset(device_ptr_, 0, bytes(size_)));
+    ::jams::detail::check_cuda_status(cudaMemset(device_ptr_, 0, bytes(size_)));
   } else {
     const std::vector<T> zeros(size_, T{});
-    SYNCED_MEMORY_CHECK_CUDA_STATUS(cudaMemcpy(device_ptr_, zeros.data(), bytes(size_),
+    ::jams::detail::check_cuda_status(cudaMemcpy(device_ptr_, zeros.data(), bytes(size_),
                                                cudaMemcpyHostToDevice));
   }
 #endif
@@ -707,7 +735,7 @@ void SyncedMemory<T>::zero_host() const {
   if constexpr (detail::synced_memory_byte_zeroable_v<T>) {
     memset(host_ptr_, 0, bytes(size_));
   } else {
-    std::fill_n(host_ptr_, size_, T{});
+    std::ranges::fill(std::span<T>(host_ptr_, size_), T{});
   }
 }
 
@@ -735,7 +763,7 @@ void SyncedMemory<T>::zero() {
         detail::print_synced_memory_event("cudaMemcpyHostToDevice");
       }
       assert(host_ptr_);
-      SYNCED_MEMORY_CHECK_CUDA_STATUS(cudaMemcpy(device_ptr_, host_ptr_, bytes(size_),
+      ::jams::detail::check_cuda_status(cudaMemcpy(device_ptr_, host_ptr_, bytes(size_),
                                                  cudaMemcpyHostToDevice));
     }
     add_valid(Validity::device);
@@ -775,7 +803,8 @@ void SyncedMemory<T>::release_host_memory() const noexcept {
       return;
     }
     #endif
-    free(host_ptr_);
+    const auto alignment = std::align_val_t(detail::synced_memory_host_allocation_alignment<T>());
+    ::operator delete(host_ptr_, alignment);
     host_ptr_ = nullptr;
   }
   host_cuda_malloc_ = false;
@@ -829,7 +858,7 @@ typename SyncedMemory<T>::size_type SyncedMemory<T>::max_size_device() const {
   #if HAS_CUDA
   std::size_t free_bytes = 0;
   std::size_t total_bytes = 0;
-  SYNCED_MEMORY_CHECK_CUDA_STATUS(cudaMemGetInfo(&free_bytes, &total_bytes));
+  ::jams::detail::check_cuda_status(cudaMemGetInfo(&free_bytes, &total_bytes));
   return std::min(max_size_host(), free_bytes / sizeof(value_type));
   #else
   return 0;
@@ -950,38 +979,40 @@ void SyncedMemory<T>::clear() noexcept { resize(0); }
 
 
 template<class T>
-template<class InputIt>
-void SyncedMemory<T>::assign_from_input_range(InputIt first, InputIt last) {
-  std::vector<T> values(first, last);
+template<class InputIt, class Sentinel>
+void SyncedMemory<T>::assign_from_input_range(InputIt first, Sentinel last) {
+  std::vector<T> values;
+  for (; first != last; ++first) {
+    values.push_back(static_cast<T>(*first));
+  }
   size_ = values.size();
   if (size_ == 0) {
     return;
   }
 
   allocate_host_memory(size_);
-  std::copy(values.begin(), values.end(), host_ptr_);
+  std::ranges::copy(values, host_ptr_);
   set_valid(Validity::host);
 }
 
 
 template<class T>
-template<class ForwardIt>
-void SyncedMemory<T>::assign_from_forward_range(ForwardIt first, ForwardIt last) {
-  size_ = static_cast<size_type>(std::distance(first, last));
+template<class ForwardIt, class Sentinel>
+void SyncedMemory<T>::assign_from_forward_range(ForwardIt first, Sentinel last) {
+  const auto range_size = std::ranges::distance(first, last);
+  assert(range_size >= 0);
+  size_ = static_cast<size_type>(range_size);
   if (size_ == 0) {
     return;
   }
 
   allocate_host_memory(size_);
-  std::copy(first, last, host_ptr_);
+  std::ranges::copy(first, last, host_ptr_);
   set_valid(Validity::host);
 }
 
 
 } // namespace jams
-
-
-#undef SYNCED_MEMORY_CHECK_CUDA_STATUS
 
 #endif
 // ----------------------------- END-OF-FILE ----------------------------------

@@ -7,9 +7,9 @@
 
 #include <jams/core/monitor.h>
 #include <jams/containers/vec3.h>
-#include <fstream>
+#include <jams/helpers/output.h>
+
 #include <functional>
-#include <string>
 #include <vector>
 
 /// @class TopologicalFiniteDiffChargeMonitor
@@ -99,10 +99,7 @@ class TopologicalGeometricalDefMonitor : public Monitor {
   std::vector<std::vector<int>> adjacent_triangles_;
   std::vector<Triplet> triangle_indices_;
 
-//  static std::string tsv_header;
-  std::string tsv_header();
-  std::string name_ = "topological-charge-geometrical-def";
-  std::ofstream outfile;
+  jams::output::TsvWriter tsv_;
 
   double triangle_over_counting_ = 1.0;
   double monitor_top_charge_cache_ = 0.0;

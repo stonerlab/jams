@@ -126,7 +126,7 @@ void SparseInteractionHamiltonian::finalize(jams::SparseMatrixSymmetryCheck symm
   assert(!is_finalized_);
 
   if (debug_is_enabled()) {
-    std::ofstream os(jams::output::full_path_filename("DEBUG_" + name() + "_spm.tsv"));
+    std::ofstream os(jams::output::hamiltonian_filename(name() + "_DEBUG_spm", "tsv"));
     sparse_matrix_builder_.output(os);
     os.close();
   }

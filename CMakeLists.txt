@@ -28,7 +28,7 @@ option(JAMS_USE_CCACHE "Use ccache as a compiler launcher when available." ON)
 option(JAMS_USE_MOLD "Use the mold linker when available." ON)
 set(JAMS_CCACHE_DIR "${CMAKE_BINARY_DIR}/.ccache" CACHE PATH "Directory used for ccache storage when JAMS_USE_CCACHE is ON.")
 
-set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
@@ -81,7 +81,7 @@ if (JAMS_BUILD_CUDA)
         set(CMAKE_CUDA_COMPILER_LAUNCHER "${JAMS_CCACHE_LAUNCHER}")
     endif()
 
-    set(CMAKE_CUDA_STANDARD 17)
+    set(CMAKE_CUDA_STANDARD 20)
     set(CMAKE_CUDA_STANDARD_REQUIRED ON)
     set(CMAKE_CUDA_EXTENSIONS OFF)
 endif()

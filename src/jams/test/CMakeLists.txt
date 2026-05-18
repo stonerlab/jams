@@ -14,7 +14,7 @@ target_link_libraries(jams_low_level_tests
         gtest
         gmock)
 
-target_compile_features(jams_low_level_tests PRIVATE cxx_std_17)
+target_compile_features(jams_low_level_tests PRIVATE cxx_std_20)
 
 target_include_directories(jams_low_level_tests PRIVATE
         $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/src>
@@ -38,7 +38,7 @@ target_link_libraries(jams_tests
         gtest
         gmock)
 
-target_compile_features(jams_tests PRIVATE cxx_std_17)
+target_compile_features(jams_tests PRIVATE cxx_std_20)
 
 target_include_directories(jams_tests PRIVATE
         $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/src>

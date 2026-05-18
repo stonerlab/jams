@@ -5,9 +5,8 @@
 
 #include <jams/core/types.h>
 #include <jams/core/monitor.h>
+#include <jams/helpers/output.h>
 
-#include <fstream>
-#include <string>
 #include <vector>
 
 class Solver;
@@ -21,17 +20,16 @@ class SkyrmionMonitor : public Monitor {
     void post_process() override {};
 
  private:
-    std::string tsv_header();
+    jams::output::TsvWriter make_tsv_writer() const;
 
     void create_center_of_mass_mapping();
     void calc_center_of_mass(std::vector<jams::Vec<double, 3> > &r_com, const double &threshold);
 
     std::vector<double> type_norms;
     std::vector<double> thresholds;
-    std::ofstream outfile;
+    jams::output::TsvWriter tsv_;
 
     std::vector<jams::Vec<double, 3> > tube_x, tube_y;
 };
 
 #endif  // JAMS_MONITOR_SKYRMION_H
-

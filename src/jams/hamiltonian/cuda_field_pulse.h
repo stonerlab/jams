@@ -57,7 +57,7 @@ private:
     jams::Real temporal_center_;
     jams::Vec<jams::Real, 3> max_field_;
 
-    void output_pulse(std::ofstream& pulse_file);
+    void output_pulse() const;
 };
 
 #endif //JAMS_HAMILTONIAN_CUDA_FIELD_PULSE_H

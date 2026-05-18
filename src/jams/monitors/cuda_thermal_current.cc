@@ -3,10 +3,12 @@
 //
 
 #include <jams/helpers/exception.h>
+#include <utility>
+#include <vector>
+
 #include <jams/core/interactions.h>
 #include <jams/helpers/error.h>
 #include <jams/helpers/consts.h>
-#include <iomanip>
 #include <jams/helpers/maths.h>
 #include <jams/cuda/cuda_array_kernels.h>
 
@@ -43,12 +45,11 @@ CudaThermalCurrentMonitor::CudaThermalCurrentMonitor(const libconfig::Setting &s
   zero(thermal_current_ry_.resize(globals::num_spins));
   zero(thermal_current_rz_.resize(globals::num_spins));
 
-  outfile.open(jams::output::full_path_filename("jq.tsv"));
-  outfile.setf(std::ios::right);
-  outfile << std::setw(12) << "time" << "\t";
-  outfile << std::setw(12) << "jq_rx" << "\t";
-  outfile << std::setw(12) << "jq_ry" << "\t";
-  outfile << std::setw(12) << "jq_rz" << std::endl;
+  auto cols = globals::solver->monitor_coordinate_columns();
+  cols.push_back({"jq_rx", "internal"});
+  cols.push_back({"jq_ry", "internal"});
+  cols.push_back({"jq_rz", "internal"});
+  tsv_.open(jams::output::monitor_filename(name(), "tsv"), std::move(cols));
 }
 
 void CudaThermalCurrentMonitor::update(Solver& solver) {
@@ -56,15 +57,16 @@ void CudaThermalCurrentMonitor::update(Solver& solver) {
   jams::Vec<double, 3> js = execute_cuda_thermal_current_kernel(
           stream, spins, interaction_matrix_, thermal_current_rx_, thermal_current_ry_, thermal_current_rz_);
 
-  outfile << std::setw(4) << std::scientific << solver.time() << "\t";
-  for (auto n = 0; n < 3; ++ n) {
-    outfile << std::setw(12) << js[n] << "\t";
-  }
-  outfile << std::endl;
+  std::vector<double> values;
+  values.reserve(tsv_.num_cols());
+  solver.append_monitor_coordinates(values);
+  values.push_back(js[0]);
+  values.push_back(js[1]);
+  values.push_back(js[2]);
+  tsv_.write_row(values);
 }
 
 CudaThermalCurrentMonitor::~CudaThermalCurrentMonitor() {
-  outfile.close();
 }
 
 CudaThermalCurrentMonitor::ThreeSpinList CudaThermalCurrentMonitor::generate_three_spin_from_two_spin_interactions(const jams::InteractionList<jams::Mat<double, 3, 3>, 2>& nbr_list) {

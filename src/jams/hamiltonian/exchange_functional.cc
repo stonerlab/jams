@@ -1,5 +1,4 @@
 #include <functional>
-#include <fstream>
 #include "jams/helpers/output.h"
 #include "jams/hamiltonian/exchange_functional.h"
 #include "jams/core/lattice.h"
@@ -65,8 +64,11 @@ ExchangeFunctionalHamiltonian::ExchangeFunctionalHamiltonian(const libconfig::Se
 
   if (output_functionals) {
     for (const auto& [type, functional] : exchange_functional_map) {
-      std::ofstream functional_file(jams::output::full_path_filename("exchange_functional_" + type.first + "_" + type.second + ".tsv"));
-      output_exchange_functional(functional_file, functional.second, functional.first, 0.01);
+      jams::output::TsvWriter tsv(
+          jams::output::hamiltonian_filename(name() + "_" + type.first + "_" + type.second, "tsv"),
+          {{"radius_nm", "nm", jams::output::ColFmt::Fixed},
+           {"exchange_meV", "meV"}});
+      output_exchange_functional(tsv, functional.second, functional.first, 0.01);
     }
   }
 
@@ -207,12 +209,11 @@ ExchangeFunctionalHamiltonian::functional_from_params(const std::string& name, c
 }
 
 void
-ExchangeFunctionalHamiltonian::output_exchange_functional(std::ostream &os,
+ExchangeFunctionalHamiltonian::output_exchange_functional(jams::output::TsvWriter& tsv,
                                                           const ExchangeFunctionalHamiltonian::ExchangeFunctionalType& functional, double r_cutoff, double delta_r) {
-  os << "radius_nm  exchange_meV\n";
   double r = 0.0;
   while (r < r_cutoff) {
-    os << jams::fmt::decimal << r * ::globals::lattice->parameter() * 1e9 << " " << jams::fmt::sci << functional(r) << "\n";
+    tsv.write_row_values(r * ::globals::lattice->parameter() * 1e9, functional(r));
     r += delta_r;
   }
 }

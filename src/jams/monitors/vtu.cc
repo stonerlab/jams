@@ -81,7 +81,7 @@ void VtuMonitor::update(Solver& solver) {
     int outcount = solver.iteration()/output_step_freq_;  // int divisible by modulo above
 
     const auto spins = globals::s.host_view();
-    std::ofstream vtkfile(jams::output::full_path_filename_series(".vtu", outcount));
+    std::ofstream vtkfile(jams::output::monitor_filename_series(name(), "vtu", outcount));
 
     uint32_t header_bytesize, types_bytesize, points_bytesize, spins_bytesize, num_points;
 

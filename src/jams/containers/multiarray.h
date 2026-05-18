@@ -37,7 +37,10 @@
 #include <array>
 #include <algorithm>
 #include <cassert>
+#include <concepts>
 #include <limits>
+#include <ranges>
+#include <span>
 #include <stdexcept>
 #include <type_traits>
 #include <utility>
@@ -109,18 +112,39 @@ namespace jams {
           return row_major_index_array_impl(dims, idx, std::make_index_sequence<N>{});
         }
 
+        template<typename T>
+        concept multiarray_extent =
+            std::integral<std::remove_cvref_t<T>> &&
+            !std::same_as<std::remove_cvref_t<T>, bool>;
+
         template<std::size_t Dim, typename... Args>
-        inline constexpr bool valid_extent_args_v =
-            sizeof...(Args) == Dim && (std::is_integral_v<std::decay_t<Args>> && ...);
+        concept valid_extent_args =
+            sizeof...(Args) == Dim && (multiarray_extent<Args> && ...);
+
+        template<typename T, std::size_t Dim>
+        struct is_multiarray_extent_array : std::false_type {};
+
+        template<typename Integral, std::size_t ArrayDim, std::size_t Dim>
+        struct is_multiarray_extent_array<std::array<Integral, ArrayDim>, Dim>
+            : std::bool_constant<ArrayDim == Dim && multiarray_extent<Integral>> {};
+
+        template<typename T, std::size_t Dim>
+        inline constexpr bool is_multiarray_extent_array_v =
+            is_multiarray_extent_array<std::remove_cvref_t<T>, Dim>::value;
+
+        template<multiarray_extent Size>
+        [[nodiscard]] constexpr bool index_in_bounds(const Size index, const Size extent) noexcept {
+          return !std::cmp_less(index, 0) && std::cmp_less(index, extent);
+        }
 
         template<typename Size, std::size_t Dim, typename... Args>
+        requires valid_extent_args<Dim, Args...>
         constexpr std::array<Size, Dim> make_size_container(Args... args) {
-          static_assert(sizeof...(Args) == Dim,
-                        "number of MultiArray indicies does not match the MultiArray dimension");
           return {checked_integral_cast<Size>(args)...};
         }
 
         template<typename Size, typename Integral, std::size_t Dim>
+        requires multiarray_extent<Integral>
         constexpr std::array<Size, Dim> make_size_container(const std::array<Integral, Dim>& values) {
           return checked_array_cast<Size>(values);
         }
@@ -188,8 +212,16 @@ namespace jams {
         using stride_container_type = std::array<std::size_t, Dim_>;
         /// Pointer to host data. Const views expose const pointers.
         using pointer = Tp_*;
+        /// Const pointer to host data.
+        using const_pointer = const value_type*;
         /// Reference to a host element. Const views expose const references.
         using reference = Tp_&;
+        /// Iterator over host data. Const views expose const iterators.
+        using iterator = pointer;
+        /// Read-only iterator over host data.
+        using const_iterator = const_pointer;
+        /// Span over host data. Const views expose read-only spans.
+        using span_type = std::span<Tp_>;
 
         static_assert(Dim_ > 0, "MultiArrayHostView dimension must be greater than zero");
         static_assert(std::is_integral_v<Idx_>, "MultiArrayHostView index type must be integral");
@@ -233,6 +265,31 @@ namespace jams {
           return shape_;
         }
 
+        /// Return a flat span over the captured host storage.
+        [[nodiscard]] constexpr span_type flat_span() const noexcept {
+          return span_type(data_, static_cast<std::size_t>(elements_));
+        }
+
+        /// Return an iterator to the first captured host element.
+        [[nodiscard]] constexpr iterator begin() const noexcept {
+          return data_;
+        }
+
+        /// Return an iterator one past the last captured host element.
+        [[nodiscard]] constexpr iterator end() const noexcept {
+          return data_ ? data_ + static_cast<std::size_t>(elements_) : data_;
+        }
+
+        /// Return a read-only iterator to the first captured host element.
+        [[nodiscard]] constexpr const_iterator cbegin() const noexcept {
+          return data_;
+        }
+
+        /// Return a read-only iterator one past the last captured host element.
+        [[nodiscard]] constexpr const_iterator cend() const noexcept {
+          return data_ ? data_ + static_cast<std::size_t>(elements_) : data_;
+        }
+
         /// Return the row-major stride of dimension n, in elements.
         [[nodiscard]] constexpr std::size_t stride(const dim_type n) const noexcept {
           assert(n < Dim_);
@@ -263,24 +320,24 @@ namespace jams {
          */
         [[nodiscard]] constexpr pointer row_data(const size_type n) const noexcept {
           static_assert(Dim_ >= 1, "row_data requires at least one dimension");
-          assert(index_in_bounds(n, shape_[0]));
-          return data_ + static_cast<std::size_t>(n) * strides_[0];
+          assert(detail::index_in_bounds(n, shape_[0]));
+          return data_ ? data_ + static_cast<std::size_t>(n) * strides_[0] : data_;
+        }
+
+        /**
+         * Return a span over the contiguous block at index n in dimension 0.
+         *
+         * For a 2D row-major array this is row n. For higher-rank arrays it is
+         * the contiguous block with first index n.
+         */
+        [[nodiscard]] constexpr span_type row_span(const size_type n) const noexcept {
+          return span_type(row_data(n), strides_[0]);
         }
 
     private:
-        [[nodiscard]] static constexpr bool index_in_bounds(const size_type index, const size_type extent) noexcept {
-          using unsigned_size_type = std::make_unsigned_t<size_type>;
-          if constexpr (std::is_signed_v<size_type>) {
-            if (index < 0) {
-              return false;
-            }
-          }
-          return static_cast<unsigned_size_type>(index) < static_cast<unsigned_size_type>(extent);
-        }
-
         [[nodiscard]] constexpr bool indices_in_bounds(const size_container_type& indices) const noexcept {
           for (dim_type dim = 0; dim < Dim_; ++dim) {
-            if (!index_in_bounds(indices[dim], shape_[dim])) {
+            if (!detail::index_in_bounds(indices[dim], shape_[dim])) {
               return false;
             }
           }
@@ -345,6 +402,8 @@ namespace jams {
         using const_pointer = const value_type *;
         using iterator = pointer;
         using const_iterator = const_pointer;
+        using span_type = std::span<value_type>;
+        using const_span_type = std::span<const value_type>;
         using host_view_type = MultiArrayHostView<value_type, Dim_, size_type>;
         using const_host_view_type = MultiArrayHostView<const value_type, Dim_, size_type>;
 
@@ -382,14 +441,16 @@ namespace jams {
         }
 
         // Construct using dimensions as arguments.
-        template<typename... Args, std::enable_if_t<detail::valid_extent_args_v<Dim_, Args...>, int> = 0>
+        template<typename... Args>
+        requires detail::valid_extent_args<Dim_, Args...>
         inline explicit MultiArray(const Args... args)
             : MultiArray(detail::make_size_container<size_type, Dim_>(args...)) {
           static_assert(sizeof...(args) == Dim_,
                         "number of MultiArray indicies in constructor does not match the MultiArray dimension");
         }
 
-        template<typename... Args, std::enable_if_t<detail::valid_extent_args_v<Dim_, Args...>, int> = 0>
+        template<typename... Args>
+        requires detail::valid_extent_args<Dim_, Args...>
         inline explicit MultiArray(const value_type& x, const Args... args)
             : MultiArray(x, detail::make_size_container<size_type, Dim_>(args...)) {
           static_assert(sizeof...(args) == Dim_,
@@ -398,18 +459,30 @@ namespace jams {
 
         // Construct using dimensions in an array.
         template<typename Integral_>
+        requires detail::multiarray_extent<Integral_>
         inline explicit MultiArray(const std::array<Integral_, Dim_> &v) :
             size_(detail::make_size_container<size_type>(v)),
             data_(detail::checked_product(size_)) {}
 
       template<typename Integral_>
+      requires detail::multiarray_extent<Integral_>
       inline explicit MultiArray(const value_type& x, const std::array<Integral_, Dim_> v) :
             size_(detail::make_size_container<size_type>(v)),
             data_(detail::checked_product(size_), x) {}
 
-        template<class InputIt, std::enable_if_t<(Dim_ == 1 && detail::is_iterator<InputIt>::value), bool> = true>
+        template<std::input_iterator InputIt>
+        requires (Dim_ == 1)
         inline MultiArray(InputIt first, InputIt last)
             : data_(first, last) {
+          size_ = {detail::checked_integral_cast<size_type>(data_.size())};
+        }
+
+        template<std::ranges::input_range Range>
+        requires (Dim_ == 1 &&
+                  std::convertible_to<std::ranges::range_reference_t<Range>, value_type> &&
+                  !detail::is_multiarray_extent_array_v<Range, Dim_>)
+        inline explicit MultiArray(Range&& values)
+            : data_(std::forward<Range>(values)) {
           size_ = {detail::checked_integral_cast<size_type>(data_.size())};
         }
 
@@ -493,6 +566,36 @@ namespace jams {
 
         inline const_pointer host_data() const {
           return data_.host_data();
+        }
+
+        /**
+         * Return a read-only span over host storage.
+         *
+         * This may synchronize device data to host memory. It does not mark host
+         * storage modified, even when called on a non-const MultiArray.
+         */
+        [[nodiscard]] inline const_span_type host_span() {
+          return data_.host_span();
+        }
+
+        /**
+         * Return a read-only span over host storage.
+         *
+         * This may synchronize device data to host memory. It does not mark host
+         * storage modified.
+         */
+        [[nodiscard]] inline const_span_type host_span() const {
+          return data_.host_span();
+        }
+
+        /**
+         * Return a writable span over host storage.
+         *
+         * This marks host storage modified and device storage stale once when
+         * the span is created.
+         */
+        [[nodiscard]] inline span_type mutable_host_span() {
+          return data_.mutable_host_span();
         }
 
         /**
@@ -599,13 +702,12 @@ namespace jams {
               return;
             }
           }
-          std::fill_n(data_.mutable_host_data(), data_.size(), value);
+          std::ranges::fill(mutable_host_span(), value);
         }
 
         template<typename... Args>
+        requires detail::valid_extent_args<Dim_, Args...>
         inline MultiArray& resize(const Args &... args) {
-          static_assert(sizeof...(args) == Dim_,
-                        "number of MultiArray indicies in resize does not match the MultiArray dimension");
           const auto new_size = detail::make_size_container<size_type, Dim_>(args...);
           data_.resize(detail::checked_product(new_size));
           size_ = new_size;
@@ -613,6 +715,7 @@ namespace jams {
         }
 
         template<typename Integral_>
+        requires detail::multiarray_extent<Integral_>
         inline MultiArray& resize(const std::array<Integral_, Dim_> &v) {
           const auto new_size = detail::make_size_container<size_type>(v);
           data_.resize(detail::checked_product(new_size));
@@ -622,14 +725,8 @@ namespace jams {
 
     private:
         [[nodiscard]] bool indices_in_bounds(const size_container_type& indices) const noexcept {
-          using unsigned_size_type = std::make_unsigned_t<size_type>;
           for (dim_type dim = 0; dim < Dim_; ++dim) {
-            if constexpr (std::is_signed_v<size_type>) {
-              if (indices[dim] < 0) {
-                return false;
-              }
-            }
-            if (static_cast<unsigned_size_type>(indices[dim]) >= static_cast<unsigned_size_type>(size_[dim])) {
+            if (!detail::index_in_bounds(indices[dim], size_[dim])) {
               return false;
             }
           }
@@ -692,14 +789,19 @@ namespace jams {
 
     template<class FTp_, std::size_t FDim_, class FIdx_, class Tp2_>
     inline void element_scale(MultiArray<FTp_, FDim_, FIdx_>& x, const Tp2_& y) {
-      std::transform(x.begin(), x.end(), x.begin(), [y](const FTp_ &a) { return a * y; });
+      auto values = x.mutable_host_span();
+      std::ranges::transform(values, values.begin(), [y](const FTp_ &a) { return a * y; });
     }
 
     template<class FTp_, std::size_t FDim_, class FIdx_>
     inline void element_sum(MultiArray<FTp_, FDim_, FIdx_>& x, const MultiArray<FTp_, FDim_, FIdx_>& y) {
       assert(x.elements() == y.elements());
-      std::transform(y.begin(), y.end(), x.begin(), x.begin(),
-                     [](const FTp_&x, const FTp_ &y) -> FTp_ { return x + y; });
+      auto x_values = x.mutable_host_span();
+      const auto y_values = y.host_span();
+      std::ranges::transform(y_values, x_values, x_values.begin(),
+                             [](const FTp_& y_value, const FTp_& x_value) -> FTp_ {
+                               return x_value + y_value;
+                             });
     }
 
 

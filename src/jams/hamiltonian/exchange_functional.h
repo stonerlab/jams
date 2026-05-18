@@ -1,6 +1,7 @@
 #ifndef JAMS_HAMILTONIAN_EXCHANGE_FUNCTIONAL_H
 #define JAMS_HAMILTONIAN_EXCHANGE_FUNCTIONAL_H
 
+#include <jams/helpers/output.h>
 #include <jams/hamiltonian/sparse_interaction.h>
 
 #include <functional>
@@ -31,7 +32,7 @@ private:
 
     ExchangeFunctionalType functional_from_params(const std::string& name, const std::vector<double>& params);
 
-    void output_exchange_functional(std::ostream &os, const ExchangeFunctionalType &functional, double r_cutoff,
+    void output_exchange_functional(jams::output::TsvWriter& tsv, const ExchangeFunctionalType &functional, double r_cutoff,
                                            double delta_r=0.001);
 
     static double functional_step(double rij, double J0, double r_cut);

@@ -73,6 +73,14 @@ void MetropolisMCSolver::run() {
   }
 }
 
+std::vector<jams::output::ColDef> MetropolisMCSolver::monitor_coordinate_columns() const {
+  return {{"step", "steps", jams::output::ColFmt::Integer}};
+}
+
+void MetropolisMCSolver::append_monitor_coordinates(std::vector<double>& values) const {
+  values.push_back(iteration());
+}
+
 int MetropolisMCSolver::monte_carlo_step(const MoveFunction& trial_spin_move) {
   int moves_accepted = 0;
 

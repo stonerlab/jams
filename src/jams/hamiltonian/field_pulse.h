@@ -3,7 +3,6 @@
 
 #include <jams/core/hamiltonian.h>
 
-#include <iosfwd>
 #include <memory>
 
 ///
@@ -43,7 +42,7 @@ protected:
     jams::Real calculate_energy_for_spin(int i, const jams::Vec<double, 3> &spin, jams::Real time) override;
 
 private:
-    void output_pulse(std::ofstream& pulse_file);
+    void output_pulse() const;
 
     std::unique_ptr<TemporalFieldPulse> temporal_field_pulse_;
 };

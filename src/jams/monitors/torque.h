@@ -5,10 +5,10 @@
 
 #include <jams/core/monitor.h>
 #include <jams/containers/vec3.h>
+#include <jams/helpers/output.h>
 #include <jams/helpers/stats.h>
 #include <jams/monitors/spin_grouping.h>
 
-#include <fstream>
 #include <array>
 #include <vector>
 
@@ -36,10 +36,7 @@ private:
     using HamiltonianTorques = std::vector<TorqueComponents>;
     using GroupedTorques = std::vector<HamiltonianTorques>;
 
-    std::ofstream tsv_file_;
-    std::string   tsv_header();
-    void write_value(double value);
-    void write_unavailable_value();
+    jams::output::TsvWriter make_tsv_writer() const;
     GroupedTorques calculate_torques(Solver& solver);
     TorqueComponents total_group_torque(const HamiltonianTorques& torques) const;
     std::string torque_column_name(
@@ -56,6 +53,7 @@ private:
 
     std::vector<std::array<Stats, 3>> torque_stats_;
     std::vector<TorqueComponents> convergence_geweke_diagnostic_;
+    jams::output::TsvWriter tsv_;
 };
 
 #endif  // JAMS_MONITOR_TORQUE_H

@@ -9,8 +9,7 @@
 #include <jams/core/monitor.h>
 #include <jams/core/types.h>
 #include <jams/cuda/cuda_stream.h>
-
-#include <fstream>
+#include <jams/helpers/output.h>
 
 class Solver;
 
@@ -89,7 +88,7 @@ private:
     unsigned h5_output_steps;
     FILE*        xdmf_file_ = nullptr;
 
-    std::ofstream outfile;
+    jams::output::TsvWriter tsv_;
 
     jams::SparseMatrix<jams::Vec<double, 3>> interaction_matrix_;
 

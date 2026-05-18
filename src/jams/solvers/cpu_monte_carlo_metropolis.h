@@ -35,6 +35,9 @@ public:
 
     void run() override;
 
+    std::vector<jams::output::ColDef> monitor_coordinate_columns() const override;
+    void append_monitor_coordinates(std::vector<double>& values) const override;
+
     /// Calculates the energy difference of the system when the spin at
     /// @p spin_index is set to @p initial_spin and @p final_spin.
     /// \f[

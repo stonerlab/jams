@@ -13,7 +13,7 @@
 #include "jams/core/solver.h"
 
 
-TopologicalFiniteDiffChargeMonitor::TopologicalFiniteDiffChargeMonitor(const libconfig::Setting &settings) : Monitor(settings), outfile(jams::output::full_path_filename("top_charge.tsv")) {
+TopologicalFiniteDiffChargeMonitor::TopologicalFiniteDiffChargeMonitor(const libconfig::Setting &settings) : Monitor(settings) {
 
   // true if a and b are equal to the lattice a and b vectors.
   auto lattice_equal = [&](jams::Vec<double, 3> a, jams::Vec<double, 3> b) {
@@ -144,8 +144,9 @@ TopologicalFiniteDiffChargeMonitor::TopologicalFiniteDiffChargeMonitor(const lib
   }
 
 
-  outfile.setf(std::ios::right);
-  outfile << tsv_header();
+  tsv_.open(jams::output::monitor_filename(name(), "tsv"),
+            {{"iteration", "steps", jams::output::ColFmt::Integer},
+             {"charge", "dimensionless"}});
 
 }
 Monitor::ConvergenceStatus TopologicalFiniteDiffChargeMonitor::convergence_status() {
@@ -175,25 +176,9 @@ void TopologicalFiniteDiffChargeMonitor::update(Solver& solver) {
 
   monitor_top_charge_cache_ = sum / (4.0 * kPi);
 
-  outfile.width(12);
-  outfile << jams::fmt::sci << solver.iteration()<< "\t";
-  outfile << jams::fmt::decimal << monitor_top_charge_cache_ << "\t";
-  outfile << std::endl;
+  tsv_.write_row_values(solver.iteration(), monitor_top_charge_cache_);
 }
-std::string TopologicalFiniteDiffChargeMonitor::tsv_header() {
-    using namespace jams;
 
-  std::stringstream ss;
-  ss.width(12);
-
-  ss <<fmt::sci << "time";
-  ss <<fmt::decimal << "charge";
-
-  ss << std::endl;
-
-  return ss.str();
-
-}
 double TopologicalFiniteDiffChargeMonitor::local_topological_charge(const int i) const {
 
   jams::Vec<double, 3> ds_x = {0.0, 0.0, 0.0};

@@ -10,7 +10,6 @@
 #include <jams/monitors/spectrum_base.h>
 #include <jams/helpers/mixed_precision.h>
 
-#include <fstream>
 #include <complex>
 #include <vector>
 

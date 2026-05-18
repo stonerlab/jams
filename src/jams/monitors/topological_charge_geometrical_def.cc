@@ -19,7 +19,7 @@
 
 
 TopologicalGeometricalDefMonitor::TopologicalGeometricalDefMonitor(const libconfig::Setting &settings) : Monitor(
-	settings), outfile(jams::output::full_path_filename("top_geom_def_charge.tsv")) {
+	settings) {
   if (settings.exists("radius_cutoff")) {
 	radius_cutoff_ = settings["radius_cutoff"];
   }
@@ -42,17 +42,15 @@ TopologicalGeometricalDefMonitor::TopologicalGeometricalDefMonitor(const libconf
   max_tolerance_threshold_ = jams::config_optional<double>(settings, "max_threshold",1.0);
   min_tolerance_threshold_ = jams::config_optional<double>(settings,"min_threshold",-1.0);
 
-  outfile.setf(std::ios::right);
-  outfile << tsv_header();
+  tsv_.open(jams::output::monitor_filename(name(), "tsv"),
+            {{"iteration", "steps", jams::output::ColFmt::Integer},
+             {"charge", "dimensionless"}});
 
 }
 void TopologicalGeometricalDefMonitor::update(Solver& solver) {
   monitor_top_charge_cache_ = total_topological_charge();
 
-  outfile.width(12);
-  outfile << jams::fmt::sci << solver.iteration()<< "\t";
-  outfile << jams::fmt::decimal << monitor_top_charge_cache_ << "\t";
-  outfile << std::endl;
+  tsv_.write_row_values(solver.iteration(), monitor_top_charge_cache_);
 }
 
 Monitor::ConvergenceStatus TopologicalGeometricalDefMonitor::convergence_status() {
@@ -180,18 +178,3 @@ double TopologicalGeometricalDefMonitor::total_topological_charge() const {
 
   return sum / (4.0 * kPi * triangle_over_counting_);
 }
-
-std::string TopologicalGeometricalDefMonitor::tsv_header(){
-  using namespace jams;
-
-  std::stringstream ss;
-  ss.width(12);
-
-  ss <<fmt::sci << "time";
-  ss <<fmt::decimal << "charge";
-
-  ss << std::endl;
-
-  return ss.str();
-}
-

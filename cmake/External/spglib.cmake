@@ -49,6 +49,12 @@ if (DEFINED JAMS_SPGLIB_VERSION)
     endif()
     target_include_directories(symspg PUBLIC $<BUILD_INTERFACE:${spglib_SOURCE_DIR}/src>)
     target_include_directories(symspg_static PUBLIC $<BUILD_INTERFACE:${spglib_SOURCE_DIR}/src>)
+    if (APPLE AND NOT CMAKE_BUILD_TYPE STREQUAL "Debug")
+        set_source_files_properties(
+                "${spglib_SOURCE_DIR}/src/debug.c"
+                TARGET_DIRECTORY symspg symspg_static
+                PROPERTIES HEADER_FILE_ONLY TRUE)
+    endif()
 
     add_library(spglib ALIAS symspg_static)
     set(JAMS_SPGLIB_LIBRARIES "built-in (git)")

@@ -2,9 +2,10 @@
 // Created by Joe Barker on 2017/10/04.
 //
 
-#include <iomanip>
-
 #include "version.h"
+#include <utility>
+#include <vector>
+
 #include <jams/common.h>
 #include "jams/core/globals.h"
 #include "jams/core/interactions.h"
@@ -33,7 +34,7 @@ CudaSpinCurrentMonitor::CudaSpinCurrentMonitor(const libconfig::Setting &setting
   h5_output_steps = jams::config_optional<unsigned>(settings, "h5_output_steps", output_step_freq_);
 
   if (do_h5_output) {
-    open_new_xdmf_file(jams::output::full_path_filename("js.xdmf"));
+    open_new_xdmf_file(jams::output::monitor_filename(name(), "xdmf"));
   }
 
   const auto& exchange_hamiltonian = find_hamiltonian<ExchangeHamiltonian>(::globals::solver->hamiltonians());
@@ -59,12 +60,11 @@ CudaSpinCurrentMonitor::CudaSpinCurrentMonitor(const libconfig::Setting &setting
   spin_current_ry_z.resize(globals::num_spins);
   spin_current_rz_z.resize(globals::num_spins);
 
-  outfile.open(jams::output::full_path_filename("js.tsv"));
-
-  outfile << "time\t";
-  outfile << "js_z_rx\tjs_z_ry\tjs_z_rz" << std::endl;
-
-  outfile.setf(std::ios::right);
+  auto cols = globals::solver->monitor_coordinate_columns();
+  cols.push_back({"js_z_rx", "m s^-1"});
+  cols.push_back({"js_z_ry", "m s^-1"});
+  cols.push_back({"js_z_rz", "m s^-1"});
+  tsv_.open(jams::output::monitor_filename(name(), "tsv"), std::move(cols));
 }
 
 void CudaSpinCurrentMonitor::update(Solver& solver) {
@@ -91,23 +91,23 @@ void CudaSpinCurrentMonitor::update(Solver& solver) {
   // by the lattice constant and convert 1/ps to 1/s.
   const double units = globals::lattice->parameter() * 1e12;
 
-  outfile << jams::fmt::sci << solver.time() << "\t";
-  for (auto m = 0; m < 3; ++m) {
-      outfile << jams::fmt::sci << units * js_z[m] << "\t";
-  }
-  outfile << "\n";
+  std::vector<double> values;
+  values.reserve(tsv_.num_cols());
+  solver.append_monitor_coordinates(values);
+  values.push_back(units * js_z[0]);
+  values.push_back(units * js_z[1]);
+  values.push_back(units * js_z[2]);
+  tsv_.write_row(values);
 
   if (do_h5_output && solver.iteration()%h5_output_steps == 0) {
     int outcount = solver.iteration()/h5_output_steps;  // int divisible by modulo above
-    const std::string h5_file_name(jams::instance().output_path() + "/" + globals::simulation_name + "_" + zero_pad_number(outcount) + "_js.h5");
+    const std::string h5_file_name(jams::output::monitor_filename_series(name() + "_spin_current", "h5", outcount));
     write_spin_current_h5_file(h5_file_name, solver.iteration(), solver.time());
     update_xdmf_file(h5_file_name, solver.time());
   }
 }
 
 CudaSpinCurrentMonitor::~CudaSpinCurrentMonitor() {
-  outfile.close();
-
   if (xdmf_file_ != nullptr) {
     fclose(xdmf_file_);
     xdmf_file_ = nullptr;
@@ -137,7 +137,7 @@ void CudaSpinCurrentMonitor::write_spin_current_h5_file(const std::string &h5_fi
 
 void CudaSpinCurrentMonitor::open_new_xdmf_file(const std::string &xdmf_file_name) {
   // create xdmf_file_
-  xdmf_file_ = fopen(std::string(jams::instance().output_path() + "/" + xdmf_file_name).c_str(), "w");
+  xdmf_file_ = fopen(xdmf_file_name.c_str(), "w");
 
   fputs("<?xml version=\"1.0\"?>\n", xdmf_file_);
   fputs("<!DOCTYPE Xdmf SYSTEM \"Xdmf.dtd\"[]>\n", xdmf_file_);
@@ -174,7 +174,7 @@ void CudaSpinCurrentMonitor::update_xdmf_file(const std::string &h5_file_name, c
   fputs("       </Attribute>\n", xdmf_file_);
   fputs("       <Attribute Name=\"spin_current\" AttributeType=\"Vector\" Center=\"Node\">\n", xdmf_file_);
   fprintf(xdmf_file_, "         <DataItem Dimensions=\"%llu 3\" NumberType=\"Float\" Precision=\"%u\" Format=\"HDF\">\n", data_dimension, float_precision);
-  fprintf(xdmf_file_, "           %s:/spin_current\n", file_basename_no_extension(h5_file_name).c_str());
+  fprintf(xdmf_file_, "           %s:/spin_current\n", file_basename(h5_file_name).c_str());
   fputs("         </DataItem>\n", xdmf_file_);
   fputs("       </Attribute>\n", xdmf_file_);
   fputs("      </Grid>\n", xdmf_file_);

@@ -35,8 +35,7 @@ namespace {
 
 
 SpectrumGeneralMonitor::SpectrumGeneralMonitor(const libconfig::Setting &settings)
-: Monitor(settings),
-outfile(jams::output::full_path_filename("fk.tsv")){
+: Monitor(settings) {
   libconfig::Setting& solver_settings = ::globals::config->lookup("solver");
 
   double t_step = solver_settings["t_step"];
@@ -173,14 +172,19 @@ SpectrumGeneralMonitor::~SpectrumGeneralMonitor() {
     }
 
     if (i%10 == 0) {
-      std::ofstream cfile(jams::output::full_path_filename("corr.tsv"));
+      jams::output::TsvWriter tsv(
+          jams::output::monitor_filename(name() + "_corr", "tsv"),
+          {{"q", "lattice constants^-1", jams::output::ColFmt::Fixed},
+           {"freq", "THz", jams::output::ColFmt::Fixed},
+           {"sqw", "dimensionless"}});
       for (unsigned q = 0; q < qvecs.size(); ++q) {
         for (unsigned w = 0; w < padded_size_/2+1; ++w) {
-          cfile << qmax_ * (q / double(num_qpoints_-1)) << " " << 0.5*w * freq_delta_ << " " << -SQw(q, w).imag() / (i + 1)/ static_cast<double>(padded_size_) << "\n";
+          tsv.write_row_values(
+              qmax_ * (q / double(num_qpoints_-1)),
+              0.5*w * freq_delta_,
+              -SQw(q, w).imag() / (i + 1) / static_cast<double>(padded_size_));
         }
       }
-      cfile.flush();
-      cfile.close();
     }
 
   }

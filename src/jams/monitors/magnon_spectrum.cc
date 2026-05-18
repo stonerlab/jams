@@ -67,17 +67,21 @@ void MagnonSpectrumMonitor::output_total_magnon_spectrum()
 {
     for (auto n = 0; n < k_segment_offsets_.size() - 1; ++n)
     {
-        std::ofstream ofs(jams::output::full_path_filename_series("magnon_spectrum_path.tsv", n, 1));
-        ofs << jams::fmt::integer << "index";
-        ofs << jams::fmt::decimal << "q_total";
-        ofs << jams::fmt::decimal << "h" << jams::fmt::decimal << "k" << jams::fmt::decimal << "l";
-        ofs << jams::fmt::decimal << "qx" << jams::fmt::decimal << "qy" << jams::fmt::decimal << "qz";
-        ofs << jams::fmt::decimal << "f_THz";
-        ofs << jams::fmt::decimal << "E_meV";
-        ofs << jams::fmt::sci << "sqw_+-";
-        ofs << jams::fmt::sci << "sqw_-+";
-        ofs << jams::fmt::sci << "sqw_zz";
-        ofs << std::endl;
+        jams::output::TsvWriter tsv(
+            jams::output::monitor_filename_series(name() + "_path", "tsv", n, 1),
+            {{"index", "none", jams::output::ColFmt::Integer},
+             {"q_total", "lattice constants^-1", jams::output::ColFmt::Fixed},
+             {"h", "rlu", jams::output::ColFmt::Fixed},
+             {"k", "rlu", jams::output::ColFmt::Fixed},
+             {"l", "rlu", jams::output::ColFmt::Fixed},
+             {"qx", "lattice constants^-1", jams::output::ColFmt::Fixed},
+             {"qy", "lattice constants^-1", jams::output::ColFmt::Fixed},
+             {"qz", "lattice constants^-1", jams::output::ColFmt::Fixed},
+             {"f_THz", "THz", jams::output::ColFmt::Fixed},
+             {"E_meV", "meV", jams::output::ColFmt::Fixed},
+             {"sqw_+-", "dimensionless"},
+             {"sqw_-+", "dimensionless"},
+             {"sqw_zz", "dimensionless"}});
 
         // sample time is here because the fourier transform in time is not an integral
         // but a discrete sum
@@ -103,25 +107,26 @@ void MagnonSpectrumMonitor::output_total_magnon_spectrum()
             double total_distance = 0.0;
             for (auto k = path_begin; k < path_end; ++k)
             {
-                ofs << jams::fmt::integer << k;
-                ofs << jams::fmt::decimal << total_distance;
-                ofs << jams::fmt::decimal << k_points_[k].hkl;
-                ofs << jams::fmt::decimal << k_points_[k].xyz;
-                ofs << jams::fmt::decimal << freq_thz; // THz
-                ofs << jams::fmt::decimal << freq_thz * 4.135668; // meV
-                ofs << jams::fmt::sci << prefactor * wfreq * cumulative_magnon_spectrum_(f, k)[0];
-                ofs << jams::fmt::sci << prefactor * wfreq * cumulative_magnon_spectrum_(f, k)[1];
-                ofs << jams::fmt::sci << prefactor * wfreq * cumulative_magnon_spectrum_(f, k)[2];
+                tsv.write_row_values(
+                    k,
+                    total_distance,
+                    k_points_[k].hkl[0],
+                    k_points_[k].hkl[1],
+                    k_points_[k].hkl[2],
+                    k_points_[k].xyz[0],
+                    k_points_[k].xyz[1],
+                    k_points_[k].xyz[2],
+                    freq_thz,
+                    freq_thz * 4.135668,
+                    prefactor * wfreq * cumulative_magnon_spectrum_(f, k)[0],
+                    prefactor * wfreq * cumulative_magnon_spectrum_(f, k)[1],
+                    prefactor * wfreq * cumulative_magnon_spectrum_(f, k)[2]);
 
                 if (k + 1 < path_end) {
                     total_distance += jams::norm(k_points_[k].xyz - k_points_[k + 1].xyz);
                 }
-                ofs << "\n";
             }
-            ofs << "\n";
         }
-
-        ofs.close();
     }
 }
 

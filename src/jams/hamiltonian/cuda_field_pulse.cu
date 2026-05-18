@@ -4,7 +4,6 @@
 #include <jams/core/solver.h>
 #include <jams/core/lattice.h>
 #include <jams/helpers/maths.h>
-#include <fstream>
 
 __global__ void cuda_field_pulse_surface_kernel(const unsigned int num_spins, const double surface_cutoff, const jams::Real * dev_mus, const jams::Real * dev_r, const jams::Real3 b_field, jams::Real * dev_h) {
   const unsigned int idx = blockIdx.x * blockDim.x + threadIdx.x;
@@ -39,8 +38,7 @@ CudaFieldPulseHamiltonian::CudaFieldPulseHamiltonian(
     }
   }
 
-  std::ofstream pulse_file(jams::output::full_path_filename("field_pulse.tsv"));
-  output_pulse(pulse_file);
+  output_pulse();
 }
 
 void CudaFieldPulseHamiltonian::calculate_fields(jams::Real time) {
@@ -59,19 +57,17 @@ void CudaFieldPulseHamiltonian::calculate_fields(jams::Real time) {
   DEBUG_CHECK_CUDA_ASYNC_STATUS;
 }
 
-void CudaFieldPulseHamiltonian::output_pulse(std::ofstream& os) {
-  if (!os.is_open()) {
-    os.open(jams::output::full_path_filename("field_pulse.tsv"));
-    os << "time  Hx  Hy  Hz\n";
-  }
-
+void CudaFieldPulseHamiltonian::output_pulse() const {
+  jams::output::TsvWriter tsv(
+      jams::output::hamiltonian_filename(name(), "tsv"),
+      {{"time", "picoseconds"},
+       {"Hx", "T", jams::output::ColFmt::Fixed},
+       {"Hy", "T", jams::output::ColFmt::Fixed},
+       {"Hz", "T", jams::output::ColFmt::Fixed}});
 
   for (auto i = 0; i < globals::solver->max_steps(); ++i) {
     jams::Real time = i * globals::solver->time_step();
     jams::Vec<jams::Real, 3> field = gaussian(time, temporal_center_, static_cast<jams::Real>(1), temporal_width_) * max_field_;
-    os << jams::fmt::sci << time;
-    os << jams::fmt::decimal << field[0];
-    os << jams::fmt::decimal << field[1];
-    os << jams::fmt::decimal << field[2] << "\n";
+    tsv.write_row_values(time, field[0], field[1], field[2]);
   }
 }

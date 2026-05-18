@@ -1,7 +1,6 @@
 //
 // Created by Joe Barker on 2018/05/28.
 //
-#include <fstream>
 #include <random>
 #include <vector>
 
@@ -60,8 +59,17 @@ RandomAnisotropyHamiltonian::RandomAnisotropyHamiltonian(const libconfig::Settin
   }
 
   if (debug_is_enabled() || verbose_is_enabled()) {
-    std::ofstream outfile(jams::output::full_path_filename("DEBUG_random_anisotropy.tsv"));
-    output_anisotropy_axes(outfile);
+    jams::output::TsvWriter tsv(
+        jams::output::hamiltonian_filename(name() + "_random_anisotropy_axes", "tsv"),
+        {{"index", "none", jams::output::ColFmt::Integer},
+         {"rx", "lattice constants"},
+         {"ry", "lattice constants"},
+         {"rz", "lattice constants"},
+         {"ex", "dimensionless"},
+         {"ey", "dimensionless"},
+         {"ez", "dimensionless"},
+         {"D", "meV"}});
+    output_anisotropy_axes(tsv);
   }
 }
 
@@ -82,19 +90,17 @@ jams::Vec<jams::Real, 3> RandomAnisotropyHamiltonian::calculate_field(const int 
 }
 
 
-void RandomAnisotropyHamiltonian::output_anisotropy_axes(std::ofstream &outfile) {
-  outfile << std::setw(12) << "index";
-  outfile << std::setw(12) << "rx ry rz";
-  outfile << std::setw(12) << "ex ey ez";
-  outfile << std::setw(12) << "D";
-  outfile << "\n";
-
+void RandomAnisotropyHamiltonian::output_anisotropy_axes(jams::output::TsvWriter& tsv) {
   for (auto i = 0; i < direction_.size(); ++i) {
     auto r = globals::lattice->lattice_site_position_cart(i);
-    outfile << std::setw(12) << i;
-    outfile << std::setw(12) << r;
-    outfile << std::setw(12) << direction_[i];
-    outfile << std::setw(12) << magnitude_[i];
-    outfile << "\n";
+    tsv.write_row_values(
+        i,
+        r[0],
+        r[1],
+        r[2],
+        direction_[i][0],
+        direction_[i][1],
+        direction_[i][2],
+        magnitude_[i]);
   }
 }

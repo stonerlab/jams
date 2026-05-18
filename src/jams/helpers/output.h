@@ -4,6 +4,7 @@
 
 #ifndef JAMS_HELPERS_OUTPUT_H
 #define JAMS_HELPERS_OUTPUT_H
+#include <array>
 #include <string>
 #include <vector>
 #include <sstream>
@@ -11,6 +12,10 @@
 #include <fstream>
 #include <cassert>
 #include <cmath>
+#include <optional>
+#include <stdexcept>
+#include <unordered_set>
+#include <utility>
 
 namespace jams::fmt {
 struct SciFmt {
@@ -60,6 +65,9 @@ namespace jams::output {
 
     std::string full_path_filename(const std::string& ending);
     std::string full_path_filename_series(const std::string& ending, int num, int width=7);
+    std::string monitor_filename(const std::string& monitor_name, const std::string& extension);
+    std::string monitor_filename_series(const std::string& monitor_name, const std::string& extension, int num, int width=7);
+    std::string hamiltonian_filename(const std::string& hamiltonian_name, const std::string& extension);
     std::string output_path();
 
     int lock_file(const std::string& lock_filename);
@@ -96,12 +104,39 @@ namespace jams::output {
       os << std::right;
     }
 
+    inline void write_tsv_separator(std::ostream& os, std::size_t index, std::size_t size) {
+      if (index + 1 < size) {
+        os << '\t';
+      }
+    }
+
+    inline void validate_tsv_columns(const std::vector<ColDef>& cols) {
+      std::unordered_set<std::string> names;
+
+      for (const auto& col : cols) {
+        if (col.name.empty()) {
+          throw std::runtime_error("TSV column name must not be empty");
+        }
+        if (!names.insert(col.name).second) {
+          throw std::runtime_error("duplicate TSV column name '" + col.name + "'");
+        }
+      }
+    }
+
+    inline void validate_tsv_row_size(std::size_t num_cols, std::size_t num_values) {
+      if (num_cols != num_values) {
+        throw std::runtime_error(
+            "TSV row size mismatch: expected " + std::to_string(num_cols) +
+            " values, got " + std::to_string(num_values));
+      }
+    }
+
     inline void write_tsv_row(std::ostream& os,
                           const std::vector<ColDef>& cols,
                           const std::vector<double>& values,
                           int precision)
     {
-      // assert(cols.size() == values.size());
+      validate_tsv_row_size(cols.size(), values.size());
 
       for (std::size_t i = 0; i < cols.size(); ++i) {
         const auto& col = cols[i];
@@ -118,6 +153,40 @@ namespace jams::output {
             os << v;
             break;
         }
+        write_tsv_separator(os, i, cols.size());
+      }
+
+      os << '\n';
+    }
+
+    inline void write_tsv_row(std::ostream& os,
+                          const std::vector<ColDef>& cols,
+                          const std::vector<std::optional<double>>& values,
+                          int precision)
+    {
+      validate_tsv_row_size(cols.size(), values.size());
+
+      for (std::size_t i = 0; i < cols.size(); ++i) {
+        const auto& col = cols[i];
+
+        apply_format(os, col.format, precision);
+        if (!values[i].has_value()) {
+          os << "--------";
+          write_tsv_separator(os, i, cols.size());
+          continue;
+        }
+
+        const double v = *values[i];
+        switch (col.format) {
+          case ColFmt::Integer:
+            os << std::llround(v);
+            break;
+          case ColFmt::Scientific:
+          case ColFmt::Fixed:
+            os << v;
+            break;
+        }
+        write_tsv_separator(os, i, cols.size());
       }
 
       os << '\n';
@@ -143,9 +212,11 @@ namespace jams::output {
       std::ostringstream os;
       os << std::scientific << std::setprecision(precision) << std::right;
 
-      for (const auto& col : cols) {
+      for (std::size_t i = 0; i < cols.size(); ++i) {
+        const auto& col = cols[i];
         apply_format(os, col.format, precision);
         os << col.name;
+        write_tsv_separator(os, i, cols.size());
       }
 
       os << '\n';
@@ -154,22 +225,27 @@ namespace jams::output {
 
 class TsvWriter {
       public:
-        TsvWriter(const std::string& filename, const std::vector<ColDef> cols, int precision = 8)
+        TsvWriter() = default;
+
+        TsvWriter(const std::string& filename, std::vector<ColDef> cols, int precision = 8)
           : file_(filename), cols_(std::move(cols)), precision_(precision) {
           if (!file_) {
             throw std::runtime_error("Failed to open TSV file: " + filename);
           }
+          validate_tsv_columns(cols_);
           write_header();
         }
 
-        void open(const std::string& filename, const std::vector<ColDef> cols, int precision = 8) {
+        void open(const std::string& filename, std::vector<ColDef> cols, int precision = 8) {
           file_.close();
+          file_.clear();
           file_.open(filename);
           if (!file_) {
             throw std::runtime_error("Failed to open TSV file: " + filename);
           }
           cols_ = std::move(cols);
           precision_ = precision;
+          validate_tsv_columns(cols_);
           write_header();
         }
 
@@ -183,7 +259,12 @@ class TsvWriter {
         void set_precision(int precision) noexcept { precision_ = precision; }
 
         void write_row(const std::vector<double>& values) {
-          assert(values.size() == cols_.size());
+          validate_tsv_row_size(cols_.size(), values.size());
+          write_tsv_row(file_, cols_, values, precision_);
+        }
+
+        void write_row(const std::vector<std::optional<double>>& values) {
+          validate_tsv_row_size(cols_.size(), values.size());
           write_tsv_row(file_, cols_, values, precision_);
         }
 

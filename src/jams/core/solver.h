@@ -7,6 +7,7 @@
 #include <vector>
 #include <libconfig.h++>
 
+#include "jams/helpers/output.h"
 #include "jams/core/thermostat.h"
 #include "jams/core/physics.h"
 #include "jams/core/monitor.h"
@@ -26,6 +27,9 @@ class Solver {
 
   Monitor::ConvergenceStatus convergence_status();
   virtual bool is_running();
+  virtual std::vector<jams::output::ColDef> monitor_coordinate_columns() const;
+  std::vector<double> monitor_coordinates() const;
+  virtual void append_monitor_coordinates(std::vector<double>& values) const;
 
   inline int iteration() const {
     return iteration_;

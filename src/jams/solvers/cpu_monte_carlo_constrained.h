@@ -23,6 +23,8 @@ class ConstrainedMCSolver : public Solver {
 
   void initialize(const libconfig::Setting& settings) override;
   void run() override;
+  std::vector<jams::output::ColDef> monitor_coordinate_columns() const override;
+  void append_monitor_coordinates(std::vector<double>& values) const override;
 
   std::string name() const override { return "monte-carlo-constrained-cpu"; }
 

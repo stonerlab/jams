@@ -1,9 +1,8 @@
 // Copyright 2014 Joseph Barker. All rights reserved.
 
 #include <cmath>
+#include <optional>
 #include <string>
-#include <iomanip>
-#include <sstream>
 #include <vector>
 
 #include "jams/core/solver.h"
@@ -14,29 +13,30 @@
 
 TorqueMonitor::TorqueMonitor(const libconfig::Setting &settings)
 : Monitor(settings),
-  tsv_file_(jams::output::full_path_filename("torq.tsv")),
   grouping_(jams::monitors::parse_spin_grouping(settings, "none", "torque")),
   spin_groups_(jams::monitors::make_spin_groups(grouping_)),
   precision_(jams::config_optional<int>(settings, "precision", 8)),
   torque_stats_(),
-  convergence_geweke_diagnostic_()
+  convergence_geweke_diagnostic_(),
+  tsv_(make_tsv_writer())
 {
   torque_stats_.resize(spin_groups_.size());
   convergence_geweke_diagnostic_.resize(spin_groups_.size(), {100.0, 100.0, 100.0});
-
-  tsv_file_.setf(std::ios::right);
-  tsv_file_ << tsv_header();
 }
 
 void TorqueMonitor::update(Solver& solver) {
   const auto torques = calculate_torques(solver);
+  std::vector<std::optional<double>> values;
+  values.reserve(tsv_.num_cols());
 
-  write_value(solver.time());
+  for (const auto coordinate : solver.monitor_coordinates()) {
+    values.push_back(coordinate);
+  }
 
   for (const auto& group_torques : torques) {
     for (const auto& torque : group_torques) {
       for (auto n = 0; n < 3; ++n) {
-        write_value(torque[n]);
+        values.push_back(torque[n]);
       }
     }
   }
@@ -54,22 +54,22 @@ void TorqueMonitor::update(Solver& solver) {
               convergence_stderr_);
 
           if (torque_stats_[group_index][n].size() > 1 && torque_stats_[group_index][n].size() % 10 == 0) {
-            write_value(convergence_geweke_diagnostic_[group_index][n]);
+            values.push_back(convergence_geweke_diagnostic_[group_index][n]);
           } else {
-            write_unavailable_value();
+            values.push_back(std::nullopt);
           }
         }
       }
     } else {
       for (std::size_t group_index = 0; group_index < torques.size(); ++group_index) {
         for (auto n = 0; n < 3; ++n) {
-          write_unavailable_value();
+          values.push_back(std::nullopt);
         }
       }
     }
   }
 
-  tsv_file_ << std::endl;
+  tsv_.write_row(values);
 }
 
 TorqueMonitor::GroupedTorques TorqueMonitor::calculate_torques(Solver& solver) {
@@ -86,7 +86,7 @@ TorqueMonitor::GroupedTorques TorqueMonitor::calculate_torques(Solver& solver) {
       const auto& group = spin_groups_[group_index];
 
       TorqueComponents torque = {0.0, 0.0, 0.0};
-      for (const auto spin_index : group.indices) {
+      for (const auto spin_index : group.indices_span()) {
         // Calculate the local torque on a lattice site (\vec{S} \times \vec{H})
         const TorqueComponents spin = {
             spins(spin_index, 0),
@@ -100,8 +100,8 @@ TorqueMonitor::GroupedTorques TorqueMonitor::calculate_torques(Solver& solver) {
         torque += jams::cross(spin, field);
       }
 
-      if (!group.indices.empty()) {
-        torque = torque / static_cast<double>(group.indices.size());
+      if (!group.empty()) {
+        torque = torque / static_cast<double>(group.size());
       }
 
       torques[group_index][hamiltonian_index] = torque;
@@ -118,14 +118,6 @@ TorqueMonitor::TorqueComponents TorqueMonitor::total_group_torque(
     total_torque += torque;
   }
   return total_torque;
-}
-
-void TorqueMonitor::write_value(const double value) {
-  tsv_file_ << std::scientific << std::setprecision(precision_) << value << "\t";
-}
-
-void TorqueMonitor::write_unavailable_value() {
-  tsv_file_ << std::setw(precision_ + 9) << std::right << "--------" << "\t";
 }
 
 Monitor::ConvergenceStatus TorqueMonitor::convergence_status() {
@@ -150,30 +142,30 @@ Monitor::ConvergenceStatus TorqueMonitor::convergence_status() {
   return convergence_status_;
 }
 
-std::string TorqueMonitor::tsv_header() {
-  std::stringstream ss;
-  ss.width(12);
+jams::output::TsvWriter TorqueMonitor::make_tsv_writer() const {
+  auto cols = globals::solver->monitor_coordinate_columns();
 
-  ss << "time\t";
   for (const auto& group : spin_groups_) {
-    for (auto &hamiltonian : globals::solver->hamiltonians()) {
+    for (const auto& hamiltonian : globals::solver->hamiltonians()) {
       const auto name = hamiltonian->name();
-      ss << torque_column_name(group, name, "tx") << "\t";
-      ss << torque_column_name(group, name, "ty") << "\t";
-      ss << torque_column_name(group, name, "tz") << "\t";
+      cols.push_back({torque_column_name(group, name, "tx"), "meV"});
+      cols.push_back({torque_column_name(group, name, "ty"), "meV"});
+      cols.push_back({torque_column_name(group, name, "tz"), "meV"});
     }
   }
 
   if (convergence_status_ != ConvergenceStatus::kDisabled) {
     for (const auto& group : spin_groups_) {
-      ss << convergence_column_name(group, "tx") << "\t";
-      ss << convergence_column_name(group, "ty") << "\t";
-      ss << convergence_column_name(group, "tz") << "\t";
+      cols.push_back({convergence_column_name(group, "tx"), "dimensionless"});
+      cols.push_back({convergence_column_name(group, "ty"), "dimensionless"});
+      cols.push_back({convergence_column_name(group, "tz"), "dimensionless"});
     }
   }
 
-  ss << std::endl;
-  return ss.str();
+  return jams::output::TsvWriter(
+      jams::output::monitor_filename(name(), "tsv"),
+      std::move(cols),
+      precision_);
 }
 
 std::string TorqueMonitor::torque_column_name(

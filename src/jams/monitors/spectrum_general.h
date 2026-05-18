@@ -8,7 +8,6 @@
 #include <jams/core/monitor.h>
 #include <jams/containers/multiarray.h>
 
-#include <fstream>
 #include <vector>
 #include <complex>
 
@@ -24,8 +23,6 @@ public:
 private:
 
     void apply_time_fourier_transform();
-
-    std::ofstream outfile;
 
     unsigned num_samples_;
     unsigned padded_size_;

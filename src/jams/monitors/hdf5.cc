@@ -45,15 +45,16 @@ Hdf5Monitor::Hdf5Monitor(const libconfig::Setting &settings)
 
     write_ds_dt_ = jams::config_optional<bool>(settings, "ds_dt", write_ds_dt_);
 
-    open_new_xdmf_file(jams::output::full_path_filename(".xdmf"));
+    open_new_xdmf_file(jams::output::monitor_filename(name(), "xdmf"));
 
-    write_lattice_h5_file(jams::output::full_path_filename("lattice.h5"));
+    write_lattice_h5_file(jams::output::monitor_filename(name() + "_lattice", "h5"));
 }
 
 Hdf5Monitor::~Hdf5Monitor() {
   // always write final in double precision
-    write_spin_h5_file(jams::output::full_path_filename("final.h5"));
-    update_xdmf_file(jams::output::full_path_filename("final.h5"), globals::solver->time());
+    const auto final_h5_file = jams::output::monitor_filename(name() + "_final", "h5");
+    write_spin_h5_file(final_h5_file);
+    update_xdmf_file(final_h5_file, globals::solver->time());
 
     fclose(xdmf_file_);
 }
@@ -64,7 +65,7 @@ void Hdf5Monitor::update(Solver& solver) {
   if (solver.iteration()%output_step_freq_ == 0) {
     int outcount = solver.iteration()/output_step_freq_;  // int divisible by modulo above
 
-    const std::string h5_file_name(jams::output::full_path_filename_series(".h5", outcount));
+    const std::string h5_file_name(jams::output::monitor_filename_series(name(), "h5", outcount));
 
     write_spin_h5_file(h5_file_name);
     update_xdmf_file(h5_file_name, solver.time());
@@ -185,17 +186,20 @@ void Hdf5Monitor::update_xdmf_file(const std::string &h5_file_name, const double
   fprintf(xdmf_file_, "        <Topology TopologyType=\"Polyvertex\" Dimensions=\"%u\" />\n", data_dimension);
                fputs("       <Geometry GeometryType=\"XYZ\">\n", xdmf_file_);
   fprintf(xdmf_file_, "         <DataItem Dimensions=\"%u 3\" NumberType=\"Float\" Precision=\"%u\" Format=\"HDF\">\n", data_dimension, float_precision);
-  fprintf(xdmf_file_, "           %s_lattice.h5:/positions\n", globals::simulation_name.c_str());
+  fprintf(xdmf_file_, "           %s:/positions\n",
+          file_basename(jams::output::monitor_filename(name() + "_lattice", "h5")).c_str());
                fputs("         </DataItem>\n", xdmf_file_);
                fputs("       </Geometry>\n", xdmf_file_);
                fputs("       <Attribute Name=\"Type\" AttributeType=\"Scalar\" Center=\"Node\">\n", xdmf_file_);
   fprintf(xdmf_file_, "         <DataItem Dimensions=\"%u\" NumberType=\"Int\" Precision=\"4\" Format=\"HDF\">\n", data_dimension);
-  fprintf(xdmf_file_, "           %s_lattice.h5:/types\n", globals::simulation_name.c_str());
+  fprintf(xdmf_file_, "           %s:/types\n",
+          file_basename(jams::output::monitor_filename(name() + "_lattice", "h5")).c_str());
                 fputs("         </DataItem>\n", xdmf_file_);
                 fputs("       </Attribute>\n", xdmf_file_);
                 fputs("       <Attribute Name=\"Moment\" AttributeType=\"Scalar\" Center=\"Node\">\n", xdmf_file_);
   fprintf(xdmf_file_, "         <DataItem Dimensions=\"%u\" NumberType=\"Float\" Precision=\"%u\" Format=\"HDF\">\n", data_dimension, float_precision);
-  fprintf(xdmf_file_, "           %s_lattice.h5:/moments\n", globals::simulation_name.c_str());
+  fprintf(xdmf_file_, "           %s:/moments\n",
+          file_basename(jams::output::monitor_filename(name() + "_lattice", "h5")).c_str());
                fputs("         </DataItem>\n", xdmf_file_);
                fputs("       </Attribute>\n", xdmf_file_);
                fputs("       <Attribute Name=\"spin\" AttributeType=\"Vector\" Center=\"Node\">\n", xdmf_file_);

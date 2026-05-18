@@ -2,7 +2,8 @@
 
 #include <cmath>
 #include <string>
-#include <iomanip>
+#include <sstream>
+#include <utility>
 #include <vector>
 #include <cassert>
 #include <iostream>
@@ -18,8 +19,7 @@
 #include "skyrmion.h"
 
 SkyrmionMonitor::SkyrmionMonitor(const libconfig::Setting &settings)
-: Monitor(settings),
- outfile(jams::output::full_path_filename("sky.tsv")){
+: Monitor(settings) {
   type_norms.resize(globals::lattice->num_materials(), 1.0);
 
   if (settings.exists("type_norms")) {
@@ -41,9 +41,7 @@ SkyrmionMonitor::SkyrmionMonitor(const libconfig::Setting &settings)
     std::cout << "    " << threshold << "\n";
   }
   
-  outfile.setf(std::ios::right);
-
-  outfile << tsv_header();
+  tsv_ = make_tsv_writer();
 
   create_center_of_mass_mapping();
 }
@@ -55,8 +53,10 @@ void SkyrmionMonitor::update(Solver& solver) {
     const double x_size = globals::lattice->rmax()[0];
     const double y_size = globals::lattice->rmax()[1];
 
-    outfile << std::setw(12) << std::scientific << solver.time();
-    outfile << std::setw(16) << std::fixed << solver.physics()->temperature();
+    std::vector<double> values;
+    values.reserve(tsv_.num_cols());
+    solver.append_monitor_coordinates(values);
+    values.push_back(solver.physics()->temperature());
 
     for (double threshold : thresholds) {
       std::vector<jams::Vec<double, 3> > r_com(globals::lattice->num_materials(), {0.0, 0.0, 0.0});
@@ -78,25 +78,22 @@ void SkyrmionMonitor::update(Solver& solver) {
       }
 
       for (auto n = 0; n < globals::lattice->num_materials(); ++n) {
-        radius_gyration[n] = sqrt(radius_gyration[n]/static_cast<double>(r_count[n]));
-      }
-
-      for (auto n = 0; n < globals::lattice->num_materials(); ++n) {
-        if (r_count[n] == 0) {
-          for (auto i = 0; i < 5; ++i) {
-            outfile << std::setw(16) << 0.0;
-          }
-        } else {
+        if (r_count[n] > 0) {
+          radius_gyration[n] = sqrt(radius_gyration[n] / static_cast<double>(r_count[n]));
           for (auto i = 0; i < 3; ++i) {
-            outfile << std::setw(16) << r_com[n][i]*globals::lattice->parameter();
+            values.push_back(r_com[n][i] * globals::lattice->parameter());
           }
-          outfile << std::setw(16) << radius_gyration[n]*globals::lattice->parameter() << std::setw(16) << (2.0/sqrt(2.0))*radius_gyration[n]*globals::lattice->parameter();
+          values.push_back(radius_gyration[n] * globals::lattice->parameter());
+          values.push_back((2.0 / sqrt(2.0)) * radius_gyration[n] * globals::lattice->parameter());
+        } else {
+          for (auto i = 0; i < 5; ++i) {
+            values.push_back(0.0);
+          }
         }
       }
     }
 
-    outfile << "\n";
-
+    tsv_.write_row(values);
 }
 
 void SkyrmionMonitor::create_center_of_mass_mapping() {
@@ -159,10 +156,9 @@ void SkyrmionMonitor::calc_center_of_mass(std::vector<jams::Vec<double, 3> > &r_
   }
 
   for (auto type = 0; type < num_types; ++type) {
-    r_com[type] /= static_cast<double>(r_count[type]);
-  }
-
-  for (auto type = 0; type < num_types; ++type) {
+    if (r_count[type] == 0) {
+      continue;
+    }
     double theta_i = atan2(-tube_x_com[type][2], -tube_x_com[type][0]) + kPi;
     double theta_j = atan2(-tube_y_com[type][2], -tube_y_com[type][1]) + kPi;
 
@@ -190,25 +186,26 @@ void SkyrmionMonitor::calc_center_of_mass(std::vector<jams::Vec<double, 3> > &r_
 }
 
 
-SkyrmionMonitor::~SkyrmionMonitor() {
-  outfile.close();
-}
+SkyrmionMonitor::~SkyrmionMonitor() = default;
 
-std::string SkyrmionMonitor::tsv_header() {
-  std::stringstream ss;
-  ss << std::setw(11) << "time\t";
-  ss << std::setw(16) << "temperature\t";
+jams::output::TsvWriter SkyrmionMonitor::make_tsv_writer() const {
+  auto cols = globals::solver->monitor_coordinate_columns();
+  cols.push_back({"temperature", "K", jams::output::ColFmt::Fixed});
 
-  for (int i = 0; i < globals::lattice->num_materials(); ++i) {
-    ss << std::setw(16) << globals::lattice->material_name(i) + ":r_avg_x\t";
-    ss << std::setw(16) << globals::lattice->material_name(i) + ":r_avg_y\t";
-    ss << std::setw(16) << globals::lattice->material_name(i) + ":r_avg_z\t";
-
-    for (const auto threshold : thresholds) {
-      ss << std::setw(16) << "R_g" << "[t" << threshold << "]\t";
-      ss << std::setw(16) << "2R_g/sqrt(2)" << "[t" << threshold << "]\t";
+  for (const auto threshold : thresholds) {
+    std::ostringstream threshold_label;
+    threshold_label << "t" << threshold;
+    for (int i = 0; i < globals::lattice->num_materials(); ++i) {
+      const auto prefix = threshold_label.str() + "_" + globals::lattice->material_name(i);
+      cols.push_back({prefix + "_r_avg_x", "m"});
+      cols.push_back({prefix + "_r_avg_y", "m"});
+      cols.push_back({prefix + "_r_avg_z", "m"});
+      cols.push_back({prefix + "_R_g", "m"});
+      cols.push_back({prefix + "_2R_g_sqrt2", "m"});
     }
   }
-  ss << "\n";
-  return ss.str();
+
+  return jams::output::TsvWriter(
+      jams::output::monitor_filename(name(), "tsv"),
+      std::move(cols));
 }

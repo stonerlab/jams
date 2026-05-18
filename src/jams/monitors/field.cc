@@ -1,7 +1,7 @@
 // Copyright 2014 Joseph Barker. All rights reserved.
 
 #include <string>
-#include <iomanip>
+#include <utility>
 #include <vector>
 
 #include "jams/helpers/consts.h"
@@ -15,10 +15,8 @@
 
 FieldMonitor::FieldMonitor(const libconfig::Setting &settings)
 : Monitor(settings),
-  tsv_file(jams::output::full_path_filename("fld.tsv")){
-  tsv_file.setf(std::ios::right);
-  tsv_file << tsv_header();
-}
+  tsv_(make_tsv_writer())
+{}
 
 void FieldMonitor::update(Solver& solver) {
   const auto moments = globals::mus.host_view();
@@ -35,31 +33,29 @@ void FieldMonitor::update(Solver& solver) {
     total_field.push_back(field / static_cast<double>(globals::num_spins));
   }
 
-  tsv_file.width(12);
-
-  tsv_file << std::scientific << solver.time() << "\t";
+  std::vector<double> values;
+  values.reserve(tsv_.num_cols());
+  solver.append_monitor_coordinates(values);
 
   for (const auto& field : total_field) {
     for (auto n = 0; n < 3; ++n) {
-      tsv_file << std::scientific << std::setprecision(8) << field[n] << "\t";
+      values.push_back(field[n]);
     }
   }
 
-  tsv_file << std::endl;
+  tsv_.write_row(values);
 }
 
-std::string FieldMonitor::tsv_header() {
-  std::stringstream ss;
-  ss.width(12);
+jams::output::TsvWriter FieldMonitor::make_tsv_writer() const {
+  auto cols = globals::solver->monitor_coordinate_columns();
 
-  ss << "time\t";
-  for (auto &hamiltonian : globals::solver->hamiltonians()) {
-    ss << hamiltonian->name() << "_hx\t";
-    ss << hamiltonian->name() << "_hy\t";
-    ss << hamiltonian->name() << "_hz\t";
+  for (const auto& hamiltonian : globals::solver->hamiltonians()) {
+    cols.push_back({hamiltonian->name() + "_hx", "T"});
+    cols.push_back({hamiltonian->name() + "_hy", "T"});
+    cols.push_back({hamiltonian->name() + "_hz", "T"});
   }
 
-  ss << std::endl;
-
-  return ss.str();
+  return jams::output::TsvWriter(
+      jams::output::monitor_filename(name(), "tsv"),
+      std::move(cols));
 }

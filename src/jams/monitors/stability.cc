@@ -4,9 +4,8 @@
 
 #include "jams/monitors/stability.h"
 
-#include <iomanip>
-#include <ios>
-#include <ostream>
+#include <utility>
+#include <vector>
 
 #include "jams/containers/vec3.h"
 #include "jams/core/globals.h"
@@ -15,24 +14,19 @@
 
 StabilityMonitor::StabilityMonitor(const libconfig::Setting& settings)
 : Monitor(settings),
-    tsv_file(jams::output::full_path_filename("stability.tsv"))
-{
-    tsv_file.setf(std::ios::right);
-    tsv_file << tsv_header();
-}
+  tsv_(make_tsv_writer())
+{}
 
 
-std::string StabilityMonitor::tsv_header() {
-    std::stringstream ss;
-    ss.width(12);
+jams::output::TsvWriter StabilityMonitor::make_tsv_writer() const {
+  auto cols = globals::solver->monitor_coordinate_columns();
+  cols.push_back({"max_S_err", "dimensionless"});
+  cols.push_back({"mean_S_err", "dimensionless"});
+  cols.push_back({"rms_S_err", "dimensionless"});
 
-    ss << "time ";
-    ss << "max_S_err" << " ";
-    ss << "mean_S_err" << " ";
-    ss << "rms_S_err" << " ";
-    ss << std::endl;
-
-    return ss.str();
+  return jams::output::TsvWriter(
+      jams::output::monitor_filename(name(), "tsv"),
+      std::move(cols));
 }
 
 void StabilityMonitor::update(Solver& solver)
@@ -52,10 +46,11 @@ void StabilityMonitor::update(Solver& solver)
     S_err_mean /= globals::num_spins;
     S2_err_mean /= globals::num_spins;
 
-    tsv_file.width(16);
-    tsv_file << solver.time() << " ";
-    tsv_file << std::scientific << std::setprecision(8) << max_S_err << " ";
-    tsv_file << std::scientific << std::setprecision(8) << S_err_mean << " ";
-    tsv_file << std::scientific << std::setprecision(8) << std::sqrt(S2_err_mean) << " ";
-    tsv_file << std::endl;
+    std::vector<double> values;
+    values.reserve(tsv_.num_cols());
+    solver.append_monitor_coordinates(values);
+    values.push_back(max_S_err);
+    values.push_back(S_err_mean);
+    values.push_back(std::sqrt(S2_err_mean));
+    tsv_.write_row(values);
 }
