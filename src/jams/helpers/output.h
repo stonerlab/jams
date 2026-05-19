@@ -67,7 +67,10 @@ namespace jams::output {
     std::string full_path_filename_series(const std::string& ending, int num, int width=7);
     std::string monitor_filename(const std::string& monitor_name, const std::string& extension);
     std::string monitor_filename_series(const std::string& monitor_name, const std::string& extension, int num, int width=7);
-    std::string hamiltonian_filename(const std::string& hamiltonian_name, const std::string& extension);
+    std::string hamiltonian_filename(
+        const std::string& hamiltonian_name,
+        const std::string& output_name,
+        const std::string& extension);
     std::string output_path();
 
     int lock_file(const std::string& lock_filename);

@@ -59,7 +59,7 @@ void CudaFieldPulseHamiltonian::calculate_fields(jams::Real time) {
 
 void CudaFieldPulseHamiltonian::output_pulse() const {
   jams::output::TsvWriter tsv(
-      jams::output::hamiltonian_filename(name(), "tsv"),
+      jams::output::hamiltonian_filename(name(), "pulse", "tsv"),
       {{"time", "picoseconds"},
        {"Hx", "T", jams::output::ColFmt::Fixed},
        {"Hy", "T", jams::output::ColFmt::Fixed},

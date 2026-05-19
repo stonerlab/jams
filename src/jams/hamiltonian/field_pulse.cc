@@ -145,7 +145,7 @@ jams::Real FieldPulseHamiltonian::calculate_energy_for_spin(int i, const jams::V
 
 void FieldPulseHamiltonian::output_pulse() const {
   jams::output::TsvWriter tsv(
-      jams::output::hamiltonian_filename(name(), "tsv"),
+      jams::output::hamiltonian_filename(name(), "pulse", "tsv"),
       {{"time", "picoseconds"},
        {"Hx", "T", jams::output::ColFmt::Fixed},
        {"Hy", "T", jams::output::ColFmt::Fixed},

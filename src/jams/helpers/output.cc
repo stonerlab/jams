@@ -93,27 +93,6 @@ namespace jams {
           return token;
         }
 
-        std::string instance_filename(
-            const std::string& instance_group,
-            const std::string& instance_name,
-            const std::string& extension) {
-          namespace fs = std::filesystem;
-
-          auto ext = extension;
-          while (!ext.empty() && ext.front() == '.') {
-            ext.erase(ext.begin());
-          }
-          if (ext.empty()) {
-            throw std::runtime_error("output extension must not be empty");
-          }
-
-          auto directory = fs::path(output_path()) / safe_filename_token(instance_group);
-          fs::create_directories(directory);
-
-          auto filename = safe_filename_token(instance_name) + "." + ext;
-          return (directory / filename).string();
-        }
-
         std::string monitor_filename(const std::string& monitor_name, const std::string& extension) {
           auto ext = extension;
           while (!ext.empty() && ext.front() == '.') {
@@ -136,8 +115,21 @@ namespace jams {
           return monitor_filename(base, extension);
         }
 
-        std::string hamiltonian_filename(const std::string& hamiltonian_name, const std::string& extension) {
-          return instance_filename("hamiltonians", hamiltonian_name, extension);
+        std::string hamiltonian_filename(
+            const std::string& hamiltonian_name,
+            const std::string& output_name,
+            const std::string& extension) {
+          auto ext = extension;
+          while (!ext.empty() && ext.front() == '.') {
+            ext.erase(ext.begin());
+          }
+          if (ext.empty()) {
+            throw std::runtime_error("output extension must not be empty");
+          }
+
+          const auto filename = "hamiltonian_" + safe_filename_token(hamiltonian_name)
+              + "_" + safe_filename_token(output_name) + "." + ext;
+          return (std::filesystem::path(output_path()) / filename).string();
         }
 
 

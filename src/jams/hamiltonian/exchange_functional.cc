@@ -65,7 +65,7 @@ ExchangeFunctionalHamiltonian::ExchangeFunctionalHamiltonian(const libconfig::Se
   if (output_functionals) {
     for (const auto& [type, functional] : exchange_functional_map) {
       jams::output::TsvWriter tsv(
-          jams::output::hamiltonian_filename(name() + "_" + type.first + "_" + type.second, "tsv"),
+          jams::output::hamiltonian_filename(name(), type.first + "_" + type.second, "tsv"),
           {{"radius_nm", "nm", jams::output::ColFmt::Fixed},
            {"exchange_meV", "meV"}});
       output_exchange_functional(tsv, functional.second, functional.first, 0.01);

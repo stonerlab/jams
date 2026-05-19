@@ -60,7 +60,7 @@ RandomAnisotropyHamiltonian::RandomAnisotropyHamiltonian(const libconfig::Settin
 
   if (debug_is_enabled() || verbose_is_enabled()) {
     jams::output::TsvWriter tsv(
-        jams::output::hamiltonian_filename(name() + "_random_anisotropy_axes", "tsv"),
+        jams::output::hamiltonian_filename(name(), "random_anisotropy_axes", "tsv"),
         {{"index", "none", jams::output::ColFmt::Integer},
          {"rx", "lattice constants"},
          {"ry", "lattice constants"},
