@@ -115,7 +115,16 @@ namespace jams {
         }
 
         std::string monitor_filename(const std::string& monitor_name, const std::string& extension) {
-          return instance_filename("monitors", monitor_name, extension);
+          auto ext = extension;
+          while (!ext.empty() && ext.front() == '.') {
+            ext.erase(ext.begin());
+          }
+          if (ext.empty()) {
+            throw std::runtime_error("output extension must not be empty");
+          }
+
+          const auto filename = "monitor_" + safe_filename_token(monitor_name) + "." + ext;
+          return (std::filesystem::path(output_path()) / filename).string();
         }
 
         std::string monitor_filename_series(
