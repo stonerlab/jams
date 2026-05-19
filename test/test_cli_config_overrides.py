@@ -61,7 +61,7 @@ sim = {
 
 class TestCliConfigOverrides(JamsIntegrationtest):
     def load_combined_cfg(self):
-        combined_cfg = Path(self.temp_dir) / "jams_combined.cfg"
+        combined_cfg = Path(self.temp_dir) / "combined.cfg"
         self.assertTrue(combined_cfg.exists(), f"Expected combined config at {combined_cfg}")
         return combined_cfg.read_text()
 
@@ -135,7 +135,7 @@ class TestCliConfigOverrides(JamsIntegrationtest):
 
         self.run_jams_with_args(args)
 
-        combined_cfg = Path(self.temp_dir) / "space-flags_combined.cfg"
+        combined_cfg = Path(self.temp_dir) / "combined.cfg"
         self.assertTrue(combined_cfg.exists(), f"Expected combined config at {combined_cfg}")
 
     def test_seed_temp_directory_and_write_config_flags_accept_space_separated_values(self):

@@ -13,7 +13,6 @@
 #include <unistd.h>
 
 #include "jams/common.h"
-#include "jams/core/globals.h"
 #include "jams/helpers/output.h"
 
 namespace jams {
@@ -67,15 +66,16 @@ namespace jams {
         }
 
         std::string full_path_filename(const std::string &ending) {
-          auto sep = file_basename_no_extension(ending).empty() ? "" : "_";
-          return output_path() + ::globals::simulation_name + sep + ending;
+          return (std::filesystem::path(output_path()) / ending).string();
         }
 
         std::string full_path_filename_series(const std::string &ending, int num, int width) {
           auto base = file_basename_no_extension(ending);
-          auto sep = base.empty() ? "" : "_";
           auto ext = file_extension(ending);
-          return output_path() + ::globals::simulation_name + sep + base + "_" + zero_pad_number(num, width) + "." + ext;
+          auto filename = base.empty()
+              ? zero_pad_number(num, width) + "." + ext
+              : base + "_" + zero_pad_number(num, width) + "." + ext;
+          return (std::filesystem::path(output_path()) / filename).string();
         }
 
         std::string safe_filename_token(std::string token) {
@@ -107,7 +107,7 @@ namespace jams {
             throw std::runtime_error("output extension must not be empty");
           }
 
-          auto directory = fs::path(output_path()) / (::globals::simulation_name + "_" + safe_filename_token(instance_group));
+          auto directory = fs::path(output_path()) / safe_filename_token(instance_group);
           fs::create_directories(directory);
 
           auto filename = safe_filename_token(instance_name) + "." + ext;

@@ -56,7 +56,7 @@ You can include multiple assignments in a single :code:`--config` string, or
 repeat :code:`--config` multiple times; inputs are applied in command-line
 order.
 
-A combined configuration file will be written with the suffix :code:`_combined.cfg`, which contains the final
+A combined configuration file will be written to :code:`combined.cfg`, which contains the final
 configuration after all configuration files and strings have been merged and represents the simulation configuration
 which was actually used.
 
@@ -102,8 +102,7 @@ Command line flags
 
 .. describe:: --name=<simulation_name>
 
-    Sets the simulation name which is prefixed to output files written by JAMS. If this is not set the config file name
-    is used.
+    Sets the simulation name recorded in output metadata. If this is not set the config file name is used.
 
 .. describe:: --seed=<n>
 
@@ -119,7 +118,7 @@ Command line flags
 .. describe:: --write-config=<path>
 
     Writes the merged configuration to the given file instead of the default
-    :code:`<simulation_name>_combined.cfg` path in the output directory.
+    :code:`combined.cfg` path in the output directory.
 
 .. describe:: --spins=<path>
 

@@ -214,7 +214,7 @@ def vector_angle(v1_cols, v2_cols):
 class TestIntegrator(JamsIntegrationtest):
     def run_single_spin_relaxation_case(self, solver: str, dt_fs: float) -> None:
         cfg = make_single_spin_cfg(solver, dt_fs, s0=[1.0, 0.0, 0.0])
-        mag_file = os.path.join(self.temp_dir, "jams_mag.tsv")
+        mag_file = os.path.join(self.temp_dir, "monitor_magnetisation.tsv")
 
         if os.path.exists(mag_file):
             os.remove(mag_file)
@@ -290,7 +290,7 @@ class TestIntegrator(JamsIntegrationtest):
 
     def run_single_spin_precession_case(self, solver: str, dt_fs: float) -> None:
         cfg = make_single_spin_cfg(solver, dt_fs, s0 = [1.0, 0.0, 0.0], t_max_ps=10, alpha=0.0)
-        mag_file = os.path.join(self.temp_dir, "jams_mag.tsv")
+        mag_file = os.path.join(self.temp_dir, "monitor_magnetisation.tsv")
         if os.path.exists(mag_file):
             os.remove(mag_file)
 
@@ -409,7 +409,7 @@ class TestIntegrator(JamsIntegrationtest):
         for T in temperatures:
             cfg = make_multi_spin_cfg(solver, dt_fs, temperature=T, s0 = [0.0, 0.0, 1.0], t_max_ps=100, alpha=0.1, exchange=20.0)
 
-            mag_file = os.path.join(self.temp_dir, "jams_mag.tsv")
+            mag_file = os.path.join(self.temp_dir, "monitor_magnetisation.tsv")
 
             self.runJamsCfg(cfg)
 
@@ -428,8 +428,8 @@ class TestIntegrator(JamsIntegrationtest):
         for T in temperatures:
             cfg = make_multi_spin_cfg(solver, dt_fs, temperature=T, s0 = '"random"', t_max_ps=200, alpha=0.1)
 
-            blt_file = os.path.join(self.temp_dir, "jams_blt.tsv")
-            mag_file = os.path.join(self.temp_dir, "jams_mag.tsv")
+            blt_file = os.path.join(self.temp_dir, "monitor_boltzmann.tsv")
+            mag_file = os.path.join(self.temp_dir, "monitor_magnetisation.tsv")
 
             if os.path.exists(blt_file):
                 os.remove(blt_file)

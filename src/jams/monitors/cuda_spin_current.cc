@@ -164,12 +164,14 @@ void CudaSpinCurrentMonitor::update_xdmf_file(const std::string &h5_file_name, c
   fprintf(xdmf_file_, "        <Topology TopologyType=\"Polyvertex\" Dimensions=\"%llu\" />\n", globals::num_spins);
   fputs("       <Geometry GeometryType=\"XYZ\">\n", xdmf_file_);
   fprintf(xdmf_file_, "         <DataItem Dimensions=\"%llu 3\" NumberType=\"Float\" Precision=\"%u\" Format=\"HDF\">\n", data_dimension, float_precision);
-  fprintf(xdmf_file_, "           %s_lattice.h5:/positions\n", globals::simulation_name.c_str());
+  fprintf(xdmf_file_, "           %s:/positions\n",
+          file_basename(jams::output::monitor_filename("hdf5_lattice", "h5")).c_str());
   fputs("         </DataItem>\n", xdmf_file_);
   fputs("       </Geometry>\n", xdmf_file_);
   fputs("       <Attribute Name=\"Type\" AttributeType=\"Scalar\" Center=\"Node\">\n", xdmf_file_);
   fprintf(xdmf_file_, "         <DataItem Dimensions=\"%llu\" NumberType=\"Int\" Precision=\"4\" Format=\"HDF\">\n", data_dimension);
-  fprintf(xdmf_file_, "           %s_lattice.h5:/types\n", globals::simulation_name.c_str());
+  fprintf(xdmf_file_, "           %s:/types\n",
+          file_basename(jams::output::monitor_filename("hdf5_lattice", "h5")).c_str());
   fputs("         </DataItem>\n", xdmf_file_);
   fputs("       </Attribute>\n", xdmf_file_);
   fputs("       <Attribute Name=\"spin_current\" AttributeType=\"Vector\" Center=\"Node\">\n", xdmf_file_);

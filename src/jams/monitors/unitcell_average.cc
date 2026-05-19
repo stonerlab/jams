@@ -14,6 +14,7 @@
 
 #include <jams/common.h>
 #include "jams/helpers/error.h"
+#include "jams/helpers/output.h"
 #include "jams/core/physics.h"
 #include "jams/core/solver.h"
 #include "jams/core/globals.h"
@@ -35,7 +36,7 @@ UnitcellAverageMonitor::UnitcellAverageMonitor(const libconfig::Setting &setting
       slice_() {
   output_step_freq_ = settings["output_steps"];
 
-  open_new_xdmf_file(jams::instance().output_path() + "/" + globals::simulation_name + "_avg.xdmf");
+  open_new_xdmf_file(jams::output::monitor_filename(name(), "xdmf"));
 
   spin_transformations_.resize(globals::num_spins);
   for (auto i = 0; i < globals::num_spins; ++i) {
@@ -63,7 +64,7 @@ UnitcellAverageMonitor::~UnitcellAverageMonitor() {
 void UnitcellAverageMonitor::update(Solver& solver) {
   int outcount = solver.iteration()/output_step_freq_;  // int divisible by modulo above
 
-  const std::string h5_file_name(jams::instance().output_path() + "/" + globals::simulation_name + "_" + zero_pad_number(outcount) + "_avg.h5");
+  const std::string h5_file_name(jams::output::monitor_filename_series(name(), "h5", outcount));
 
   const auto spins = globals::s.host_view();
   const auto moments = globals::mus.host_view();

@@ -467,7 +467,7 @@ void Lattice::init_unit_cell(const libconfig::Setting &lattice_settings, const l
 
   std::string position_filename;
   if (unitcell_settings["positions"].isList()) {
-    position_filename = globals::simulation_name + ".cfg";
+    position_filename = "inline.cfg";
     read_basis_sites_from_config(unitcell_settings["positions"], cfg_coordinate_format);
   } else {
     position_filename = jams::read_string_setting(unitcell_settings["positions"], "positions");
