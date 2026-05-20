@@ -8,6 +8,7 @@
 #include "jams/containers/multiarray.h"
 #include "jams/core/solver.h"
 
+#include <string>
 #include <vector>
 
 /// Solver for scanning static spin configurations over spherical rotation angles.
@@ -32,6 +33,12 @@
 /// If `rotate_all_spins` is true, each sampled angle applies a common rotation
 /// matrix to all spins. If false, the solver scans one basis spin target at a
 /// time by assigning that spin to the sampled spherical direction.
+///
+/// The optional `rotation_targets` setting defines named material or unit-cell
+/// position targets with independent theta/phi grids. The solver scans the
+/// Cartesian product of all target grids. At each sample, all spins selected by
+/// a target are assigned to that target's sampled spherical direction, so
+/// multiple materials or positions in one target are co-rotated.
 class RotationSolver : public Solver {
 public:
     RotationSolver() = default;
@@ -51,11 +58,21 @@ public:
 
 
 private:
+    struct RotationTarget {
+      std::string name;
+      std::vector<int> spin_indices;
+      std::vector<double> theta_values;
+      std::vector<double> phi_values;
+    };
+
     /// Lazily capture the initial spin state and apply the first rotation.
     void prepare_rotation_run();
 
     /// Restore initial spins, then apply the current angle sample.
     void apply_current_rotation();
+
+    /// Read named material/position rotation targets from the solver settings.
+    void read_rotation_targets(const libconfig::Setting& settings);
 
     /// Current basis spin target when `rotate_all_spins` is false.
     [[nodiscard]] unsigned current_spin_index() const;
@@ -75,6 +92,27 @@ private:
     /// Number of angle samples per spin target.
     [[nodiscard]] unsigned rotation_grid_size() const;
 
+    /// True when the named multi-target rotation grid is active.
+    [[nodiscard]] bool has_rotation_targets() const;
+
+    /// Number of angle samples for one named target.
+    [[nodiscard]] unsigned target_grid_size(std::size_t target_index) const;
+
+    /// Current flat angle-grid index for one named target.
+    [[nodiscard]] unsigned current_target_grid_index(std::size_t target_index) const;
+
+    /// Current theta index for one named target.
+    [[nodiscard]] unsigned current_target_theta_index(std::size_t target_index) const;
+
+    /// Current phi index for one named target.
+    [[nodiscard]] unsigned current_target_phi_index(std::size_t target_index) const;
+
+    /// Current polar angle in radians for one named target.
+    [[nodiscard]] double current_target_theta(std::size_t target_index) const;
+
+    /// Current azimuthal angle in radians for one named target.
+    [[nodiscard]] double current_target_phi(std::size_t target_index) const;
+
     bool     rotate_all_spins_ = true;
 
     /// Legacy full-sphere theta resolution, also used as the default range count.
@@ -88,6 +126,9 @@ private:
 
     /// Azimuthal angle samples in radians.
     std::vector<double> phi_values_;
+
+    /// Named material/position targets for independent angle-grid scans.
+    std::vector<RotationTarget> rotation_targets_;
 
     bool prepared_ = false;
 
