@@ -117,7 +117,7 @@ jams::Real SparseInteractionHamiltonian::calculate_total_energy(jams::Real time)
   for (auto i = 0; i < globals::num_spins; ++i) {
     jams::Vec<double, 3> s_i = {globals::s(i,0), globals::s(i,1), globals::s(i,2)};
     jams::Vec<double, 3> h_i = {field_(i,0), field_(i, 1), field_(i, 2)};
-    total_energy += -jams::dot(s_i, h_i);
+    total_energy += -0.5 * jams::dot(s_i, h_i);
   }
   return total_energy;
 }
