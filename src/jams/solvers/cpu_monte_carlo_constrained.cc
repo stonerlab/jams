@@ -128,7 +128,7 @@ void ConstrainedMCSolver::append_monitor_coordinates(std::vector<double>& values
 unsigned ConstrainedMCSolver::AsselinAlgorithm(const std::function<jams::Vec<double, 3>(jams::Vec<double, 3>)>& trial_spin_move) {
   std::uniform_real_distribution<> uniform_distribution;
 
-  const double beta = 1.0 / (physics_module_->temperature() * kBoltzmannIU);
+  const double temperature = physics_module_->temperature();
   jams::Vec<double, 3> magnetisation = total_transformed_magnetization();
 
   unsigned moves_accepted = 0;
@@ -179,12 +179,21 @@ unsigned ConstrainedMCSolver::AsselinAlgorithm(const std::function<jams::Vec<dou
 
     // calculate the Boltzmann weighted probability including the Jacobian factors (see paper)
     double delta_e = energy_difference(s1, s1_initial, s1_trial, s2, s2_initial, s2_trial);
-    double jacobian_factor = pow2(m_trial_rotated[2] / m_initial_rotated[2]) * abs(s2_initial_rotated[2] / s2_trial_rotated[2]);
-    double probability = std::min(1.0, exp(-delta_e * beta) * jacobian_factor);
 
-    if (uniform_distribution(jams::instance().random_generator()) > probability) {
-      // reject move
-      continue;
+    if (temperature == 0.0) {
+      // At zero temperature, only strictly energy-lowering moves are accepted.
+      if (delta_e >= 0.0) {
+        continue;
+      }
+    } else {
+      const double beta = 1.0 / (temperature * kBoltzmannIU);
+      double jacobian_factor = pow2(m_trial_rotated[2] / m_initial_rotated[2]) * abs(s2_initial_rotated[2] / s2_trial_rotated[2]);
+      double probability = std::min(1.0, exp(-delta_e * beta) * jacobian_factor);
+
+      if (uniform_distribution(jams::instance().random_generator()) > probability) {
+        // reject move
+        continue;
+      }
     }
 
     // accept move
