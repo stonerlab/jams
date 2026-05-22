@@ -82,8 +82,6 @@ void ConstrainedMCSolver::initialize(const libconfig::Setting& settings) {
 }
 
 void ConstrainedMCSolver::run() {
-  reset_running_statistics();
-
   // Chooses nspins random spin pairs from the spin system and attempts a
   // Constrained Monte Carlo move on each pair, accepting for either lower
   // energy or with a Boltzmann thermal weighting.
