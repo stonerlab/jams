@@ -27,6 +27,7 @@ extern "C" {
 #include <iosfwd>
 #include <cmath>
 #include <cassert>
+#include <optional>
 #include <libconfig.h++>
 #include "jams/containers/name_id_map.h"
 #include "jams/containers/multiarray.h"
@@ -55,6 +56,10 @@ public:
 
     int size(int dimension) const;      // number of unitcell in each dimension
     jams::Vec<int, 3> size() const;
+    double extent(int dimension) const; // physical extent in unitcell units
+    jams::Vec<double, 3> extent() const;
+    bool is_cropped(int dimension) const;
+    bool has_cropping() const;
 
     /// @brief Lattice parameter in meters
     double parameter() const;
@@ -148,6 +153,8 @@ public:
 
     // lookup the site index but unit cell integer coordinates and motif offset
     int site_index_by_unit_cell(const int &i, const int &j, const int &k, const int &m) const;
+    std::optional<int> site_index_by_unit_cell_optional(const int &i, const int &j, const int &k, const int &m) const;
+    bool has_site_at_unit_cell(const int &i, const int &j, const int &k, const int &m) const;
 
     bool apply_boundary_conditions(jams::Vec<int, 3> &pos) const;
 
@@ -185,6 +192,7 @@ private:
     Cell supercell;
     double lattice_parameter;
 
+    jams::Vec<double, 3> lattice_extents_;
     jams::Vec<int, 3> lattice_dimensions_;
     jams::Vec<bool, 3> lattice_periodic;
 

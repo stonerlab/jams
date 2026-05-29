@@ -17,6 +17,22 @@
 
 namespace {
     const jams::Mat<jams::Real, 3, 3> Id = {1, 0, 0, 0, 1, 0, 0, 0, 1};
+
+    struct TensorOffsetRange {
+      int begin;
+      int end;
+    };
+
+    TensorOffsetRange tensor_offset_range(const int size, const bool is_periodic) {
+      if (is_periodic) {
+        return {0, size};
+      }
+      return {1 - size, size};
+    }
+
+    int tensor_offset_to_padded_index(const int offset, const int padded_size) {
+      return offset >= 0 ? offset : padded_size + offset;
+    }
 }
 
 
@@ -164,27 +180,17 @@ jams::Real DipoleFFTHamiltonian::calculate_energy(const int i, jams::Real time) 
 jams::Real DipoleFFTHamiltonian::calculate_energy_difference(
     int i, const jams::Vec<double, 3> &spin_initial, const jams::Vec<double, 3> &spin_final, jams::Real time)
 {
-    jams::Real h[3] = {0, 0, 0};
-
     calculate_fields(time);
-    for (auto m = 0; m < 3; ++m) {
-        jams::Vec<int, 3> pos = ::globals::lattice->cell_offset(i);
-        h[m] += rspace_h_(pos[0], pos[1], pos[2], m);
-    }
+    const jams::Vec<jams::Real, 3> h = {field_(i, 0), field_(i, 1), field_(i, 2)};
 
-    return -( (spin_final[0] * h[0] + spin_final[1] * h[1] + spin_final[2] * h[2])
+    return -0.5 * ((spin_final[0] * h[0] + spin_final[1] * h[1] + spin_final[2] * h[2])
           - (spin_initial[0] * h[0] + spin_initial[1] * h[1] + spin_initial[2] * h[2]));
 }
 
 
 jams::Vec<jams::Real, 3> DipoleFFTHamiltonian::calculate_field(const int i, jams::Real time) {
-    jams::Vec<jams::Real, 3> field = {0.0, 0.0, 0.0};
     calculate_fields(time);
-    for (auto m = 0; m < 3; ++m) {
-        jams::Vec<int, 3> pos = ::globals::lattice->cell_offset(i);
-        field[m] += rspace_h_(pos[0], pos[1], pos[2], m);
-    }
-    return field;
+    return {field_(i, 0), field_(i, 1), field_(i, 2)};
 }
 
 
@@ -195,7 +201,6 @@ DipoleFFTHamiltonian::generate_kspace_dipole_tensor(const int pos_i, const int p
   const jams::Vec<double, 3> r_frac_i = globals::lattice->basis_site_atom(pos_i).position_frac;
   const jams::Vec<double, 3> r_frac_j = globals::lattice->basis_site_atom(pos_j).position_frac;
 
-  const jams::Vec<double, 3> r_cart_i = globals::lattice->fractional_to_cartesian(r_frac_i);
   const jams::Vec<double, 3> r_cart_j = globals::lattice->fractional_to_cartesian(r_frac_j);
 
   jams::MultiArray<double, 5> rspace_tensor(
@@ -218,18 +223,25 @@ DipoleFFTHamiltonian::generate_kspace_dipole_tensor(const int pos_i, const int p
   const double a3 = pow3(::globals::lattice->parameter());
   const double w0 = fft_normalization_factor * kVacuumPermeabilityIU / (4.0 * kPi * a3);
 
-  for (auto nx = 0; nx < kspace_size_[0]; ++nx) {
-    for (auto ny = 0; ny < kspace_size_[1]; ++ny) {
-      for (auto nz = 0; nz < kspace_size_[2]; ++nz) {
+  const auto offset_range_x = tensor_offset_range(static_cast<int>(kspace_size_[0]), globals::lattice->is_periodic(0));
+  const auto offset_range_y = tensor_offset_range(static_cast<int>(kspace_size_[1]), globals::lattice->is_periodic(1));
+  const auto offset_range_z = tensor_offset_range(static_cast<int>(kspace_size_[2]), globals::lattice->is_periodic(2));
+
+  for (auto dx = offset_range_x.begin; dx < offset_range_x.end; ++dx) {
+    const auto ix = tensor_offset_to_padded_index(dx, static_cast<int>(kspace_padded_size_[0]));
+    for (auto dy = offset_range_y.begin; dy < offset_range_y.end; ++dy) {
+      const auto iy = tensor_offset_to_padded_index(dy, static_cast<int>(kspace_padded_size_[1]));
+      for (auto dz = offset_range_z.begin; dz < offset_range_z.end; ++dz) {
+        const auto iz = tensor_offset_to_padded_index(dz, static_cast<int>(kspace_padded_size_[2]));
         // self interaction on the same sublattice
-        if (nx == 0 && ny == 0 && nz == 0 && pos_i == pos_j) {
+        if (dx == 0 && dy == 0 && dz == 0 && pos_i == pos_j) {
           continue;
         }
 
         const auto r_ij = globals::lattice->displacement(r_cart_j,
                                                          globals::lattice->generate_cartesian_lattice_position_from_fractional(r_frac_i,
-                                                                                                                               {nx, ny,
-                                                                                                              nz}));
+                                                                                                                               {dx, dy,
+                                                                                                              dz}));
         const auto r_abs_sq = jams::norm_squared(r_ij);
 
         if (r_abs_sq > pow2(r_cutoff_ + r_distance_tolerance_)) {
@@ -240,7 +252,7 @@ DipoleFFTHamiltonian::generate_kspace_dipole_tensor(const int pos_i, const int p
 
         for (auto m = 0; m < 3; ++m) {
           for (auto n = 0; n < 3; ++n) {
-            rspace_tensor(nx, ny, nz, m, n) = w0 * (3 * r_ij[m] * r_ij[n] - r_abs_sq * Id[m][n]) / pow5(sqrt(r_abs_sq));
+            rspace_tensor(ix, iy, iz, m, n) = w0 * (3 * r_ij[m] * r_ij[n] - r_abs_sq * Id[m][n]) / pow5(sqrt(r_abs_sq));
           }
         }
       }
@@ -326,9 +338,12 @@ void DipoleFFTHamiltonian::calculate_fields(jams::Real time) {
       for (auto kx = 0; kx < kspace_size_[0]; ++kx) {
         for (auto ky = 0; ky < kspace_size_[1]; ++ky) {
           for (auto kz = 0; kz < kspace_size_[2]; ++kz) {
-            const auto index = ::globals::lattice->site_index_by_unit_cell(kx, ky, kz, pos_j);
+            const auto index = ::globals::lattice->site_index_by_unit_cell_optional(kx, ky, kz, pos_j);
+            if (!index) {
+              continue;
+            }
             for (auto m = 0; m < 3; ++m) {
-              rspace_s_(kx, ky, kz, m) = globals::s(index, m);
+              rspace_s_(kx, ky, kz, m) = globals::s(*index, m);
             }
           }
         }
@@ -366,9 +381,12 @@ void DipoleFFTHamiltonian::calculate_fields(jams::Real time) {
     for (auto i = 0; i < kspace_size_[0]; ++i) {
       for (auto j = 0; j < kspace_size_[1]; ++j) {
         for (auto k = 0; k < kspace_size_[2]; ++k) {
-          const auto index = globals::lattice->site_index_by_unit_cell(i, j, k, pos_i);
+          const auto index = globals::lattice->site_index_by_unit_cell_optional(i, j, k, pos_i);
+          if (!index) {
+            continue;
+          }
           for (auto m = 0; m < 3; ++ m) {
-            field_(index, m) += rspace_h_(i, j, k, m) * globals::mus(index);
+            field_(*index, m) += rspace_h_(i, j, k, m) * globals::mus(*index);
           }
         }
       }

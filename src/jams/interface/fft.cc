@@ -151,7 +151,7 @@ fftw_plan fft_plan_rspace_to_kspace(std::complex<double> * rspace, std::complex<
           FFTW_PATIENT | FFTW_PRESERVE_INPUT);
 }
 
-jams::MultiArray<double, 5> fft_zero_pad_kspace(const jams::MultiArray<double, 2>& rspace_data, const jams::Vec<int, 3>& kspace_size, const jams::Vec<int, 3>& kspace_padded_size, const int & num_sites) {
+jams::MultiArray<double, 5> fft_zero_pad_kspace(const double* rspace_data, const jams::Vec<int, 3>& kspace_size, const jams::Vec<int, 3>& kspace_padded_size, const int & num_sites) {
   jams::MultiArray<double, 5> padded_rspace_data(kspace_padded_size[0], kspace_padded_size[1], kspace_padded_size[2],
                                                  num_sites, 3);
   zero(padded_rspace_data);
@@ -162,7 +162,7 @@ jams::MultiArray<double, 5> fft_zero_pad_kspace(const jams::MultiArray<double, 2
         for (auto m = 0; m < num_sites; ++m) {
           int index = ((i * kspace_size[1] + j) * kspace_size[2] + k) * num_sites + m;
           for (auto n : {0, 1, 2}) {
-            padded_rspace_data(i, j, k, m, n) = rspace_data(index, n);
+            padded_rspace_data(i, j, k, m, n) = rspace_data[3 * index + n];
           }
         }
       }
@@ -172,56 +172,103 @@ jams::MultiArray<double, 5> fft_zero_pad_kspace(const jams::MultiArray<double, 2
   return padded_rspace_data;
 }
 
+jams::MultiArray<double, 5> fft_zero_pad_kspace(const jams::MultiArray<double, 2>& rspace_data, const jams::Vec<int, 3>& kspace_size, const jams::Vec<int, 3>& kspace_padded_size, const int & num_sites) {
+  return fft_zero_pad_kspace(rspace_data.data(), kspace_size, kspace_padded_size, num_sites);
+}
+
+void fft_supercell_vector_field_to_kspace_impl(const double* rspace_data_ptr, jams::MultiArray<jams::Vec<std::complex<double>, 3>,4>& kspace_data,  const jams::Vec<int, 3>& kspace_padded_size, const int & num_sites, int fftw_threads) {
+  kspace_data.resize(kspace_padded_size[0], kspace_padded_size[1], kspace_padded_size[2]/2 + 1, num_sites);
+
+  int rank              = 3;
+  int transform_size[3] = {kspace_padded_size[0], kspace_padded_size[1], kspace_padded_size[2]};
+  int num_transforms    = 3 * num_sites;
+  int *nembed           = nullptr;
+  int stride            = 3 * num_sites;
+  int dist              = 1;
+
+  // FFTW_PRESERVE_INPUT is not supported for r2c arrays but FFTW_ESTIMATE doe not overwrite
+  fftw_plan plan = nullptr;
+
+#if JAMS_HAS_FFTW_THREADS
+  const int plan_threads = std::max(fftw_threads, 1);
+  if (fftw_threads_ready())
+  {
+    std::lock_guard<std::mutex> guard(fftw_planner_mutex());
+    fftw_plan_with_nthreads(plan_threads);
+    plan = fftw_plan_many_dft_r2c(
+        rank, transform_size, num_transforms,
+        const_cast<double*>(rspace_data_ptr), nembed, stride, dist,
+        jams::fftw::complex_cast(kspace_data.data()), nembed, stride, dist,
+        FFTW_ESTIMATE);
+  }
+  else
+#endif
+  {
+    plan = fftw_plan_many_dft_r2c(
+        rank, transform_size, num_transforms,
+        const_cast<double*>(rspace_data_ptr), nembed, stride, dist,
+        jams::fftw::complex_cast(kspace_data.data()), nembed, stride, dist,
+        FFTW_ESTIMATE);
+  }
+
+  assert(plan);
+  fftw_execute(plan);
+  fftw_destroy_plan(plan);
+  element_scale(kspace_data, 1.0/sqrt(jams::product(kspace_padded_size)));
+}
+
 void fft_supercell_vector_field_to_kspace(const jams::MultiArray<double, 2>& rspace_data, jams::MultiArray<jams::Vec<std::complex<double>, 3>,4>& kspace_data,  const jams::Vec<int, 3>& kspace_size, const jams::Vec<int, 3>& kspace_padded_size, const int & num_sites, int fftw_threads) {
   assert(rspace_data.elements() == 3 * num_sites * jams::product(kspace_size));
 
-  kspace_data.resize(kspace_padded_size[0], kspace_padded_size[1], kspace_padded_size[2]/2 + 1, num_sites);
-
-  auto fourier_transform = [&](const double* rspace_data_ptr) {
-      int rank              = 3;
-      int transform_size[3] = {kspace_padded_size[0], kspace_padded_size[1], kspace_padded_size[2]};
-      int num_transforms    = 3 * num_sites;
-      int *nembed           = nullptr;
-      int stride            = 3 * num_sites;
-      int dist              = 1;
-
-      // FFTW_PRESERVE_INPUT is not supported for r2c arrays but FFTW_ESTIMATE doe not overwrite
-      fftw_plan plan = nullptr;
-
-#if JAMS_HAS_FFTW_THREADS
-      const int plan_threads = std::max(fftw_threads, 1);
-      if (fftw_threads_ready())
-      {
-        std::lock_guard<std::mutex> guard(fftw_planner_mutex());
-        fftw_plan_with_nthreads(plan_threads);
-        plan = fftw_plan_many_dft_r2c(
-            rank, transform_size, num_transforms,
-            const_cast<double*>(rspace_data_ptr), nembed, stride, dist,
-            jams::fftw::complex_cast(kspace_data.data()), nembed, stride, dist,
-            FFTW_ESTIMATE);
-      }
-      else
-#endif
-      {
-        plan = fftw_plan_many_dft_r2c(
-            rank, transform_size, num_transforms,
-            const_cast<double*>(rspace_data_ptr), nembed, stride, dist,
-            jams::fftw::complex_cast(kspace_data.data()), nembed, stride, dist,
-            FFTW_ESTIMATE);
-      }
-
-      assert(plan);
-      fftw_execute(plan);
-      fftw_destroy_plan(plan);
-      element_scale(kspace_data, 1.0/sqrt(jams::product(kspace_padded_size)));
-  };
-
   if (kspace_size == kspace_padded_size) {
-    fourier_transform(rspace_data.data());
+    fft_supercell_vector_field_to_kspace_impl(rspace_data.data(), kspace_data, kspace_padded_size, num_sites, fftw_threads);
   } else {
     auto rspace_padded_data = fft_zero_pad_kspace(rspace_data, kspace_size, kspace_padded_size, num_sites);
-    fourier_transform(rspace_padded_data.data());
+    fft_supercell_vector_field_to_kspace_impl(rspace_padded_data.data(), kspace_data, kspace_padded_size, num_sites, fftw_threads);
   }
+}
+
+jams::MultiArray<double, 5> pack_lattice_vector_field_to_grid(
+    const jams::MultiArray<double, 2>& rspace_data,
+    const Lattice& lattice,
+    const jams::Vec<int, 3>& packed_grid_size) {
+  const auto grid_size = lattice.size();
+  const auto num_sites = lattice.num_basis_sites();
+  jams::MultiArray<double, 5> packed(packed_grid_size[0], packed_grid_size[1], packed_grid_size[2], num_sites, 3);
+  zero(packed);
+
+  for (auto i = 0; i < grid_size[0]; ++i) {
+    for (auto j = 0; j < grid_size[1]; ++j) {
+      for (auto k = 0; k < grid_size[2]; ++k) {
+        for (auto m = 0; m < num_sites; ++m) {
+          const auto site_index = lattice.site_index_by_unit_cell_optional(i, j, k, m);
+          if (!site_index) {
+            continue;
+          }
+          for (auto n : {0, 1, 2}) {
+            packed(i, j, k, m, n) = rspace_data(*site_index, n);
+          }
+        }
+      }
+    }
+  }
+
+  return packed;
+}
+
+void fft_lattice_vector_field_to_kspace(const jams::MultiArray<double, 2>& rspace_data, jams::MultiArray<jams::Vec<std::complex<double>, 3>,4>& kspace_data, const Lattice& lattice, int fftw_threads) {
+  const auto grid_size = lattice.size();
+  const auto padded_size = lattice.kspace_size();
+  const auto num_sites = lattice.num_basis_sites();
+
+  if (!lattice.has_cropping()) {
+    fft_supercell_vector_field_to_kspace(rspace_data, kspace_data, grid_size, padded_size, num_sites, fftw_threads);
+    return;
+  }
+
+  assert(rspace_data.elements() == 3 * globals::num_spins);
+  auto packed = pack_lattice_vector_field_to_grid(rspace_data, lattice, padded_size);
+  fft_supercell_vector_field_to_kspace_impl(packed.data(), kspace_data, padded_size, num_sites, fftw_threads);
 }
 
 void fft_supercell_scalar_field_to_kspace(const jams::MultiArray<double, 1>& rspace_data, jams::MultiArray<jams::ComplexHi,4>& kspace_data, const jams::Vec<int, 3>& kspace_size, const int & num_sites) {

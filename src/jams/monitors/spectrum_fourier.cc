@@ -26,6 +26,12 @@ class Solver;
 
 SpectrumFourierMonitor::SpectrumFourierMonitor(const libconfig::Setting &settings)
 : Monitor(settings) {
+  if (globals::lattice->has_cropping() || globals::lattice->kspace_size() != globals::lattice->size()) {
+    throw jams::ConfigException(
+        settings,
+        "spectrum-fourier requires a dense periodic lattice and does not support cropped or zero-padded lattices");
+  }
+
   output_sublattice_enabled_ = jams::config_optional<bool>(
       settings, "output_sublattice", output_sublattice_enabled_);
 

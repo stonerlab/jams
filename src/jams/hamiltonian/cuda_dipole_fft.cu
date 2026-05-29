@@ -29,6 +29,18 @@ __host__ __device__ __forceinline__ int upper_tri_index(const int i, const int j
   return i * n - (i * (i - 1)) / 2 + (j - i);
 }
 
+struct TensorOffsetRange {
+  int begin;
+  int end;
+};
+
+TensorOffsetRange tensor_offset_range(const int size, const bool is_periodic) {
+  if (is_periodic) {
+    return {0, size};
+  }
+  return {1 - size, size};
+}
+
 template <typename ComplexType>
 __device__ __forceinline__ ComplexType complex_conj(const ComplexType &z);
 
@@ -115,6 +127,40 @@ __global__ void cuda_dipole_convolution(
   hk[out2] = mu_i * hk_sum[2];
 }
 
+__global__ void cuda_pack_lattice_vector_field(
+    const unsigned int num_elements,
+    const int* site_map,
+    const double* active_field,
+    jams::Real* dense_field)
+{
+  const unsigned int idx = blockIdx.x * blockDim.x + threadIdx.x;
+  if (idx >= num_elements) return;
+
+  const unsigned int slot = idx / 3;
+  const unsigned int component = idx % 3;
+  const int active_site = site_map[slot];
+  dense_field[idx] = (active_site >= 0)
+      ? static_cast<jams::Real>(active_field[3 * active_site + component])
+      : static_cast<jams::Real>(0.0);
+}
+
+__global__ void cuda_unpack_lattice_vector_field(
+    const unsigned int num_elements,
+    const int* site_map,
+    const jams::Real* dense_field,
+    jams::Real* active_field)
+{
+  const unsigned int idx = blockIdx.x * blockDim.x + threadIdx.x;
+  if (idx >= num_elements) return;
+
+  const unsigned int slot = idx / 3;
+  const unsigned int component = idx % 3;
+  const int active_site = site_map[slot];
+  if (active_site >= 0) {
+    active_field[3 * active_site + component] = dense_field[idx];
+  }
+}
+
 CudaDipoleFFTHamiltonian::~CudaDipoleFFTHamiltonian() {
   if (cuda_fft_s_rspace_to_kspace) {
       cufftDestroy(cuda_fft_s_rspace_to_kspace);
@@ -167,6 +213,8 @@ CudaDipoleFFTHamiltonian::CudaDipoleFFTHamiltonian(const libconfig::Setting &set
       }
   }
 
+  use_dense_fft_buffers_ = globals::lattice->has_cropping() || kspace_padded_size_ != kspace_size_;
+
   unsigned int kspace_size = kspace_padded_size_[0] * kspace_padded_size_[1] * (kspace_padded_size_[2]/2 + 1) *
                              globals::lattice->num_basis_sites() * 3;
 
@@ -182,11 +230,13 @@ CudaDipoleFFTHamiltonian::CudaDipoleFFTHamiltonian(const libconfig::Setting &set
   const int num_sites     = globals::lattice->num_basis_sites();
 
   int rank            = 3;
-  int rspace_embed[3] = {kspace_size_[0], kspace_size_[1], kspace_size_[2]};
+  int rspace_embed[3] = {
+      use_dense_fft_buffers_ ? kspace_padded_size_[0] : kspace_size_[0],
+      use_dense_fft_buffers_ ? kspace_padded_size_[1] : kspace_size_[1],
+      use_dense_fft_buffers_ ? kspace_padded_size_[2] : kspace_size_[2]};
   int kspace_embed[3] = {kspace_padded_size_[0], kspace_padded_size_[1], kspace_padded_size_[2]/2 + 1};
 
-  int fft_size[3] = {kspace_size_[0], kspace_size_[1], kspace_size_[2]};
-  int fft_padded_size[3] = {kspace_padded_size_[0], kspace_padded_size_[1], kspace_padded_size_[2]};
+  int fft_size[3] = {rspace_embed[0], rspace_embed[1], rspace_embed[2]};
 
   const int num_kpoints   = kspace_embed[0] * kspace_embed[1] * kspace_embed[2]; // Nx * Ny * (Nz/2+1)
   const int num_transforms = 3 * num_sites;                                      // unchanged
@@ -256,7 +306,36 @@ CudaDipoleFFTHamiltonian::CudaDipoleFFTHamiltonian(const libconfig::Setting &set
                     num_transforms));
 #endif
 
-  s_float_.resize(globals::s.extent(0), globals::s.extent(1));
+  if (use_dense_fft_buffers_) {
+    const int num_dense_slots = rspace_embed[0] * rspace_embed[1] * rspace_embed[2] * num_sites;
+    std::vector<int> site_map(num_dense_slots, -1);
+    for (int i = 0; i < rspace_embed[0]; ++i) {
+      for (int j = 0; j < rspace_embed[1]; ++j) {
+        for (int k = 0; k < rspace_embed[2]; ++k) {
+          for (int m = 0; m < num_sites; ++m) {
+            const int slot = ((i * rspace_embed[1] + j) * rspace_embed[2] + k) * num_sites + m;
+            if (i >= kspace_size_[0] || j >= kspace_size_[1] || k >= kspace_size_[2]) {
+              continue;
+            }
+            const auto site_index = globals::lattice->site_index_by_unit_cell_optional(i, j, k, m);
+            if (site_index) {
+              site_map[slot] = *site_index;
+            }
+          }
+        }
+      }
+    }
+    fft_site_map_.resize(num_dense_slots);
+    rspace_s_dense_.resize(3 * num_dense_slots);
+    rspace_h_dense_.resize(3 * num_dense_slots);
+    for (int i = 0; i < num_dense_slots; ++i) {
+      fft_site_map_(i) = site_map[i];
+    }
+    rspace_s_dense_.zero();
+    rspace_h_dense_.zero();
+  } else {
+    s_float_.resize(globals::s.extent(0), globals::s.extent(1));
+  }
 
   const auto num_tensor_components = 6;
 
@@ -321,27 +400,57 @@ jams::Vec<jams::Real, 3> CudaDipoleFFTHamiltonian::calculate_field(const int i, 
 
 void CudaDipoleFFTHamiltonian::calculate_fields(jams::Real time) {
 
+  if (use_dense_fft_buffers_) {
+    const unsigned int num_dense_elements = rspace_s_dense_.size();
+    const dim3 pack_block = {128, 1, 1};
+    const dim3 pack_grid = cuda_grid_size(pack_block, {num_dense_elements, 1, 1});
+    cuda_pack_lattice_vector_field<<<pack_grid, pack_block, 0, cuda_stream_.get()>>>(
+        num_dense_elements,
+        fft_site_map_.device_data(),
+        globals::s.device_data(),
+        rspace_s_dense_.mutable_device_data());
+    DEBUG_CHECK_CUDA_ASYNC_STATUS;
+
 #if DO_MIXED_PRECISION
-  cuda_array_double_to_float(globals::s.elements(), globals::s.device_data(), s_float_.mutable_device_data(), cuda_stream_.get());
-  CHECK_CUFFT_STATUS(cufftExecR2C(cuda_fft_s_rspace_to_kspace, const_cast<cufftReal*>(reinterpret_cast<const cufftReal*>(s_float_.device_data())), kspace_s_.mutable_device_data()));
+    CHECK_CUFFT_STATUS(cufftExecR2C(cuda_fft_s_rspace_to_kspace, const_cast<cufftReal*>(reinterpret_cast<const cufftReal*>(rspace_s_dense_.device_data())), kspace_s_.mutable_device_data()));
 #else
-  CHECK_CUFFT_STATUS(cufftExecD2Z(cuda_fft_s_rspace_to_kspace, const_cast<cufftDoubleReal*>(reinterpret_cast<const cufftDoubleReal*>(globals::s.device_data())), kspace_s_.mutable_device_data()));
+    CHECK_CUFFT_STATUS(cufftExecD2Z(cuda_fft_s_rspace_to_kspace, const_cast<cufftDoubleReal*>(reinterpret_cast<const cufftDoubleReal*>(rspace_s_dense_.device_data())), kspace_s_.mutable_device_data()));
 #endif
+  } else {
+#if DO_MIXED_PRECISION
+    cuda_array_double_to_float(globals::s.elements(), globals::s.device_data(), s_float_.mutable_device_data(), cuda_stream_.get());
+    CHECK_CUFFT_STATUS(cufftExecR2C(cuda_fft_s_rspace_to_kspace, const_cast<cufftReal*>(reinterpret_cast<const cufftReal*>(s_float_.device_data())), kspace_s_.mutable_device_data()));
+#else
+    CHECK_CUFFT_STATUS(cufftExecD2Z(cuda_fft_s_rspace_to_kspace, const_cast<cufftDoubleReal*>(reinterpret_cast<const cufftDoubleReal*>(globals::s.device_data())), kspace_s_.mutable_device_data()));
+#endif
+  }
 
   unsigned int num_pos = globals::lattice->num_basis_sites();
-const unsigned int fft_size = kspace_padded_size_[0] * kspace_padded_size_[1] * (kspace_padded_size_[2] / 2 + 1);
-const dim3 block_size = {64, 1, 1};
-const dim3 grid_size = cuda_grid_size(block_size, {fft_size, num_pos, 1});
+  const unsigned int fft_size = kspace_padded_size_[0] * kspace_padded_size_[1] * (kspace_padded_size_[2] / 2 + 1);
+  const dim3 block_size = {64, 1, 1};
+  const dim3 grid_size = cuda_grid_size(block_size, {fft_size, num_pos, 1});
 
 
-cuda_dipole_convolution<<<grid_size, block_size, 0, cuda_stream_.get()>>>(fft_size, num_pos, kspace_s_.device_data(), kspace_tensors_.device_data(), kspace_h_.mutable_device_data());
-DEBUG_CHECK_CUDA_ASYNC_STATUS;
+  cuda_dipole_convolution<<<grid_size, block_size, 0, cuda_stream_.get()>>>(fft_size, num_pos, kspace_s_.device_data(), kspace_tensors_.device_data(), kspace_h_.mutable_device_data());
+  DEBUG_CHECK_CUDA_ASYNC_STATUS;
 
-#ifdef DO_MIXED_PRECISION
-  CHECK_CUFFT_STATUS(cufftExecC2R(cuda_fft_h_kspace_to_rspace, const_cast<cufftComplex*>(kspace_h_.device_data()), reinterpret_cast<cufftReal*>(field_.mutable_device_data())));
+#if DO_MIXED_PRECISION
+  CHECK_CUFFT_STATUS(cufftExecC2R(cuda_fft_h_kspace_to_rspace, const_cast<cufftComplex*>(kspace_h_.device_data()), reinterpret_cast<cufftReal*>(use_dense_fft_buffers_ ? rspace_h_dense_.mutable_device_data() : field_.mutable_device_data())));
 #else
-  CHECK_CUFFT_STATUS(cufftExecZ2D(cuda_fft_h_kspace_to_rspace, const_cast<cufftDoubleComplex*>(kspace_h_.device_data()), reinterpret_cast<cufftDoubleReal*>(field_.mutable_device_data())));
+  CHECK_CUFFT_STATUS(cufftExecZ2D(cuda_fft_h_kspace_to_rspace, const_cast<cufftDoubleComplex*>(kspace_h_.device_data()), reinterpret_cast<cufftDoubleReal*>(use_dense_fft_buffers_ ? rspace_h_dense_.mutable_device_data() : field_.mutable_device_data())));
 #endif
+
+  if (use_dense_fft_buffers_) {
+    const unsigned int num_dense_elements = rspace_h_dense_.size();
+    const dim3 unpack_block = {128, 1, 1};
+    const dim3 unpack_grid = cuda_grid_size(unpack_block, {num_dense_elements, 1, 1});
+    cuda_unpack_lattice_vector_field<<<unpack_grid, unpack_block, 0, cuda_stream_.get()>>>(
+        num_dense_elements,
+        fft_site_map_.device_data(),
+        rspace_h_dense_.device_data(),
+        field_.mutable_device_data());
+    DEBUG_CHECK_CUDA_ASYNC_STATUS;
+  }
 
 }
 
@@ -358,14 +467,18 @@ void CudaDipoleFFTHamiltonian::generate_kspace_dipole_tensor(const int pos_i, co
     const int num_kz = kspace_padded_size_[2] / 2 + 1;
     const int num_ky = kspace_padded_size_[1];
 
-    const double fft_normalization_factor = 1.0 / jams::product(kspace_size_);
+    const double fft_normalization_factor = 1.0 / jams::product(kspace_padded_size_);
     const double v = pow(globals::lattice->parameter(), 3);
     const double w0 = fft_normalization_factor * kVacuumPermeabilityIU / (4.0 * kPi * v);
 
-    for (int nx = 0; nx < kspace_size_[0]; ++nx) {
-        for (int ny = 0; ny < kspace_size_[1]; ++ny) {
-            for (int nz = 0; nz < kspace_size_[2]; ++nz) {
-                if (nx == 0 && ny == 0 && nz == 0 && pos_i == pos_j) {
+    const auto offset_range_x = tensor_offset_range(kspace_size_[0], globals::lattice->is_periodic(0));
+    const auto offset_range_y = tensor_offset_range(kspace_size_[1], globals::lattice->is_periodic(1));
+    const auto offset_range_z = tensor_offset_range(kspace_size_[2], globals::lattice->is_periodic(2));
+
+    for (int dx = offset_range_x.begin; dx < offset_range_x.end; ++dx) {
+        for (int dy = offset_range_y.begin; dy < offset_range_y.end; ++dy) {
+            for (int dz = offset_range_z.begin; dz < offset_range_z.end; ++dz) {
+                if (dx == 0 && dy == 0 && dz == 0 && pos_i == pos_j) {
                     // self interaction on the same sublattice
                     continue;
                 } 
@@ -373,7 +486,7 @@ void CudaDipoleFFTHamiltonian::generate_kspace_dipole_tensor(const int pos_i, co
                 auto r_ij =
                     globals::lattice->displacement(r_cart_j,
                                                    globals::lattice->generate_cartesian_lattice_position_from_fractional(r_frac_i,
-                                                                                                                         {nx, ny, nz})); // generate_cartesian_lattice_position_from_fractional requires FRACTIONAL coordinate
+                                                                                                                         {dx, dy, dz})); // generate_cartesian_lattice_position_from_fractional requires FRACTIONAL coordinate
 
                 const auto r_abs_sq = jams::norm_squared(r_ij);
 
@@ -396,9 +509,9 @@ void CudaDipoleFFTHamiltonian::generate_kspace_dipole_tensor(const int pos_i, co
                 const double tensor_yz = w0 * (3 * r_ij[1] * r_ij[2]) / r_pow_5_2;
                 const double tensor_zz = w0 * (3 * r_ij[2] * r_ij[2] - r_abs_sq) / r_pow_5_2;
 
-                const jams::ComplexHi phase_step_x = std::polar(1.0, -kTwoPi * static_cast<double>(nx) / static_cast<double>(kspace_padded_size_[0]));
-                const jams::ComplexHi phase_step_y = std::polar(1.0, -kTwoPi * static_cast<double>(ny) / static_cast<double>(kspace_padded_size_[1]));
-                const jams::ComplexHi phase_step_z = std::polar(1.0, -kTwoPi * static_cast<double>(nz) / static_cast<double>(kspace_padded_size_[2]));
+                const jams::ComplexHi phase_step_x = std::polar(1.0, -kTwoPi * static_cast<double>(dx) / static_cast<double>(kspace_padded_size_[0]));
+                const jams::ComplexHi phase_step_y = std::polar(1.0, -kTwoPi * static_cast<double>(dy) / static_cast<double>(kspace_padded_size_[1]));
+                const jams::ComplexHi phase_step_z = std::polar(1.0, -kTwoPi * static_cast<double>(dz) / static_cast<double>(kspace_padded_size_[2]));
 
                 jams::ComplexHi phase_x = {1.0, 0.0};
                 for (int h = 0; h < kspace_padded_size_[0]; ++h) {

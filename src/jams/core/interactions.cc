@@ -357,7 +357,11 @@ neighbour_list_from_interactions(std::vector<InteractionData> &interactions) {
         for (const auto& I : interactions) {
           const int m = I.basis_site_i;
 
-          int local_site = globals::lattice->site_index_by_unit_cell(i, j, k, m);
+          const auto local_site_optional = globals::lattice->site_index_by_unit_cell_optional(i, j, k, m);
+          if (!local_site_optional) {
+            continue;
+          }
+          const int local_site = *local_site_optional;
 
           jams::Vec<int, 3> d_unit_cell = jams::Vec<int, 3>{i, j, k} + I.lattice_translation_vector;
 
@@ -366,8 +370,12 @@ neighbour_list_from_interactions(std::vector<InteractionData> &interactions) {
             continue;
           }
 
-          int nbr_site = globals::lattice->site_index_by_unit_cell(d_unit_cell[0], d_unit_cell[1], d_unit_cell[2],
-                                                                   I.basis_site_j);
+          const auto nbr_site_optional = globals::lattice->site_index_by_unit_cell_optional(
+              d_unit_cell[0], d_unit_cell[1], d_unit_cell[2], I.basis_site_j);
+          if (!nbr_site_optional) {
+            continue;
+          }
+          const int nbr_site = *nbr_site_optional;
 
           if (nbr_list.contains({local_site, nbr_site})) {
             auto r_ij = globals::lattice->displacement(nbr_site, local_site);

@@ -12,6 +12,7 @@ extern "C"{
 #include <algorithm>
 #include <stdexcept>
 #include <cmath>
+#include <limits>
 #include <iostream>
 #include <fstream>
 #include <iomanip>
@@ -86,6 +87,53 @@ namespace {
       cout << "    b2 = " << jams::fmt::decimal << cell.b2() << "\n";
       cout << "    b3 = " << jams::fmt::decimal << cell.b3() << "\n";
     }
+
+    bool is_integer_extent(const double value, const double eps = jams::defaults::lattice_tolerance) {
+      return approximately_equal(value, std::round(value), eps);
+    }
+
+    int lattice_grid_dimension_from_extent(const double extent, const libconfig::Setting& setting) {
+      if (!std::isfinite(extent) || !definately_greater_than(extent, 0.0, std::numeric_limits<double>::epsilon())) {
+        throw jams::ConfigException(setting, "lattice size values must be finite and greater than zero");
+      }
+
+      if (is_integer_extent(extent)) {
+        return static_cast<int>(std::round(extent));
+      }
+      return static_cast<int>(std::ceil(extent));
+    }
+
+    double read_numeric_lattice_size_value(const libconfig::Setting& setting) {
+      switch (setting.getType()) {
+        case libconfig::Setting::TypeInt:
+          return static_cast<int>(setting);
+        case libconfig::Setting::TypeInt64:
+          return static_cast<int64_t>(setting);
+        case libconfig::Setting::TypeFloat:
+          return static_cast<double>(setting);
+        default:
+          throw jams::ConfigException(setting, "lattice size values must be numeric");
+      }
+    }
+
+    jams::Vec<double, 3> read_lattice_size_extents(const libconfig::Setting& settings) {
+      const auto& size_setting = settings["size"];
+      if (!jams::is_sequence_setting(size_setting) || size_setting.getLength() != 3) {
+        throw jams::ConfigException(size_setting, "lattice size must contain exactly 3 entries");
+      }
+
+      return jams::Vec<double, 3>{
+          read_numeric_lattice_size_value(size_setting[0]),
+          read_numeric_lattice_size_value(size_setting[1]),
+          read_numeric_lattice_size_value(size_setting[2])};
+    }
+
+    Cell scale_cell_to_extents(const Cell& cell, const jams::Vec<double, 3>& extents, const jams::Vec<bool, 3>& pbc) {
+      return Cell(cell.a1() * extents[0],
+                  cell.a2() * extents[1],
+                  cell.a3() * extents[2],
+                  pbc);
+    }
 }
 
 namespace jams {
@@ -116,6 +164,22 @@ int Lattice::size(int dimension) const {
 
 jams::Vec<int, 3> Lattice::size() const {
   return lattice_dimensions_;
+}
+
+double Lattice::extent(int dimension) const {
+  return lattice_extents_[dimension];
+}
+
+jams::Vec<double, 3> Lattice::extent() const {
+  return lattice_extents_;
+}
+
+bool Lattice::is_cropped(int dimension) const {
+  return !is_integer_extent(lattice_extents_[dimension]);
+}
+
+bool Lattice::has_cropping() const {
+  return is_cropped(0) || is_cropped(1) || is_cropped(2);
 }
 
 int Lattice::num_basis_sites() const {
@@ -204,7 +268,32 @@ int Lattice::site_index_by_unit_cell(const int &i, const int &j, const int &k, c
   assert(m < num_basis_sites());
   assert(m >= 0);
 
-  return lattice_map_(i, j, k, m);
+  const auto site_index = lattice_map_(i, j, k, m);
+  if (site_index < 0) {
+    throw jams::SanityException("no lattice site exists at unit cell [",
+                                i, ", ", j, ", ", k, "] motif ", m);
+  }
+  return site_index;
+}
+
+std::optional<int> Lattice::site_index_by_unit_cell_optional(
+    const int &i, const int &j, const int &k, const int &m) const {
+  if (i < 0 || i >= lattice_dimensions_[0]
+      || j < 0 || j >= lattice_dimensions_[1]
+      || k < 0 || k >= lattice_dimensions_[2]
+      || m < 0 || m >= num_basis_sites()) {
+    return std::nullopt;
+  }
+
+  const auto site_index = lattice_map_(i, j, k, m);
+  if (site_index < 0) {
+    return std::nullopt;
+  }
+  return site_index;
+}
+
+bool Lattice::has_site_at_unit_cell(const int &i, const int &j, const int &k, const int &m) const {
+  return site_index_by_unit_cell_optional(i, j, k, m).has_value();
 }
 
 bool Lattice::is_periodic(int dimension) const {
@@ -412,12 +501,22 @@ void Lattice::read_unitcell_from_config(const libconfig::Setting &settings) {
 
 void Lattice::read_lattice_from_config(const libconfig::Setting &settings) {
   lattice_periodic = jams::config_optional<jams::Vec<bool, 3>>(settings, "periodic", jams::defaults::lattice_periodic_boundaries);
-  lattice_dimensions_ = jams::config_required<jams::Vec<int, 3>>(settings, "size");
+  lattice_extents_ = read_lattice_size_extents(settings);
+  for (auto n = 0; n < 3; ++n) {
+    lattice_dimensions_[n] = lattice_grid_dimension_from_extent(lattice_extents_[n], settings["size"]);
+    if (is_cropped(n) && lattice_periodic[n]) {
+      throw jams::ConfigException(settings,
+                                  "periodic boundary must be false in lattice direction ",
+                                  n,
+                                  " because lattice size is non-integer");
+    }
+  }
 
-  supercell = scale(Cell(unitcell.matrix(), lattice_periodic), lattice_dimensions_);
+  supercell = scale_cell_to_extents(unitcell, lattice_extents_, lattice_periodic);
 
   cout << "  lattice\n";
-  cout << "    size " << lattice_dimensions_ << " (unit cells)\n";
+  cout << "    size " << lattice_extents_ << " (unit cells)\n";
+  cout << "    grid " << lattice_dimensions_ << " (integer cells)\n";
   cout << "    periodic " << lattice_periodic << "\n";
   cout << "    volume " << jams::fmt::sci << ::volume(supercell) * pow3(lattice_parameter) << "\n";
   cout << "\n";
@@ -603,11 +702,11 @@ void Lattice::generate_supercell(const libconfig::Setting &lattice_settings)
   // initialize everything to -1 so we can check for double assignment below
   lattice_map_.fill(-1);
 
-  const auto num_cells = jams::product(lattice_dimensions_);
-  const auto expected_num_atoms = num_basis_sites() * num_cells;
+  const auto max_num_cells = jams::product(lattice_dimensions_);
+  const auto expected_num_atoms = num_basis_sites() * max_num_cells;
 
-  cell_centers_.reserve(num_cells);
-  cell_offsets_.reserve(num_cells);
+  cell_centers_.reserve(max_num_cells);
+  cell_offsets_.reserve(max_num_cells);
   lattice_sites_.reserve(expected_num_atoms);
   lattice_site_to_cell_lookup_.reserve(expected_num_atoms);
 
@@ -618,15 +717,33 @@ void Lattice::generate_supercell(const libconfig::Setting &lattice_settings)
   std::vector<size_t> type_counter(materials_.size(), 0);
 
 
-  unsigned cell_counter = 0;
   for (auto i = 0; i < lattice_dimensions_[0]; ++i) {
     for (auto j = 0; j < lattice_dimensions_[1]; ++j) {
       for (auto k = 0; k < lattice_dimensions_[2]; ++k) {
         auto cell_offset = jams::Vec<int, 3>{{i, j, k}};
-        cell_offsets_.push_back(cell_offset);
-        cell_centers_.push_back(generate_cartesian_lattice_position_from_fractional(jams::Vec<double, 3>{0.5,0.5,0.5}, cell_offset));
+        int cell_index = -1;
 
         for (auto m = 0; m < basis_sites_.size(); ++m) {
+          const auto lattice_position_frac = basis_sites_[m].position_frac + cell_offset;
+          bool inside_lattice_extent = true;
+          for (auto n = 0; n < 3; ++n) {
+            if (!definately_less_than(lattice_position_frac[n],
+                                      lattice_extents_[n],
+                                      jams::defaults::lattice_tolerance)) {
+              inside_lattice_extent = false;
+              break;
+            }
+          }
+          if (!inside_lattice_extent) {
+            continue;
+          }
+
+          if (cell_index < 0) {
+            cell_index = static_cast<int>(cell_offsets_.size());
+            cell_offsets_.push_back(cell_offset);
+            cell_centers_.push_back(generate_cartesian_lattice_position_from_fractional(jams::Vec<double, 3>{0.5,0.5,0.5}, cell_offset));
+          }
+
           auto position    = generate_cartesian_lattice_position_from_fractional(basis_sites_[m].position_frac, cell_offset);
           auto material    = basis_sites_[m].material_index;
 
@@ -643,7 +760,7 @@ void Lattice::generate_supercell(const libconfig::Setting &lattice_settings)
           lattice_site_positions_cart_.push_back(position);
           lattice_site_positions_frac_.push_back(cartesian_to_fractional(position));
 
-          lattice_site_to_cell_lookup_.push_back(cell_counter);
+          lattice_site_to_cell_lookup_.push_back(cell_index);
 
           // number the site in the fast integer lattice
           lattice_map_(i, j, k, m) = atom_counter;
@@ -651,7 +768,6 @@ void Lattice::generate_supercell(const libconfig::Setting &lattice_settings)
           type_counter[material]++;
           atom_counter++;
         }
-        cell_counter++;
       }
     }
   }
@@ -666,7 +782,7 @@ void Lattice::generate_supercell(const libconfig::Setting &lattice_settings)
   }
 
   // this is the top right hand corner of the top right unit cell in the super cell
-  rmax_ = generate_cartesian_lattice_position_from_fractional(jams::Vec<double, 3>{0.0, 0.0, 0.0}, lattice_dimensions_);
+  rmax_ = fractional_to_cartesian(lattice_extents_);
 
   globals::num_spins = atom_counter;
   globals::num_spins3 = 3*atom_counter;

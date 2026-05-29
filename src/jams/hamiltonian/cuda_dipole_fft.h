@@ -39,6 +39,11 @@ class CudaDipoleFFTHamiltonian : public Hamiltonian {
         jams::Vec<int, 3>                    kspace_size_;
         jams::Vec<int, 3>                    kspace_padded_size_;
 
+        bool use_dense_fft_buffers_ = false;
+        jams::MultiArray<int, 1> fft_site_map_;
+        jams::MultiArray<jams::Real, 1> rspace_s_dense_;
+        jams::MultiArray<jams::Real, 1> rspace_h_dense_;
+
         jams::MultiArray<jams::Real, 2> s_float_;
         jams::MultiArray<jams::Real, 1> mus_unitcell_;
 
