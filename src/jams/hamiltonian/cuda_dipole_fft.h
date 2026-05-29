@@ -46,9 +46,6 @@ class CudaDipoleFFTHamiltonian : public Hamiltonian {
         jams::MultiArray<jams::Real, 1> rspace_h_dense_;
 
         jams::MultiArray<jams::Real, 2> s_float_;
-        jams::MultiArray<jams::Real, 1> mus_unitcell_;
-
-
         jams::MultiArray<jams::cufftComplex, 1>   kspace_s_;
         jams::MultiArray<jams::cufftComplex, 1>   kspace_h_;
 

@@ -20,8 +20,6 @@
 #include <jams/helpers/mixed_precision.h>
 
 
-__constant__ jams::Real mu_const[128];
-
 // Pack upper-triangular (i<=j) pairs into a 1D index.
 // Number of pairs = n*(n+1)/2.
 __host__ __device__ __forceinline__ int upper_tri_index(const int i, const int j, const int n) {
@@ -72,8 +70,6 @@ __global__ void cuda_dipole_convolution(
   ComplexType hk_sum[3] = {0.0, 0.0, 0.0};
 
   for (int pos_j = 0; pos_j < num_pos; ++pos_j) {
-    const jams::Real mu_j = mu_const[pos_j];
-
     int batch_base_j = 3 * pos_j;
     int idx0 = (batch_base_j + 0) * num_kpoints + k_idx;
     int idx1 = (batch_base_j + 1) * num_kpoints + k_idx;
@@ -108,7 +104,7 @@ __global__ void cuda_dipole_convolution(
     ComplexType w1 = conjugate_tensor ? complex_conj(wk[base1]) : wk[base1];
     ComplexType w2 = conjugate_tensor ? complex_conj(wk[base2]) : wk[base2];
 
-    hk_sum[0] +=  mu_j * (w0 * sq0 + w1 * sq1 + w2 * sq2);
+    hk_sum[0] +=  w0 * sq0 + w1 * sq1 + w2 * sq2;
 
     int base3 = base2 + (int)num_kpoints;
     int base4 = base3 + (int)num_kpoints;
@@ -116,24 +112,23 @@ __global__ void cuda_dipole_convolution(
     ComplexType w3 = conjugate_tensor ? complex_conj(wk[base3]) : wk[base3];
     ComplexType w4 = conjugate_tensor ? complex_conj(wk[base4]) : wk[base4];
 
-    hk_sum[1] +=  mu_j * (w1 * sq0 + w3 * sq1 + w4 * sq2);
+    hk_sum[1] +=  w1 * sq0 + w3 * sq1 + w4 * sq2;
 
     int base5 = base4 + (int)num_kpoints;
 
     ComplexType w5 = conjugate_tensor ? complex_conj(wk[base5]) : wk[base5];
 
-    hk_sum[2] +=  mu_j * (w2 * sq0 + w4 * sq1 + w5 * sq2);
+    hk_sum[2] +=  w2 * sq0 + w4 * sq1 + w5 * sq2;
   }
-  const jams::Real mu_i = mu_const[pos_i];
 
   int batch_base_i = 3 * pos_i;
   int out0 = (batch_base_i + 0) * num_kpoints + k_idx;
   int out1 = (batch_base_i + 1) * num_kpoints + k_idx;
   int out2 = (batch_base_i + 2) * num_kpoints + k_idx;
 
-  hk[out0] = mu_i * hk_sum[0];
-  hk[out1] = mu_i * hk_sum[1];
-  hk[out2] = mu_i * hk_sum[2];
+  hk[out0] = hk_sum[0];
+  hk[out1] = hk_sum[1];
+  hk[out2] = hk_sum[2];
 }
 
 __global__ void cuda_pack_lattice_vector_field(
@@ -390,13 +385,6 @@ CudaDipoleFFTHamiltonian::CudaDipoleFFTHamiltonian(const libconfig::Setting &set
     }
   }
 
-  mus_unitcell_.resize(num_sites);
-  for (auto i = 0; i < num_sites; ++i) {
-    mus_unitcell_(i) = globals::lattice->material(globals::lattice->basis_site_atom(i).material_index).moment;
-  }
-
-  cudaMemcpyToSymbol(mu_const, mus_unitcell_.device_data(), mus_unitcell_.bytes(), 0, cudaMemcpyHostToDevice);
-
   CHECK_CUFFT_STATUS(cufftSetStream(cuda_fft_s_rspace_to_kspace, cuda_stream_.get()));
   CHECK_CUFFT_STATUS(cufftSetStream(cuda_fft_h_kspace_to_rspace, cuda_stream_.get()));
 }
@@ -505,8 +493,10 @@ void CudaDipoleFFTHamiltonian::generate_kspace_dipole_tensor(const int pos_i, co
     const int num_ky = kspace_padded_size_[1];
 
     const double fft_normalization_factor = 1.0 / jams::product(kspace_padded_size_);
+    const double mu_i = globals::lattice->material(globals::lattice->basis_site_atom(pos_i).material_index).moment;
+    const double mu_j = globals::lattice->material(globals::lattice->basis_site_atom(pos_j).material_index).moment;
     const double v = pow(globals::lattice->parameter(), 3);
-    const double w0 = fft_normalization_factor * kVacuumPermeabilityIU / (4.0 * kPi * v);
+    const double w0 = mu_i * mu_j * fft_normalization_factor * kVacuumPermeabilityIU / (4.0 * kPi * v);
 
     const auto offset_range_x = tensor_offset_range(kspace_size_[0], globals::lattice->is_periodic(0));
     const auto offset_range_y = tensor_offset_range(kspace_size_[1], globals::lattice->is_periodic(1));
