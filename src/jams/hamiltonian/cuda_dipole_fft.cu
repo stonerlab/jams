@@ -137,36 +137,44 @@ __global__ void cuda_dipole_convolution(
 }
 
 __global__ void cuda_pack_lattice_vector_field(
-    const unsigned int num_elements,
+    const unsigned int num_slots,
     const int* site_map,
     const double* active_field,
     jams::Real* dense_field)
 {
-  const unsigned int idx = blockIdx.x * blockDim.x + threadIdx.x;
-  if (idx >= num_elements) return;
+  const unsigned int slot = blockIdx.x * blockDim.x + threadIdx.x;
+  if (slot >= num_slots) return;
 
-  const unsigned int slot = idx / 3;
-  const unsigned int component = idx % 3;
   const int active_site = site_map[slot];
-  dense_field[idx] = (active_site >= 0)
-      ? static_cast<jams::Real>(active_field[3 * active_site + component])
-      : static_cast<jams::Real>(0.0);
+  const unsigned int dense_base = 3 * slot;
+  if (active_site >= 0) {
+    const unsigned int active_base = 3 * static_cast<unsigned int>(active_site);
+    dense_field[dense_base + 0] = static_cast<jams::Real>(active_field[active_base + 0]);
+    dense_field[dense_base + 1] = static_cast<jams::Real>(active_field[active_base + 1]);
+    dense_field[dense_base + 2] = static_cast<jams::Real>(active_field[active_base + 2]);
+  } else {
+    dense_field[dense_base + 0] = static_cast<jams::Real>(0.0);
+    dense_field[dense_base + 1] = static_cast<jams::Real>(0.0);
+    dense_field[dense_base + 2] = static_cast<jams::Real>(0.0);
+  }
 }
 
 __global__ void cuda_unpack_lattice_vector_field(
-    const unsigned int num_elements,
+    const unsigned int num_slots,
     const int* site_map,
     const jams::Real* dense_field,
     jams::Real* active_field)
 {
-  const unsigned int idx = blockIdx.x * blockDim.x + threadIdx.x;
-  if (idx >= num_elements) return;
+  const unsigned int slot = blockIdx.x * blockDim.x + threadIdx.x;
+  if (slot >= num_slots) return;
 
-  const unsigned int slot = idx / 3;
-  const unsigned int component = idx % 3;
   const int active_site = site_map[slot];
   if (active_site >= 0) {
-    active_field[3 * active_site + component] = dense_field[idx];
+    const unsigned int dense_base = 3 * slot;
+    const unsigned int active_base = 3 * static_cast<unsigned int>(active_site);
+    active_field[active_base + 0] = dense_field[dense_base + 0];
+    active_field[active_base + 1] = dense_field[dense_base + 1];
+    active_field[active_base + 2] = dense_field[dense_base + 2];
   }
 }
 
@@ -424,11 +432,11 @@ jams::Vec<jams::Real, 3> CudaDipoleFFTHamiltonian::calculate_field(const int i, 
 void CudaDipoleFFTHamiltonian::calculate_fields(jams::Real time) {
 
   if (use_dense_fft_buffers_) {
-    const unsigned int num_dense_elements = rspace_s_dense_.size();
+    const unsigned int num_dense_slots = fft_site_map_.size();
     const dim3 pack_block = {128, 1, 1};
-    const dim3 pack_grid = cuda_grid_size(pack_block, {num_dense_elements, 1, 1});
+    const dim3 pack_grid = cuda_grid_size(pack_block, {num_dense_slots, 1, 1});
     cuda_pack_lattice_vector_field<<<pack_grid, pack_block, 0, cuda_stream_.get()>>>(
-        num_dense_elements,
+        num_dense_slots,
         fft_site_map_.device_data(),
         globals::s.device_data(),
         rspace_s_dense_.mutable_device_data());
@@ -470,11 +478,11 @@ void CudaDipoleFFTHamiltonian::calculate_fields(jams::Real time) {
 #endif
 
   if (use_dense_fft_buffers_) {
-    const unsigned int num_dense_elements = rspace_h_dense_.size();
+    const unsigned int num_dense_slots = fft_site_map_.size();
     const dim3 unpack_block = {128, 1, 1};
-    const dim3 unpack_grid = cuda_grid_size(unpack_block, {num_dense_elements, 1, 1});
+    const dim3 unpack_grid = cuda_grid_size(unpack_block, {num_dense_slots, 1, 1});
     cuda_unpack_lattice_vector_field<<<unpack_grid, unpack_block, 0, cuda_stream_.get()>>>(
-        num_dense_elements,
+        num_dense_slots,
         fft_site_map_.device_data(),
         rspace_h_dense_.device_data(),
         field_.mutable_device_data());
