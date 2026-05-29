@@ -58,6 +58,7 @@ template<typename ComplexType>
 __global__ void cuda_dipole_convolution(
   const unsigned int num_kpoints,
   const unsigned int num_pos,
+  const bool use_full_tensor_storage,
   const ComplexType* sk,
   const ComplexType* wk,
   ComplexType* hk
@@ -82,36 +83,44 @@ __global__ void cuda_dipole_convolution(
     const ComplexType sq1 = sk[idx1];
     const ComplexType sq2 = sk[idx2];
 
-    // wk is stored only for i<=j (upper-triangular in (pos_i,pos_j))
-    const int a = (pos_i <= pos_j) ? pos_i : pos_j;
-    const int b = (pos_i <= pos_j) ? pos_j : pos_i;
-    const bool swapped = (pos_i > pos_j);
+    int tensor_set = 0;
+    bool conjugate_tensor = true;
+    if (use_full_tensor_storage) {
+      tensor_set = pos_i * (int)num_pos + pos_j;
+      conjugate_tensor = false;
+    } else {
+      // wk is stored only for i<=j (upper-triangular in (pos_i,pos_j))
+      const int a = (pos_i <= pos_j) ? pos_i : pos_j;
+      const int b = (pos_i <= pos_j) ? pos_j : pos_i;
+      const bool swapped = (pos_i > pos_j);
 
-    const int pair = upper_tri_index(a, b, (int)num_pos);
+      tensor_set = upper_tri_index(a, b, (int)num_pos);
+      conjugate_tensor = !swapped;
+    }
 
-    int base0 = ((pair * 6 + 0) * (int)num_kpoints) + (int)k_idx;
+    int base0 = ((tensor_set * 6 + 0) * (int)num_kpoints) + (int)k_idx;
     int base1 = base0 + (int)num_kpoints;
     int base2 = base1 + (int)num_kpoints;
 
-    // Hermitian symmetry: W_{ji}(k) = conj(W_{ij}(k))
-    // Staggering the accessing of w components gives about 1 us improvement on A30.
-    ComplexType w0 = swapped ? wk[base0] : complex_conj(wk[base0]);
-    ComplexType w1 = swapped ? wk[base1] : complex_conj(wk[base1]);
-    ComplexType w2 = swapped ? wk[base2] : complex_conj(wk[base2]);
+    // Compact storage relies on Hermitian symmetry: W_{ji}(k) = conj(W_{ij}(k)).
+    // Staggering the access of w components gives about 1 us improvement on A30.
+    ComplexType w0 = conjugate_tensor ? complex_conj(wk[base0]) : wk[base0];
+    ComplexType w1 = conjugate_tensor ? complex_conj(wk[base1]) : wk[base1];
+    ComplexType w2 = conjugate_tensor ? complex_conj(wk[base2]) : wk[base2];
 
     hk_sum[0] +=  mu_j * (w0 * sq0 + w1 * sq1 + w2 * sq2);
 
     int base3 = base2 + (int)num_kpoints;
     int base4 = base3 + (int)num_kpoints;
 
-    ComplexType w3 = swapped ? wk[base3] : complex_conj(wk[base3]);
-    ComplexType w4 = swapped ? wk[base4] : complex_conj(wk[base4]);
+    ComplexType w3 = conjugate_tensor ? complex_conj(wk[base3]) : wk[base3];
+    ComplexType w4 = conjugate_tensor ? complex_conj(wk[base4]) : wk[base4];
 
     hk_sum[1] +=  mu_j * (w1 * sq0 + w3 * sq1 + w4 * sq2);
 
     int base5 = base4 + (int)num_kpoints;
 
-    ComplexType w5 = swapped ? wk[base5] : complex_conj(wk[base5]);
+    ComplexType w5 = conjugate_tensor ? complex_conj(wk[base5]) : wk[base5];
 
     hk_sum[2] +=  mu_j * (w2 * sq0 + w4 * sq1 + w5 * sq2);
   }
@@ -214,6 +223,7 @@ CudaDipoleFFTHamiltonian::CudaDipoleFFTHamiltonian(const libconfig::Setting &set
   }
 
   use_dense_fft_buffers_ = globals::lattice->has_cropping() || kspace_padded_size_ != kspace_size_;
+  use_full_tensor_storage_ = use_dense_fft_buffers_;
 
   unsigned int kspace_size = kspace_padded_size_[0] * kspace_padded_size_[1] * (kspace_padded_size_[2]/2 + 1) *
                              globals::lattice->num_basis_sites() * 3;
@@ -339,21 +349,34 @@ CudaDipoleFFTHamiltonian::CudaDipoleFFTHamiltonian(const libconfig::Setting &set
 
   const auto num_tensor_components = 6;
 
-  const int num_pairs = num_sites * (num_sites + 1) / 2;
-  kspace_tensors_.resize(num_pairs, num_tensor_components, num_kpoints);
+  const int num_tensor_sets = use_full_tensor_storage_
+      ? num_sites * num_sites
+      : num_sites * (num_sites + 1) / 2;
+  kspace_tensors_.resize(num_tensor_sets, num_tensor_components, num_kpoints);
   kspace_tensors_.zero();
-  for (int pos_i = 0; pos_i < num_sites; ++pos_i) {
-    for (int pos_j = pos_i; pos_j < num_sites; ++pos_j) {
-      std::vector<jams::Vec<double, 3>> generated_positions;
-      const int pair = upper_tri_index(pos_i, pos_j, num_sites);
-      generate_kspace_dipole_tensor(pos_i, pos_j, pair, generated_positions);
 
-      if (check_symmetry_ && (globals::lattice->is_periodic(0) && globals::lattice->is_periodic(1) && globals::lattice->is_periodic(2))) {
-        if (!globals::lattice->is_a_symmetry_complete_set(pos_i, generated_positions, distance_tolerance_)) {
-          throw std::runtime_error(
-              "The points included in the dipole tensor do not form set of all symmetric points.\n"
-              "This can happen if the r_cutoff just misses a point because of floating point arithmetic"
-              "Check that the lattice vectors are specified to enough precision or increase r_cutoff by a very small amount.");
+  if (use_full_tensor_storage_) {
+    for (int pos_i = 0; pos_i < num_sites; ++pos_i) {
+      std::vector<jams::Vec<double, 3>> generated_positions;
+      for (int pos_j = 0; pos_j < num_sites; ++pos_j) {
+        const int tensor_set = pos_i * num_sites + pos_j;
+        generate_kspace_dipole_tensor(pos_i, pos_j, tensor_set, generated_positions);
+      }
+    }
+  } else {
+    for (int pos_i = 0; pos_i < num_sites; ++pos_i) {
+      for (int pos_j = pos_i; pos_j < num_sites; ++pos_j) {
+        std::vector<jams::Vec<double, 3>> generated_positions;
+        const int pair = upper_tri_index(pos_i, pos_j, num_sites);
+        generate_kspace_dipole_tensor(pos_i, pos_j, pair, generated_positions);
+
+        if (check_symmetry_ && (globals::lattice->is_periodic(0) && globals::lattice->is_periodic(1) && globals::lattice->is_periodic(2))) {
+          if (!globals::lattice->is_a_symmetry_complete_set(pos_i, generated_positions, distance_tolerance_)) {
+            throw std::runtime_error(
+                "The points included in the dipole tensor do not form set of all symmetric points.\n"
+                "This can happen if the r_cutoff just misses a point because of floating point arithmetic"
+                "Check that the lattice vectors are specified to enough precision or increase r_cutoff by a very small amount.");
+          }
         }
       }
     }
@@ -431,7 +454,13 @@ void CudaDipoleFFTHamiltonian::calculate_fields(jams::Real time) {
   const dim3 grid_size = cuda_grid_size(block_size, {fft_size, num_pos, 1});
 
 
-  cuda_dipole_convolution<<<grid_size, block_size, 0, cuda_stream_.get()>>>(fft_size, num_pos, kspace_s_.device_data(), kspace_tensors_.device_data(), kspace_h_.mutable_device_data());
+  cuda_dipole_convolution<<<grid_size, block_size, 0, cuda_stream_.get()>>>(
+      fft_size,
+      num_pos,
+      use_full_tensor_storage_,
+      kspace_s_.device_data(),
+      kspace_tensors_.device_data(),
+      kspace_h_.mutable_device_data());
   DEBUG_CHECK_CUDA_ASYNC_STATUS;
 
 #if DO_MIXED_PRECISION
