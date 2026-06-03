@@ -230,8 +230,13 @@ public:
     //                                           = -0.0039764081652071 meV
     const double analytic_prefactor = -((0.5 * kVacuumPermeabilityIU) / (4*kPi)) *  pow2(2 * kBohrMagnetonIU) / pow3(0.3e-9); // meV
 
-    // target accuracy for total energy per spin in meV
+    // Target accuracy for total energy per spin in meV. The mixed-precision
+    // path accumulates some dipole fields in single precision.
+#if DO_MIXED_PRECISION
+    const double target_accuracy = 5e-5; // 50 neV accuracy
+#else
     const double target_accuracy = 1e-5; // 10 neV accuracy
+#endif
 };
 
 template<typename T>

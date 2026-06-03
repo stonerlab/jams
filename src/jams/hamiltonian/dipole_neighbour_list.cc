@@ -5,6 +5,7 @@
 #include "jams/core/lattice.h"
 #include "jams/interface/config.h"
 
+#include "jams/hamiltonian/dipole_interaction.h"
 #include "jams/hamiltonian/dipole_neighbour_list.h"
 #include <jams/lattice/interaction_neartree.h>
 
@@ -14,7 +15,6 @@ DipoleNeighbourListHamiltonian::DipoleNeighbourListHamiltonian(const libconfig::
     : Hamiltonian(settings, size){
 
   r_cutoff_ = jams::config_required<jams::Real>(settings, "r_cutoff");
-  dipole_prefactor_ = static_cast<jams::Real>(kVacuumPermeabilityIU / (4.0 * kPi * pow3(globals::lattice->parameter())));
 
   std::cout << "  r_cutoff " << r_cutoff_ << std::endl;
 
@@ -108,11 +108,35 @@ jams::Real DipoleNeighbourListHamiltonian::calculate_energy_difference(int i, co
   return 0.5 * (e_final - e_initial);
 }
 
+void DipoleNeighbourListHamiltonian::add_energy_current_interactions(
+    jams::SparseMatrix<double>::Builder& rx_builder,
+    jams::SparseMatrix<double>::Builder& ry_builder,
+    jams::SparseMatrix<double>::Builder& rz_builder) const {
+  for (auto i = 0; i < neighbour_list_.size(); ++i) {
+    const jams::Vec<jams::Real, 3> r_i = {globals::positions(i, 0), globals::positions(i, 1), globals::positions(i, 2)};
+
+    for (const auto& neighbour : neighbour_list_[i]) {
+      const int j = neighbour.second;
+      if (j == i) {
+        continue;
+      }
+
+      const jams::Vec<jams::Real, 3> r_ij = neighbour.first - r_i;
+      const auto interaction = jams::dipole::interaction_tensor(
+          jams::array_cast<double>(r_ij),
+          globals::mus(i),
+          globals::mus(j),
+          globals::lattice->parameter());
+      jams::dipole::insert_displacement_weighted_interaction(
+          rx_builder, ry_builder, rz_builder, static_cast<int>(i), j, jams::array_cast<double>(r_ij), interaction);
+    }
+  }
+}
+
 
 [[gnu::hot]]
 jams::Vec<jams::Real, 3> DipoleNeighbourListHamiltonian::calculate_field(const int i, jams::Real time)
 {
-  jams::Real w0 = globals::mus(i) * dipole_prefactor_;
   jams::Vec<jams::Real, 3> r_i = {globals::positions(i,0), globals::positions(i,1), globals::positions(i,2)};
   // 2020-04-21 Using OMP on this loop gives almost no speedup because the heavy
   // work is already done to find the neighbours.
@@ -126,8 +150,12 @@ jams::Vec<jams::Real, 3> DipoleNeighbourListHamiltonian::calculate_field(const i
     jams::Vec<jams::Real, 3> s_j = jams::array_cast<jams::Real>(jams::Vec<double, 3>{globals::s(j,0), globals::s(j,1), globals::s(j,2)});
     jams::Vec<jams::Real, 3> r_ij =  neighbour.first - r_i;
 
-    field += w0 * globals::mus(j) * (3.0 * r_ij * jams::dot(s_j, r_ij) -
-        jams::norm_squared(r_ij) * s_j) / pow5(jams::norm(r_ij));
+    const auto interaction = jams::dipole::interaction_tensor<jams::Real>(
+        jams::array_cast<double>(r_ij),
+        globals::mus(i),
+        globals::mus(j),
+        globals::lattice->parameter());
+    field += jams::dipole::interaction_field(interaction, s_j);
   }
   return field;
 }

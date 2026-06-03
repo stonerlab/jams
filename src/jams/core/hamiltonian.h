@@ -4,6 +4,7 @@
 #define JAMS_CORE_HAMILTONIAN_H
 
 #include <jams/containers/multiarray.h>
+#include <jams/containers/sparse_matrix_builder.h>
 #include <jams/core/base.h>
 #include <jams/core/types.h>
 
@@ -46,6 +47,12 @@ public:
 
     // calculate the energy difference of spin i in initial and final states
     virtual jams::Real calculate_energy_difference(int i, const jams::Vec<double, 3> &spin_initial, const jams::Vec<double, 3> &spin_final, jams::Real time);
+
+    // Add displacement-weighted pair interaction operators for thermal-current calculations.
+    // The default implementation is a no-op for Hamiltonians without pairwise linear interactions.
+    virtual void add_energy_current_interactions(jams::SparseMatrix<double>::Builder& rx_builder,
+                                                 jams::SparseMatrix<double>::Builder& ry_builder,
+                                                 jams::SparseMatrix<double>::Builder& rz_builder) const;
 
 
     inline jams::Real energy(const int i) const {

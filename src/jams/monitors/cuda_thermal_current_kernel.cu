@@ -1,86 +1,113 @@
 #include <cuda_runtime.h>
+#include <jams/common.h>
 #include <jams/core/types.h>
 #include "jams/cuda/cuda_device_vector_ops.h"
-#include <thrust/device_ptr.h>
-#include <thrust/reduce.h>
 #include <jams/cuda/cuda_array_kernels.h>
 #include <jams/cuda/cuda_stream.h>
-#include <jams/cuda/cuda_array_kernels.h>
 #include <jams/containers/multiarray.h>
-#include <jams/containers/interaction_matrix.h>
+#include <jams/containers/sparse_matrix.h>
 
 
-__global__ void thermal_current_kernel
+__global__ void undamped_llg_spin_derivative_kernel
         (const int num_spins,
          const double *spins,
-         const int *index_pointers,
-         const int *index_data,
-         const double *value_data,
-         double *thermal_current_rx,
-         double *thermal_current_ry,
-         double *thermal_current_rz
+         const jams::Real *field,
+         const jams::Real *gyro,
+         const jams::Real *mus,
+         double *spin_derivative
         ) {
 
   const int i = blockIdx.x*blockDim.x+threadIdx.x;
 
   if (i < num_spins) {
-    double jq[3] = {0.0, 0.0, 0.0};
-
-    const int begin = index_pointers[i];
-    const int end = index_pointers[i + 1];
-
-    const double s_i[3] = {spins[3*i + 0], spins[3*i + 1], spins[3*i + 2]};
-
-    for (int n = begin; n < end; ++n) {
-      const int j = index_data[3*n];
-      const int k = index_data[3*n + 1];
-      const int val_key = index_data[3*n + 2];
-      assert(j < num_spins);
-      assert(k < num_spins);
-      assert(i != j && j != k && k != i);
-
-      const double s_j[3] = {spins[3*j + 0], spins[3*j + 1], spins[3*j + 2]};
-      const double s_k[3] = {spins[3*k + 0], spins[3*k + 1], spins[3*k + 2]};
-
-      for (int m = 0; m < 3; ++m) {
-        jq[m] += value_data[3*val_key + m] * scalar_triple_product(s_i, s_j, s_k);
+    if (mus[i] == jams::Real(0.0)) {
+      for (int n = 0; n < 3; ++n) {
+        spin_derivative[3*i + n] = 0.0;
       }
+      return;
     }
 
-    thermal_current_rx[i] = jq[0];
-    thermal_current_ry[i] = jq[1];
-    thermal_current_rz[i] = jq[2];
+    const double s_i[3] = {spins[3*i + 0], spins[3*i + 1], spins[3*i + 2]};
+    const double h_i[3] = {
+        static_cast<double>(field[3*i + 0]) / static_cast<double>(mus[i]),
+        static_cast<double>(field[3*i + 1]) / static_cast<double>(mus[i]),
+        static_cast<double>(field[3*i + 2]) / static_cast<double>(mus[i])
+    };
+
+    double sxh[3];
+    cross_product(s_i, h_i, sxh);
+
+    for (int n = 0; n < 3; ++n) {
+      spin_derivative[3*i + n] = -static_cast<double>(gyro[i]) * sxh[n];
+    }
   }
 }
 
 jams::Vec<double, 3> execute_cuda_thermal_current_kernel(
     CudaStream &stream,
     const jams::MultiArray<double, 2>& spins,
-    const jams::InteractionMatrix<jams::Vec<double, 3>, double>& interaction_matrix,
-    jams::MultiArray<double, 1>& dev_thermal_current_rx,
-    jams::MultiArray<double, 1>& dev_thermal_current_ry,
-    jams::MultiArray<double, 1>& dev_thermal_current_rz) {
+    const jams::MultiArray<jams::Real, 2>& field,
+    const jams::MultiArray<jams::Real, 1>& gyro,
+    const jams::MultiArray<jams::Real, 1>& mus,
+    jams::SparseMatrix<double>& energy_current_operator_rx,
+    jams::SparseMatrix<double>& energy_current_operator_ry,
+    jams::SparseMatrix<double>& energy_current_operator_rz,
+    const double volume,
+    jams::MultiArray<double, 2>& dev_spin_derivative,
+    jams::MultiArray<double, 2>& dev_energy_current_rx,
+    jams::MultiArray<double, 2>& dev_energy_current_ry,
+    jams::MultiArray<double, 2>& dev_energy_current_rz,
+    jams::MultiArray<double, 1>& dev_energy_current_dot) {
 
   dim3 block_size;
   block_size.x = 64;
   dim3 grid_size;
   grid_size.x = (spins.extent(0) + block_size.x - 1) / block_size.x;
 
-  thermal_current_kernel<<<grid_size, block_size, 0, stream.get()>>>(
+  undamped_llg_spin_derivative_kernel<<<grid_size, block_size, 0, stream.get()>>>(
       spins.extent(0),
       spins.device_data(),
-      interaction_matrix.row_device_data(),
-      interaction_matrix.index_device_data(),
-      interaction_matrix.val_device_data(),
-      dev_thermal_current_rx.mutable_device_data(),
-      dev_thermal_current_ry.mutable_device_data(),
-      dev_thermal_current_rz.mutable_device_data());
+      field.device_data(),
+      gyro.device_data(),
+      mus.device_data(),
+      dev_spin_derivative.mutable_device_data());
   DEBUG_CHECK_CUDA_ASYNC_STATUS;
 
-  // triple counting in the sum
-  double j_rx = 0.5 * cuda_reduce_array(dev_thermal_current_rx.device_data(), spins.extent(0), stream.get());
-  double j_ry = 0.5 * cuda_reduce_array(dev_thermal_current_ry.device_data(), spins.extent(0), stream.get());
-  double j_rz = 0.5 * cuda_reduce_array(dev_thermal_current_rz.device_data(), spins.extent(0), stream.get());
+  energy_current_operator_rx.multiply_gpu(
+      spins, dev_energy_current_rx, jams::instance().cusparse_handle(), stream.get());
+  energy_current_operator_ry.multiply_gpu(
+      spins, dev_energy_current_ry, jams::instance().cusparse_handle(), stream.get());
+  energy_current_operator_rz.multiply_gpu(
+      spins, dev_energy_current_rz, jams::instance().cusparse_handle(), stream.get());
+
+  const double prefactor = -0.5 / volume;
+
+  cuda_array_dot_product(
+      spins.extent(0),
+      prefactor,
+      dev_spin_derivative.device_data(),
+      dev_energy_current_rx.device_data(),
+      dev_energy_current_dot.mutable_device_data(),
+      stream.get());
+  double j_rx = cuda_reduce_array(dev_energy_current_dot.device_data(), spins.extent(0), stream.get());
+
+  cuda_array_dot_product(
+      spins.extent(0),
+      prefactor,
+      dev_spin_derivative.device_data(),
+      dev_energy_current_ry.device_data(),
+      dev_energy_current_dot.mutable_device_data(),
+      stream.get());
+  double j_ry = cuda_reduce_array(dev_energy_current_dot.device_data(), spins.extent(0), stream.get());
+
+  cuda_array_dot_product(
+      spins.extent(0),
+      prefactor,
+      dev_spin_derivative.device_data(),
+      dev_energy_current_rz.device_data(),
+      dev_energy_current_dot.mutable_device_data(),
+      stream.get());
+  double j_rz = cuda_reduce_array(dev_energy_current_dot.device_data(), spins.extent(0), stream.get());
 
   return {j_rx, j_ry, j_rz};
 }

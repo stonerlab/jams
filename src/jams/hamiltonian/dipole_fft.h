@@ -24,6 +24,10 @@ public:
 
     jams::Real calculate_energy_difference(int i, const jams::Vec<double, 3> &spin_initial, const jams::Vec<double, 3> &spin_final, jams::Real time) override;
 
+    void add_energy_current_interactions(jams::SparseMatrix<double>::Builder& rx_builder,
+                                         jams::SparseMatrix<double>::Builder& ry_builder,
+                                         jams::SparseMatrix<double>::Builder& rz_builder) const override;
+
 private:
 
     jams::MultiArray<jams::Complex, 5> generate_kspace_dipole_tensor(int pos_i, const int pos_j, std::vector<jams::Vec<double, 3>>& generated_positions);

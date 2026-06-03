@@ -2,6 +2,7 @@
 
 #include "jams/core/globals.h"
 #include "jams/core/lattice.h"
+#include "jams/hamiltonian/dipole_interaction.h"
 #include "jams/hamiltonian/dipole_tensor.h"
 #include "jams/helpers/consts.h"
 #include "jams/helpers/utils.h"
@@ -49,8 +50,6 @@ DipoleTensorHamiltonian::DipoleTensorHamiltonian(const libconfig::Setting &setti
   std::cout << "  dipole sparse matrix memory estimate (upper bound) "
     << memory_in_natural_units(max_memory_per_tensor * expected_neighbours) << std::endl;
 
-  const jams::Real prefactor = static_cast<jams::Real>(kVacuumPermeabilityIU / (4 * kPi * pow(::globals::lattice->parameter(), 3)));
-
   int num_neighbours = 0;
   for (auto i = 0; i < globals::num_spins; ++i) {
     const jams::Vec<jams::Real, 3> r_i{globals::positions(i,0), globals::positions(i,1), globals::positions(i,2)};
@@ -62,19 +61,13 @@ DipoleTensorHamiltonian::DipoleTensorHamiltonian(const libconfig::Setting &setti
       if (j == i) continue;
 
       const auto r_ij =  neighbour.first - r_i;
-      const auto r_abs = jams::norm(r_ij);
-      const auto r_hat = r_ij / r_abs;
-
-      jams::Mat<jams::Real, 3, 3> dipole_tensor = kZeroMat3R;
-      for (auto m : {0, 1, 2}) {
-        for (auto n : {0, 1, 2}) {
-          dipole_tensor[m][n] +=
-              (jams::Real(3.0) * r_hat[m] * r_hat[n] - kIdentityMat3R[m][n]) * globals::mus(i) * globals::mus(j) /
-              pow3(r_abs);
-        }
-      }
+      const auto dipole_tensor = jams::dipole::interaction_tensor<jams::Real>(
+          jams::array_cast<double>(r_ij),
+          globals::mus(i),
+          globals::mus(j),
+          globals::lattice->parameter());
       num_neighbours++;
-      insert_interaction_tensor(i, j, prefactor * dipole_tensor);
+      insert_interaction_tensor(i, j, dipole_tensor);
     }
   }
 

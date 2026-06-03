@@ -1,5 +1,6 @@
 #include <jams/hamiltonian/cuda_dipole_bruteforce.h>
 #include <jams/hamiltonian/cuda_dipole_bruteforce_kernel.cuh>
+#include <jams/hamiltonian/dipole_interaction.h>
 
 #include <jams/core/globals.h>
 #include <jams/core/lattice.h>
@@ -103,6 +104,48 @@ jams::Real CudaDipoleBruteforceHamiltonian::calculate_energy_difference(int i, c
     return 0.5*(e_final - e_initial);
 }
 
+void CudaDipoleBruteforceHamiltonian::add_energy_current_interactions(
+    jams::SparseMatrix<double>::Builder& rx_builder,
+    jams::SparseMatrix<double>::Builder& ry_builder,
+    jams::SparseMatrix<double>::Builder& rz_builder) const {
+  assert(r_cutoff_ < globals::lattice->max_interaction_radius());
+
+  const auto displacement = [](const int i, const int j) -> jams::Vec<double, 3> {
+    return jams::minimum_image_smith_method(
+        globals::lattice->get_supercell().matrix(),
+        globals::lattice->get_supercell().inverse_matrix(),
+        globals::lattice->get_supercell().periodic(),
+        globals::lattice->lattice_site_position_cart(i),
+        globals::lattice->lattice_site_position_cart(j));
+  };
+
+  const auto r_cut_squared = r_cutoff_ * r_cutoff_;
+  const auto eps = static_cast<jams::Real>(jams::defaults::lattice_tolerance * jams::defaults::lattice_tolerance);
+
+  for (auto i = 0; i < globals::num_spins; ++i) {
+    for (auto j = 0; j < globals::num_spins; ++j) {
+      if (j == i) {
+        continue;
+      }
+
+      const auto r_ij = jams::array_cast<jams::Real>(displacement(i, j));
+      const jams::Real r_abs_sq = jams::norm_squared(r_ij);
+      if (definately_greater_than(r_abs_sq, r_cut_squared, eps)) {
+        continue;
+      }
+
+      const auto interaction = jams::dipole::interaction_tensor(
+          jams::array_cast<double>(r_ij),
+          globals::mus(i),
+          globals::mus(j),
+          globals::lattice->parameter());
+      const auto r_ji = -jams::array_cast<double>(r_ij);
+      jams::dipole::insert_displacement_weighted_interaction(
+          rx_builder, ry_builder, rz_builder, i, j, r_ji, interaction);
+    }
+  }
+}
+
 void CudaDipoleBruteforceHamiltonian::calculate_energies(jams::Real time) {
     for (auto i = 0; i < globals::num_spins; ++i) {
         energy_(i) = calculate_energy(i, time);
@@ -129,7 +172,6 @@ jams::Vec<jams::Real, 3> CudaDipoleBruteforceHamiltonian::calculate_field(const 
   };
 
   const auto r_cut_squared = r_cutoff_ * r_cutoff_;
-  const jams::Real w0 = globals::mus(i) * static_cast<jams::Real>(kVacuumPermeabilityIU / (4.0 * kPi * pow3(globals::lattice->parameter())));
 
   jams::Real hx = 0, hy = 0, hz = 0;
 #if HAS_OMP
@@ -147,12 +189,15 @@ jams::Vec<jams::Real, 3> CudaDipoleBruteforceHamiltonian::calculate_field(const 
       const auto eps = static_cast<jams::Real>(jams::defaults::lattice_tolerance*jams::defaults::lattice_tolerance);
     if (definately_greater_than(r_abs_sq, r_cut_squared, eps)) continue;
 
-    hx += w0 * globals::mus(j) * (3.0 * r_ij[0] * jams::dot(s_j, r_ij) -
-        jams::norm_squared(r_ij) * s_j[0]) / pow5(jams::norm(r_ij));
-    hy += w0 * globals::mus(j) * (3.0 * r_ij[1] * jams::dot(s_j, r_ij) -
-        jams::norm_squared(r_ij) * s_j[1]) / pow5(jams::norm(r_ij));;
-    hz += w0 * globals::mus(j) * (3.0 * r_ij[2] * jams::dot(s_j, r_ij) -
-        jams::norm_squared(r_ij) * s_j[2]) / pow5(jams::norm(r_ij));;
+    const auto interaction = jams::dipole::interaction_tensor<jams::Real>(
+        jams::array_cast<double>(r_ij),
+        globals::mus(i),
+        globals::mus(j),
+        globals::lattice->parameter());
+    const auto h_ij = jams::dipole::interaction_field(interaction, jams::array_cast<jams::Real>(s_j));
+    hx += h_ij[0];
+    hy += h_ij[1];
+    hz += h_ij[2];
   }
 
   return {hx, hy, hz};

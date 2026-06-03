@@ -5,6 +5,7 @@
 #include "jams/core/solver.h"
 #include "jams/helpers/output.h"
 #include <jams/core/globals.h>
+#include <jams/core/lattice.h>
 
 #include "jams/cuda/cuda_array_kernels.h"
 
@@ -120,6 +121,44 @@ jams::Real SparseInteractionHamiltonian::calculate_total_energy(jams::Real time)
     total_energy += -0.5 * jams::dot(s_i, h_i);
   }
   return total_energy;
+}
+
+void SparseInteractionHamiltonian::add_energy_current_interactions(
+    jams::SparseMatrix<double>::Builder& rx_builder,
+    jams::SparseMatrix<double>::Builder& ry_builder,
+    jams::SparseMatrix<double>::Builder& rz_builder) const {
+  assert(is_finalized_);
+
+  if (interaction_matrix_.format() != jams::SparseMatrixFormat::CSR) {
+    throw std::runtime_error("energy-current interactions require CSR sparse interaction matrices");
+  }
+
+  const auto* row_data = interaction_matrix_.row_data();
+  const auto* col_data = interaction_matrix_.col_data();
+  const auto* val_data = interaction_matrix_.val_data();
+
+  for (auto row = 0; row < interaction_matrix_.num_rows(); ++row) {
+    const int i = row / 3;
+    for (auto n = row_data[row]; n < row_data[row + 1]; ++n) {
+      const auto col = col_data[n];
+      const int j = col / 3;
+      const double value = static_cast<double>(val_data[n]);
+      if (value == 0.0) {
+        continue;
+      }
+
+      const auto r_ji = globals::lattice->displacement(j, i);
+      if (r_ji[0] != 0.0) {
+        rx_builder.insert(row, col, r_ji[0] * value);
+      }
+      if (r_ji[1] != 0.0) {
+        ry_builder.insert(row, col, r_ji[1] * value);
+      }
+      if (r_ji[2] != 0.0) {
+        rz_builder.insert(row, col, r_ji[2] * value);
+      }
+    }
+  }
 }
 
 void SparseInteractionHamiltonian::finalize(jams::SparseMatrixSymmetryCheck symmetry_check) {

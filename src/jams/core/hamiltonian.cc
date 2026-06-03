@@ -155,6 +155,11 @@ jams::Real Hamiltonian::calculate_energy_difference(int i, const jams::Vec<doubl
   return (e_final - e_initial);
 }
 
+void Hamiltonian::add_energy_current_interactions(jams::SparseMatrix<double>::Builder&,
+                                                  jams::SparseMatrix<double>::Builder&,
+                                                  jams::SparseMatrix<double>::Builder&) const {
+}
+
 jams::Real Hamiltonian::calculate_energy_for_spin(int i, const jams::Vec<double, 3>& spin, jams::Real time)
 {
   throw jams::unimplemented_error("Hamiltonian::calculate_energy_for_spin");

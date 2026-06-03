@@ -1,5 +1,6 @@
-#include <fstream>
 #include <complex>
+#include <cmath>
+#include <fstream>
 
 #include <libconfig.h++>
 #include <cufft.h>
@@ -15,6 +16,7 @@
 #include "jams/core/solver.h"
 #include "jams/cuda/cuda_device_complex_ops.h"
 #include "jams/hamiltonian/cuda_dipole_fft.h"
+#include "jams/hamiltonian/dipole_interaction.h"
 #include "jams/cuda/cuda_common.h"
 #include "jams/cuda/cuda_array_kernels.h"
 #include <jams/helpers/mixed_precision.h>
@@ -417,6 +419,82 @@ jams::Vec<jams::Real, 3> CudaDipoleFFTHamiltonian::calculate_field(const int i, 
   throw jams::unimplemented_error("CudaDipoleFFTHamiltonian::calculate_field is not implemented");
 }
 
+void CudaDipoleFFTHamiltonian::add_energy_current_interactions(
+    jams::SparseMatrix<double>::Builder& rx_builder,
+    jams::SparseMatrix<double>::Builder& ry_builder,
+    jams::SparseMatrix<double>::Builder& rz_builder) const {
+  const auto offset_range_x = tensor_offset_range(kspace_size_[0], globals::lattice->is_periodic(0));
+  const auto offset_range_y = tensor_offset_range(kspace_size_[1], globals::lattice->is_periodic(1));
+  const auto offset_range_z = tensor_offset_range(kspace_size_[2], globals::lattice->is_periodic(2));
+
+  for (auto cell_i_x = 0; cell_i_x < kspace_size_[0]; ++cell_i_x) {
+    for (auto cell_i_y = 0; cell_i_y < kspace_size_[1]; ++cell_i_y) {
+      for (auto cell_i_z = 0; cell_i_z < kspace_size_[2]; ++cell_i_z) {
+        for (auto pos_i = 0; pos_i < globals::lattice->num_basis_sites(); ++pos_i) {
+          const auto site_i = globals::lattice->site_index_by_unit_cell_optional(
+              cell_i_x, cell_i_y, cell_i_z, pos_i);
+          if (!site_i) {
+            continue;
+          }
+
+          const auto r_frac_i = globals::lattice->basis_site_atom(pos_i).position_frac;
+          const double mu_i = globals::lattice->material(
+              globals::lattice->basis_site_atom(pos_i).material_index).moment;
+
+          for (auto pos_j = 0; pos_j < globals::lattice->num_basis_sites(); ++pos_j) {
+            const auto r_frac_j = globals::lattice->basis_site_atom(pos_j).position_frac;
+            const auto r_cart_j = globals::lattice->fractional_to_cartesian(r_frac_j);
+            const double mu_j = globals::lattice->material(
+                globals::lattice->basis_site_atom(pos_j).material_index).moment;
+
+            for (auto dx = offset_range_x.begin; dx < offset_range_x.end; ++dx) {
+              for (auto dy = offset_range_y.begin; dy < offset_range_y.end; ++dy) {
+                for (auto dz = offset_range_z.begin; dz < offset_range_z.end; ++dz) {
+                  if (dx == 0 && dy == 0 && dz == 0 && pos_i == pos_j) {
+                    continue;
+                  }
+
+                  auto cell_j = jams::Vec<int, 3>{cell_i_x - dx, cell_i_y - dy, cell_i_z - dz};
+                  if (!globals::lattice->apply_boundary_conditions(cell_j)) {
+                    continue;
+                  }
+
+                  const auto site_j = globals::lattice->site_index_by_unit_cell_optional(
+                      cell_j[0], cell_j[1], cell_j[2], pos_j);
+                  if (!site_j) {
+                    continue;
+                  }
+
+                  const auto r_ij = globals::lattice->displacement(
+                      r_cart_j,
+                      globals::lattice->generate_cartesian_lattice_position_from_fractional(
+                          r_frac_i, {dx, dy, dz}));
+                  const auto r_abs_sq = jams::norm_squared(r_ij);
+
+                  if (!std::isnormal(r_abs_sq)) {
+                    throw std::runtime_error(
+                        "fatal error in CudaDipoleFFTHamiltonian::add_energy_current_interactions: r_abs_sq is not normal");
+                  }
+
+                  if (r_abs_sq > pow2(r_cutoff_ + distance_tolerance_)) {
+                    continue;
+                  }
+
+                  const auto interaction = jams::dipole::interaction_tensor(
+                      r_ij, mu_i, mu_j, globals::lattice->parameter());
+                  const auto r_ji = -r_ij;
+                  jams::dipole::insert_displacement_weighted_interaction(
+                      rx_builder, ry_builder, rz_builder, *site_i, *site_j, r_ji, interaction);
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
 void CudaDipoleFFTHamiltonian::calculate_fields(jams::Real time) {
 
   if (use_dense_fft_buffers_) {
@@ -482,8 +560,6 @@ void CudaDipoleFFTHamiltonian::calculate_fields(jams::Real time) {
 // Generates the dipole tensor between unit cell positions i and j and appends
 // the generated positions to a vector
 void CudaDipoleFFTHamiltonian::generate_kspace_dipole_tensor(const int pos_i, const int pos_j, const int pair, std::vector<jams::Vec<double, 3>> &generated_positions) {
-    using std::pow;
-  
     const jams::Vec<double, 3> r_frac_i = globals::lattice->basis_site_atom(pos_i).position_frac;
     const jams::Vec<double, 3> r_frac_j = globals::lattice->basis_site_atom(pos_j).position_frac;
 
@@ -492,11 +568,9 @@ void CudaDipoleFFTHamiltonian::generate_kspace_dipole_tensor(const int pos_i, co
     const int num_kz = kspace_padded_size_[2] / 2 + 1;
     const int num_ky = kspace_padded_size_[1];
 
-    const double fft_normalization_factor = 1.0 / jams::product(kspace_padded_size_);
     const double mu_i = globals::lattice->material(globals::lattice->basis_site_atom(pos_i).material_index).moment;
     const double mu_j = globals::lattice->material(globals::lattice->basis_site_atom(pos_j).material_index).moment;
-    const double v = pow(globals::lattice->parameter(), 3);
-    const double w0 = mu_i * mu_j * fft_normalization_factor * kVacuumPermeabilityIU / (4.0 * kPi * v);
+    const double fft_normalization_factor = 1.0 / jams::product(kspace_padded_size_);
 
     const auto offset_range_x = tensor_offset_range(kspace_size_[0], globals::lattice->is_periodic(0));
     const auto offset_range_y = tensor_offset_range(kspace_size_[1], globals::lattice->is_periodic(1));
@@ -525,16 +599,10 @@ void CudaDipoleFFTHamiltonian::generate_kspace_dipole_tensor(const int pos_i, co
                     continue;
                 }
 
-                const double r_pow_5_2 = r_abs_sq * r_abs_sq * std::sqrt(r_abs_sq);
-
                 generated_positions.push_back(r_ij);
 
-                const double tensor_xx = w0 * (3 * r_ij[0] * r_ij[0] - r_abs_sq) / r_pow_5_2;
-                const double tensor_xy = w0 * (3 * r_ij[0] * r_ij[1]) / r_pow_5_2;
-                const double tensor_xz = w0 * (3 * r_ij[0] * r_ij[2]) / r_pow_5_2;
-                const double tensor_yy = w0 * (3 * r_ij[1] * r_ij[1] - r_abs_sq) / r_pow_5_2;
-                const double tensor_yz = w0 * (3 * r_ij[1] * r_ij[2]) / r_pow_5_2;
-                const double tensor_zz = w0 * (3 * r_ij[2] * r_ij[2] - r_abs_sq) / r_pow_5_2;
+                const auto interaction = jams::dipole::interaction_tensor(
+                    r_ij, mu_i, mu_j, globals::lattice->parameter(), fft_normalization_factor);
 
                 const jams::ComplexHi phase_step_x = std::polar(1.0, -kTwoPi * static_cast<double>(dx) / static_cast<double>(kspace_padded_size_[0]));
                 const jams::ComplexHi phase_step_y = std::polar(1.0, -kTwoPi * static_cast<double>(dy) / static_cast<double>(kspace_padded_size_[1]));
@@ -547,12 +615,12 @@ void CudaDipoleFFTHamiltonian::generate_kspace_dipole_tensor(const int pos_i, co
                     jams::ComplexHi phase = phase_y;
                     for (int l = 0; l < num_kz; ++l) {
                       const int k_idx = (h * num_ky + k) * num_kz + l;
-                      const jams::ComplexHi k_xx = tensor_xx * phase;
-                      const jams::ComplexHi k_xy = tensor_xy * phase;
-                      const jams::ComplexHi k_xz = tensor_xz * phase;
-                      const jams::ComplexHi k_yy = tensor_yy * phase;
-                      const jams::ComplexHi k_yz = tensor_yz * phase;
-                      const jams::ComplexHi k_zz = tensor_zz * phase;
+                      const jams::ComplexHi k_xx = interaction[0][0] * phase;
+                      const jams::ComplexHi k_xy = interaction[0][1] * phase;
+                      const jams::ComplexHi k_xz = interaction[0][2] * phase;
+                      const jams::ComplexHi k_yy = interaction[1][1] * phase;
+                      const jams::ComplexHi k_yz = interaction[1][2] * phase;
+                      const jams::ComplexHi k_zz = interaction[2][2] * phase;
 #if DO_MIXED_PRECISION
                       kspace_tensors_(pair, 0, k_idx) += make_cuComplex(static_cast<float>(k_xx.real()), static_cast<float>(k_xx.imag()));
                       kspace_tensors_(pair, 1, k_idx) += make_cuComplex(static_cast<float>(k_xy.real()), static_cast<float>(k_xy.imag()));

@@ -32,6 +32,10 @@ public:
 
     jams::Real calculate_energy_difference(int i, const jams::Vec<double, 3> &spin_initial, const jams::Vec<double, 3> &spin_final, jams::Real time) override;
 
+    void add_energy_current_interactions(jams::SparseMatrix<double>::Builder& rx_builder,
+                                         jams::SparseMatrix<double>::Builder& ry_builder,
+                                         jams::SparseMatrix<double>::Builder& rz_builder) const override;
+
 protected:
     // inserts a scalar interaction into the interaction matrix
     void insert_interaction_scalar(int i, int j, const jams::Real &value);

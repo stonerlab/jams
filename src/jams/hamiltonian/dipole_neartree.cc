@@ -5,6 +5,7 @@
 #include "jams/core/solver.h"
 #include "jams/core/lattice.h"
 
+#include "jams/hamiltonian/dipole_interaction.h"
 #include "jams/hamiltonian/dipole_neartree.h"
 #include "jams/lattice/interaction_neartree.h"
 
@@ -56,6 +57,32 @@ jams::Real DipoleNearTreeHamiltonian::calculate_energy_difference(int i, const j
     return 0.5 * (e_final - e_initial);
 }
 
+void DipoleNearTreeHamiltonian::add_energy_current_interactions(
+    jams::SparseMatrix<double>::Builder& rx_builder,
+    jams::SparseMatrix<double>::Builder& ry_builder,
+    jams::SparseMatrix<double>::Builder& rz_builder) const {
+  for (auto i = 0; i < globals::num_spins; ++i) {
+    const jams::Vec<jams::Real, 3> r_i = {globals::positions(i, 0), globals::positions(i, 1), globals::positions(i, 2)};
+    const auto neighbours = neartree_.neighbours(r_i, r_cutoff_);
+
+    for (const auto& neighbour : neighbours) {
+      const int j = neighbour.second;
+      if (j == i) {
+        continue;
+      }
+
+      const jams::Vec<jams::Real, 3> r_ij = neighbour.first - r_i;
+      const auto interaction = jams::dipole::interaction_tensor(
+          jams::array_cast<double>(r_ij),
+          globals::mus(i),
+          globals::mus(j),
+          globals::lattice->parameter());
+      jams::dipole::insert_displacement_weighted_interaction(
+          rx_builder, ry_builder, rz_builder, i, j, jams::array_cast<double>(r_ij), interaction);
+    }
+  }
+}
+
 
 [[gnu::hot]]
 jams::Vec<jams::Real, 3> DipoleNearTreeHamiltonian::calculate_field(const int i, jams::Real time)
@@ -64,7 +91,6 @@ jams::Vec<jams::Real, 3> DipoleNearTreeHamiltonian::calculate_field(const int i,
 
   const auto neighbours = neartree_.neighbours(r_i, r_cutoff_);
 
-  const jams::Real w0 = globals::mus(i) * static_cast<jams::Real>(kVacuumPermeabilityIU / (4.0 * kPi * pow3(globals::lattice->parameter())));
   // 2020-04-21 Using OMP on this loop gives almost no speedup because the heavy
   // work is already done to find the neighbours.
 
@@ -76,8 +102,12 @@ jams::Vec<jams::Real, 3> DipoleNearTreeHamiltonian::calculate_field(const int i,
     const jams::Vec<jams::Real, 3> s_j = jams::array_cast<jams::Real>(jams::Vec<double, 3>{globals::s(j,0), globals::s(j,1), globals::s(j,2)});
     const jams::Vec<jams::Real, 3> r_ij =  neighbour.first - r_i;
 
-    field += w0 * globals::mus(j) * (3.0 * r_ij * jams::dot(s_j, r_ij) -
-        jams::norm_squared(r_ij) * s_j) / pow5(jams::norm(r_ij));
+    const auto interaction = jams::dipole::interaction_tensor<jams::Real>(
+        jams::array_cast<double>(r_ij),
+        globals::mus(i),
+        globals::mus(j),
+        globals::lattice->parameter());
+    field += jams::dipole::interaction_field(interaction, s_j);
   }
   return field;
 }

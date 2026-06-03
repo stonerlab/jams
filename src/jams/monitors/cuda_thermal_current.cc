@@ -3,127 +3,107 @@
 //
 
 #include <jams/helpers/exception.h>
+#include <array>
 #include <utility>
 #include <vector>
 
-#include <jams/core/interactions.h>
+#include <jams/common.h>
 #include <jams/helpers/error.h>
 #include <jams/helpers/consts.h>
-#include <jams/helpers/maths.h>
 #include <jams/cuda/cuda_array_kernels.h>
 
 #include "jams/helpers/output.h"
 #include "jams/core/globals.h"
-#include "jams/interface/config.h"
 #include "jams/core/solver.h"
 #include "jams/core/lattice.h"
 #include "jams/monitors/cuda_thermal_current.h"
 #include "jams/cuda/cuda_common.h"
-#include "jams/containers/csr.h"
-#include "jams/hamiltonian/exchange.h"
 #include "cuda_thermal_current.h"
-#include "../core/globals.h"
 
 CudaThermalCurrentMonitor::CudaThermalCurrentMonitor(const libconfig::Setting &settings)
         : Monitor(settings) {
-  jams_warning("This monitor automatically identifies the FIRST exchange hamiltonian\n"
-               "in the config and assumes the exchange interaction is DIAGONAL AND ISOTROPIC");
-  jams_warning("This monitor should only be used with collinear systems which are magnetised along the z direction.");
+  assert(jams::instance().mode() == jams::Mode::GPU);
 
-  const auto& exchange_hamiltonian = find_hamiltonian<ExchangeHamiltonian>(::globals::solver->hamiltonians());
+  std::array<jams::SparseMatrix<double>::Builder, 3> energy_current_operator_builders = {
+      jams::SparseMatrix<double>::Builder(globals::num_spins3, globals::num_spins3),
+      jams::SparseMatrix<double>::Builder(globals::num_spins3, globals::num_spins3),
+      jams::SparseMatrix<double>::Builder(globals::num_spins3, globals::num_spins3)
+  };
 
-  const auto& nbr_list = exchange_hamiltonian.neighbour_list();
+  for (auto& builder : energy_current_operator_builders) {
+    builder.set_format(jams::SparseMatrixFormat::CSR);
+  }
 
+  for (const auto& hamiltonian : globals::solver->hamiltonians()) {
+    hamiltonian->add_energy_current_interactions(
+        energy_current_operator_builders[0],
+        energy_current_operator_builders[1],
+        energy_current_operator_builders[2]);
+  }
 
-  const auto triad_list = generate_three_spin_from_two_spin_interactions(exchange_hamiltonian.neighbour_list());
+  energy_current_operator_rx_ = energy_current_operator_builders[0].build();
+  energy_current_operator_ry_ = energy_current_operator_builders[1].build();
+  energy_current_operator_rz_ = energy_current_operator_builders[2].build();
 
-  std::cout << "    total ijk triads: " << triad_list.size() << std::endl;
+  volume_ = volume(globals::lattice->get_supercell());
+  if (volume_ <= 0.0) {
+    throw std::runtime_error("thermal-current monitor requires a positive simulation volume");
+  }
 
-  std::cout << "    interaction matrix memory: " << interaction_matrix_.memory() / kBytesToMegaBytes << "MB" << std::endl;
+  std::cout << "    energy current operator rx non-zero: " << energy_current_operator_rx_.num_non_zero() << "\n";
+  std::cout << "    energy current operator ry non-zero: " << energy_current_operator_ry_.num_non_zero() << "\n";
+  std::cout << "    energy current operator rz non-zero: " << energy_current_operator_rz_.num_non_zero() << "\n";
+  std::cout << "    energy current operator memory: "
+            << (energy_current_operator_rx_.memory()
+                + energy_current_operator_ry_.memory()
+                + energy_current_operator_rz_.memory()) / kBytesToMegaBytes
+            << " MB\n";
 
-  zero(thermal_current_rx_.resize(globals::num_spins));
-  zero(thermal_current_ry_.resize(globals::num_spins));
-  zero(thermal_current_rz_.resize(globals::num_spins));
+  zero(spin_derivative_.resize(globals::num_spins, 3));
+  zero(energy_current_rx_.resize(globals::num_spins, 3));
+  zero(energy_current_ry_.resize(globals::num_spins, 3));
+  zero(energy_current_rz_.resize(globals::num_spins, 3));
+  zero(energy_current_dot_.resize(globals::num_spins));
 
   auto cols = globals::solver->monitor_coordinate_columns();
-  cols.push_back({"jq_rx", "internal"});
-  cols.push_back({"jq_ry", "internal"});
-  cols.push_back({"jq_rz", "internal"});
+  cols.push_back({"jE_rx", "internal"});
+  cols.push_back({"jE_ry", "internal"});
+  cols.push_back({"jE_rz", "internal"});
   tsv_.open(jams::output::monitor_filename(name(), "tsv"), std::move(cols));
 }
 
 void CudaThermalCurrentMonitor::update(Solver& solver) {
+  solver.compute_fields();
+  CHECK_CUDA_STATUS(cudaStreamSynchronize(jams::instance().cuda_master_stream().get()));
+
   const auto& spins = globals::s;
-  jams::Vec<double, 3> js = execute_cuda_thermal_current_kernel(
-          stream, spins, interaction_matrix_, thermal_current_rx_, thermal_current_ry_, thermal_current_rz_);
+  const auto& field = globals::h;
+  const auto& gyro = globals::gyro;
+  const auto& mus = globals::mus;
+  jams::Vec<double, 3> jE = execute_cuda_thermal_current_kernel(
+      stream,
+      spins,
+      field,
+      gyro,
+      mus,
+      energy_current_operator_rx_,
+      energy_current_operator_ry_,
+      energy_current_operator_rz_,
+      volume_,
+      spin_derivative_,
+      energy_current_rx_,
+      energy_current_ry_,
+      energy_current_rz_,
+      energy_current_dot_);
 
   std::vector<double> values;
   values.reserve(tsv_.num_cols());
   solver.append_monitor_coordinates(values);
-  values.push_back(js[0]);
-  values.push_back(js[1]);
-  values.push_back(js[2]);
+  values.push_back(jE[0]);
+  values.push_back(jE[1]);
+  values.push_back(jE[2]);
   tsv_.write_row(values);
 }
 
 CudaThermalCurrentMonitor::~CudaThermalCurrentMonitor() {
-}
-
-CudaThermalCurrentMonitor::ThreeSpinList CudaThermalCurrentMonitor::generate_three_spin_from_two_spin_interactions(const jams::InteractionList<jams::Mat<double, 3, 3>, 2>& nbr_list) {
-  ThreeSpinList three_spin_list;
-
-  // Jij * Jjk
-  for (auto i = 0; i < globals::num_spins; ++i) {
-    // ij
-    for (auto const &nbr_j: nbr_list.interactions_of(i)) {
-      const auto j = nbr_j.first[1];
-      const auto Jij = nbr_j.second[0][0];
-      // jk
-      for (auto const &nbr_k: nbr_list.interactions_of(j)) {
-        const int k = nbr_k.first[1];
-        const auto Jjk = nbr_k.second[0][0];
-        if (i == j || j == k || i == k) continue;
-        if (i > j || j > k || i > k) continue;
-        three_spin_list.insert({i, j, k}, Jij * Jjk * globals::lattice->displacement(i, k));
-      }
-    }
-  }
-
-  // Jij * Jik
-  for (auto i = 0; i < globals::num_spins; ++i) {
-    // ij
-    for (auto const &nbr_j: nbr_list.interactions_of(i)) {
-      const auto j = nbr_j.first[1];
-      const auto Jij = nbr_j.second[0][0];
-      // ik
-      for (auto const &nbr_k: nbr_list.interactions_of(i)) {
-        const auto k = nbr_k.first[1];
-        const auto Jik = nbr_k.second[0][0];
-        if (i == j || j == k || i == k) continue;
-        if (i > j || j > k || i > k) continue;
-        three_spin_list.insert({i, j, k}, Jij * Jik * globals::lattice->displacement(j, i));
-      }
-    }
-  }
-
-//  // Jik * Jjk
-  for (auto i = 0; i < globals::num_spins; ++i) {
-    // ik
-    for (auto const &nbr_k: nbr_list.interactions_of(i)) {
-      const auto  k = nbr_k.first[1];
-      const auto Jik = nbr_k.second[0][0];
-      // jk
-      for (auto const &nbr_j: nbr_list.interactions_of(k)) {
-        const auto  j = nbr_j.first[1];
-        const auto Jjk = nbr_j.second[0][0];
-        if (i == j || j == k || i == k) continue;
-        if (i > j || j > k || i > k) continue;
-        three_spin_list.insert({i, j, k}, Jik * Jjk * globals::lattice->displacement(k, j));
-      }
-    }
-  }
-
-  interaction_matrix_ = jams::InteractionMatrix<jams::Vec<double, 3>, double>(three_spin_list, globals::num_spins);
-
-  return three_spin_list;
 }

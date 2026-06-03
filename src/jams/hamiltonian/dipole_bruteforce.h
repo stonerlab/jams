@@ -18,6 +18,10 @@ public:
 
     jams::Real calculate_energy_difference(int i, const jams::Vec<double, 3> &spin_initial, const jams::Vec<double, 3> &spin_final, jams::Real time) override;
 
+    void add_energy_current_interactions(jams::SparseMatrix<double>::Builder& rx_builder,
+                                         jams::SparseMatrix<double>::Builder& ry_builder,
+                                         jams::SparseMatrix<double>::Builder& rz_builder) const override;
+
 private:
     std::vector<jams::Vec<double, 3>>   frac_positions_;
     jams::Mat<jams::Real, 3, 3> supercell_matrix_;

@@ -25,6 +25,10 @@ class CudaDipoleFFTHamiltonian : public Hamiltonian {
 
         jams::Vec<jams::Real, 3>   calculate_field(int i, jams::Real time);
         void   calculate_fields(jams::Real time) override;
+
+        void add_energy_current_interactions(jams::SparseMatrix<double>::Builder& rx_builder,
+                                             jams::SparseMatrix<double>::Builder& ry_builder,
+                                             jams::SparseMatrix<double>::Builder& rz_builder) const override;
     private:
         bool debug_ = false;
         bool check_radius_   = true;
