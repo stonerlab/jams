@@ -23,7 +23,7 @@ jams::Vec<double, 3> execute_cuda_thermal_current_kernel(
     jams::SparseMatrix<double>& energy_current_operator_rx,
     jams::SparseMatrix<double>& energy_current_operator_ry,
     jams::SparseMatrix<double>& energy_current_operator_rz,
-    double volume,
+    double current_density_prefactor,
     jams::MultiArray<double, 2>& dev_spin_derivative,
     jams::MultiArray<double, 2>& dev_energy_current_rx,
     jams::MultiArray<double, 2>& dev_energy_current_ry,
@@ -46,7 +46,7 @@ private:
 
     jams::output::TsvWriter tsv_;
 
-    double volume_ = 1.0;
+    double current_density_prefactor_ = 0.0;
 
     jams::SparseMatrix<double> energy_current_operator_rx_;
     jams::SparseMatrix<double> energy_current_operator_ry_;

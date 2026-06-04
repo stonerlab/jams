@@ -52,7 +52,7 @@ jams::Vec<double, 3> execute_cuda_thermal_current_kernel(
     jams::SparseMatrix<double>& energy_current_operator_rx,
     jams::SparseMatrix<double>& energy_current_operator_ry,
     jams::SparseMatrix<double>& energy_current_operator_rz,
-    const double volume,
+    const double current_density_prefactor,
     jams::MultiArray<double, 2>& dev_spin_derivative,
     jams::MultiArray<double, 2>& dev_energy_current_rx,
     jams::MultiArray<double, 2>& dev_energy_current_ry,
@@ -80,11 +80,9 @@ jams::Vec<double, 3> execute_cuda_thermal_current_kernel(
   energy_current_operator_rz.multiply_gpu(
       spins, dev_energy_current_rz, jams::instance().cusparse_handle(), stream.get());
 
-  const double prefactor = -0.5 / volume;
-
   cuda_array_dot_product(
       spins.extent(0),
-      prefactor,
+      current_density_prefactor,
       dev_spin_derivative.device_data(),
       dev_energy_current_rx.device_data(),
       dev_energy_current_dot.mutable_device_data(),
@@ -93,7 +91,7 @@ jams::Vec<double, 3> execute_cuda_thermal_current_kernel(
 
   cuda_array_dot_product(
       spins.extent(0),
-      prefactor,
+      current_density_prefactor,
       dev_spin_derivative.device_data(),
       dev_energy_current_ry.device_data(),
       dev_energy_current_dot.mutable_device_data(),
@@ -102,7 +100,7 @@ jams::Vec<double, 3> execute_cuda_thermal_current_kernel(
 
   cuda_array_dot_product(
       spins.extent(0),
-      prefactor,
+      current_density_prefactor,
       dev_spin_derivative.device_data(),
       dev_energy_current_rz.device_data(),
       dev_energy_current_dot.mutable_device_data(),

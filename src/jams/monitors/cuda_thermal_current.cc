@@ -57,10 +57,18 @@ CudaThermalCurrentMonitor::CudaThermalCurrentMonitor(const libconfig::Setting &s
   energy_current_operator_ry_ = energy_current_operator_builders[1].build();
   energy_current_operator_rz_ = energy_current_operator_builders[2].build();
 
-  volume_ = volume(globals::lattice->get_supercell());
-  if (volume_ <= 0.0) {
+  const double volume_lattice_units = volume(globals::lattice->get_supercell());
+  if (volume_lattice_units <= 0.0) {
     throw std::runtime_error("thermal-current monitor requires a positive simulation volume");
   }
+
+  const double lattice_parameter_nm = globals::lattice->parameter() * kMeterToNanometer;
+  if (lattice_parameter_nm <= 0.0) {
+    throw std::runtime_error("thermal-current monitor requires a positive lattice parameter");
+  }
+
+  current_density_prefactor_ =
+      -0.5 / (volume_lattice_units * lattice_parameter_nm * lattice_parameter_nm);
 
   std::cout << "    energy current operator rx non-zero: " << energy_current_operator_rx_.num_non_zero() << "\n";
   std::cout << "    energy current operator ry non-zero: " << energy_current_operator_ry_.num_non_zero() << "\n";
@@ -78,9 +86,9 @@ CudaThermalCurrentMonitor::CudaThermalCurrentMonitor(const libconfig::Setting &s
   zero(energy_current_dot_.resize(globals::num_spins));
 
   auto cols = globals::solver->monitor_coordinate_columns();
-  cols.push_back({"jE_rx", "internal"});
-  cols.push_back({"jE_ry", "internal"});
-  cols.push_back({"jE_rz", "internal"});
+  cols.push_back({"jE_rx", "meV ps^-1 nm^-2"});
+  cols.push_back({"jE_ry", "meV ps^-1 nm^-2"});
+  cols.push_back({"jE_rz", "meV ps^-1 nm^-2"});
   tsv_.open(jams::output::monitor_filename(name(), "tsv"), std::move(cols));
 }
 
@@ -101,7 +109,7 @@ void CudaThermalCurrentMonitor::update(Solver& solver) {
       energy_current_operator_rx_,
       energy_current_operator_ry_,
       energy_current_operator_rz_,
-      volume_,
+      current_density_prefactor_,
       spin_derivative_,
       energy_current_rx_,
       energy_current_ry_,
