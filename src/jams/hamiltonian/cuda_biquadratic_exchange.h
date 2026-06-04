@@ -27,6 +27,9 @@ public:
 
     jams::Real calculate_energy_difference(int i, const jams::Vec<double, 3> &spin_initial, const jams::Vec<double, 3> &spin_final, jams::Real time) override;
 
+    EnergyCurrentInteractionSupport energy_current_interaction_support() const override {
+      return EnergyCurrentInteractionSupport::Unsupported;
+    }
 
 private:
     double distance_tolerance_; // distance tolerance for calculating interactions

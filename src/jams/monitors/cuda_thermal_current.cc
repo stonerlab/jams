@@ -37,10 +37,20 @@ CudaThermalCurrentMonitor::CudaThermalCurrentMonitor(const libconfig::Setting &s
   }
 
   for (const auto& hamiltonian : globals::solver->hamiltonians()) {
-    hamiltonian->add_energy_current_interactions(
-        energy_current_operator_builders[0],
-        energy_current_operator_builders[1],
-        energy_current_operator_builders[2]);
+    switch (hamiltonian->energy_current_interaction_support()) {
+      case Hamiltonian::EnergyCurrentInteractionSupport::None:
+        continue;
+      case Hamiltonian::EnergyCurrentInteractionSupport::Supported:
+        hamiltonian->add_energy_current_interactions(
+            energy_current_operator_builders[0],
+            energy_current_operator_builders[1],
+            energy_current_operator_builders[2]);
+        break;
+      case Hamiltonian::EnergyCurrentInteractionSupport::Unsupported:
+        throw std::runtime_error(
+            "thermal-current monitor does not support energy-current interactions for Hamiltonian '"
+            + hamiltonian->name() + "' (module '" + hamiltonian->module_name() + "')");
+    }
   }
 
   energy_current_operator_rx_ = energy_current_operator_builders[0].build();

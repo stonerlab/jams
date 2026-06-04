@@ -18,6 +18,10 @@ public:
     jams::Vec<jams::Real, 3> calculate_field(int i, jams::Real time) override;
     jams::Real calculate_energy(int i, jams::Real time) override;
 
+    EnergyCurrentInteractionSupport energy_current_interaction_support() const override {
+      return EnergyCurrentInteractionSupport::None;
+    }
+
 protected:
     jams::Real calculate_energy_for_spin(int i, const jams::Vec<double, 3> &spin, jams::Real time) override;
 

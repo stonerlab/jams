@@ -24,6 +24,10 @@ public:
 
     jams::Real calculate_energy_difference(int i, const jams::Vec<double, 3> &spin_initial, const jams::Vec<double, 3> &spin_final, jams::Real time) override;
 
+    EnergyCurrentInteractionSupport energy_current_interaction_support() const override {
+      return EnergyCurrentInteractionSupport::None;
+    }
+
 private:
     jams::MultiArray<int, 1> mca_order_; // MCA expressed as a Legendre polynomial
     jams::MultiArray<jams::Real, 2> mca_value_; // first index in mca order and second is spin index

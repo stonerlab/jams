@@ -26,6 +26,10 @@ public:
     void calculate_fields(jams::Real time) override;
     void calculate_energies(jams::Real time) override;
 
+    EnergyCurrentInteractionSupport energy_current_interaction_support() const override {
+      return EnergyCurrentInteractionSupport::None;
+    }
+
 private:
     unsigned int dev_blocksize_ = 64;
 

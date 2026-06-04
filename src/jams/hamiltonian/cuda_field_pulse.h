@@ -49,6 +49,10 @@ public:
       throw jams::unimplemented_error("CudaFieldPulseHamiltonian::calculate_energy_difference is unimplemented");
     }
 
+    EnergyCurrentInteractionSupport energy_current_interaction_support() const override {
+      return EnergyCurrentInteractionSupport::None;
+    }
+
 private:
     jams::MultiArray<jams::Real, 2> positions_;
 

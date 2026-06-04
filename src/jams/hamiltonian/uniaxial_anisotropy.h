@@ -22,6 +22,10 @@ public:
 
     jams::Real calculate_energy_difference(int i, const jams::Vec<double, 3> &spin_initial, const jams::Vec<double, 3> &spin_final, jams::Real time) override;
 
+    EnergyCurrentInteractionSupport energy_current_interaction_support() const override {
+      return EnergyCurrentInteractionSupport::None;
+    }
+
 private:
     int power_; // anisotropy power exponent
     jams::MultiArray<jams::Real, 2> axis_; // local uniaxial anisotropy axis

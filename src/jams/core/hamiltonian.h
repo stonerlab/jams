@@ -21,6 +21,12 @@ namespace libconfig { class Setting; }
 
 class Hamiltonian : public Base {
 public:
+    enum class EnergyCurrentInteractionSupport {
+      None,
+      Supported,
+      Unsupported
+    };
+
     Hamiltonian(const libconfig::Setting &settings, unsigned int size);
 
     Hamiltonian() = default;
@@ -48,8 +54,12 @@ public:
     // calculate the energy difference of spin i in initial and final states
     virtual jams::Real calculate_energy_difference(int i, const jams::Vec<double, 3> &spin_initial, const jams::Vec<double, 3> &spin_final, jams::Real time);
 
+    // Declares whether this Hamiltonian contributes pair interaction operators
+    // needed by thermal-current calculations.
+    virtual EnergyCurrentInteractionSupport energy_current_interaction_support() const;
+
     // Add displacement-weighted pair interaction operators for thermal-current calculations.
-    // The default implementation is a no-op for Hamiltonians without pairwise linear interactions.
+    // Hamiltonians returning EnergyCurrentInteractionSupport::Supported must override this.
     virtual void add_energy_current_interactions(jams::SparseMatrix<double>::Builder& rx_builder,
                                                  jams::SparseMatrix<double>::Builder& ry_builder,
                                                  jams::SparseMatrix<double>::Builder& rz_builder) const;

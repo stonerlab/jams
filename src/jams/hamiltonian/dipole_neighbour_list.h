@@ -22,6 +22,10 @@ public:
                                          jams::SparseMatrix<double>::Builder& ry_builder,
                                          jams::SparseMatrix<double>::Builder& rz_builder) const override;
 
+    EnergyCurrentInteractionSupport energy_current_interaction_support() const override {
+      return EnergyCurrentInteractionSupport::Supported;
+    }
+
 private:
     std::vector<std::vector<std::pair<jams::Vec<jams::Real, 3>, int>>> neighbour_list_;
     jams::Real r_cutoff_; // cutoff radius for dipole interaction

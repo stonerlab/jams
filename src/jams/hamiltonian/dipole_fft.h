@@ -28,6 +28,10 @@ public:
                                          jams::SparseMatrix<double>::Builder& ry_builder,
                                          jams::SparseMatrix<double>::Builder& rz_builder) const override;
 
+    EnergyCurrentInteractionSupport energy_current_interaction_support() const override {
+      return EnergyCurrentInteractionSupport::Supported;
+    }
+
 private:
 
     jams::MultiArray<jams::Complex, 5> generate_kspace_dipole_tensor(int pos_i, const int pos_j, std::vector<jams::Vec<double, 3>>& generated_positions);

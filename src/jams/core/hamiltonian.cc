@@ -155,6 +155,10 @@ jams::Real Hamiltonian::calculate_energy_difference(int i, const jams::Vec<doubl
   return (e_final - e_initial);
 }
 
+Hamiltonian::EnergyCurrentInteractionSupport Hamiltonian::energy_current_interaction_support() const {
+  return EnergyCurrentInteractionSupport::Unsupported;
+}
+
 void Hamiltonian::add_energy_current_interactions(jams::SparseMatrix<double>::Builder&,
                                                   jams::SparseMatrix<double>::Builder&,
                                                   jams::SparseMatrix<double>::Builder&) const {

@@ -22,6 +22,10 @@ class CudaDipoleBruteforceHamiltonian : public Hamiltonian {
                                              jams::SparseMatrix<double>::Builder& ry_builder,
                                              jams::SparseMatrix<double>::Builder& rz_builder) const override;
 
+        EnergyCurrentInteractionSupport energy_current_interaction_support() const override {
+          return EnergyCurrentInteractionSupport::Supported;
+        }
+
     private:
         jams::Real r_cutoff_;
         jams::Real dipole_prefactor_;

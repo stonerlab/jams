@@ -22,6 +22,10 @@ public:
                                          jams::SparseMatrix<double>::Builder& ry_builder,
                                          jams::SparseMatrix<double>::Builder& rz_builder) const override;
 
+    EnergyCurrentInteractionSupport energy_current_interaction_support() const override {
+      return EnergyCurrentInteractionSupport::Supported;
+    }
+
 private:
     std::vector<jams::Vec<double, 3>>   frac_positions_;
     jams::Mat<jams::Real, 3, 3> supercell_matrix_;

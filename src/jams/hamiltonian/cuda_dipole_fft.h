@@ -29,6 +29,10 @@ class CudaDipoleFFTHamiltonian : public Hamiltonian {
         void add_energy_current_interactions(jams::SparseMatrix<double>::Builder& rx_builder,
                                              jams::SparseMatrix<double>::Builder& ry_builder,
                                              jams::SparseMatrix<double>::Builder& rz_builder) const override;
+
+        EnergyCurrentInteractionSupport energy_current_interaction_support() const override {
+          return EnergyCurrentInteractionSupport::Supported;
+        }
     private:
         bool debug_ = false;
         bool check_radius_   = true;
