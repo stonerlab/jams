@@ -47,6 +47,23 @@ return new type(settings); \
 }
 
 
+void Solver::initialize_gyro_eff(
+    const libconfig::Setting& settings,
+    jams::MultiArray<jams::Real, 1>& gyro_eff) const {
+  const bool use_gilbert_prefactor =
+      jams::config_optional<bool>(settings, "gilbert_prefactor", false);
+  std::cout << "    llg gilbert_prefactor " << use_gilbert_prefactor << "\n";
+
+  gyro_eff.resize(globals::num_spins);
+  for (auto i = 0; i < globals::num_spins; ++i) {
+    const auto alpha = globals::alpha(i);
+    gyro_eff(i) = use_gilbert_prefactor
+        ? globals::gyro(i) / (1.0 + alpha * alpha)
+        : globals::gyro(i);
+  }
+}
+
+
 void Solver::compute_fields() {
   if (hamiltonians_.empty()) return;
 

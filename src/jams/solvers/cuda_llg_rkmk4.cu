@@ -277,6 +277,8 @@ void CUDALLGRKMK4Solver::initialize(const libconfig::Setting& settings)
   std::cout << "  thermostat " << thermostat_name.c_str() << "\n";
   std::cout << "done\n";
 
+  initialize_gyro_eff(settings, gyro_eff_);
+
   s_init_.resize(globals::num_spins, 3);
   k1_.resize(globals::num_spins, 3);
   k2_.resize(globals::num_spins, 3);
@@ -298,7 +300,7 @@ void CUDALLGRKMK4Solver::run()
   cuda_llg_noise_step_rodrigues_kernel<<<grid_size, block_size, 0, jams::instance().cuda_master_stream().get()>>>(
     globals::s.mutable_device_data(),
     thermostat_->device_data(),
-    globals::gyro.device_data(),
+    gyro_eff_.device_data(),
     globals::alpha.device_data(),
     globals::num_spins, half_dt);
   DEBUG_CHECK_CUDA_ASYNC_STATUS
@@ -318,7 +320,7 @@ void CUDALLGRKMK4Solver::run()
     k1_.mutable_device_data(),
     globals::s.mutable_device_data(),
     globals::h.device_data(),
-    globals::gyro.device_data(),
+    gyro_eff_.device_data(),
     globals::mus.device_data(),
     globals::alpha.device_data(),
     globals::num_spins, step_size_);
@@ -336,7 +338,7 @@ void CUDALLGRKMK4Solver::run()
     k2_.mutable_device_data(),
     globals::s.mutable_device_data(),
     globals::h.device_data(),
-    globals::gyro.device_data(),
+    gyro_eff_.device_data(),
     globals::mus.device_data(),
     globals::alpha.device_data(),
     globals::num_spins, step_size_);
@@ -353,7 +355,7 @@ void CUDALLGRKMK4Solver::run()
     k3_.mutable_device_data(),
     globals::s.mutable_device_data(),
     globals::h.device_data(),
-    globals::gyro.device_data(),
+    gyro_eff_.device_data(),
     globals::mus.device_data(),
     globals::alpha.device_data(),
     globals::num_spins, step_size_);
@@ -372,7 +374,7 @@ void CUDALLGRKMK4Solver::run()
     k3_.device_data(),
     globals::s.mutable_device_data(),
     globals::h.device_data(),
-    globals::gyro.device_data(),
+    gyro_eff_.device_data(),
     globals::mus.device_data(),
     globals::alpha.device_data(),
     globals::num_spins, step_size_);
@@ -387,7 +389,7 @@ void CUDALLGRKMK4Solver::run()
   cuda_llg_noise_step_rodrigues_kernel<<<grid_size, block_size, 0,  jams::instance().cuda_master_stream().get()>>>(
     globals::s.mutable_device_data(),
     thermostat_->device_data(),
-    globals::gyro.device_data(),
+    gyro_eff_.device_data(),
     globals::alpha.device_data(),
     globals::num_spins, half_dt);
   DEBUG_CHECK_CUDA_ASYNC_STATUS

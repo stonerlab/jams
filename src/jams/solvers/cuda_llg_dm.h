@@ -20,6 +20,7 @@ public:
 
 private:
     CudaStream dev_stream_;
+    jams::MultiArray<jams::Real, 1> gyro_eff_;
     jams::MultiArray<double, 2> s_init_;
     jams::MultiArray<double, 2> s_pred_;
     jams::MultiArray<double, 2> omega1_;   // store ω_n for averaging

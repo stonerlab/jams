@@ -57,18 +57,10 @@ CudaThermostatQuantumSpde::CudaThermostatQuantumSpde(const jams::Real &temperatu
   std::cout << "    warmup " << std::boolalpha << do_warmup << "\n";
   std::cout << "    zero_point " << do_zero_point << "\n";
 
-  bool use_gilbert_prefactor = jams::config_optional<bool>(
-      globals::config->lookup("solver"), "gilbert_prefactor", false);
-  std::cout << "    llg gilbert_prefactor " << use_gilbert_prefactor << "\n";
-
   for (int i = 0; i < num_spins; ++i) {
     for (int j = 0; j < 3; ++j) {
-      double denominator = 1.0;
-      if (use_gilbert_prefactor) {
-        denominator = 1.0 + pow2(globals::alpha(i));
-      }
       sigma_(i,j) = static_cast<jams::Real>((kBoltzmannIU) * sqrt((2.0 * globals::alpha(i))
-                                          / (kHBarIU * globals::gyro(i) * globals::mus(i) * denominator)));
+                                          / (kHBarIU * globals::gyro(i) * globals::mus(i))));
     }
   }
 

@@ -136,16 +136,6 @@ namespace {
     }
 }
 
-namespace jams {
-    double landau_lifshitz_gyro_prefactor(const double& gyro, const double& alpha, const double& mus) {
-      return gyro;
-    }
-
-    double gilbert_gyro_prefactor(const double& gyro, const double& alpha, const double& mus) {
-      return gyro /(1.0 + pow2(alpha));
-    }
-}
-
 Lattice::~Lattice() {
   if (spglib_dataset_ != nullptr) {
     spg_free_dataset(spglib_dataset_);
@@ -809,9 +799,6 @@ void Lattice::generate_supercell(const libconfig::Setting &lattice_settings)
   globals::mus.resize(globals::num_spins);
   globals::gyro.resize(globals::num_spins);
 
-  bool use_gilbert_prefactor = jams::config_optional<bool>(
-      globals::config->lookup("solver"), "gilbert_prefactor", false);
-
   bool normalise_spins = jams::config_optional<bool>(
       lattice_settings, "normalise_spins", true);
 
@@ -821,12 +808,7 @@ void Lattice::generate_supercell(const libconfig::Setting &lattice_settings)
 
     globals::mus(i)   = material.moment;
     globals::alpha(i) = material.alpha;
-
-    if (use_gilbert_prefactor) {
-      globals::gyro(i)  = jams::gilbert_gyro_prefactor(material.gyro, material.alpha, material.moment);
-    } else {
-      globals::gyro(i) = jams::landau_lifshitz_gyro_prefactor(material.gyro, material.alpha, material.moment);
-    }
+    globals::gyro(i)  = material.gyro;
 
     jams::Vec<double, 3> spin = material.spin;
 

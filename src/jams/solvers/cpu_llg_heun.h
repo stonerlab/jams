@@ -29,6 +29,7 @@ public:
 
  private:
     jams::MultiArray<double, 2> s_old_;
+    jams::MultiArray<jams::Real, 1> gyro_eff_;
     jams::MultiArray<double, 1> sigma_;
     jams::MultiArray<double, 2> w_;
 

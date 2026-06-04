@@ -28,16 +28,11 @@ void HeunLLGSolver::initialize(const libconfig::Setting& settings) {
   sigma_.resize(globals::num_spins);
   w_.resize(globals::num_spins, 3);
 
-  bool use_gilbert_prefactor = jams::config_optional<bool>(settings, "gilbert_prefactor", false);
-  std::cout << "    llg gilbert_prefactor " << use_gilbert_prefactor << "\n";
+  initialize_gyro_eff(settings, gyro_eff_);
 
   for(int i = 0; i < globals::num_spins; ++i) {
-    double denominator = 1.0;
-    if (use_gilbert_prefactor) {
-      denominator = 1.0 + pow2(globals::alpha(i));
-    }
     sigma_(i) = sqrt((2.0 * kBoltzmannIU * globals::alpha(i)) /
-                     (globals::mus(i) * globals::gyro(i) * this->time_step() * denominator));
+                     (globals::mus(i) * globals::gyro(i) * this->time_step()));
   }
 }
 
@@ -81,7 +76,7 @@ void HeunLLGSolver::run() {
     jams::Vec<double, 3> spin = {globals::s(i,0), globals::s(i,1), globals::s(i,2)};
     jams::Vec<double, 3> field = {globals::h(i,0), globals::h(i,1), globals::h(i,2)};
 
-    jams::Vec<double, 3> rhs = -globals::gyro(i) * (jams::cross(spin, field) + globals::alpha(i) * jams::cross(spin, (jams::cross(spin, field))));
+    jams::Vec<double, 3> rhs = -gyro_eff_(i) * (jams::cross(spin, field) + globals::alpha(i) * jams::cross(spin, (jams::cross(spin, field))));
 
     for (auto j = 0; j < 3; ++j) {
       globals::ds_dt(i, j) = 0.5 * rhs[j];
@@ -119,7 +114,7 @@ void HeunLLGSolver::run() {
     jams::Vec<double, 3> spin_old = {s_old_(i,0), s_old_(i,1), s_old_(i,2)};
 
     jams::Vec<double, 3> field = {globals::h(i,0), globals::h(i,1), globals::h(i,2)};
-    jams::Vec<double, 3> rhs = -globals::gyro(i) * (jams::cross(spin, field) + globals::alpha(i) * jams::cross(spin, (jams::cross(spin, field))));
+    jams::Vec<double, 3> rhs = -gyro_eff_(i) * (jams::cross(spin, field) + globals::alpha(i) * jams::cross(spin, (jams::cross(spin, field))));
 
     for (auto j = 0; j < 3; ++j) {
       globals::ds_dt(i, j) = globals::ds_dt(i, j) + 0.5 * rhs[j];

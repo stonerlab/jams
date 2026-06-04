@@ -71,6 +71,8 @@ void CUDALLLorentzianRK4Solver::initialize(const libconfig::Setting& settings)
 
   std::cout << "done\n";
 
+  initialize_gyro_eff(settings, gyro_eff_);
+
   s_old_.resize(globals::num_spins, 3);
   for (auto i = 0; i < globals::num_spins; ++i) {
     for (auto j = 0; j < 3; ++j) {
@@ -141,7 +143,7 @@ void CUDALLLorentzianRK4Solver::run()
       w_memory_process_.device_data(),
       v_memory_process_.device_data(),
       globals::h.device_data(), thermostat_->device_data(),
-      globals::gyro.device_data(), globals::mus.device_data(),
+      gyro_eff_.device_data(), globals::mus.device_data(),
       lorentzian_omega_, lorentzian_gamma_, lorentzian_A_,
       globals::num_spins);
   DEBUG_CHECK_CUDA_ASYNC_STATUS
@@ -164,7 +166,7 @@ void CUDALLLorentzianRK4Solver::run()
       w_memory_process_.device_data(),
       v_memory_process_.device_data(),
       globals::h.device_data(), thermostat_->device_data(),
-      globals::gyro.device_data(), globals::mus.device_data(),
+      gyro_eff_.device_data(), globals::mus.device_data(),
       lorentzian_omega_, lorentzian_gamma_, lorentzian_A_,
       globals::num_spins);
   DEBUG_CHECK_CUDA_ASYNC_STATUS
@@ -187,7 +189,7 @@ void CUDALLLorentzianRK4Solver::run()
       w_memory_process_.device_data(),
       v_memory_process_.device_data(),
       globals::h.device_data(), thermostat_->device_data(),
-      globals::gyro.device_data(), globals::mus.device_data(),
+      gyro_eff_.device_data(), globals::mus.device_data(),
       lorentzian_omega_, lorentzian_gamma_, lorentzian_A_,
       globals::num_spins);
   DEBUG_CHECK_CUDA_ASYNC_STATUS
@@ -210,7 +212,7 @@ void CUDALLLorentzianRK4Solver::run()
       w_memory_process_.device_data(),
       v_memory_process_.device_data(),
       globals::h.device_data(), thermostat_->device_data(),
-      globals::gyro.device_data(), globals::mus.device_data(),
+      gyro_eff_.device_data(), globals::mus.device_data(),
       lorentzian_omega_, lorentzian_gamma_, lorentzian_A_,
       globals::num_spins);
   DEBUG_CHECK_CUDA_ASYNC_STATUS

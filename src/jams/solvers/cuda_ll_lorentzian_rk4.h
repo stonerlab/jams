@@ -25,6 +25,7 @@ class CUDALLLorentzianRK4Solver : public CudaSolver {
 
   private:
     CudaStream dev_stream_;
+    jams::MultiArray<jams::Real, 1> gyro_eff_;
 
     double lorentzian_omega_;
     double lorentzian_gamma_;
@@ -56,4 +57,3 @@ class CUDALLLorentzianRK4Solver : public CudaSolver {
 #endif
 
 #endif // JAMS_SOLVER_CUDA_LL_LORENTZIAN_RK4_H
-

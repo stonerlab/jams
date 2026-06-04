@@ -8,6 +8,7 @@
 #include <libconfig.h++>
 
 #include "jams/helpers/output.h"
+#include "jams/containers/multiarray.h"
 #include "jams/core/thermostat.h"
 #include "jams/core/physics.h"
 #include "jams/core/monitor.h"
@@ -78,6 +79,8 @@ class Solver {
 
   static Solver* create(const libconfig::Setting &setting);
  protected:
+    void initialize_gyro_eff(const libconfig::Setting& settings, jams::MultiArray<jams::Real, 1>& gyro_eff) const;
+
     int iteration_ = 0;
     int max_steps_ = 0;
     int min_steps_ = 0;

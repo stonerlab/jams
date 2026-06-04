@@ -25,10 +25,10 @@ class CUDAHeunLLGSolver : public CudaSolver {
 
   private:
     CudaStream dev_stream_;
+    jams::MultiArray<jams::Real, 1> gyro_eff_;
     jams::MultiArray<double, 2> s_old_;
 };
 
 #endif
 
 #endif // JAMS_SOLVER_CUDA_HEUNLLG_H
-

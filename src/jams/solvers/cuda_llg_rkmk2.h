@@ -23,6 +23,7 @@ public:
     std::string name() const override { return "llg-rkmk2-gpu"; }
 private:
     CudaStream dev_stream_;
+    jams::MultiArray<jams::Real, 1> gyro_eff_;
     jams::MultiArray<double, 2> s_init_;
     jams::MultiArray<double, 2> phi_;
 

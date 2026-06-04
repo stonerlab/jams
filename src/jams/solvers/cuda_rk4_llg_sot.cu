@@ -106,7 +106,7 @@ void CudaRK4LLGSOTSolver::function_kernel(jams::MultiArray<double, 2> &spins,
       (spins.device_data(), k.mutable_device_data(),
        globals::h.device_data(), spin_polarisation_.device_data(),
        sot_coefficient_.device_data(), thermostat_->device_data(),
-       globals::gyro.device_data(), globals::mus.device_data(),
+       gyro_eff_.device_data(), globals::mus.device_data(),
        globals::alpha.device_data(), globals::num_spins);
   DEBUG_CHECK_CUDA_ASYNC_STATUS
 }

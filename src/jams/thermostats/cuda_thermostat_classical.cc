@@ -23,19 +23,10 @@ CudaThermostatClassical::CudaThermostatClassical(const jams::Real &temperature, 
 : Thermostat(temperature, sigma, timestep, num_spins) {
   std::cout << "\n  initialising classical-gpu thermostat\n";
 
-  bool use_gilbert_prefactor = jams::config_optional<bool>(
-      globals::config->lookup("solver"), "gilbert_prefactor", false);
-  std::cout << "    llg gilbert_prefactor " << use_gilbert_prefactor << "\n";
-
-
   for(int i = 0; i < num_spins; ++i) {
     for (int j = 0; j < 3; ++j) {
-      double denominator = 1.0;
-      if (use_gilbert_prefactor) {
-        denominator = 1.0 + pow2(globals::alpha(i));
-      }
       sigma_(i, j) = static_cast<jams::Real>(sqrt((2.0 * kBoltzmannIU * globals::alpha(i)) /
-                          (globals::mus(i) * globals::gyro(i) * timestep * denominator)));
+                          (globals::mus(i) * globals::gyro(i) * timestep)));
     }
   }
   std::cout << "  done\n\n";

@@ -31,6 +31,7 @@ protected:
     virtual void post_step(jams::MultiArray<double, 2>& spins) {};
 
     CudaStream dev_stream_;
+    jams::MultiArray<jams::Real, 1> gyro_eff_;
 
 private:
     jams::MultiArray<double, 2> s_old_;

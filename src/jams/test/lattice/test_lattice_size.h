@@ -11,6 +11,7 @@
 
 #include "jams/core/globals.h"
 #include "jams/core/lattice.h"
+#include "jams/helpers/consts.h"
 #include "jams/helpers/exception.h"
 #include "jams/interface/fft.h"
 
@@ -129,6 +130,47 @@ TEST_F(LatticeSizeTest, IntegerSizeBuildsDenseCellMotifMap) {
   EXPECT_EQ(globals::lattice->get_supercell().a1(), (jams::Vec<double, 3>{2.0, 0.0, 0.0}));
   EXPECT_EQ(globals::lattice->get_supercell().a2(), (jams::Vec<double, 3>{0.0, 1.0, 0.0}));
   EXPECT_EQ(globals::lattice->get_supercell().a3(), (jams::Vec<double, 3>{0.0, 0.0, 3.0}));
+}
+
+TEST_F(LatticeSizeTest, MaterialGyroIsBareGammaWhenUsingGilbertPrefactor) {
+  globals::config->readString(R"(
+      solver : {
+        module = "llg-heun-cpu";
+        t_step = 1.0e-16;
+        t_min  = 1.0e-16;
+        t_max  = 1.0e-16;
+        gilbert_prefactor = true;
+      };
+
+      materials = (
+        { name = "A"; moment = 1.0; gyro = 1.25; alpha = 0.5; spin = [1.0, 0.0, 0.0]; },
+        { name = "B"; moment = 2.0; gyro = 1.75; alpha = 0.25; spin = [0.0, 1.0, 0.0]; }
+      );
+
+      unitcell : {
+        symops = false;
+        parameter = 1.0e-9;
+        basis = (
+          [1.0, 0.0, 0.0],
+          [0.0, 1.0, 0.0],
+          [0.0, 0.0, 1.0]);
+        positions = (
+          ("A", [0.0, 0.0, 0.0]),
+          ("B", [0.5, 0.0, 0.0])
+        );
+      };
+
+      lattice : {
+        size = [1, 1, 1];
+        periodic = [true, true, true];
+      };
+  )");
+
+  globals::lattice->init_from_config(*globals::config);
+
+  ASSERT_EQ(globals::num_spins, 2);
+  EXPECT_EQ(globals::gyro(0), static_cast<jams::Real>(1.25 * kGyromagneticRatioIU));
+  EXPECT_EQ(globals::gyro(1), static_cast<jams::Real>(1.75 * kGyromagneticRatioIU));
 }
 
 TEST_F(LatticeSizeTest, IntegerSizeSpinArrayIsDenseSpatialFftInput) {

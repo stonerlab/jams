@@ -33,6 +33,8 @@ void CudaRK4BaseSolver::initialize(const libconfig::Setting &settings) {
 
   std::cout << "done\n";
 
+  initialize_gyro_eff(settings, gyro_eff_);
+
   s_old_.resize(globals::num_spins, 3);
   for (auto i = 0; i < globals::num_spins; ++i) {
     for (auto j = 0; j < 3; ++j) {

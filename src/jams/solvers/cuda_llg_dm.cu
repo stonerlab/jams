@@ -173,6 +173,8 @@ void CUDALLGDMSolver::initialize(const libconfig::Setting& settings)
   register_thermostat(Thermostat::create(thermostat_name, 0.5 * this->time_step()));
   std::cout << "  thermostat " << thermostat_name.c_str() << "\n";
 
+  initialize_gyro_eff(settings, gyro_eff_);
+
   s_init_.resize(globals::num_spins, 3);
   s_pred_.resize(globals::num_spins, 3);
   omega1_.resize(globals::num_spins, 3);
@@ -202,7 +204,7 @@ void CUDALLGDMSolver::run()
   cuda_llg_noise_step_rodrigues_kernel<<<grid_size, block_size, 0, jams::instance().cuda_master_stream().get()>>>(
     globals::s.mutable_device_data(),
     thermostat_->device_data(),
-    globals::gyro.device_data(),
+    gyro_eff_.device_data(),
     globals::alpha.device_data(),
     globals::num_spins, half_dt);
   DEBUG_CHECK_CUDA_ASYNC_STATUS
@@ -227,7 +229,7 @@ void CUDALLGDMSolver::run()
     omega1_.mutable_device_data(),
     s_pred_.mutable_device_data(),
     globals::h.device_data(),
-    globals::gyro.device_data(),
+    gyro_eff_.device_data(),
     globals::mus.device_data(),
     globals::alpha.device_data(),
     globals::num_spins, step_size_);
@@ -254,7 +256,7 @@ void CUDALLGDMSolver::run()
     omega1_.device_data(),
     globals::s.mutable_device_data(),
     globals::h.device_data(),
-    globals::gyro.device_data(),
+    gyro_eff_.device_data(),
     globals::mus.device_data(),
     globals::alpha.device_data(),
     globals::num_spins, step_size_);
@@ -269,7 +271,7 @@ void CUDALLGDMSolver::run()
   cuda_llg_noise_step_rodrigues_kernel<<<grid_size, block_size, 0, jams::instance().cuda_master_stream().get()>>>(
     globals::s.mutable_device_data(),
     thermostat_->device_data(),
-    globals::gyro.device_data(),
+    gyro_eff_.device_data(),
     globals::alpha.device_data(),
     globals::num_spins, half_dt);
   DEBUG_CHECK_CUDA_ASYNC_STATUS

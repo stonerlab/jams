@@ -121,10 +121,12 @@ void CUDALLGSemiImplictSolver::initialize(const libconfig::Setting& settings)
 
   std::cout << "done\n";
 
+  initialize_gyro_eff(settings, gyro_eff_);
+
   dt_gyro_mu_.resize(globals::num_spins);
   for (auto i = 0; i < globals::num_spins; ++i)
   {
-    dt_gyro_mu_(i) = step_size_ * globals::gyro(i) / globals::mus(i);
+    dt_gyro_mu_(i) = step_size_ * gyro_eff_(i) / globals::mus(i);
   }
 
   s_init_.resize(globals::num_spins, 3);
@@ -151,7 +153,7 @@ void CUDALLGSemiImplictSolver::run()
   cuda_llg_noise_step_cayley_kernel<<<grid_size, block_size, 0,  jams::instance().cuda_master_stream().get()>>>(
   globals::s.mutable_device_data(),
   thermostat_->device_data(),
-  globals::gyro.device_data(),
+  gyro_eff_.device_data(),
   globals::alpha.device_data(),
   globals::num_spins, half_dt);
   DEBUG_CHECK_CUDA_ASYNC_STATUS
@@ -197,7 +199,7 @@ void CUDALLGSemiImplictSolver::run()
   cuda_llg_noise_step_cayley_kernel<<<grid_size, block_size, 0,  jams::instance().cuda_master_stream().get()>>>(
   globals::s.mutable_device_data(),
   thermostat_->device_data(),
-  globals::gyro.device_data(),
+  gyro_eff_.device_data(),
   globals::alpha.device_data(),
   globals::num_spins, half_dt);
   DEBUG_CHECK_CUDA_ASYNC_STATUS
