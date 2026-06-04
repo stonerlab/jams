@@ -22,7 +22,9 @@
 
 CudaThermalCurrentMonitor::CudaThermalCurrentMonitor(const libconfig::Setting &settings)
         : Monitor(settings) {
-  assert(jams::instance().mode() == jams::Mode::GPU);
+  if (jams::instance().mode() != jams::Mode::GPU) {
+    throw std::runtime_error("thermal-current monitor requires GPU mode");
+  }
 
   std::array<jams::SparseMatrix<double>::Builder, 3> energy_current_operator_builders = {
       jams::SparseMatrix<double>::Builder(globals::num_spins3, globals::num_spins3),
