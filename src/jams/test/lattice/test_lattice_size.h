@@ -3,9 +3,11 @@
 
 #include "gtest/gtest.h"
 
+#include <algorithm>
 #include <cmath>
 #include <memory>
 #include <string>
+#include <vector>
 
 #include <libconfig.h++>
 
@@ -47,6 +49,54 @@ protected:
   void initialise_lattice_with_large_unitcell(const std::string& lattice_config) {
     globals::config->readString(base_large_unitcell_config() + lattice_config);
     globals::lattice->init_from_config(*globals::config);
+  }
+
+  void initialise_lattice_with_large_symmetry_unitcell(const std::string& lattice_config) {
+    globals::config->readString(base_large_symmetry_unitcell_config() + lattice_config);
+    globals::lattice->init_from_config(*globals::config);
+  }
+
+  static bool cartesian_point_set_contains_fractional(
+      const std::vector<jams::Vec<double, 3>>& points_cart,
+      const jams::Vec<double, 3>& expected_frac,
+      const double tolerance) {
+    for (const auto& point_cart : points_cart) {
+      const auto point_frac = globals::lattice->cartesian_to_fractional(point_cart);
+
+      bool match = true;
+      for (auto n = 0; n < 3; ++n) {
+        if (std::abs(point_frac[n] - expected_frac[n]) > tolerance) {
+          match = false;
+          break;
+        }
+      }
+
+      if (match) {
+        return true;
+      }
+    }
+
+    return false;
+  }
+
+  static bool erase_cartesian_point_with_fractional_position(
+      std::vector<jams::Vec<double, 3>>& points_cart,
+      const jams::Vec<double, 3>& expected_frac,
+      const double tolerance) {
+    const auto original_size = points_cart.size();
+    points_cart.erase(
+        std::remove_if(points_cart.begin(), points_cart.end(), [&](const auto& point_cart) {
+          const auto point_frac = globals::lattice->cartesian_to_fractional(point_cart);
+          for (auto n = 0; n < 3; ++n) {
+            if (std::abs(point_frac[n] - expected_frac[n]) > tolerance) {
+              return false;
+            }
+          }
+          return true;
+        }),
+        points_cart.end());
+
+    return points_cart.size() != original_size;
   }
 
   static std::string base_config() {
@@ -165,6 +215,34 @@ protected:
       };
     )";
   }
+
+  static std::string base_large_symmetry_unitcell_config() {
+    return R"(
+      solver : {
+        module = "llg-heun-cpu";
+        t_step = 1.0e-16;
+        t_min  = 1.0e-16;
+        t_max  = 1.0e-16;
+      };
+
+      materials = (
+        { name = "A"; moment = 1.0; spin = [1.0, 0.0, 0.0]; }
+      );
+
+      unitcell : {
+        symops = true;
+        check_closeness = false;
+        parameter = 1.0e-9;
+        basis = (
+          [1000000.0, 0.0, 0.0],
+          [0.0, 1000000.0, 0.0],
+          [0.0, 0.0, 1000000.0]);
+        positions = (
+          ("A", [0.0, 0.0, 0.0])
+        );
+      };
+    )";
+  }
 };
 
 TEST_F(LatticeSizeTest, IntegerSizeBuildsDenseCellMotifMap) {
@@ -272,6 +350,47 @@ TEST_F(LatticeSizeTest, LargeUnitCellVectorsKeepHighMotifInsideExtent) {
   EXPECT_TRUE(globals::lattice->has_site_at_unit_cell(0, 0, 0, 0));
   EXPECT_TRUE(globals::lattice->has_site_at_unit_cell(0, 0, 0, 1));
   EXPECT_EQ(globals::lattice->get_supercell().a3(), (jams::Vec<double, 3>{0.0, 0.0, 1000000.0}));
+}
+
+TEST_F(LatticeSizeTest, SymmetricPointDeduplicationUsesAbsoluteFractionalTolerance) {
+  initialise_lattice_with_large_symmetry_unitcell(R"(
+    lattice : {
+      size = [1, 1, 1];
+      periodic = [true, true, true];
+      normalise_spins = false;
+    };
+  )");
+
+  const jams::Vec<double, 3> point_frac{10000.0, 10001.0, 0.0};
+  const jams::Vec<double, 3> swapped_frac{10001.0, 10000.0, 0.0};
+
+  const auto symmetric_points = globals::lattice->generate_symmetric_points(
+      0,
+      globals::lattice->fractional_to_cartesian(point_frac),
+      1.0e-4);
+
+  EXPECT_TRUE(cartesian_point_set_contains_fractional(symmetric_points, swapped_frac, 1.0e-4));
+}
+
+TEST_F(LatticeSizeTest, SymmetryCompleteSetUsesAbsoluteFractionalTolerance) {
+  initialise_lattice_with_large_symmetry_unitcell(R"(
+    lattice : {
+      size = [1, 1, 1];
+      periodic = [true, true, true];
+      normalise_spins = false;
+    };
+  )");
+
+  const jams::Vec<double, 3> point_frac{10000.0, 10001.0, 0.0};
+  const jams::Vec<double, 3> swapped_frac{10001.0, 10000.0, 0.0};
+
+  auto incomplete_points = globals::lattice->generate_symmetric_points(
+      0,
+      globals::lattice->fractional_to_cartesian(point_frac),
+      1.0e-4);
+
+  ASSERT_TRUE(erase_cartesian_point_with_fractional_position(incomplete_points, swapped_frac, 1.0e-4));
+  EXPECT_FALSE(globals::lattice->is_a_symmetry_complete_set(0, incomplete_points, 1.0e-4));
 }
 
 TEST_F(LatticeSizeTest, PeriodicBoundaryConditionsWrapMultipleCells) {

@@ -92,6 +92,27 @@ namespace {
       return std::abs(value - std::round(value)) <= eps;
     }
 
+    bool absolute_vector_equal(
+        const jams::Vec<double, 3>& lhs,
+        const jams::Vec<double, 3>& rhs,
+        const double eps = jams::defaults::lattice_tolerance) {
+      for (auto n = 0; n < 3; ++n) {
+        if (std::abs(lhs[n] - rhs[n]) > eps) {
+          return false;
+        }
+      }
+      return true;
+    }
+
+    bool absolute_vector_exists_in_container(
+        const std::vector<jams::Vec<double, 3>>& container,
+        const jams::Vec<double, 3>& value,
+        const double eps = jams::defaults::lattice_tolerance) {
+      return std::any_of(container.begin(), container.end(), [&](const auto& existing) {
+        return absolute_vector_equal(existing, value, eps);
+      });
+    }
+
     int positive_modulo(const int value, const int modulus) {
       const int remainder = value % modulus;
       return remainder < 0 ? remainder + modulus : remainder;
@@ -1142,18 +1163,21 @@ std::vector<jams::Vec<double, 3>> Lattice::generate_symmetric_points(int basis_s
 
   const auto r_frac = cartesian_to_fractional(r_cart);
   std::vector<jams::Vec<double, 3>> symmetric_points;
+  std::vector<jams::Vec<double, 3>> symmetric_points_frac;
 
   // store the original point
   symmetric_points.push_back(r_cart);
+  symmetric_points_frac.push_back(r_frac);
   // loop through all of the symmmetry operations
   for (const auto rotation_matrix : lattice_site_point_group_symops(basis_site_index)) {
     // apply a symmetry operation
-    const auto r_sym = fractional_to_cartesian(rotation_matrix * r_frac);
+    const auto r_sym_frac = rotation_matrix * r_frac;
 
     // check if the generated point is already in the vector
-    if (!vec_exists_in_container(symmetric_points, r_sym, tolerance)) {
+    if (!absolute_vector_exists_in_container(symmetric_points_frac, r_sym_frac, tolerance)) {
       // it's not in the vector so append it
-      symmetric_points.push_back(r_sym);
+      symmetric_points_frac.push_back(r_sym_frac);
+      symmetric_points.push_back(fractional_to_cartesian(r_sym_frac));
     }
   }
 
@@ -1161,13 +1185,19 @@ std::vector<jams::Vec<double, 3>> Lattice::generate_symmetric_points(int basis_s
 }
 
 bool Lattice::is_a_symmetry_complete_set(const int motif_index, const std::vector<jams::Vec<double, 3>> &points, const double &tolerance = jams::defaults::lattice_tolerance) {
+  std::vector<jams::Vec<double, 3>> points_frac;
+  points_frac.reserve(points.size());
+  for (const auto& point : points) {
+    points_frac.push_back(cartesian_to_fractional(point));
+  }
+
   // loop over the collection of points
   for (const auto r : points) {
     // for each point generate the symmetric points according to the the crystal symmetry
     for (const auto r_sym : generate_symmetric_points(motif_index, r, tolerance)) {
       // if a symmetry generated point is not in our original collection of points then our original collection was not a complete set
       // and we return false
-      if (!vec_exists_in_container(points, r_sym, tolerance)) {
+      if (!absolute_vector_exists_in_container(points_frac, cartesian_to_fractional(r_sym), tolerance)) {
         return false;
       }
     }
