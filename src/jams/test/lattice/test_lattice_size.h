@@ -432,6 +432,49 @@ TEST_F(LatticeSizeTest, SymmetryCompleteSetUsesAbsoluteFractionalTolerance) {
   EXPECT_FALSE(globals::lattice->is_a_symmetry_complete_set(0, incomplete_points, 1.0e-4));
 }
 
+TEST_F(LatticeSizeTest, PointGroupIncludesTranslatedSymmetryOperations) {
+  globals::config->readString(R"(
+    solver : {
+      module = "llg-heun-cpu";
+      t_step = 1.0e-16;
+      t_min  = 1.0e-16;
+      t_max  = 1.0e-16;
+    };
+
+    materials = (
+      { name = "A"; moment = 1.0; spin = [1.0, 0.0, 0.0]; }
+    );
+
+    unitcell : {
+      symops = true;
+      parameter = 1.0e-9;
+      basis = (
+        [1.0, 0.0, 0.0],
+        [0.0, 1.0, 0.0],
+        [0.0, 0.0, 1.0]);
+      positions = (
+        ("A", [0.25, 0.0, 0.0])
+      );
+    };
+
+    lattice : {
+      size = [1, 1, 1];
+      periodic = [true, true, true];
+      normalise_spins = false;
+    };
+  )");
+
+  globals::lattice->init_from_config(*globals::config);
+
+  const jams::Mat<double, 3, 3> inversion{
+      -1.0, 0.0, 0.0,
+       0.0,-1.0, 0.0,
+       0.0, 0.0,-1.0};
+
+  const auto& symops = globals::lattice->lattice_site_point_group_symops(0);
+  EXPECT_NE(std::find(symops.begin(), symops.end(), inversion), symops.end());
+}
+
 TEST_F(LatticeSizeTest, PeriodicBoundaryConditionsWrapMultipleCells) {
   initialise_lattice(R"(
     lattice : {

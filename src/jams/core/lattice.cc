@@ -1242,17 +1242,22 @@ const std::vector<jams::Mat<double, 3, 3>> &Lattice::lattice_site_point_group_sy
         for (auto m = 0; m < num_basis_sites(); ++m) {
             auto motif_position = basis_site_atom(m).position_frac;
             for (auto n = 0; n < sym_translations_.size(); ++n) {
-                // The point groups are found only from space group operations which do not include translation
-                // so we must skip any elements with a translation.
-                if (!jams::approximately_zero(sym_translations_[n], jams::defaults::lattice_tolerance)) {
-                  continue;
-                }
-
                 auto rotation = sym_rotations_[n];
 
-                auto new_position = jams::lattice::normalise_fractional_coordinate(rotation * motif_position);
-                // TODO: need to translate back into unit cell
-                if  (jams::approximately_equal(motif_position, new_position, jams::defaults::lattice_tolerance)) {
+                // A site-symmetry operation may carry a fractional
+                // translation: for example inversion about a site away from
+                // the origin is represented as R r + t. The rotation belongs
+                // to the local point group when the full operation maps the
+                // motif position onto itself modulo a lattice vector.
+                const auto new_position = rotation * motif_position + sym_translations_[n];
+                if (jams::lattice::fractional_positions_equivalent(
+                        motif_position,
+                        new_position,
+                        jams::defaults::lattice_tolerance)
+                    && std::find(
+                        basis_site_point_group_symops_[m].begin(),
+                        basis_site_point_group_symops_[m].end(),
+                        rotation) == basis_site_point_group_symops_[m].end()) {
                     basis_site_point_group_symops_[m].push_back(rotation);
                 }
             }
