@@ -71,10 +71,97 @@ namespace {
         throw jams::ConfigException(setting, "lattice size values must be finite and greater than zero");
       }
 
-      if (is_integer_extent(extent)) {
-        return static_cast<int>(std::round(extent));
+      const auto max_int_dimension = static_cast<double>(std::numeric_limits<int>::max());
+      const double grid_extent = is_integer_extent(extent) ? std::round(extent) : std::ceil(extent);
+      if (grid_extent > max_int_dimension) {
+        throw jams::ConfigException(setting, "lattice grid dimension exceeds int range");
       }
-      return static_cast<int>(std::ceil(extent));
+
+      return static_cast<int>(grid_extent);
+    }
+
+    std::size_t checked_size_product(
+        const std::size_t lhs,
+        const std::size_t rhs,
+        const libconfig::Setting& setting,
+        const char* quantity) {
+      if (lhs != 0 && rhs > std::numeric_limits<std::size_t>::max() / lhs) {
+        throw jams::ConfigException(setting, quantity, " exceeds size_t range");
+      }
+      return lhs * rhs;
+    }
+
+    std::size_t checked_lattice_vector_product(
+        const jams::Vec<int, 3>& dimensions,
+        const libconfig::Setting& setting,
+        const char* quantity) {
+      std::size_t product = 1;
+      for (auto n = 0; n < 3; ++n) {
+        product = checked_size_product(
+            product,
+            static_cast<std::size_t>(dimensions[n]),
+            setting,
+            quantity);
+      }
+      return product;
+    }
+
+    void require_count_fits_int(
+        const std::size_t count,
+        const libconfig::Setting& setting,
+        const char* quantity) {
+      const auto int_limit = static_cast<std::size_t>(std::numeric_limits<int>::max());
+      if (count > int_limit) {
+        throw jams::ConfigException(setting, quantity, " exceeds int range");
+      }
+    }
+
+    int checked_zero_padded_dimension(
+        const int dimension,
+        const libconfig::Setting& setting) {
+      if (dimension > std::numeric_limits<int>::max() / 2) {
+        throw jams::ConfigException(setting, "zero-padded kspace dimension exceeds int range");
+      }
+      return 2 * dimension;
+    }
+
+    struct LatticeIntegerCapacity {
+      std::size_t max_num_cells;
+      std::size_t max_num_sites;
+    };
+
+    LatticeIntegerCapacity checked_lattice_integer_capacity(
+        const jams::Vec<int, 3>& lattice_dimensions,
+        const jams::Vec<int, 3>& kmesh_size,
+        const std::size_t num_basis_sites,
+        const libconfig::Setting& lattice_settings) {
+      const auto max_num_cells = checked_lattice_vector_product(
+          lattice_dimensions,
+          lattice_settings,
+          "lattice cell count");
+      const auto max_num_sites = checked_size_product(
+          max_num_cells,
+          num_basis_sites,
+          lattice_settings,
+          "maximum lattice site count");
+      const auto max_num_spin_components = checked_size_product(
+          max_num_sites,
+          3,
+          lattice_settings,
+          "global spin component count");
+      const auto kspace_cell_count = checked_lattice_vector_product(
+          kmesh_size,
+          lattice_settings,
+          "kspace cell count");
+
+      // Site IDs, cell IDs, lattice-map entries and globals::num_spins remain
+      // int-backed throughout the simulator. Reject inputs that cannot be
+      // represented by those contracts before any dense arrays are allocated.
+      require_count_fits_int(max_num_cells, lattice_settings, "lattice cell count");
+      require_count_fits_int(max_num_sites, lattice_settings, "maximum lattice site count");
+      require_count_fits_int(max_num_spin_components, lattice_settings, "global spin component count");
+      require_count_fits_int(kspace_cell_count, lattice_settings, "kspace cell count");
+      return {max_num_cells, max_num_sites};
     }
 
     bool lattice_coordinate_inside_half_open_extent(
@@ -663,11 +750,20 @@ void Lattice::generate_supercell(const libconfig::Setting &lattice_settings)
     // double any non-periodic dimensions for zero padding
     for (auto i = 0; i < 3; ++i) {
       if (!lattice_periodic[i]) {
-        kmesh_size[i] = 2*lattice_dimensions_[i];
+        kmesh_size[i] = checked_zero_padded_dimension(lattice_dimensions_[i], lattice_settings);
       }
     }
     cout << "\npadded kspace size " << kmesh_size << "\n";
   }
+
+  const auto integer_capacity = checked_lattice_integer_capacity(
+      lattice_dimensions_,
+      kmesh_size,
+      static_cast<std::size_t>(num_basis_sites()),
+      lattice_settings);
+
+  const auto max_num_cells = integer_capacity.max_num_cells;
+  const auto expected_num_atoms = integer_capacity.max_num_sites;
 
   kspace_size_ = {kmesh_size[0], kmesh_size[1], kmesh_size[2]};
   kspace_map_.resize(kspace_size_[0], kspace_size_[1], kspace_size_[2]);
@@ -682,9 +778,6 @@ void Lattice::generate_supercell(const libconfig::Setting &lattice_settings)
   lattice_map_.resize(this->size(0), this->size(1), this->size(2), this->num_basis_sites());
   // initialize everything to -1 so we can check for double assignment below
   lattice_map_.fill(-1);
-
-  const auto max_num_cells = jams::product(lattice_dimensions_);
-  const auto expected_num_atoms = num_basis_sites() * max_num_cells;
 
   cell_centers_.reserve(max_num_cells);
   cell_offsets_.reserve(max_num_cells);

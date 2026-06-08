@@ -352,6 +352,42 @@ TEST_F(LatticeSizeTest, LargeUnitCellVectorsKeepHighMotifInsideExtent) {
   EXPECT_EQ(globals::lattice->get_supercell().a3(), (jams::Vec<double, 3>{0.0, 0.0, 1000000.0}));
 }
 
+TEST_F(LatticeSizeTest, LatticeSiteCountAboveIntRangeThrowsBeforeAllocation) {
+  globals::config->readString(base_config() + R"(
+    lattice : {
+      size = [32768, 32768, 1];
+      periodic = [true, true, true];
+      normalise_spins = false;
+    };
+  )");
+
+  EXPECT_THROW(globals::lattice->init_from_config(*globals::config), jams::ConfigException);
+}
+
+TEST_F(LatticeSizeTest, SpinComponentCountAboveIntRangeThrowsBeforeAllocation) {
+  globals::config->readString(base_config() + R"(
+    lattice : {
+      size = [400000000, 1, 1];
+      periodic = [true, true, true];
+      normalise_spins = false;
+    };
+  )");
+
+  EXPECT_THROW(globals::lattice->init_from_config(*globals::config), jams::ConfigException);
+}
+
+TEST_F(LatticeSizeTest, ZeroPaddedKspaceDimensionAboveIntRangeThrowsBeforeAllocation) {
+  globals::config->readString(base_config() + R"(
+    lattice : {
+      size = [1073741824, 1, 1];
+      periodic = [false, true, true];
+      normalise_spins = false;
+    };
+  )");
+
+  EXPECT_THROW(globals::lattice->init_from_config(*globals::config), jams::ConfigException);
+}
+
 TEST_F(LatticeSizeTest, FractionalMotifPositionsAreNormalisedModuloUnitCell) {
   globals::config->readString(R"(
     solver : {
