@@ -108,4 +108,24 @@ TEST_F(InteractionsPostProcessTest, RadiusCutoffUsesAbsoluteDistanceTolerance) {
   EXPECT_TRUE(interactions.empty());
 }
 
+TEST_F(InteractionsPostProcessTest, NonIntegerLatticeTranslationThrows) {
+  InteractionFileDescription desc;
+  desc.type = InteractionFileFormat::UNDEFINED;
+  desc.dimension = InteractionType::TENSOR;
+
+  std::vector<InteractionData> interactions;
+  interactions.push_back(make_test_interaction(0, 0, 1250000.0));
+
+  EXPECT_THROW(
+      post_process_interactions(
+          interactions,
+          desc,
+          CoordinateFormat::CARTESIAN,
+          false,
+          0.0,
+          0.0,
+          1.0e-4),
+      jams::SanityException);
+}
+
 #endif // JAMS_TEST_CORE_INTERACTIONS_H
