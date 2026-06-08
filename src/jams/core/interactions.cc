@@ -655,16 +655,26 @@ void neighbour_list_checks(const jams::InteractionList<jams::Mat<double, 3, 3>, 
 
 void
 safety_check_distance_tolerance(const double &tolerance) {
-  // check that no atoms in the unit cell are closer together than the tolerance
+  if (tolerance < 0.0) {
+    throw jams::SanityException("distance_tolerance must be non-negative");
+  }
 
+  // Check that no two motif positions are indistinguishable under the same
+  // periodic fractional-coordinate criterion used by find_basis_site_index().
+  // Raw fractional differences miss pairs split across opposite unit-cell
+  // faces, while Cartesian distances would use the wrong units for this
+  // matching tolerance.
   for (auto i = 0; i < globals::lattice->num_basis_sites(); ++i) {
     for (auto j = i + 1; j < globals::lattice->num_basis_sites(); ++j) {
-      const auto distance = jams::norm(globals::lattice->basis_site_atom(i).position_frac - globals::lattice->basis_site_atom(
-          j).position_frac);
-      if (distance < tolerance) {
-        throw jams::SanityException("Atoms ", i, " and ", j, " in the unit cell are close together (", distance,
-                                    ") than the distance_tolerance (", tolerance, ").\n Check the positions",
-                                    "or relax distance_tolerance");
+      const auto position_i = globals::lattice->basis_site_atom(i).position_frac;
+      const auto position_j = globals::lattice->basis_site_atom(j).position_frac;
+      if (jams::lattice::fractional_positions_equivalent(position_i, position_j, tolerance)) {
+        throw jams::SanityException("Atoms ", i, " and ", j,
+                                    " in the unit cell are indistinguishable within distance_tolerance (",
+                                    tolerance, ") after applying periodic fractional wrapping.\n",
+                                    "  position_i: ", position_i, "\n",
+                                    "  position_j: ", position_j, "\n",
+                                    "Check the positions or relax distance_tolerance");
       }
     }
   }
