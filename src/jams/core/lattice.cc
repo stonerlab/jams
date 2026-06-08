@@ -17,6 +17,7 @@ extern "C"{
 #include <fstream>
 #include <iomanip>
 #include <map>
+#include <memory>
 #include <string>
 #include <utility>
 #include <functional>
@@ -882,7 +883,10 @@ void Lattice::calc_symmetry_operations() {
     }
   }
 
-  double (*spg_positions)[3] = new double[basis_sites_.size()][3];
+  // spglib takes C arrays as non-owning pointers. Keep the same contiguous
+  // double[][3] layout, but own the temporary storage with RAII so failure
+  // paths such as a null spglib dataset cannot leak it.
+  std::unique_ptr<double[][3]> spg_positions(new double[basis_sites_.size()][3]);
 
   for (auto i = 0; i < basis_sites_.size(); ++i) {
     for (auto j = 0; j < 3; ++j) {
@@ -890,13 +894,13 @@ void Lattice::calc_symmetry_operations() {
     }
   }
 
-  int *spg_types = new int[basis_sites_.size()];
+  std::unique_ptr<int[]> spg_types(new int[basis_sites_.size()]);
 
   for (auto i = 0; i < basis_sites_.size(); ++i) {
     spg_types[i] = basis_sites_[i].material_index;
   }
 
-  spglib_dataset_ = spg_get_dataset(spg_lattice, spg_positions, spg_types, basis_sites_.size(), jams::defaults::lattice_tolerance);
+  spglib_dataset_ = spg_get_dataset(spg_lattice, spg_positions.get(), spg_types.get(), basis_sites_.size(), jams::defaults::lattice_tolerance);
 
   if (spglib_dataset_ == nullptr) {
     symops_enabled_ = false;
@@ -987,7 +991,7 @@ void Lattice::calc_symmetry_operations() {
     }
   }
 
-  double (*primitive_positions)[3] = new double[basis_sites_.size()][3];
+  std::unique_ptr<double[][3]> primitive_positions(new double[basis_sites_.size()][3]);
 
   for (auto i = 0; i < basis_sites_.size(); ++i) {
     for (auto j = 0; j < 3; ++j) {
@@ -995,13 +999,13 @@ void Lattice::calc_symmetry_operations() {
     }
   }
 
-  int *primitive_types = new int[basis_sites_.size()];
+  std::unique_ptr<int[]> primitive_types(new int[basis_sites_.size()]);
 
   for (auto i = 0; i < basis_sites_.size(); ++i) {
     primitive_types[i] = spg_types[i];
   }
 
-  primitive_num_atoms = spg_find_primitive(primitive_lattice, primitive_positions, primitive_types, basis_sites_.size(), jams::defaults::lattice_tolerance);
+  primitive_num_atoms = spg_find_primitive(primitive_lattice, primitive_positions.get(), primitive_types.get(), basis_sites_.size(), jams::defaults::lattice_tolerance);
 
   // spg_find_primitive returns number of atoms in primitve cell
   if (primitive_num_atoms != basis_sites_.size()) {
