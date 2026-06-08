@@ -108,6 +108,13 @@ namespace {
       return static_cast<int>(std::ceil(extent));
     }
 
+    bool lattice_coordinate_inside_half_open_extent(
+        const double coordinate,
+        const double extent,
+        const double eps = jams::defaults::lattice_tolerance) {
+      return coordinate >= 0.0 && (extent - coordinate) > eps;
+    }
+
     double read_numeric_lattice_size_value(const libconfig::Setting& setting) {
       switch (setting.getType()) {
         case libconfig::Setting::TypeInt:
@@ -732,9 +739,7 @@ void Lattice::generate_supercell(const libconfig::Setting &lattice_settings)
           const auto lattice_position_frac = basis_sites_[m].position_frac + cell_offset;
           bool inside_lattice_extent = true;
           for (auto n = 0; n < 3; ++n) {
-            if (!definately_less_than(lattice_position_frac[n],
-                                      lattice_extents_[n],
-                                      jams::defaults::lattice_tolerance)) {
+            if (!lattice_coordinate_inside_half_open_extent(lattice_position_frac[n], lattice_extents_[n])) {
               inside_lattice_extent = false;
               break;
             }

@@ -39,6 +39,16 @@ protected:
     globals::lattice->init_from_config(*globals::config);
   }
 
+  void initialise_lattice_with_high_z_motif(const std::string& lattice_config) {
+    globals::config->readString(base_high_z_motif_config() + lattice_config);
+    globals::lattice->init_from_config(*globals::config);
+  }
+
+  void initialise_lattice_with_large_unitcell(const std::string& lattice_config) {
+    globals::config->readString(base_large_unitcell_config() + lattice_config);
+    globals::lattice->init_from_config(*globals::config);
+  }
+
   static std::string base_config() {
     return R"(
       solver : {
@@ -92,6 +102,65 @@ protected:
         positions = (
           ("A", [0.0, 0.0, 0.0]),
           ("B", [0.0, 0.0, 0.5])
+        );
+      };
+    )";
+  }
+
+  static std::string base_high_z_motif_config() {
+    return R"(
+      solver : {
+        module = "llg-heun-cpu";
+        t_step = 1.0e-16;
+        t_min  = 1.0e-16;
+        t_max  = 1.0e-16;
+      };
+
+      materials = (
+        { name = "A"; moment = 1.0; spin = [1.0, 0.0, 0.0]; },
+        { name = "B"; moment = 2.0; spin = [2.0, 0.0, 0.0]; }
+      );
+
+      unitcell : {
+        symops = false;
+        parameter = 1.0e-9;
+        basis = (
+          [1.0, 0.0, 0.0],
+          [0.0, 1.0, 0.0],
+          [0.0, 0.0, 1.0]);
+        positions = (
+          ("A", [0.0, 0.0, 0.0]),
+          ("B", [0.0, 0.0, 0.916667])
+        );
+      };
+    )";
+  }
+
+  static std::string base_large_unitcell_config() {
+    return R"(
+      solver : {
+        module = "llg-heun-cpu";
+        t_step = 1.0e-16;
+        t_min  = 1.0e-16;
+        t_max  = 1.0e-16;
+      };
+
+      materials = (
+        { name = "A"; moment = 1.0; spin = [1.0, 0.0, 0.0]; },
+        { name = "B"; moment = 2.0; spin = [2.0, 0.0, 0.0]; }
+      );
+
+      unitcell : {
+        symops = false;
+        check_closeness = false;
+        parameter = 1.0e-9;
+        basis = (
+          [1000000.0, 0.0, 0.0],
+          [0.0, 1000000.0, 0.0],
+          [0.0, 0.0, 1000000.0]);
+        positions = (
+          ("A", [0.0, 0.0, 0.0]),
+          ("B", [0.0, 0.0, 0.916667])
         );
       };
     )";
@@ -168,6 +237,41 @@ TEST_F(LatticeSizeTest, IntegerSizeSpinArrayIsDenseSpatialFftInput) {
       }
     }
   }
+}
+
+TEST_F(LatticeSizeTest, LargePeriodicSupercellKeepsHighMotifInLastCell) {
+  initialise_lattice_with_high_z_motif(R"(
+    lattice : {
+      size = [1, 1, 1024];
+      periodic = [true, true, true];
+      normalise_spins = false;
+    };
+  )");
+
+  EXPECT_EQ(globals::lattice->size(), (jams::Vec<int, 3>{1, 1, 1024}));
+  EXPECT_EQ(globals::num_spins, 2048);
+  EXPECT_TRUE(globals::lattice->has_site_at_unit_cell(0, 0, 1023, 0));
+  EXPECT_TRUE(globals::lattice->has_site_at_unit_cell(0, 0, 1023, 1));
+
+  const int high_z_site = globals::lattice->site_index_by_unit_cell(0, 0, 1023, 1);
+  EXPECT_EQ(globals::lattice->cell_offset(high_z_site), (jams::Vec<int, 3>{0, 0, 1023}));
+  EXPECT_EQ(globals::lattice->lattice_site_basis_index(high_z_site), 1u);
+}
+
+TEST_F(LatticeSizeTest, LargeUnitCellVectorsKeepHighMotifInsideExtent) {
+  initialise_lattice_with_large_unitcell(R"(
+    lattice : {
+      size = [1, 1, 1];
+      periodic = [true, true, true];
+      normalise_spins = false;
+    };
+  )");
+
+  EXPECT_EQ(globals::lattice->size(), (jams::Vec<int, 3>{1, 1, 1}));
+  EXPECT_EQ(globals::num_spins, 2);
+  EXPECT_TRUE(globals::lattice->has_site_at_unit_cell(0, 0, 0, 0));
+  EXPECT_TRUE(globals::lattice->has_site_at_unit_cell(0, 0, 0, 1));
+  EXPECT_EQ(globals::lattice->get_supercell().a3(), (jams::Vec<double, 3>{0.0, 0.0, 1000000.0}));
 }
 
 TEST_F(LatticeSizeTest, PeriodicBoundaryConditionsWrapMultipleCells) {
