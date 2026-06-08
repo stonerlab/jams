@@ -390,7 +390,7 @@ post_process_interactions(std::vector<InteractionData> &interactions, const Inte
 
   if (radius_cutoff > 0.0) {
     apply_predicate(interactions, [&](InteractionData J) -> bool {
-      return definately_greater_than(jams::norm(J.interaction_vector_cart), radius_cutoff, jams::defaults::lattice_tolerance);});
+      return jams::norm(J.interaction_vector_cart) > radius_cutoff + distance_tolerance;});
   }
 
   // calculate the lattice translation vectors
