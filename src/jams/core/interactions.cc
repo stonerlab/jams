@@ -535,30 +535,30 @@ safety_check_distance_tolerance(const double &tolerance) {
 
 void check_interaction_list_symmetry(const std::vector<InteractionData> &interactions) {
   for (const auto &J : interactions) {
-    InteractionData sym_J;
-    sym_J.basis_site_i = J.basis_site_j;
-    sym_J.basis_site_j = J.basis_site_i;
-    sym_J.interaction_vector_cart = -J.interaction_vector_cart;
-    sym_J.interaction_value_tensor = transpose(J.interaction_value_tensor);
-    sym_J.type_i = J.type_j;
-    sym_J.type_j = J.type_i;
+    InteractionData expected_reversed_J;
+    expected_reversed_J.basis_site_i = J.basis_site_j;
+    expected_reversed_J.basis_site_j = J.basis_site_i;
+    expected_reversed_J.interaction_vector_cart = -J.interaction_vector_cart;
+    expected_reversed_J.interaction_value_tensor = transpose(J.interaction_value_tensor);
+    expected_reversed_J.type_i = J.type_j;
+    expected_reversed_J.type_j = J.type_i;
 
 
-    auto it = std::find_if(interactions.begin(), interactions.end(), [&](const InteractionData& sym_J){
-      return (sym_J.basis_site_i == J.basis_site_i
-      && sym_J.basis_site_j == J.basis_site_j
-      && sym_J.type_i == J.type_i
-      && sym_J.type_j == J.type_j
-      && jams::approximately_equal(sym_J.interaction_vector_cart, J.interaction_vector_cart, jams::defaults::lattice_tolerance)
-      && approximately_equal(sym_J.interaction_value_tensor, J.interaction_value_tensor, 1e-4));
+    auto it = std::find_if(interactions.begin(), interactions.end(), [&](const InteractionData& candidate){
+      return (candidate.basis_site_i == expected_reversed_J.basis_site_i
+      && candidate.basis_site_j == expected_reversed_J.basis_site_j
+      && candidate.type_i == expected_reversed_J.type_i
+      && candidate.type_j == expected_reversed_J.type_j
+      && jams::approximately_equal(candidate.interaction_vector_cart, expected_reversed_J.interaction_vector_cart, jams::defaults::lattice_tolerance)
+      && approximately_equal(candidate.interaction_value_tensor, expected_reversed_J.interaction_value_tensor, 1e-4));
     });
 
     if (it == interactions.end()) {
       std::string message = "Interaction template is not symmetric. " +
-      std::to_string(sym_J.basis_site_i + 1) + " " + std::to_string(sym_J.basis_site_j + 1) + " " +
-        std::to_string(sym_J.interaction_vector_cart[0]) + " " +
-          std::to_string(sym_J.interaction_vector_cart[1]) + " " +
-            std::to_string(sym_J.interaction_vector_cart[2]);
+      std::to_string(expected_reversed_J.basis_site_i + 1) + " " + std::to_string(expected_reversed_J.basis_site_j + 1) + " " +
+        std::to_string(expected_reversed_J.interaction_vector_cart[0]) + " " +
+          std::to_string(expected_reversed_J.interaction_vector_cart[1]) + " " +
+            std::to_string(expected_reversed_J.interaction_vector_cart[2]);
 
       throw jams::SanityException(message);
     }
