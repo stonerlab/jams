@@ -1,5 +1,7 @@
 #pragma once
 
+#include <iomanip>
+#include <sstream>
 #include <string>
 
 #include "jams/helpers/consts.h"
@@ -76,6 +78,32 @@ namespace jams {
                 positions = (
                   ("FeA", [0.0, 0.0, 0.0]),
                   ("FeB", [0.5, 0.0, 0.0])
+                  );
+              };
+              )");
+
+            const std::string config_unitcell_sc_z_2_atom(R"(
+              materials = (
+                { name      = "FeA";
+                  moment    = 2.0;
+                  spin      = [1.0, 0.0, 0.0];
+                },
+                { name      = "FeB";
+                  moment    = 2.0;
+                  spin      = [1.0, 0.0, 0.0];
+                }
+              );
+
+              unitcell : {
+                parameter = 0.3e-9;
+
+                basis = (
+                  [ 1.0, 0.0, 0.0],
+                  [ 0.0, 1.0, 0.0],
+                  [ 0.0, 0.0, 1.0]);
+                positions = (
+                  ("FeA", [0.0, 0.0, 0.0]),
+                  ("FeB", [0.0, 0.0, 0.5])
                   );
               };
               )");
@@ -178,6 +206,7 @@ namespace jams {
 
             std::string config_lattice(const jams::Vec<double, 3> &size, const jams::Vec<bool, 3> &pbc) {
               std::stringstream ss;
+              ss << std::setprecision(17) << std::showpoint;
               ss << "lattice : {\n";
               ss << "size = [" << size[0] << ", " << size[1] << ", " << size[2] << "];\n";
               ss << std::boolalpha << "periodic  = [" << pbc[0] << ", " << pbc[1] << ", " << pbc[2] << "];\n";

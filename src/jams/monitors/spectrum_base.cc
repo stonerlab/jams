@@ -1134,12 +1134,10 @@ void SpectrumBaseMonitor::store_sk_snapshot(const jams::MultiArray<double, 2> &d
 {
   ensure_channel_storage_initialised_();
 
-  fft_supercell_vector_field_to_kspace(
+  fft_lattice_vector_field_to_kspace(
       data,
       sk_grid_,
-      globals::lattice->size(),
-      globals::lattice->kspace_size(),
-      globals::lattice->num_basis_sites(),
+      *globals::lattice,
       fftw_thread_count_);
 
   if (needs_local_frame_mapping_())

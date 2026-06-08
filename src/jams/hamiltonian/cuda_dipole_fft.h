@@ -39,14 +39,18 @@ class CudaDipoleFFTHamiltonian : public Hamiltonian {
         jams::Vec<int, 3>                    kspace_size_;
         jams::Vec<int, 3>                    kspace_padded_size_;
 
+        bool use_dense_fft_buffers_ = false;
+        bool use_full_tensor_storage_ = false;
+        jams::MultiArray<int, 1> fft_site_map_;
+        jams::MultiArray<jams::Real, 1> rspace_s_dense_;
+        jams::MultiArray<jams::Real, 1> rspace_h_dense_;
+
         jams::MultiArray<jams::Real, 2> s_float_;
-        jams::MultiArray<jams::Real, 1> mus_unitcell_;
-
-
         jams::MultiArray<jams::cufftComplex, 1>   kspace_s_;
         jams::MultiArray<jams::cufftComplex, 1>   kspace_h_;
 
-        // size is num_sites, num_sites, num_tensor_components, num_kpoints
+        // compact path: upper-triangular motif pairs
+        // padded/cropped path: full motif-pair table
         jams::MultiArray<jams::cufftComplex, 3> kspace_tensors_;
 
         cufftHandle                     cuda_fft_s_rspace_to_kspace;

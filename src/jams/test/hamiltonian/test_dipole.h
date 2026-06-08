@@ -252,6 +252,126 @@ public:
 };
 #endif
 
+class CroppedDipoleFFTHamiltonianTest : public ::testing::Test {
+protected:
+    void initialise(const std::string& config_string) {
+      globals::lattice = new Lattice();
+      globals::config = std::make_unique<libconfig::Config>();
+      globals::config->readString(config_string);
+      globals::lattice->init_from_config(*globals::config);
+    }
+
+    void TearDown() override {
+      globals::num_spins = 0;
+      globals::num_spins3 = 0;
+
+      jams::util::force_deallocation(globals::s);
+      jams::util::force_deallocation(globals::h);
+      jams::util::force_deallocation(globals::ds_dt);
+      jams::util::force_deallocation(globals::positions);
+      jams::util::force_deallocation(globals::alpha);
+      jams::util::force_deallocation(globals::mus);
+      jams::util::force_deallocation(globals::gyro);
+
+      globals::config = nullptr;
+
+      if (globals::lattice) {
+        delete globals::lattice;
+        globals::lattice = nullptr;
+      }
+    }
+};
+
+TEST_F(CroppedDipoleFFTHamiltonianTest, CpuFftMatchesBruteforceForCroppedTopMotif) {
+  using namespace jams::testing::dipole;
+  initialise(
+      config_basic_cpu
+      + config_unitcell_sc_z_2_atom
+      + config_lattice({1.0, 1.0, 2.5}, {false, false, false})
+      + config_dipole("dipole-fft", 2.2));
+
+  ASSERT_EQ(globals::num_spins, 5);
+
+  for (unsigned int i = 0; i < globals::num_spins; ++i) {
+    globals::s(i, 0) = 0.17 * static_cast<double>(i + 1);
+    globals::s(i, 1) = -0.11 * static_cast<double>(i + 2);
+    globals::s(i, 2) = 0.07 * static_cast<double>(i + 3);
+  }
+
+  const auto& settings = globals::config->lookup("hamiltonians.[0]");
+  DipoleFFTHamiltonian fft_hamiltonian(settings, globals::num_spins);
+  DipoleBruteforceHamiltonian bruteforce_hamiltonian(settings, globals::num_spins);
+
+  const double fft_energy = fft_hamiltonian.calculate_total_energy(0.0) / static_cast<double>(globals::num_spins);
+  const double bruteforce_energy = bruteforce_hamiltonian.calculate_total_energy(0.0) / static_cast<double>(globals::num_spins);
+  ASSERT_NEAR(fft_energy, bruteforce_energy, 1.0e-5);
+
+  fft_hamiltonian.calculate_fields(0.0);
+  bruteforce_hamiltonian.calculate_fields(0.0);
+  for (unsigned int i = 0; i < globals::num_spins; ++i) {
+    for (auto n = 0; n < 3; ++n) {
+      ASSERT_NEAR(fft_hamiltonian.field(i, n), bruteforce_hamiltonian.field(i, n), 1.0e-5);
+    }
+  }
+
+  const int spin_index = 1;
+  const jams::Vec<double, 3> spin_initial = {
+      globals::s(spin_index, 0),
+      globals::s(spin_index, 1),
+      globals::s(spin_index, 2)};
+  const jams::Vec<double, 3> spin_final = {0.31, -0.27, 0.19};
+  ASSERT_NEAR(
+      fft_hamiltonian.calculate_energy(spin_index, 0.0),
+      bruteforce_hamiltonian.calculate_energy(spin_index, 0.0),
+      1.0e-5);
+  ASSERT_NEAR(
+      fft_hamiltonian.calculate_energy_difference(spin_index, spin_initial, spin_final, 0.0),
+      bruteforce_hamiltonian.calculate_energy_difference(spin_index, spin_initial, spin_final, 0.0),
+      1.0e-5);
+}
+
+#ifdef HAS_CUDA
+TEST_F(CroppedDipoleFFTHamiltonianTest, CudaFftMatchesBruteforceForCroppedTopMotif) {
+  using namespace jams::testing::dipole;
+  int device_count = 0;
+  const auto device_status = cudaGetDeviceCount(&device_count);
+  if (device_status != cudaSuccess || device_count == 0) {
+    GTEST_SKIP() << "CUDA device is not available";
+  }
+  cudaDeviceReset();
+  initialise(
+      config_basic_gpu
+      + config_unitcell_sc_z_2_atom
+      + config_lattice({1.0, 1.0, 2.5}, {false, false, false})
+      + config_dipole("dipole-fft", 2.2));
+
+  ASSERT_EQ(globals::num_spins, 5);
+
+  for (unsigned int i = 0; i < globals::num_spins; ++i) {
+    globals::s(i, 0) = 0.17 * static_cast<double>(i + 1);
+    globals::s(i, 1) = -0.11 * static_cast<double>(i + 2);
+    globals::s(i, 2) = 0.07 * static_cast<double>(i + 3);
+  }
+
+  const auto& settings = globals::config->lookup("hamiltonians.[0]");
+  CudaDipoleFFTHamiltonian fft_hamiltonian(settings, globals::num_spins);
+  DipoleBruteforceHamiltonian bruteforce_hamiltonian(settings, globals::num_spins);
+
+  const double fft_energy = fft_hamiltonian.calculate_total_energy(0.0) / static_cast<double>(globals::num_spins);
+  const double bruteforce_energy = bruteforce_hamiltonian.calculate_total_energy(0.0) / static_cast<double>(globals::num_spins);
+  ASSERT_NEAR(fft_energy, bruteforce_energy, 1.0e-5);
+
+  fft_hamiltonian.calculate_fields(0.0);
+  bruteforce_hamiltonian.calculate_fields(0.0);
+  cudaDeviceSynchronize();
+  for (unsigned int i = 0; i < globals::num_spins; ++i) {
+    for (auto n = 0; n < 3; ++n) {
+      ASSERT_NEAR(fft_hamiltonian.field(i, n), bruteforce_hamiltonian.field(i, n), 1.0e-5);
+    }
+  }
+}
+#endif
+
 // 1D ferromagnetic spin chain
 TYPED_TEST(DipoleHamiltonianCPUTests, total_energy_1D_FM_CPU) {
   using namespace jams::testing::dipole;
@@ -584,5 +704,3 @@ TYPED_TEST(DipoleHamiltonianGPUTests, total_energy_two_atom_2D_FM_GPU_SLOW) {
   TestFixture::random_spin_test();
 }
 #endif
-
-

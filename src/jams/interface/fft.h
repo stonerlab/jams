@@ -24,6 +24,8 @@
 
 #include "jams/containers/multiarray.h"
 
+class Lattice;
+
 namespace jams {
     struct PeriodogramProps {
         int length    = 1000;
@@ -59,6 +61,7 @@ fftw_plan fft_plan_rspace_to_kspace(std::complex<double> * rspace, std::complex<
 void apply_kspace_phase_factors(jams::MultiArray<std::complex<double>, 5> &kspace);
 
 void fft_supercell_vector_field_to_kspace(const jams::MultiArray<double, 2>& rspace_data, jams::MultiArray<jams::Vec<std::complex<double>, 3>,4>& kspace_data, const jams::Vec<int, 3>& kspace_size, const jams::Vec<int, 3>& kspace_padded_size, const int & num_sites, int fftw_threads = 1);
+void fft_lattice_vector_field_to_kspace(const jams::MultiArray<double, 2>& rspace_data, jams::MultiArray<jams::Vec<std::complex<double>, 3>,4>& kspace_data, const Lattice& lattice, int fftw_threads = 1);
 void fft_supercell_scalar_field_to_kspace(const jams::MultiArray<double, 1>& rspace_data, jams::MultiArray<jams::ComplexHi,4>& kspace_data, const jams::Vec<int, 3>& kspace_size, const int & num_sites);
 
 /// @brief Struct to store the N dimensional array index of an FFTW frequency and whether the value should
