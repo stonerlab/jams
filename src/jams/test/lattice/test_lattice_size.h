@@ -170,6 +170,48 @@ TEST_F(LatticeSizeTest, IntegerSizeSpinArrayIsDenseSpatialFftInput) {
   }
 }
 
+TEST_F(LatticeSizeTest, PeriodicBoundaryConditionsWrapMultipleCells) {
+  initialise_lattice(R"(
+    lattice : {
+      size = [3, 4, 5];
+      periodic = [true, true, true];
+    };
+  )");
+
+  jams::Vec<int, 3> pos{-7, 10, -11};
+  EXPECT_TRUE(globals::lattice->apply_boundary_conditions(pos));
+  EXPECT_EQ(pos, (jams::Vec<int, 3>{2, 2, 4}));
+
+  int a = 7;
+  int b = -10;
+  int c = 16;
+  EXPECT_TRUE(globals::lattice->apply_boundary_conditions(a, b, c));
+  EXPECT_EQ(a, 1);
+  EXPECT_EQ(b, 2);
+  EXPECT_EQ(c, 1);
+}
+
+TEST_F(LatticeSizeTest, OpenBoundaryConditionsRejectOutOfRangeBeforeWrapping) {
+  initialise_lattice(R"(
+    lattice : {
+      size = [3, 4, 5];
+      periodic = [true, false, true];
+    };
+  )");
+
+  jams::Vec<int, 3> pos{-4, -1, 11};
+  EXPECT_FALSE(globals::lattice->apply_boundary_conditions(pos));
+  EXPECT_EQ(pos, (jams::Vec<int, 3>{2, -1, 11}));
+
+  int a = -4;
+  int b = 4;
+  int c = 11;
+  EXPECT_FALSE(globals::lattice->apply_boundary_conditions(a, b, c));
+  EXPECT_EQ(a, 2);
+  EXPECT_EQ(b, 4);
+  EXPECT_EQ(c, 11);
+}
+
 TEST_F(LatticeSizeTest, NonIntegerSizeCropsUpperLatticePlane) {
   initialise_lattice_with_z_motif(R"(
     lattice : {

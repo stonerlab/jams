@@ -92,6 +92,11 @@ namespace {
       return approximately_equal(value, std::round(value), eps);
     }
 
+    int positive_modulo(const int value, const int modulus) {
+      const int remainder = value % modulus;
+      return remainder < 0 ? remainder + modulus : remainder;
+    }
+
     int lattice_grid_dimension_from_extent(const double extent, const libconfig::Setting& setting) {
       if (!std::isfinite(extent) || !definately_greater_than(extent, 0.0, std::numeric_limits<double>::epsilon())) {
         throw jams::ConfigException(setting, "lattice size values must be finite and greater than zero");
@@ -1094,7 +1099,7 @@ bool Lattice::apply_boundary_conditions(jams::Vec<int, 3>& pos) const {
       if (!is_periodic(l) && (pos[l] < 0 || pos[l] >= globals::lattice->size(l))) {
         return false;
       } else {
-        pos[l] = (pos[l] + globals::lattice->size(l)) % globals::lattice->size(l);
+        pos[l] = positive_modulo(pos[l], globals::lattice->size(l));
       }
     }
     return true;
@@ -1104,19 +1109,19 @@ bool Lattice::apply_boundary_conditions(int &a, int &b, int &c) const {
     if (!is_periodic(0) && (a < 0 || a >= globals::lattice->size(0))) {
       return false;
     } else {
-      a = (a + globals::lattice->size(0)) % globals::lattice->size(0);
+      a = positive_modulo(a, globals::lattice->size(0));
     }
 
     if (!is_periodic(1) && (b < 0 || b >= globals::lattice->size(1))) {
       return false;
     } else {
-      b = (b + globals::lattice->size(1)) % globals::lattice->size(1);
+      b = positive_modulo(b, globals::lattice->size(1));
     }
 
     if (!is_periodic(2) && (c < 0 || c >= globals::lattice->size(2))) {
       return false;
     } else {
-      c = (c + globals::lattice->size(2)) % globals::lattice->size(2);
+      c = positive_modulo(c, globals::lattice->size(2));
     }
 
     return true;
