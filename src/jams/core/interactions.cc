@@ -621,7 +621,7 @@ write_neighbour_list(std::ostream &output, const jams::InteractionList<jams::Mat
   output << jams::fmt::sci << "Jij_zy";
   output << jams::fmt::sci << "Jij_zz" << "\n";
 
-  for (int n = 0; n < list.size(); ++n) {
+  for (jams::InteractionList<jams::Mat<double, 3, 3>, 2>::size_type n = 0; n < list.size(); ++n) {
       auto i = list[n].first[0];
       auto j = list[n].first[1];
       auto rij = globals::lattice->displacement(i, j);

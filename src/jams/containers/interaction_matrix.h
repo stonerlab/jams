@@ -5,6 +5,11 @@
 #ifndef JAMS_CONTAINERS_INTERACTION_MATRIX_H
 #define JAMS_CONTAINERS_INTERACTION_MATRIX_H
 
+#include <cstddef>
+#include <limits>
+#include <stdexcept>
+#include <string>
+
 #include "jams/containers/multiarray.h"
 #include "jams/containers/interaction_list.h"
 
@@ -38,13 +43,13 @@ namespace jams {
         template <int N>
         InteractionMatrix(const InteractionList<value_type, N>& list, const int num_rows)
         : num_rows_(num_rows),
-        num_vals_(list.value_table_.size()),
-        num_interactions_(list.size()),
-        index_size_(N),
-        val_size_(sizeof(value_type) / sizeof(base_type)),
-        row_(num_rows_ + 1),
-        indices_(num_interactions_ * index_size_),
-        val_(num_vals_ * val_size_) {
+          num_vals_(checked_size_to_size_type(list.value_table_.size(), "unique interaction values")),
+          num_interactions_(checked_size_to_size_type(list.size(), "interactions")),
+          index_size_(N),
+          val_size_(sizeof(value_type) / sizeof(base_type)),
+          row_(num_rows_ + 1),
+          indices_(list.size() * static_cast<std::size_t>(N)),
+          val_(num_vals_ * val_size_) {
           // double check value_type is an integer multiple of base_type
           assert (sizeof(value_type) % sizeof(base_type) == 0);
           assert(index_size_ >= 1);
@@ -54,7 +59,7 @@ namespace jams {
           {
             row_(0) = 0;
             size_type r = 0;
-            int i = 0;
+            size_type i = 0;
             while (r < num_rows) {
               while (i < num_interactions_) {
                 const auto row_index = list.indicies_[i][0];
@@ -69,15 +74,18 @@ namespace jams {
           }
 
           // populate indicies_ (data is j,k,l, ..., value_key)
-          for (auto m = 0; m < num_interactions_; ++m) {
+          for (std::size_t m = 0; m < static_cast<std::size_t>(num_interactions_); ++m) {
             // first index is used for row_
             for (auto n = 1; n < index_size_; ++n) {
               assert(list.indicies_[m][n] < num_rows_);
-              assert(index_size_ * m + (n - 1) < indices_.size());
-              indices_(index_size_ * m + (n - 1)) = list.indicies_[m][n];
+              const auto index_offset = static_cast<std::size_t>(index_size_) * m + static_cast<std::size_t>(n - 1);
+              assert(index_offset < indices_.size());
+              indices_(index_offset) = list.indicies_[m][n];
             }
             // last index is lookup key for val_
-            indices_(index_size_ * m + index_size_ - 1) = list.value_lookup_[m];
+            const auto value_lookup_offset =
+                static_cast<std::size_t>(index_size_) * m + static_cast<std::size_t>(index_size_ - 1);
+            indices_(value_lookup_offset) = static_cast<size_type>(list.value_lookup_[m]);
           }
 
           // populate vals_
@@ -108,6 +116,14 @@ namespace jams {
         inline const_base_pointer val_device_data()  const { return val_.device_data(); }
 
     private:
+        static size_type checked_size_to_size_type(const std::size_t value, const char* name) {
+          if (value > static_cast<std::size_t>(std::numeric_limits<size_type>::max())) {
+            throw std::overflow_error(
+                std::string("Too many ") + name + " for InteractionMatrix size_type");
+          }
+          return static_cast<size_type>(value);
+        }
+
         int num_rows_ = 0;
         int num_vals_ = 0;
         int num_interactions_ = 0;

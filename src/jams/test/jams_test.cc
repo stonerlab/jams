@@ -2,6 +2,7 @@
 #include "gmock/gmock.h"
 #include "jams/test/containers/test_vector_set.h"
 #include "jams/test/containers/test_unordered_vector_set.h"
+#include "jams/test/containers/test_interaction_list.h"
 #include "jams/test/containers/test_neartree.h"
 #include "jams/test/containers/test_cell.h"
 #include <jams/lattice/minimum_image.t.h>
