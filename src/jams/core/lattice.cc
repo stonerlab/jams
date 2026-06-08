@@ -39,6 +39,7 @@ extern "C"{
 #include "jams/interface/config.h"
 #include "lattice.h"
 #include <jams/maths/parallelepiped.h>
+#include <jams/lattice/coordinates.h>
 #include <jams/lattice/minimum_image.h>
 
 
@@ -48,34 +49,6 @@ using libconfig::Setting;
 using libconfig::Config;
 
 namespace {
-    /// Return fractional coordinate normalised to the range [0,1)
-    jams::Vec<double, 3> normalise_fractional_coordinate(jams::Vec<double, 3> r_frac, const double eps = jams::defaults::lattice_tolerance) {
-      for (auto n = 0; n < 3; ++n) {
-        if (r_frac[n] < 0.0) {
-          r_frac[n] = r_frac[n] + 1.0;
-        }
-        // If we end up exactly on the opposite face/edge of the cell then
-        // this should actually be in the next cell (i.e. fractional coordinates
-        // are in the range 0 <= r_frac[n] < 1. So we must map coordinates equal to 1
-        // back to 0.
-        if (approximately_equal(r_frac[n], 1.0, eps)) {
-          r_frac[n] = 0.0;
-        }
-      }
-      return r_frac;
-    }
-
-    /// Returns true if the fractional coordinate is correctly normalised in the range [0, 1)
-    bool is_fractional_coordinate_normalised(const jams::Vec<double, 3> &r_frac, const double eps = jams::defaults::lattice_tolerance) {
-      // check fractional coordinates are in the range 0 <= r_frac[n] < 1
-      for (auto n = 0; n < 3; ++n) {
-        if (r_frac[n] < 0.0 || r_frac[n] > 1.0 || approximately_equal(r_frac[n], 1.0, eps)) {
-          return false;
-        }
-      }
-      return true;
-    }
-
     void output_basis_vectors(const Cell& cell) {
       cout << "    a1 = " << jams::fmt::decimal << cell.a1() << "\n";
       cout << "    a2 = " << jams::fmt::decimal << cell.a2() << "\n";
@@ -90,32 +63,6 @@ namespace {
 
     bool is_integer_extent(const double value, const double eps = jams::defaults::lattice_tolerance) {
       return std::abs(value - std::round(value)) <= eps;
-    }
-
-    bool absolute_vector_equal(
-        const jams::Vec<double, 3>& lhs,
-        const jams::Vec<double, 3>& rhs,
-        const double eps = jams::defaults::lattice_tolerance) {
-      for (auto n = 0; n < 3; ++n) {
-        if (std::abs(lhs[n] - rhs[n]) > eps) {
-          return false;
-        }
-      }
-      return true;
-    }
-
-    bool absolute_vector_exists_in_container(
-        const std::vector<jams::Vec<double, 3>>& container,
-        const jams::Vec<double, 3>& value,
-        const double eps = jams::defaults::lattice_tolerance) {
-      return std::any_of(container.begin(), container.end(), [&](const auto& existing) {
-        return absolute_vector_equal(existing, value, eps);
-      });
-    }
-
-    int positive_modulo(const int value, const int modulus) {
-      const int remainder = value % modulus;
-      return remainder < 0 ? remainder + modulus : remainder;
     }
 
     int lattice_grid_dimension_from_extent(const double extent, const libconfig::Setting& setting) {
@@ -400,9 +347,9 @@ void Lattice::read_basis_sites_from_config(const libconfig::Setting &positions, 
       atom.position_frac = cartesian_to_fractional(atom.position_frac);
     }
 
-    atom.position_frac = normalise_fractional_coordinate(atom.position_frac);
+    atom.position_frac = jams::lattice::normalise_fractional_coordinate(atom.position_frac);
 
-    if (!is_fractional_coordinate_normalised(atom.position_frac)) {
+    if (!jams::lattice::is_normalised_fractional_coordinate(atom.position_frac)) {
       throw std::runtime_error("atom position " + std::to_string(i) + " is not a valid fractional coordinate");
     }
 
@@ -440,9 +387,9 @@ void Lattice::read_basis_sites_from_file(const std::string &filename, Coordinate
       atom.position_frac = cartesian_to_fractional(atom.position_frac);
     }
 
-    atom.position_frac = normalise_fractional_coordinate(atom.position_frac);
+    atom.position_frac = jams::lattice::normalise_fractional_coordinate(atom.position_frac);
 
-    if (!is_fractional_coordinate_normalised(atom.position_frac)) {
+    if (!jams::lattice::is_normalised_fractional_coordinate(atom.position_frac)) {
       throw std::runtime_error("atom position " + std::to_string(basis_sites_.size()) + " is not a valid fractional coordinate");
     }
     // check the material type is defined
@@ -1125,7 +1072,7 @@ bool Lattice::apply_boundary_conditions(jams::Vec<int, 3>& pos) const {
       if (!is_periodic(l) && (pos[l] < 0 || pos[l] >= globals::lattice->size(l))) {
         return false;
       } else {
-        pos[l] = positive_modulo(pos[l], globals::lattice->size(l));
+        pos[l] = jams::lattice::modulo_index(pos[l], globals::lattice->size(l));
       }
     }
     return true;
@@ -1135,19 +1082,19 @@ bool Lattice::apply_boundary_conditions(int &a, int &b, int &c) const {
     if (!is_periodic(0) && (a < 0 || a >= globals::lattice->size(0))) {
       return false;
     } else {
-      a = positive_modulo(a, globals::lattice->size(0));
+      a = jams::lattice::modulo_index(a, globals::lattice->size(0));
     }
 
     if (!is_periodic(1) && (b < 0 || b >= globals::lattice->size(1))) {
       return false;
     } else {
-      b = positive_modulo(b, globals::lattice->size(1));
+      b = jams::lattice::modulo_index(b, globals::lattice->size(1));
     }
 
     if (!is_periodic(2) && (c < 0 || c >= globals::lattice->size(2))) {
       return false;
     } else {
-      c = positive_modulo(c, globals::lattice->size(2));
+      c = jams::lattice::modulo_index(c, globals::lattice->size(2));
     }
 
     return true;
@@ -1174,7 +1121,7 @@ std::vector<jams::Vec<double, 3>> Lattice::generate_symmetric_points(int basis_s
     const auto r_sym_frac = rotation_matrix * r_frac;
 
     // check if the generated point is already in the vector
-    if (!absolute_vector_exists_in_container(symmetric_points_frac, r_sym_frac, tolerance)) {
+    if (!jams::lattice::absolute_vector_exists_in_container(symmetric_points_frac, r_sym_frac, tolerance)) {
       // it's not in the vector so append it
       symmetric_points_frac.push_back(r_sym_frac);
       symmetric_points.push_back(fractional_to_cartesian(r_sym_frac));
@@ -1197,7 +1144,7 @@ bool Lattice::is_a_symmetry_complete_set(const int motif_index, const std::vecto
     for (const auto r_sym : generate_symmetric_points(motif_index, r, tolerance)) {
       // if a symmetry generated point is not in our original collection of points then our original collection was not a complete set
       // and we return false
-      if (!absolute_vector_exists_in_container(points_frac, cartesian_to_fractional(r_sym), tolerance)) {
+      if (!jams::lattice::absolute_vector_exists_in_container(points_frac, cartesian_to_fractional(r_sym), tolerance)) {
         return false;
       }
     }
@@ -1303,7 +1250,7 @@ const std::vector<jams::Mat<double, 3, 3>> &Lattice::lattice_site_point_group_sy
 
                 auto rotation = sym_rotations_[n];
 
-                auto new_position = normalise_fractional_coordinate(rotation * motif_position);
+                auto new_position = jams::lattice::normalise_fractional_coordinate(rotation * motif_position);
                 // TODO: need to translate back into unit cell
                 if  (jams::approximately_equal(motif_position, new_position, jams::defaults::lattice_tolerance)) {
                     basis_site_point_group_symops_[m].push_back(rotation);

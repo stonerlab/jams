@@ -352,6 +352,45 @@ TEST_F(LatticeSizeTest, LargeUnitCellVectorsKeepHighMotifInsideExtent) {
   EXPECT_EQ(globals::lattice->get_supercell().a3(), (jams::Vec<double, 3>{0.0, 0.0, 1000000.0}));
 }
 
+TEST_F(LatticeSizeTest, FractionalMotifPositionsAreNormalisedModuloUnitCell) {
+  globals::config->readString(R"(
+    solver : {
+      module = "llg-heun-cpu";
+      t_step = 1.0e-16;
+      t_min  = 1.0e-16;
+      t_max  = 1.0e-16;
+    };
+
+    materials = (
+      { name = "A"; moment = 1.0; spin = [1.0, 0.0, 0.0]; }
+    );
+
+    unitcell : {
+      symops = false;
+      parameter = 1.0e-9;
+      basis = (
+        [1.0, 0.0, 0.0],
+        [0.0, 1.0, 0.0],
+        [0.0, 0.0, 1.0]);
+      positions = (
+        ("A", [1.25, -1.25, 2.0])
+      );
+    };
+
+    lattice : {
+      size = [1, 1, 1];
+      periodic = [true, true, true];
+      normalise_spins = false;
+    };
+  )");
+
+  globals::lattice->init_from_config(*globals::config);
+
+  EXPECT_EQ(
+      globals::lattice->basis_site_atom(0).position_frac,
+      (jams::Vec<double, 3>{0.25, 0.75, 0.0}));
+}
+
 TEST_F(LatticeSizeTest, SymmetricPointDeduplicationUsesAbsoluteFractionalTolerance) {
   initialise_lattice_with_large_symmetry_unitcell(R"(
     lattice : {
