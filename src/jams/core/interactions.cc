@@ -22,6 +22,12 @@
 void neighbour_list_checks(const jams::InteractionList<jams::Mat<double, 3, 3>, 2>& list, const std::vector<InteractionChecks>& checks);
 
 namespace { //anon
+    std::string format_unit_cell_offset(const jams::Vec<int, 3>& offset) {
+      std::ostringstream stream;
+      stream << offset[0] << ", " << offset[1] << ", " << offset[2];
+      return stream.str();
+    }
+
     void apply_symops(std::vector<InteractionData>& interactions) {
       std::vector<InteractionData> symops_interaction_data;
 
@@ -463,17 +469,40 @@ void neighbour_list_checks(const jams::InteractionList<jams::Mat<double, 3, 3>, 
         break;
       case InteractionChecks::kIdenticalMotifNeighbourCount:
         if (globals::lattice->is_periodic(0) && globals::lattice->is_periodic(1) && globals::lattice->is_periodic(2)) {
-          std::vector<unsigned> motif_position_interactions(
-              globals::lattice->num_basis_sites());
-            for (auto i = 0; i < globals::lattice->num_basis_sites(); ++i) {
-              motif_position_interactions[i] = list.num_interactions(i);
-            }
+          using list_size_type = jams::InteractionList<jams::Mat<double, 3, 3>, 2>::size_type;
+          std::vector<list_size_type> motif_position_interactions(globals::lattice->num_basis_sites());
+          std::vector<int> motif_position_reference_site(globals::lattice->num_basis_sites(), -1);
 
-            for (auto i = 0; i < globals::num_spins; ++i) {
-              auto pos = globals::lattice->lattice_site_basis_index(i);
-              if (list.num_interactions(i) != motif_position_interactions[pos]) {
-                throw std::runtime_error(
-                    "inconsistent neighbour list: some sites have different numbers of neighbours for the same motif position");
+          for (auto motif = 0; motif < globals::lattice->num_basis_sites(); ++motif) {
+            for (auto site = 0; site < globals::num_spins; ++site) {
+              if (globals::lattice->lattice_site_basis_index(site) == static_cast<unsigned>(motif)) {
+                motif_position_interactions[motif] = list.num_interactions(site);
+                motif_position_reference_site[motif] = site;
+                break;
+              }
+            }
+          }
+
+          for (auto i = 0; i < globals::num_spins; ++i) {
+            const auto pos = globals::lattice->lattice_site_basis_index(i);
+            const auto actual_count = list.num_interactions(i);
+            const auto expected_count = motif_position_interactions[pos];
+            if (actual_count != expected_count) {
+              std::ostringstream message;
+              message << "inconsistent neighbour list: some sites have different numbers of neighbours for the same motif position\n"
+                      << "  site: " << i << "\n"
+                      << "  motif position: " << pos << " (input index " << pos + 1 << ")\n"
+                      << "  unit cell: " << format_unit_cell_offset(globals::lattice->cell_offset(i)) << "\n"
+                      << "  expected neighbours: " << expected_count;
+              const int reference_site = motif_position_reference_site[pos];
+              if (reference_site >= 0) {
+                message << " from reference site " << reference_site
+                        << " in unit cell "
+                        << format_unit_cell_offset(globals::lattice->cell_offset(reference_site));
+              }
+              message << "\n"
+                      << "  actual neighbours: " << actual_count;
+              throw std::runtime_error(message.str());
             }
           }
         }
