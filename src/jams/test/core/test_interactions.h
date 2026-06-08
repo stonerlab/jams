@@ -88,7 +88,7 @@ TEST(InteractionsTest, SymmetryCheckRejectsMissingReversedInteraction) {
   EXPECT_THROW(check_interaction_list_symmetry({forward}), jams::SanityException);
 }
 
-TEST_F(InteractionsPostProcessTest, RadiusCutoffUsesAbsoluteDistanceTolerance) {
+TEST_F(InteractionsPostProcessTest, RadiusCutoffUsesOwnCartesianTolerance) {
   InteractionFileDescription desc;
   desc.type = InteractionFileFormat::UNDEFINED;
   desc.dimension = InteractionType::TENSOR;
@@ -103,6 +103,7 @@ TEST_F(InteractionsPostProcessTest, RadiusCutoffUsesAbsoluteDistanceTolerance) {
       false,
       0.0,
       1000000.0,
+      1.0,
       1.0e-4);
 
   EXPECT_TRUE(interactions.empty());

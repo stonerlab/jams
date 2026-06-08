@@ -374,7 +374,7 @@ interactions_from_settings(libconfig::Setting &setting, const InteractionFileDes
 }
 
 void
-post_process_interactions(std::vector<InteractionData> &interactions, const InteractionFileDescription& desc, CoordinateFormat coord_format, bool use_symops, double energy_cutoff, double radius_cutoff, double distance_tolerance) {
+post_process_interactions(std::vector<InteractionData> &interactions, const InteractionFileDescription& desc, CoordinateFormat coord_format, bool use_symops, double energy_cutoff, double radius_cutoff, double distance_tolerance, double radius_cutoff_tolerance) {
   if (coord_format == CoordinateFormat::FRACTIONAL) {
     apply_transform(interactions, [](InteractionData J) -> InteractionData {
         J.interaction_vector_cart = ::globals::lattice->fractional_to_cartesian(J.interaction_vector_cart);
@@ -411,7 +411,10 @@ post_process_interactions(std::vector<InteractionData> &interactions, const Inte
 
   if (radius_cutoff > 0.0) {
     apply_predicate(interactions, [&](InteractionData J) -> bool {
-      return jams::norm(J.interaction_vector_cart) > radius_cutoff + distance_tolerance;});
+      // radius_cutoff is a Cartesian distance in lattice-parameter units. Keep
+      // its tolerance separate from fractional matching tolerances so changing
+      // motif-matching precision does not also thicken the cutoff shell.
+      return jams::norm(J.interaction_vector_cart) > radius_cutoff + radius_cutoff_tolerance;});
   }
 
   // calculate the lattice translation vectors
@@ -517,11 +520,12 @@ generate_neighbour_list(std::ifstream &file,
                         double energy_cutoff,
                         double radius_cutoff,
                         double distance_tolerance,
-                        std::vector<InteractionChecks> checks) {
+                        std::vector<InteractionChecks> checks,
+                        double radius_cutoff_tolerance) {
   auto file_desc = discover_interaction_file_format(file);
   auto interactions = interactions_from_file(file, file_desc);
 
-  post_process_interactions(interactions, file_desc, coord_format, use_symops, energy_cutoff, radius_cutoff, distance_tolerance);
+  post_process_interactions(interactions, file_desc, coord_format, use_symops, energy_cutoff, radius_cutoff, distance_tolerance, radius_cutoff_tolerance);
   check_interaction_list_symmetry(interactions);
 
 
@@ -542,11 +546,12 @@ generate_neighbour_list(libconfig::Setting &setting,
                         double energy_cutoff,
                         double radius_cutoff,
                         double distance_tolerance,
-                        std::vector<InteractionChecks> checks) {
+                        std::vector<InteractionChecks> checks,
+                        double radius_cutoff_tolerance) {
   auto file_desc = discover_interaction_setting_format(setting);
   auto interactions = interactions_from_settings(setting, file_desc);
 
-  post_process_interactions(interactions, file_desc, coord_format, use_symops, energy_cutoff, radius_cutoff, distance_tolerance);
+  post_process_interactions(interactions, file_desc, coord_format, use_symops, energy_cutoff, radius_cutoff, distance_tolerance, radius_cutoff_tolerance);
   check_interaction_list_symmetry(interactions);
 
   // now the interaction data should be in the same format regardless of the input
