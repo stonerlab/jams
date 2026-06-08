@@ -128,4 +128,11 @@ TEST_F(InteractionsPostProcessTest, NonIntegerLatticeTranslationThrows) {
       jams::SanityException);
 }
 
+TEST_F(InteractionsPostProcessTest, SymmetryCheckRejectsLargeVectorFractionalMismatch) {
+  auto forward = make_test_interaction(0, 0, 10000000000.0);
+  auto reverse = make_test_interaction(0, 0, -10000000000.0 + 200.0);
+
+  EXPECT_THROW(check_interaction_list_symmetry({forward, reverse}), jams::SanityException);
+}
+
 #endif // JAMS_TEST_CORE_INTERACTIONS_H

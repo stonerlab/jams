@@ -191,6 +191,24 @@ namespace { //anon
       }
       swap(interactions, new_data);
     }
+
+    bool interaction_vectors_match_for_symmetry(
+        const jams::Vec<double, 3>& candidate_cart,
+        const jams::Vec<double, 3>& expected_cart,
+        const double tolerance) {
+      if (globals::lattice == nullptr) {
+        return jams::lattice::absolute_vector_equal(candidate_cart, expected_cart, tolerance);
+      }
+
+      // Interaction vectors are lattice-coordinate objects. Compare them in
+      // fractional coordinates with an absolute component tolerance so the
+      // accepted mismatch does not grow with either unit-cell scale or
+      // interaction-vector length.
+      return jams::lattice::absolute_vector_equal(
+          globals::lattice->cartesian_to_fractional(candidate_cart),
+          globals::lattice->cartesian_to_fractional(expected_cart),
+          tolerance);
+    }
 } // namespace anon
 
 InteractionFileDescription
@@ -663,7 +681,7 @@ void check_interaction_list_symmetry(const std::vector<InteractionData> &interac
       && candidate.basis_site_j == expected_reversed_J.basis_site_j
       && candidate.type_i == expected_reversed_J.type_i
       && candidate.type_j == expected_reversed_J.type_j
-      && jams::approximately_equal(candidate.interaction_vector_cart, expected_reversed_J.interaction_vector_cart, jams::defaults::lattice_tolerance)
+      && interaction_vectors_match_for_symmetry(candidate.interaction_vector_cart, expected_reversed_J.interaction_vector_cart, jams::defaults::lattice_tolerance)
       && approximately_equal(candidate.interaction_value_tensor, expected_reversed_J.interaction_value_tensor, 1e-4));
     });
 
