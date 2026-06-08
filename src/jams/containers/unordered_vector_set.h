@@ -39,7 +39,7 @@ namespace jams {
           iterator it = std::find(begin(), end(), x);
           if (it == end()) {
             data_.push_back(x);
-            return {it, true};
+            return {data_.end() - 1, true};
           }
           return {it, false};
         }
@@ -47,11 +47,8 @@ namespace jams {
         // returns the position (index of vector) of the inserted object
         typename std::iterator_traits<iterator>::difference_type
         insert_and_get_position(const T& x) {
-          // iterators are invalid after insert so we need to get begin() before,
-          // the returned iterator is in terms of the original iterator range
-          iterator it_begin = begin();
           iterator it = insert(x).first;
-          return std::distance(it_begin, it);
+          return std::distance(begin(), it);
         }
 
         inline iterator begin() noexcept { return data_.begin(); }

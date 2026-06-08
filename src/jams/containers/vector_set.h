@@ -41,8 +41,7 @@ namespace jams {
         std::pair<iterator,bool> insert(const T& t) {
           iterator it = lower_bound(begin(), end(), t, cmp_);
           if (it == end() || cmp_(t, *it)) {
-            data_.insert(it, t);
-            return {it, true};
+            return {data_.insert(it, t), true};
           }
           return {it, false};
         }
@@ -50,11 +49,8 @@ namespace jams {
         // returns the position (index of vector) of the inserted object
         typename std::iterator_traits<iterator>::difference_type
         insert_and_get_position(const T& x) {
-          // iterators are invalid after insert so we need to get begin() before,
-          // the returned iterator is in terms of the original iterator range
-          iterator it_begin = begin();
           iterator it = insert(x).first;
-          return std::distance(it_begin, it);
+          return std::distance(begin(), it);
         }
 
         const_iterator find(const T& t) const {

@@ -65,6 +65,11 @@ TEST(UnorderedVectorSetTest, insert) {
   ASSERT_THAT(vset[3][1], ElementsAre(0.0, 3.0, 0.0));
   ASSERT_THAT(vset[3][2], ElementsAre(0.0, 0.0, 3.0));
 
+  ASSERT_EQ(vset.insert_and_get_position(B), 1);
+
+  jams::Mat<double, 3, 3> E = 4.0 * kIdentityMat3;
+  ASSERT_EQ(vset.insert_and_get_position(E), 4);
+
 }
 
 #endif //JAMS_TEST_UNORDERED_VECTOR_SET_H
