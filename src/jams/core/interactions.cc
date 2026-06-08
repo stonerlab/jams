@@ -1,4 +1,5 @@
 #include <cmath>
+#include <cstddef>
 #include <iomanip>
 #include <fstream>
 #include <string>
@@ -6,6 +7,7 @@
 #include <set>
 #include <numeric>
 #include <optional>
+#include <utility>
 #include <jams/helpers/output.h>
 
 #include "jams/core/types.h"
@@ -25,6 +27,63 @@ namespace { //anon
     std::string format_unit_cell_offset(const jams::Vec<int, 3>& offset) {
       std::ostringstream stream;
       stream << offset[0] << ", " << offset[1] << ", " << offset[2];
+      return stream.str();
+    }
+
+    struct NeighbourListSkipRecord {
+      std::size_t count = 0;
+      std::string sample;
+
+      void record(std::string sample_message) {
+        ++count;
+        if (sample.empty()) {
+          sample = std::move(sample_message);
+        }
+      }
+    };
+
+    struct NeighbourListSkipDiagnostics {
+      NeighbourListSkipRecord missing_local_site;
+      NeighbourListSkipRecord open_boundary;
+      NeighbourListSkipRecord missing_neighbour_site;
+      NeighbourListSkipRecord material_mismatch;
+
+      std::size_t total() const {
+        return missing_local_site.count
+               + open_boundary.count
+               + missing_neighbour_site.count
+               + material_mismatch.count;
+      }
+
+      void write_summary_if_any() const {
+        if (total() == 0) {
+          return;
+        }
+
+        std::cout << "    skipped neighbour-list candidates: " << total() << "\n";
+        write_record("missing local sites", missing_local_site);
+        write_record("outside open boundaries", open_boundary);
+        write_record("missing neighbour sites", missing_neighbour_site);
+        write_record("material/type mismatches", material_mismatch);
+      }
+
+      static void write_record(const char* label, const NeighbourListSkipRecord& record) {
+        if (record.count == 0) {
+          return;
+        }
+
+        std::cout << "      " << label << ": " << record.count << "\n";
+        std::cout << "        first: " << record.sample << "\n";
+      }
+    };
+
+    std::string format_candidate_site(
+        const char* label,
+        const int motif,
+        const jams::Vec<int, 3>& unit_cell) {
+      std::ostringstream stream;
+      stream << label << " motif " << motif << " (input index " << motif + 1 << ")"
+             << " unit cell " << format_unit_cell_offset(unit_cell);
       return stream.str();
     }
 
@@ -354,6 +413,7 @@ post_process_interactions(std::vector<InteractionData> &interactions, const Inte
 jams::InteractionList<jams::Mat<double, 3, 3>, 2>
 neighbour_list_from_interactions(std::vector<InteractionData> &interactions) {
   jams::InteractionList<jams::Mat<double, 3, 3>, 2> nbr_list;
+  NeighbourListSkipDiagnostics skip_diagnostics;
 
   // loop over the translation vectors for lattice size
   for (int i = 0; i < globals::lattice->size(0); ++i) {
@@ -365,20 +425,29 @@ neighbour_list_from_interactions(std::vector<InteractionData> &interactions) {
 
           const auto local_site_optional = globals::lattice->site_index_by_unit_cell_optional(i, j, k, m);
           if (!local_site_optional) {
+            skip_diagnostics.missing_local_site.record(
+                format_candidate_site("local", m, {i, j, k}));
             continue;
           }
           const int local_site = *local_site_optional;
 
           jams::Vec<int, 3> d_unit_cell = jams::Vec<int, 3>{i, j, k} + I.lattice_translation_vector;
+          const jams::Vec<int, 3> unwrapped_unit_cell = d_unit_cell;
 
           // check if interaction goes outside of an open boundary
           if (globals::lattice->apply_boundary_conditions(d_unit_cell[0], d_unit_cell[1], d_unit_cell[2]) == false) {
+            skip_diagnostics.open_boundary.record(
+                format_candidate_site("neighbour", I.basis_site_j, unwrapped_unit_cell)
+                + " from local site " + std::to_string(local_site));
             continue;
           }
 
           const auto nbr_site_optional = globals::lattice->site_index_by_unit_cell_optional(
               d_unit_cell[0], d_unit_cell[1], d_unit_cell[2], I.basis_site_j);
           if (!nbr_site_optional) {
+            skip_diagnostics.missing_neighbour_site.record(
+                format_candidate_site("neighbour", I.basis_site_j, d_unit_cell)
+                + " from local site " + std::to_string(local_site));
             continue;
           }
           const int nbr_site = *nbr_site_optional;
@@ -395,6 +464,14 @@ neighbour_list_from_interactions(std::vector<InteractionData> &interactions) {
 
           // catch if the site has a different material (presumably an impurity site)
           if (globals::lattice->lattice_site_material_name(local_site) != I.type_i || globals::lattice->lattice_site_material_name(nbr_site) != I.type_j) {
+            std::ostringstream sample;
+            sample << "local site " << local_site
+                   << " material " << globals::lattice->lattice_site_material_name(local_site)
+                   << " expected " << I.type_i
+                   << ", neighbour site " << nbr_site
+                   << " material " << globals::lattice->lattice_site_material_name(nbr_site)
+                   << " expected " << I.type_j;
+            skip_diagnostics.material_mismatch.record(sample.str());
             continue;
           }
 
@@ -403,6 +480,8 @@ neighbour_list_from_interactions(std::vector<InteractionData> &interactions) {
       }
     }
   }
+
+  skip_diagnostics.write_summary_if_any();
 
   return nbr_list;
 }
