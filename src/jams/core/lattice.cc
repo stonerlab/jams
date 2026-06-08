@@ -89,7 +89,7 @@ namespace {
     }
 
     bool is_integer_extent(const double value, const double eps = jams::defaults::lattice_tolerance) {
-      return approximately_equal(value, std::round(value), eps);
+      return std::abs(value - std::round(value)) <= eps;
     }
 
     int positive_modulo(const int value, const int modulus) {

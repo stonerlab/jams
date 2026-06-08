@@ -359,6 +359,18 @@ TEST_F(LatticeSizeTest, NonIntegerSizeRequiresOpenBoundaryInCroppedDirection) {
   EXPECT_THROW(globals::lattice->init_from_config(*globals::config), jams::ConfigException);
 }
 
+TEST_F(LatticeSizeTest, LargeNonIntegerSizeRequiresOpenBoundaryInCroppedDirection) {
+  globals::config->readString(base_z_motif_config() + R"(
+    lattice : {
+      size = [1.0, 1.0, 10000000.5];
+      periodic = [true, true, true];
+      normalise_spins = false;
+    };
+  )");
+
+  EXPECT_THROW(globals::lattice->init_from_config(*globals::config), jams::ConfigException);
+}
+
 TEST_F(LatticeSizeTest, CroppedLatticeSpinArrayIsPackedForSpatialFft) {
   initialise_lattice_with_z_motif(R"(
     lattice : {
