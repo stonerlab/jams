@@ -6,11 +6,39 @@
 #include <jams/core/solver.h>
 #include <jams/cuda/cuda_spin_ops.h>
 #include <jams/helpers/maths.h>
+#include <jams/helpers/exception.h>
 #include <jams/helpers/output.h>
 #include <jams/helpers/spinops.h>
 #include <jams/interface/highfive.h>
 
+#include <cmath>
+#include <limits>
 #include <map>
+
+namespace {
+void validate_layer_normal(
+    const libconfig::Setting& settings,
+    const jams::Vec<double, 3>& layer_normal) {
+  for (auto n = 0; n < 3; ++n) {
+    if (!std::isfinite(layer_normal[n])) {
+      throw jams::ConfigException(settings, "layer_normal components must be finite");
+    }
+  }
+
+  if (!definately_greater_than(jams::norm(layer_normal), 0.0, std::numeric_limits<double>::epsilon())) {
+    throw jams::ConfigException(settings, "layer_normal must not be the zero vector");
+  }
+}
+
+void validate_non_negative_finite_setting(
+    const libconfig::Setting& settings,
+    const double value,
+    const char* setting_name) {
+  if (!std::isfinite(value) || value < 0.0) {
+    throw jams::ConfigException(settings, setting_name, " must be finite and non-negative");
+  }
+}
+}
 
 MagnetisationLayersMonitor::MagnetisationLayersMonitor(
     const libconfig::Setting &settings)
@@ -19,6 +47,9 @@ MagnetisationLayersMonitor::MagnetisationLayersMonitor(
   jams::Vec<double, 3> layer_normal = jams::config_required<jams::Vec<double, 3>>(settings, "layer_normal");
   auto layer_thickness = jams::config_optional<double>(settings, "layer_thickness", 0.0);
   auto distance_tolerance = jams::config_optional<double>(settings, "distance_tolerance", jams::defaults::lattice_tolerance);
+  validate_layer_normal(settings, layer_normal);
+  validate_non_negative_finite_setting(settings, layer_thickness, "layer_thickness");
+  validate_non_negative_finite_setting(settings, distance_tolerance, "distance_tolerance");
 
   grouping_ = jams::monitors::parse_spin_grouping(settings, "materials", "magnetisation");
   spin_groups_ = jams::monitors::make_spin_groups(grouping_);
