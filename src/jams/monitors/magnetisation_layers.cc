@@ -4,11 +4,9 @@
 #include <jams/core/globals.h>
 #include <jams/core/lattice.h>
 #include <jams/core/solver.h>
-#include <jams/cuda/cuda_spin_ops.h>
 #include <jams/helpers/maths.h>
 #include <jams/helpers/exception.h>
 #include <jams/helpers/output.h>
-#include <jams/helpers/spinops.h>
 #include <jams/interface/highfive.h>
 
 #include <cmath>
@@ -20,7 +18,7 @@
 namespace {
 struct LayerBuildData {
   double position_nm = 0.0;
-  std::vector<int> spin_indices;
+  std::vector<int> local_spin_offsets;
 };
 
 void validate_layer_normal(
@@ -89,10 +87,12 @@ std::vector<LayerBuildData> build_zero_thickness_layers(
     const double distance_tolerance) {
   std::map<double, LayerBuildData> layers;
 
-  for (auto spin_index : spin_group.indices_span()) {
+  const auto spin_indices = spin_group.indices_span();
+  for (std::size_t local_offset = 0; local_offset < spin_indices.size(); ++local_offset) {
+    const auto spin_index = spin_indices[local_offset];
     const auto position_nm = projected_layer_position_nm(layer_normal_unit, spin_index);
     auto layer_it = find_or_insert_tolerant_layer(layers, position_nm, distance_tolerance);
-    layer_it->second.spin_indices.push_back(spin_index);
+    layer_it->second.local_spin_offsets.push_back(static_cast<int>(local_offset));
   }
 
   std::vector<LayerBuildData> ordered_layers;
@@ -118,12 +118,14 @@ std::vector<LayerBuildData> build_finite_thickness_layers(
   }
 
   std::map<std::int64_t, LayerBuildData> layers;
-  for (auto spin_index : spin_group.indices_span()) {
+  const auto spin_indices = spin_group.indices_span();
+  for (std::size_t local_offset = 0; local_offset < spin_indices.size(); ++local_offset) {
+    const auto spin_index = spin_indices[local_offset];
     const auto position_nm = projected_layer_position_nm(layer_normal_unit, spin_index);
     const auto bin_index = checked_layer_bin_index(settings, position_nm, z_min, layer_thickness);
     const auto layer_position_nm = z_min + (static_cast<double>(bin_index) + 0.5) * layer_thickness;
     auto [layer_it, _] = layers.emplace(bin_index, LayerBuildData{layer_position_nm, {}});
-    layer_it->second.spin_indices.push_back(spin_index);
+    layer_it->second.local_spin_offsets.push_back(static_cast<int>(local_offset));
   }
 
   std::vector<LayerBuildData> ordered_layers;
@@ -153,7 +155,7 @@ MagnetisationLayersMonitor::MagnetisationLayersMonitor(
 
   auto num_groups = spin_groups_.size();
   group_num_layers_.resize(num_groups);
-  group_layer_spin_indices_.resize(num_groups);
+  group_spin_layer_indices_.resize(num_groups);
   group_layer_magnetisation_.resize(num_groups);
 
   // Create a new h5 file, truncating any old file if it exists.
@@ -169,7 +171,7 @@ MagnetisationLayersMonitor::MagnetisationLayersMonitor(
 
     auto num_layers = layers.size();
     group_num_layers_[group_idx] = num_layers;
-    group_layer_spin_indices_[group_idx].resize(num_layers);
+    group_spin_layer_indices_[group_idx].resize(spin_group.size());
     group_layer_magnetisation_[group_idx].resize(num_layers, 3);
 
     // Move all the data into MultiArrays
@@ -178,14 +180,17 @@ MagnetisationLayersMonitor::MagnetisationLayersMonitor(
     jams::MultiArray<int, 1> layer_spin_count(num_layers);
 
     const auto moments = globals::mus.host_view();
+    const auto spin_indices = spin_group.indices_span();
+    auto spin_layer_indices = group_spin_layer_indices_[group_idx].mutable_host_span();
     int counter = 0;
     for (auto const &layer: layers) {
       layer_positions(counter) = layer.position_nm;
-      layer_spin_count(counter) = layer.spin_indices.size();
-      group_layer_spin_indices_[group_idx][counter] = jams::MultiArray<int, 1>(layer.spin_indices);
+      layer_spin_count(counter) = layer.local_spin_offsets.size();
 
       layer_saturation_moment(counter) = 0.0;
-      for (const auto spin_index : group_layer_spin_indices_[group_idx][counter].host_span()) {
+      for (const auto local_offset : layer.local_spin_offsets) {
+        spin_layer_indices[local_offset] = counter;
+        const auto spin_index = spin_indices[local_offset];
         layer_saturation_moment(counter) += moments(spin_index) / kBohrMagnetonIU;
       }
 
@@ -256,20 +261,29 @@ void MagnetisationLayersMonitor::update(Solver& solver) {
 
   const auto& spins = globals::s;
   const auto& moments = globals::mus;
+  const auto spin_values = spins.host_view();
+  const auto moment_values = moments.host_view();
 
   for (std::size_t group_idx = 0; group_idx < spin_groups_.size(); ++group_idx) {
 
     auto spin_group = timeseries_group.createGroup(spin_groups_[group_idx].name);
 
-    // Loop over layers and calculate the magnetisation
-    for (auto layer_index = 0; layer_index < group_num_layers_[group_idx]; ++layer_index) {
-      jams::Vec<double, 3> mag = jams::sum_spins_moments(spins, moments,
-                                           group_layer_spin_indices_[group_idx][layer_index]);
+    group_layer_magnetisation_[group_idx].zero();
+    auto& layer_magnetisation = group_layer_magnetisation_[group_idx];
+    const auto spin_indices = spin_groups_[group_idx].indices_span();
+    const auto spin_layer_indices = group_spin_layer_indices_[group_idx].host_span();
 
-      // internally we use meV T^-1 for mus so convert back to Bohr magneton
-      group_layer_magnetisation_[group_idx](layer_index, 0) = mag[0] / kBohrMagnetonIU;
-      group_layer_magnetisation_[group_idx](layer_index, 1) = mag[1] / kBohrMagnetonIU;
-      group_layer_magnetisation_[group_idx](layer_index, 2) = mag[2] / kBohrMagnetonIU;
+    // Accumulate all layer magnetisations in one pass over the group. This
+    // avoids storing one spin-index array per layer and avoids rescanning the
+    // group once for every layer on each monitor update.
+    for (std::size_t n = 0; n < spin_indices.size(); ++n) {
+      const auto spin_index = spin_indices[n];
+      const auto layer_index = spin_layer_indices[n];
+      const auto moment_mu_b = moment_values(spin_index) / kBohrMagnetonIU;
+
+      layer_magnetisation(layer_index, 0) += moment_mu_b * spin_values(spin_index, 0);
+      layer_magnetisation(layer_index, 1) += moment_mu_b * spin_values(spin_index, 1);
+      layer_magnetisation(layer_index, 2) += moment_mu_b * spin_values(spin_index, 2);
     }
 
     auto dataset = spin_group.createDataSet<double>(

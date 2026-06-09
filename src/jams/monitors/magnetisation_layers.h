@@ -98,7 +98,7 @@ private:
     std::vector<jams::monitors::SpinGroup> spin_groups_;
     std::vector<int> group_num_layers_;
     std::vector<jams::MultiArray<double,2>>           group_layer_magnetisation_;
-    std::vector<std::vector<jams::MultiArray<int,1>>> group_layer_spin_indices_;
+    std::vector<jams::MultiArray<int,1>>              group_spin_layer_indices_;
 };
 
 #endif

@@ -12,12 +12,20 @@
 #include <jams/common.h>
 #include <jams/core/globals.h>
 #include <jams/core/lattice.h>
+#include <jams/core/solver.h>
 #include <jams/helpers/exception.h>
 #include <jams/helpers/output.h>
 #include <jams/interface/highfive.h>
 #include <jams/monitors/magnetisation_layers.h>
 
 namespace jams::testing {
+
+class MagnetisationLayersStubSolver : public Solver {
+public:
+  void initialize(const libconfig::Setting&) override {}
+  void run() override {}
+  std::string name() const override { return "magnetisation-layers-stub"; }
+};
 
 class MagnetisationLayersMonitorTest : public ::testing::Test {
 protected:
@@ -98,6 +106,20 @@ protected:
         HighFive::File::ReadOnly);
     std::vector<int> values;
     file.getDataSet("/jams/monitors/magnetisation-layers/groups/A/layer_spin_count").read(values);
+    return values;
+  }
+
+  static std::vector<double> read_first_update_magnetisation() {
+    HighFive::File file(
+        jams::output::monitor_filename("magnetisation-layers", "h5"),
+        HighFive::File::ReadOnly);
+    std::vector<std::vector<double>> rows;
+    file.getDataSet("/jams/monitors/magnetisation-layers/timeseries/000000000/A/magnetisation").read(rows);
+
+    std::vector<double> values;
+    for (const auto& row : rows) {
+      values.insert(values.end(), row.begin(), row.end());
+    }
     return values;
   }
 
@@ -253,6 +275,61 @@ TEST_F(MagnetisationLayersMonitorTest, ZeroThicknessLayersUseStrictMapWithTolera
   const auto layer_spin_counts = read_layer_spin_counts();
   ASSERT_EQ(layer_spin_counts.size(), 1u);
   EXPECT_EQ(layer_spin_counts[0], 2);
+}
+
+TEST_F(MagnetisationLayersMonitorTest, UpdateAccumulatesLayerMagnetisationInOnePass) {
+  initialise_lattice_from_config(R"(
+    solver : {
+      module = "llg-heun-cpu";
+      t_step = 1.0e-16;
+      t_min  = 1.0e-16;
+      t_max  = 1.0e-16;
+    };
+
+    materials = (
+      { name = "A"; moment = 1.0; spin = [1.0, 0.0, 0.0]; }
+    );
+
+    unitcell : {
+      symops = false;
+      parameter = 1.0e-9;
+      basis = (
+        [1.0, 0.0, 0.0],
+        [0.0, 1.0, 0.0],
+        [0.0, 0.0, 1.0]);
+      positions = (
+        ("A", [0.0, 0.0, 0.0])
+      );
+    };
+
+    lattice : {
+      size = [1, 1, 2];
+      periodic = [true, true, true];
+      normalise_spins = false;
+    };
+
+    monitors = (
+      {
+        module = "magnetisation-layers";
+        output_steps = 1;
+        layer_normal = [0.0, 0.0, 1.0];
+        layer_thickness = 1.0;
+      }
+    );
+  )");
+
+  MagnetisationLayersMonitor monitor(first_monitor_settings());
+  MagnetisationLayersStubSolver solver;
+  monitor.update(solver);
+
+  const auto magnetisation = read_first_update_magnetisation();
+  ASSERT_EQ(magnetisation.size(), 6u);
+  EXPECT_NEAR(magnetisation[0], 1.0, 1.0e-12);
+  EXPECT_NEAR(magnetisation[1], 0.0, 1.0e-12);
+  EXPECT_NEAR(magnetisation[2], 0.0, 1.0e-12);
+  EXPECT_NEAR(magnetisation[3], 1.0, 1.0e-12);
+  EXPECT_NEAR(magnetisation[4], 0.0, 1.0e-12);
+  EXPECT_NEAR(magnetisation[5], 0.0, 1.0e-12);
 }
 
 }  // namespace jams::testing
