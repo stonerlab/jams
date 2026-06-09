@@ -96,13 +96,29 @@ std::vector<LayerBuildData> build_zero_thickness_layers(
     const jams::monitors::SpinGroup& spin_group,
     const jams::Vec<double, 3>& layer_normal_unit,
     const double distance_tolerance) {
+  if (spin_group.empty()) {
+    return {};
+  }
+
+  double z_min = std::numeric_limits<double>::max();
+  for (auto spin_index : spin_group.indices_span()) {
+    z_min = std::min(z_min, projected_layer_position_nm(layer_normal_unit, spin_index));
+  }
+
   std::map<double, LayerBuildData> layers;
 
   const auto spin_indices = spin_group.indices_span();
   for (std::size_t local_offset = 0; local_offset < spin_indices.size(); ++local_offset) {
     const auto spin_index = spin_indices[local_offset];
     const auto position_nm = projected_layer_position_nm(layer_normal_unit, spin_index);
-    auto layer_it = find_or_insert_tolerant_layer(layers, position_nm, distance_tolerance);
+    // Store strict map keys relative to the group minimum. This keeps tolerant
+    // comparisons away from large absolute coordinates while preserving the
+    // absolute layer position that is written to HDF5.
+    const auto relative_position_nm = position_nm - z_min;
+    auto layer_it = find_or_insert_tolerant_layer(layers, relative_position_nm, distance_tolerance);
+    if (layer_it->second.local_spin_offsets.empty()) {
+      layer_it->second.position_nm = z_min + layer_it->first;
+    }
     layer_it->second.local_spin_offsets.push_back(
         checked_int_count(settings, local_offset, "spin group local offset"));
   }
