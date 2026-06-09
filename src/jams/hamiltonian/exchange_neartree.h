@@ -41,10 +41,17 @@ public:
 
     typedef std::vector<std::vector<InteractionNT>> InteractionList;
 
+    EnergyCurrentInteractionSupport energy_current_interaction_support() const override {
+      return EnergyCurrentInteractionSupport::Supported;
+    }
+
+    void add_energy_current_interactions(jams::EnergyCurrentInteractionSink& sink) const override;
+
 private:
     InteractionList interaction_list_;
     double energy_cutoff_;
     double shell_width_;
+    double max_radius_;
 };
 
 #endif  // JAMS_HAMILTONIAN_EXCHANGE_DISTANCE_H

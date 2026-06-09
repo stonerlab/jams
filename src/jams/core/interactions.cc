@@ -409,15 +409,8 @@ generate_neighbour_list(std::ifstream &file,
                         double radius_cutoff,
                         double distance_tolerance,
                         std::vector<InteractionChecks> checks) {
-  auto file_desc = discover_interaction_file_format(file);
-  auto interactions = interactions_from_file(file, file_desc);
-
-  post_process_interactions(interactions, file_desc, coord_format, use_symops, energy_cutoff, radius_cutoff, distance_tolerance);
-  check_interaction_list_symmetry(interactions);
-
-
-  // now the interaction data should be in the same format regardless of the input
-  // calculate the neighbourlist from here
+  auto interactions = generate_interaction_data(
+      file, coord_format, use_symops, energy_cutoff, radius_cutoff, distance_tolerance);
 
   auto nbrs = neighbour_list_from_interactions(interactions);
 
@@ -434,20 +427,44 @@ generate_neighbour_list(libconfig::Setting &setting,
                         double radius_cutoff,
                         double distance_tolerance,
                         std::vector<InteractionChecks> checks) {
-  auto file_desc = discover_interaction_setting_format(setting);
-  auto interactions = interactions_from_settings(setting, file_desc);
-
-  post_process_interactions(interactions, file_desc, coord_format, use_symops, energy_cutoff, radius_cutoff, distance_tolerance);
-  check_interaction_list_symmetry(interactions);
-
-  // now the interaction data should be in the same format regardless of the input
-  // calculate the neighbourlist from here
+  auto interactions = generate_interaction_data(
+      setting, coord_format, use_symops, energy_cutoff, radius_cutoff, distance_tolerance);
 
   auto nbrs = neighbour_list_from_interactions(interactions);
 
   neighbour_list_checks(nbrs, checks);
 
   return nbrs;
+}
+
+std::vector<InteractionData>
+generate_interaction_data(std::ifstream &file,
+                          CoordinateFormat coord_format,
+                          bool use_symops,
+                          double energy_cutoff,
+                          double radius_cutoff,
+                          double distance_tolerance) {
+  auto file_desc = discover_interaction_file_format(file);
+  auto interactions = interactions_from_file(file, file_desc);
+
+  post_process_interactions(interactions, file_desc, coord_format, use_symops, energy_cutoff, radius_cutoff, distance_tolerance);
+  check_interaction_list_symmetry(interactions);
+  return interactions;
+}
+
+std::vector<InteractionData>
+generate_interaction_data(libconfig::Setting &setting,
+                          CoordinateFormat coord_format,
+                          bool use_symops,
+                          double energy_cutoff,
+                          double radius_cutoff,
+                          double distance_tolerance) {
+  auto file_desc = discover_interaction_setting_format(setting);
+  auto interactions = interactions_from_settings(setting, file_desc);
+
+  post_process_interactions(interactions, file_desc, coord_format, use_symops, energy_cutoff, radius_cutoff, distance_tolerance);
+  check_interaction_list_symmetry(interactions);
+  return interactions;
 }
 
 void neighbour_list_checks(const jams::InteractionList<jams::Mat<double, 3, 3>, 2>& list, const std::vector<InteractionChecks>& checks) {

@@ -5,6 +5,7 @@
 #include <jams/hamiltonian/sparse_interaction.h>
 
 #include <functional>
+#include <map>
 
 // Example config input
 //
@@ -27,8 +28,16 @@ class ExchangeFunctionalHamiltonian : public SparseInteractionHamiltonian {
 public:
     ExchangeFunctionalHamiltonian(const libconfig::Setting &settings, unsigned int size);
 
+    EnergyCurrentInteractionSupport energy_current_interaction_support() const override {
+      return EnergyCurrentInteractionSupport::Supported;
+    }
+
+    void add_energy_current_interactions(jams::EnergyCurrentInteractionSink& sink) const override;
+
 private:
     using ExchangeFunctionalType = std::function<double(double)>;
+    using ExchangeFunctionalMap = std::map<std::pair<std::string, std::string>,
+                                           std::pair<double, ExchangeFunctionalType>>;
 
     ExchangeFunctionalType functional_from_params(const std::string& name, const std::vector<double>& params);
 
@@ -46,6 +55,9 @@ private:
     static double functional_gaussian_multi(double rij, double J0, double r0, double sigma0, double J1, double r1, double sigma1, double J2, double r2, double sigma2);
 
     static double functional_kaneyoshi(double rij, double J0, double r0, double lengthscale);
+
+    ExchangeFunctionalMap exchange_functional_map_;
+    double max_cutoff_radius_ = 0.0;
 };
 
 #endif  // JAMS_HAMILTONIAN_EXCHANGE_FUNCTIONAL_H

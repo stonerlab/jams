@@ -18,9 +18,7 @@ class CudaDipoleBruteforceHamiltonian : public Hamiltonian {
         jams::Vec<jams::Real, 3>   calculate_field(const int i, jams::Real time) override;
         void   calculate_fields(jams::Real time) override;
 
-        void add_energy_current_interactions(jams::SparseMatrix<double>::Builder& rx_builder,
-                                             jams::SparseMatrix<double>::Builder& ry_builder,
-                                             jams::SparseMatrix<double>::Builder& rz_builder) const override;
+        void add_energy_current_interactions(jams::EnergyCurrentInteractionSink& sink) const override;
 
         EnergyCurrentInteractionSupport energy_current_interaction_support() const override {
           return EnergyCurrentInteractionSupport::Supported;

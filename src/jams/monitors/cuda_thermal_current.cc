@@ -20,6 +20,51 @@
 #include "jams/cuda/cuda_common.h"
 #include "cuda_thermal_current.h"
 
+namespace {
+
+class SparseEnergyCurrentInteractionSink final : public jams::EnergyCurrentInteractionSink {
+public:
+  SparseEnergyCurrentInteractionSink(jams::SparseMatrix<double>::Builder& rx_builder,
+                                     jams::SparseMatrix<double>::Builder& ry_builder,
+                                     jams::SparseMatrix<double>::Builder& rz_builder)
+      : rx_builder_(rx_builder),
+        ry_builder_(ry_builder),
+        rz_builder_(rz_builder) {
+  }
+
+  void insert(const int site_i,
+              const int site_j,
+              const jams::Vec<double, 3>& r_ji,
+              const jams::Mat<double, 3, 3>& interaction) override {
+    for (auto m = 0; m < 3; ++m) {
+      for (auto n = 0; n < 3; ++n) {
+        if (interaction[m][n] == 0.0) {
+          continue;
+        }
+
+        const int row = 3 * site_i + m;
+        const int col = 3 * site_j + n;
+        if (r_ji[0] != 0.0) {
+          rx_builder_.insert(row, col, r_ji[0] * interaction[m][n]);
+        }
+        if (r_ji[1] != 0.0) {
+          ry_builder_.insert(row, col, r_ji[1] * interaction[m][n]);
+        }
+        if (r_ji[2] != 0.0) {
+          rz_builder_.insert(row, col, r_ji[2] * interaction[m][n]);
+        }
+      }
+    }
+  }
+
+private:
+  jams::SparseMatrix<double>::Builder& rx_builder_;
+  jams::SparseMatrix<double>::Builder& ry_builder_;
+  jams::SparseMatrix<double>::Builder& rz_builder_;
+};
+
+}  // namespace
+
 CudaThermalCurrentMonitor::CudaThermalCurrentMonitor(const libconfig::Setting &settings)
         : Monitor(settings) {
   if (jams::instance().mode() != jams::Mode::GPU) {
@@ -41,11 +86,14 @@ CudaThermalCurrentMonitor::CudaThermalCurrentMonitor(const libconfig::Setting &s
       case Hamiltonian::EnergyCurrentInteractionSupport::None:
         continue;
       case Hamiltonian::EnergyCurrentInteractionSupport::Supported:
-        hamiltonian->add_energy_current_interactions(
+      {
+        SparseEnergyCurrentInteractionSink sink(
             energy_current_operator_builders[0],
             energy_current_operator_builders[1],
             energy_current_operator_builders[2]);
+        hamiltonian->add_energy_current_interactions(sink);
         break;
+      }
       case Hamiltonian::EnergyCurrentInteractionSupport::Unsupported:
         throw std::runtime_error(
             "thermal-current monitor does not support energy-current interactions for Hamiltonian '"

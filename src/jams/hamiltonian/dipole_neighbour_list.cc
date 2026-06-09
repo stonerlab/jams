@@ -109,9 +109,7 @@ jams::Real DipoleNeighbourListHamiltonian::calculate_energy_difference(int i, co
 }
 
 void DipoleNeighbourListHamiltonian::add_energy_current_interactions(
-    jams::SparseMatrix<double>::Builder& rx_builder,
-    jams::SparseMatrix<double>::Builder& ry_builder,
-    jams::SparseMatrix<double>::Builder& rz_builder) const {
+    jams::EnergyCurrentInteractionSink& sink) const {
   for (auto i = 0; i < neighbour_list_.size(); ++i) {
     const jams::Vec<jams::Real, 3> r_i = {globals::positions(i, 0), globals::positions(i, 1), globals::positions(i, 2)};
 
@@ -128,7 +126,7 @@ void DipoleNeighbourListHamiltonian::add_energy_current_interactions(
           globals::mus(j),
           globals::lattice->parameter());
       jams::dipole::insert_displacement_weighted_interaction(
-          rx_builder, ry_builder, rz_builder, static_cast<int>(i), j, jams::array_cast<double>(r_ij), interaction);
+          sink, static_cast<int>(i), j, jams::array_cast<double>(r_ij), interaction);
     }
   }
 }

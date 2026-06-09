@@ -67,8 +67,28 @@ discover_interaction_file_format(std::ifstream &file);
 std::vector<InteractionData>
 interactions_from_file(std::ifstream &file, const InteractionFileDescription& desc);
 
+std::vector<InteractionData>
+generate_interaction_data(std::ifstream &file,
+                          CoordinateFormat coord_format,
+                          bool use_symops,
+                          double energy_cutoff,
+                          double radius_cutoff,
+                          double distance_tolerance);
+
+std::vector<InteractionData>
+generate_interaction_data(libconfig::Setting &setting,
+                          CoordinateFormat coord_format,
+                          bool use_symops,
+                          double energy_cutoff,
+                          double radius_cutoff,
+                          double distance_tolerance);
+
 jams::InteractionList<jams::Mat<double, 3, 3>, 2>
 neighbour_list_from_interactions(std::vector<InteractionData> &interactions);
+
+void
+neighbour_list_checks(const jams::InteractionList<jams::Mat<double, 3, 3>, 2>& list,
+                      const std::vector<InteractionChecks>& checks);
 
 jams::InteractionList<jams::Mat<double, 3, 3>, 2>
 generate_neighbour_list(std::ifstream &file,

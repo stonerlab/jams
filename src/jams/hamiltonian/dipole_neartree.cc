@@ -58,9 +58,7 @@ jams::Real DipoleNearTreeHamiltonian::calculate_energy_difference(int i, const j
 }
 
 void DipoleNearTreeHamiltonian::add_energy_current_interactions(
-    jams::SparseMatrix<double>::Builder& rx_builder,
-    jams::SparseMatrix<double>::Builder& ry_builder,
-    jams::SparseMatrix<double>::Builder& rz_builder) const {
+    jams::EnergyCurrentInteractionSink& sink) const {
   for (auto i = 0; i < globals::num_spins; ++i) {
     const jams::Vec<jams::Real, 3> r_i = {globals::positions(i, 0), globals::positions(i, 1), globals::positions(i, 2)};
     const auto neighbours = neartree_.neighbours(r_i, r_cutoff_);
@@ -78,7 +76,7 @@ void DipoleNearTreeHamiltonian::add_energy_current_interactions(
           globals::mus(j),
           globals::lattice->parameter());
       jams::dipole::insert_displacement_weighted_interaction(
-          rx_builder, ry_builder, rz_builder, i, j, jams::array_cast<double>(r_ij), interaction);
+          sink, i, j, jams::array_cast<double>(r_ij), interaction);
     }
   }
 }

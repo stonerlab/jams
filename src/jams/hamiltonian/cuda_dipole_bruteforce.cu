@@ -105,9 +105,7 @@ jams::Real CudaDipoleBruteforceHamiltonian::calculate_energy_difference(int i, c
 }
 
 void CudaDipoleBruteforceHamiltonian::add_energy_current_interactions(
-    jams::SparseMatrix<double>::Builder& rx_builder,
-    jams::SparseMatrix<double>::Builder& ry_builder,
-    jams::SparseMatrix<double>::Builder& rz_builder) const {
+    jams::EnergyCurrentInteractionSink& sink) const {
   assert(r_cutoff_ < globals::lattice->max_interaction_radius());
 
   const auto displacement = [](const int i, const int j) -> jams::Vec<double, 3> {
@@ -141,7 +139,7 @@ void CudaDipoleBruteforceHamiltonian::add_energy_current_interactions(
           globals::lattice->parameter());
       const auto r_ji = -jams::array_cast<double>(r_ij);
       jams::dipole::insert_displacement_weighted_interaction(
-          rx_builder, ry_builder, rz_builder, i, j, r_ji, interaction);
+          sink, i, j, r_ji, interaction);
     }
   }
 }

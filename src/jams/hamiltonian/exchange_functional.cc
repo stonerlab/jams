@@ -12,10 +12,6 @@ ExchangeFunctionalHamiltonian::ExchangeFunctionalHamiltonian(const libconfig::Se
     const unsigned int size) : SparseInteractionHamiltonian(settings, size) {
 
 
-  std::map<std::pair<std::string, std::string>, std::pair<double, ExchangeFunctionalType>> exchange_functional_map;
-
-
-  double max_cutoff_radius = 0.0;
   for (auto n = 0; n < settings["interactions"].getLength(); ++n) {
     const auto type_i = jams::read_string_setting(settings["interactions"][n][0], "material i");
     const auto type_j = jams::read_string_setting(settings["interactions"][n][1], "material j");
@@ -27,8 +23,8 @@ ExchangeFunctionalHamiltonian::ExchangeFunctionalHamiltonian(const libconfig::Se
     const auto key_ij = std::make_pair(type_i, type_j);
     const auto key_ji = std::make_pair(type_j, type_i);
 
-    if (exchange_functional_map.find(key_ij) != exchange_functional_map.end() ||
-        exchange_functional_map.find(key_ji) != exchange_functional_map.end()) {
+    if (exchange_functional_map_.find(key_ij) != exchange_functional_map_.end() ||
+        exchange_functional_map_.find(key_ji) != exchange_functional_map_.end()) {
       throw std::runtime_error(
           "Interaction between types \"" + type_i + "\" and \"" + type_j +
           "\" is defined more than once (order does not matter).");
@@ -41,8 +37,8 @@ ExchangeFunctionalHamiltonian::ExchangeFunctionalHamiltonian(const libconfig::Se
           std::to_string(globals::lattice->max_interaction_radius()));
     }
 
-    if (r_cutoff > max_cutoff_radius) {
-      max_cutoff_radius = r_cutoff;
+    if (r_cutoff > max_cutoff_radius_) {
+      max_cutoff_radius_ = r_cutoff;
     }
 
     std::vector<double> params;
@@ -53,17 +49,17 @@ ExchangeFunctionalHamiltonian::ExchangeFunctionalHamiltonian(const libconfig::Se
     auto exchange_functional = functional_from_params(functional_name, params);
 
     // Now safe to insert
-    exchange_functional_map[key_ij] = {r_cutoff, exchange_functional};
+    exchange_functional_map_[key_ij] = {r_cutoff, exchange_functional};
 
     if (type_i != type_j) {
-      exchange_functional_map[key_ji] = {r_cutoff, exchange_functional};
+      exchange_functional_map_[key_ji] = {r_cutoff, exchange_functional};
     }
   }
 
   auto output_functionals = jams::config_optional<bool>(settings, "output_functionals", false);
 
   if (output_functionals) {
-    for (const auto& [type, functional] : exchange_functional_map) {
+    for (const auto& [type, functional] : exchange_functional_map_) {
       jams::output::TsvWriter tsv(
           jams::output::hamiltonian_filename(name(), type.first + "_" + type.second, "tsv"),
           {{"radius_nm", "nm", jams::output::ColFmt::Fixed},
@@ -76,7 +72,7 @@ ExchangeFunctionalHamiltonian::ExchangeFunctionalHamiltonian(const libconfig::Se
 
   jams::InteractionNearTree neartree(globals::lattice->get_supercell().a1(),
                                      globals::lattice->get_supercell().a2(),
-                                     globals::lattice->get_supercell().a3(), globals::lattice->periodic_boundaries(), max_cutoff_radius, jams::defaults::lattice_tolerance);
+                                     globals::lattice->get_supercell().a3(), globals::lattice->periodic_boundaries(), max_cutoff_radius_, jams::defaults::lattice_tolerance);
   neartree.insert_sites(globals::lattice->lattice_site_positions_cart());
 
   auto cartesian_positions = globals::lattice->lattice_site_positions_cart();
@@ -88,7 +84,7 @@ ExchangeFunctionalHamiltonian::ExchangeFunctionalHamiltonian(const libconfig::Se
     auto type_i = globals::lattice->lattice_site_material_name(i);
 
     auto r_i = globals::lattice->lattice_site_position_cart(i);
-    const auto nbrs = neartree.neighbours(r_i, max_cutoff_radius);
+    const auto nbrs = neartree.neighbours(r_i, max_cutoff_radius_);
 
     for (const auto& [rij, j] : nbrs) {
       // Only process ij, ji is inserted at the same time. Also disallow self interaction.
@@ -96,7 +92,7 @@ ExchangeFunctionalHamiltonian::ExchangeFunctionalHamiltonian(const libconfig::Se
         continue;
       }
       auto type_j = globals::lattice->lattice_site_material_name(j);
-      auto& [r_cutoff, functional] = exchange_functional_map[{type_i, type_j}];
+      auto& [r_cutoff, functional] = exchange_functional_map_[{type_i, type_j}];
 
       const auto r = jams::norm(rij);
 
@@ -126,6 +122,51 @@ ExchangeFunctionalHamiltonian::ExchangeFunctionalHamiltonian(const libconfig::Se
   std::cout << "  average interactions per spin " << jams::fmt::decimal << counter / double(globals::num_spins) << "\n";
 
   finalize(jams::SparseMatrixSymmetryCheck::Symmetric);
+}
+
+void ExchangeFunctionalHamiltonian::add_energy_current_interactions(
+    jams::EnergyCurrentInteractionSink& sink) const {
+  jams::InteractionNearTree neartree(globals::lattice->get_supercell().a1(),
+                                     globals::lattice->get_supercell().a2(),
+                                     globals::lattice->get_supercell().a3(),
+                                     globals::lattice->periodic_boundaries(),
+                                     max_cutoff_radius_,
+                                     jams::defaults::lattice_tolerance);
+  neartree.insert_sites(globals::lattice->lattice_site_positions_cart());
+
+  std::vector<int> seen_stamp(globals::num_spins, -1);
+  for (auto i = 0; i < globals::num_spins; ++i) {
+    const auto type_i = globals::lattice->lattice_site_material_name(i);
+    const auto r_i = globals::lattice->lattice_site_position_cart(i);
+    const auto nbrs = neartree.neighbours(r_i, max_cutoff_radius_);
+
+    for (const auto& [r_j_image, j] : nbrs) {
+      if (j <= i) {
+        continue;
+      }
+
+      const auto type_j = globals::lattice->lattice_site_material_name(j);
+      const auto functional_it = exchange_functional_map_.find({type_i, type_j});
+      if (functional_it == exchange_functional_map_.end()) {
+        continue;
+      }
+
+      const auto& [r_cutoff, functional] = functional_it->second;
+      const auto r_ji = jams::array_cast<double>(r_j_image - r_i);
+      const auto r = jams::norm(r_j_image);
+
+      if (less_than_approx_equal(r, r_cutoff, jams::defaults::lattice_tolerance)) {
+        if (seen_stamp[j] == i) {
+          throw jams::SanityException("multiple interactions between spins ", i, " and ", j);
+        }
+        seen_stamp[j] = i;
+
+        const auto Jij = functional(r) * kIdentityMat3;
+        sink.insert(i, j, r_ji, Jij);
+        sink.insert(j, i, -r_ji, Jij);
+      }
+    }
+  }
 }
 
 

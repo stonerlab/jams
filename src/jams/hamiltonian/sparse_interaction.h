@@ -10,7 +10,7 @@
 #endif
 
 #include <jams/core/hamiltonian.h>
-#include <jams/containers/sparse_matrix.h>
+#include <jams/containers/block_sparse_interaction_matrix.h>
 #include <jams/containers/sparse_matrix_builder.h>
 
 #include "jams/helpers/mixed_precision.h"
@@ -36,9 +36,7 @@ public:
       return EnergyCurrentInteractionSupport::Supported;
     }
 
-    void add_energy_current_interactions(jams::SparseMatrix<double>::Builder& rx_builder,
-                                         jams::SparseMatrix<double>::Builder& ry_builder,
-                                         jams::SparseMatrix<double>::Builder& rz_builder) const override;
+    void add_energy_current_interactions(jams::EnergyCurrentInteractionSink& sink) const override;
 
 protected:
     // inserts a scalar interaction into the interaction matrix
@@ -53,8 +51,8 @@ protected:
 
 private:
     bool is_finalized_ = false; // is the sparse matrix finalized and built
-    jams::SparseMatrix<jams::Real>::Builder sparse_matrix_builder_; // helper to build the sparse matrix and output a chosen type
-    jams::SparseMatrix<jams::Real> interaction_matrix_; // the sparse matrix to be used in calculations
+    jams::BlockSparseInteractionMatrix<jams::Real>::Builder interaction_matrix_builder_;
+    jams::BlockSparseInteractionMatrix<jams::Real> interaction_matrix_;
     jams::MultiArray<float, 2> s_float_;
 };
 

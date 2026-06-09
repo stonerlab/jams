@@ -61,7 +61,7 @@ ExchangeNeartreeHamiltonian::ExchangeNeartreeHamiltonian(const libconfig::Settin
 
     interaction_list_.resize(globals::lattice->num_materials());
 
-    double max_radius = 0.0;
+    max_radius_ = 0.0;
     for (int i = 0; i < settings["interactions"].getLength(); ++i) {
       const auto type_name_A = jams::read_string_setting(settings["interactions"][i][0], "material A");
       const auto type_name_B = jams::read_string_setting(settings["interactions"][i][1], "material B");
@@ -77,8 +77,8 @@ ExchangeNeartreeHamiltonian::ExchangeNeartreeHamiltonian(const libconfig::Settin
       const auto radius = jams::read_numeric_setting<double>(
           settings["interactions"][i][2], "interaction radius") * input_distance_unit_conversion_;
 
-      if (radius > max_radius) {
-        max_radius = radius;
+      if (radius > max_radius_) {
+        max_radius_ = radius;
       }
 
       const auto jij_value = jams::read_numeric_setting<double>(
@@ -98,7 +98,7 @@ ExchangeNeartreeHamiltonian::ExchangeNeartreeHamiltonian(const libconfig::Settin
                                        globals::lattice->get_supercell().a2(),
                                        globals::lattice->get_supercell().a3(),
                                        globals::lattice->periodic_boundaries(),
-                                       max_radius + shell_width_,
+                                       max_radius_ + shell_width_,
                                        shell_width_ / 10.0);
 
     neartree.insert_sites(globals::lattice->lattice_site_positions_cart());
@@ -157,4 +157,47 @@ ExchangeNeartreeHamiltonian::ExchangeNeartreeHamiltonian(const libconfig::Settin
   std::cout << "  average interactions per spin " << counter / double(globals::num_spins) << "\n";
 
   finalize(jams::SparseMatrixSymmetryCheck::Symmetric);
+}
+
+void ExchangeNeartreeHamiltonian::add_energy_current_interactions(
+    jams::EnergyCurrentInteractionSink& sink) const {
+  jams::InteractionNearTree neartree(globals::lattice->get_supercell().a1(),
+                                     globals::lattice->get_supercell().a2(),
+                                     globals::lattice->get_supercell().a3(),
+                                     globals::lattice->periodic_boundaries(),
+                                     max_radius_ + shell_width_,
+                                     shell_width_ / 10.0);
+  neartree.insert_sites(globals::lattice->lattice_site_positions_cart());
+
+  const auto cartesian_positions = globals::lattice->lattice_site_positions_cart();
+  std::vector<int> seen_stamp(globals::num_spins, -1);
+  for (auto i = 0; i < globals::num_spins; ++i) {
+    const auto type_i = globals::lattice->lattice_site_material_id(i);
+
+    for (const auto& [types, radius, Jij] : interaction_list_[type_i]) {
+      assert(types.first == type_i);
+      const auto neighbours = neartree.shell(cartesian_positions[i], radius, shell_width_);
+      for (const auto& [r_j_image, j] : neighbours) {
+        if (i == j) {
+          continue;
+        }
+
+        if (globals::lattice->lattice_site_material_id(j) != types.second) {
+          continue;
+        }
+
+        if (seen_stamp[j] == i) {
+          throw jams::SanityException("multiple interactions between spins ", i, " and ", j);
+        }
+        seen_stamp[j] = i;
+
+        if (std::abs(Jij) <= energy_cutoff_) {
+          continue;
+        }
+
+        const auto r_ji = jams::array_cast<double>(r_j_image - cartesian_positions[i]);
+        sink.insert(i, j, r_ji, Jij * kIdentityMat3);
+      }
+    }
+  }
 }

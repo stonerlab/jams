@@ -7,6 +7,7 @@
 #include <jams/containers/sparse_matrix_builder.h>
 #include <jams/core/base.h>
 #include <jams/core/types.h>
+#include <jams/hamiltonian/energy_current_interaction.h>
 
 #include <cassert>
 #include <stdexcept>
@@ -58,11 +59,9 @@ public:
     // needed by thermal-current calculations.
     virtual EnergyCurrentInteractionSupport energy_current_interaction_support() const;
 
-    // Add displacement-weighted pair interaction operators for thermal-current calculations.
+    // Add resolved pair interactions for thermal-current calculations.
     // Hamiltonians returning EnergyCurrentInteractionSupport::Supported must override this.
-    virtual void add_energy_current_interactions(jams::SparseMatrix<double>::Builder& rx_builder,
-                                                 jams::SparseMatrix<double>::Builder& ry_builder,
-                                                 jams::SparseMatrix<double>::Builder& rz_builder) const;
+    virtual void add_energy_current_interactions(jams::EnergyCurrentInteractionSink& sink) const;
 
 
     inline jams::Real energy(const int i) const {

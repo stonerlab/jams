@@ -4,6 +4,7 @@
 #include "sparse_interaction.h"
 #include "jams/core/solver.h"
 #include "jams/helpers/output.h"
+#include "jams/interface/config.h"
 #include <jams/core/globals.h>
 #include <jams/core/lattice.h>
 
@@ -12,7 +13,11 @@
 
 SparseInteractionHamiltonian::SparseInteractionHamiltonian(const libconfig::Setting &settings, const unsigned int size)
     : Hamiltonian(settings, size),
-      sparse_matrix_builder_(3 * size, 3 * size),
+      interaction_matrix_builder_(
+          size,
+          jams::interaction_tensor_storage_from_string(
+              jams::config_optional<std::string>(settings, "tensor_storage", "auto")),
+          jams::config_optional<double>(settings, "tensor_storage_tolerance", 0.0)),
       s_float_(size, 3)
 {
 }
@@ -22,20 +27,12 @@ void SparseInteractionHamiltonian::insert_interaction_scalar(const int i, const 
   if (value == 0.0) {
     return;
   }
-  for (auto m = 0; m < 3; ++m) {
-    sparse_matrix_builder_.insert(3 * i + m, 3 * j + m, value);
-  }
+  interaction_matrix_builder_.insert(i, j, value);
 }
 
 void SparseInteractionHamiltonian::insert_interaction_tensor(const int i, const int j, const jams::Mat<jams::Real, 3, 3> &value) {
   assert(!is_finalized_);
-  for (auto m = 0; m < 3; ++m) {
-    for (auto n = 0; n < 3; ++n) {
-      if (value[m][n] != 0.0) {
-        sparse_matrix_builder_.insert(3 * i + m, 3 * j + n, value[m][n]);
-      }
-    }
-  }
+  interaction_matrix_builder_.insert(i, j, value);
 }
 
 void SparseInteractionHamiltonian::calculate_fields(jams::Real time) {
@@ -44,9 +41,9 @@ void SparseInteractionHamiltonian::calculate_fields(jams::Real time) {
     if (jams::instance().mode() == jams::Mode::GPU) {
 #if DO_MIXED_PRECISION
       cuda_array_double_to_float(globals::s.elements(), globals::s.device_data(), s_float_.mutable_device_data(), cuda_stream_.get());
-      interaction_matrix_.multiply_gpu(s_float_, field_, jams::instance().cusparse_handle(), cuda_stream_.get());
+      interaction_matrix_.multiply_gpu(s_float_, field_, cuda_stream_.get());
 #else
-      interaction_matrix_.multiply_gpu(globals::s, field_, jams::instance().cusparse_handle(), cuda_stream_.get());
+      interaction_matrix_.multiply_gpu(globals::s, field_, cuda_stream_.get());
 #endif
       return;
     }
@@ -58,12 +55,7 @@ jams::Vec<jams::Real, 3> SparseInteractionHamiltonian::calculate_field(const int
   assert(is_finalized_);
   jams::Vec<jams::Real, 3> field;
 
-  #if HAS_OMP
-  #pragma omp parallel for default(none) shared(globals::s, i, field)
-  #endif
-  for (auto m = 0; m < 3; ++m) {
-    field[m] = interaction_matrix_.multiply_row(3*i + m, globals::s);
-  }
+  field = interaction_matrix_.multiply_row(i, globals::s);
   return field;
 }
 
@@ -123,40 +115,28 @@ jams::Real SparseInteractionHamiltonian::calculate_total_energy(jams::Real time)
   return total_energy;
 }
 
-void SparseInteractionHamiltonian::add_energy_current_interactions(
-    jams::SparseMatrix<double>::Builder& rx_builder,
-    jams::SparseMatrix<double>::Builder& ry_builder,
-    jams::SparseMatrix<double>::Builder& rz_builder) const {
+void SparseInteractionHamiltonian::add_energy_current_interactions(jams::EnergyCurrentInteractionSink& sink) const {
   assert(is_finalized_);
-
-  if (interaction_matrix_.format() != jams::SparseMatrixFormat::CSR) {
-    throw std::runtime_error("energy-current interactions require CSR sparse interaction matrices");
-  }
 
   const auto* row_data = interaction_matrix_.row_data();
   const auto* col_data = interaction_matrix_.col_data();
-  const auto* val_data = interaction_matrix_.val_data();
 
-  for (auto row = 0; row < interaction_matrix_.num_rows(); ++row) {
-    const int i = row / 3;
-    for (auto n = row_data[row]; n < row_data[row + 1]; ++n) {
-      const auto col = col_data[n];
-      const int j = col / 3;
-      const double value = static_cast<double>(val_data[n]);
-      if (value == 0.0) {
-        continue;
-      }
-
+  for (auto i = 0; i < interaction_matrix_.num_rows(); ++i) {
+    for (auto block = row_data[i]; block < row_data[i + 1]; ++block) {
+      const int j = col_data[block];
       const auto r_ji = globals::lattice->displacement(j, i);
-      if (r_ji[0] != 0.0) {
-        rx_builder.insert(row, col, r_ji[0] * value);
-      }
-      if (r_ji[1] != 0.0) {
-        ry_builder.insert(row, col, r_ji[1] * value);
-      }
-      if (r_ji[2] != 0.0) {
-        rz_builder.insert(row, col, r_ji[2] * value);
-      }
+      const auto tensor = interaction_matrix_.block_tensor(block);
+      sink.insert(i, j, r_ji, {
+          static_cast<double>(tensor[0][0]),
+          static_cast<double>(tensor[0][1]),
+          static_cast<double>(tensor[0][2]),
+          static_cast<double>(tensor[1][0]),
+          static_cast<double>(tensor[1][1]),
+          static_cast<double>(tensor[1][2]),
+          static_cast<double>(tensor[2][0]),
+          static_cast<double>(tensor[2][1]),
+          static_cast<double>(tensor[2][2])
+      });
     }
   }
 }
@@ -166,7 +146,7 @@ void SparseInteractionHamiltonian::finalize(jams::SparseMatrixSymmetryCheck symm
 
   if (debug_is_enabled()) {
     std::ofstream os(jams::output::hamiltonian_filename(name(), "DEBUG_spm", "tsv"));
-    sparse_matrix_builder_.output(os);
+    interaction_matrix_builder_.output(os);
     os.close();
   }
 
@@ -174,21 +154,23 @@ void SparseInteractionHamiltonian::finalize(jams::SparseMatrixSymmetryCheck symm
     case jams::SparseMatrixSymmetryCheck::None:
       break;
     case jams::SparseMatrixSymmetryCheck::Symmetric:
-      if (!sparse_matrix_builder_.is_symmetric()) {
+      if (!interaction_matrix_builder_.is_symmetric()) {
         throw std::runtime_error("sparse matrix for " + name() + " is not symmetric");
       }
       break;
     case jams::SparseMatrixSymmetryCheck::StructurallySymmetric:
-      if (!sparse_matrix_builder_.is_structurally_symmetric()) {
+      if (!interaction_matrix_builder_.is_structurally_symmetric()) {
         throw std::runtime_error("sparse matrix for " + name() + " is not structurally symmetric");
       }
       break;
   }
 
-  interaction_matrix_ = sparse_matrix_builder_
-      .set_format(jams::SparseMatrixFormat::CSR)
-      .build();
-  std::cout << "  " << name() << " sparse matrix memory (CSR): " << memory_in_natural_units(interaction_matrix_.memory()) << "\n";
-  sparse_matrix_builder_.clear();
+  interaction_matrix_ = interaction_matrix_builder_.build();
+  std::cout << "  " << name() << " block sparse matrix storage: "
+            << jams::to_string(interaction_matrix_.storage()) << "\n";
+  std::cout << "  " << name() << " block sparse matrix blocks: "
+            << interaction_matrix_.num_blocks() << "\n";
+  std::cout << "  " << name() << " block sparse matrix memory: "
+            << memory_in_natural_units(interaction_matrix_.memory()) << "\n";
   is_finalized_ = true;
 }

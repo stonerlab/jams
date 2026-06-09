@@ -5,8 +5,8 @@
 #include <stdexcept>
 
 #include <jams/containers/mat3.h>
-#include <jams/containers/sparse_matrix_builder.h>
 #include <jams/containers/vec3.h>
+#include <jams/hamiltonian/energy_current_interaction.h>
 #include <jams/helpers/consts.h>
 #include <jams/helpers/maths.h>
 
@@ -52,32 +52,12 @@ inline auto interaction_field(
 
 // r_ji must be the current-formula displacement r_j - r_i.
 inline void insert_displacement_weighted_interaction(
-    jams::SparseMatrix<double>::Builder& rx_builder,
-    jams::SparseMatrix<double>::Builder& ry_builder,
-    jams::SparseMatrix<double>::Builder& rz_builder,
+    jams::EnergyCurrentInteractionSink& sink,
     const int site_i,
     const int site_j,
     const jams::Vec<double, 3>& r_ji,
     const jams::Mat<double, 3, 3>& interaction) {
-  for (auto m = 0; m < 3; ++m) {
-    for (auto n = 0; n < 3; ++n) {
-      if (interaction[m][n] == 0.0) {
-        continue;
-      }
-
-      const int row = 3 * site_i + m;
-      const int col = 3 * site_j + n;
-      if (r_ji[0] != 0.0) {
-        rx_builder.insert(row, col, r_ji[0] * interaction[m][n]);
-      }
-      if (r_ji[1] != 0.0) {
-        ry_builder.insert(row, col, r_ji[1] * interaction[m][n]);
-      }
-      if (r_ji[2] != 0.0) {
-        rz_builder.insert(row, col, r_ji[2] * interaction[m][n]);
-      }
-    }
-  }
+  sink.insert(site_i, site_j, r_ji, interaction);
 }
 
 }  // namespace jams::dipole

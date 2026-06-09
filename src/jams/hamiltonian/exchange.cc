@@ -103,26 +103,27 @@ ExchangeHamiltonian::ExchangeHamiltonian(const libconfig::Setting &settings, con
     if (interaction_file.fail()) {
       throw jams::FileException(file_path.c_str(), "failed to open file");
     }
-    neighbour_list_ = generate_neighbour_list(
+    interaction_templates_ = generate_interaction_data(
         interaction_file,
         coord_format,
         use_symops,
         energy_cutoff_,
         radius_cutoff_,
-        distance_tolerance_,
-        interaction_checks);
+        distance_tolerance_);
   } else if (settings.exists("interactions")) {
-    neighbour_list_ = generate_neighbour_list(
+    interaction_templates_ = generate_interaction_data(
         settings["interactions"],
         coord_format,
         use_symops,
         energy_cutoff_,
         radius_cutoff_,
-        distance_tolerance_,
-        interaction_checks);
+        distance_tolerance_);
   } else {
     throw jams::ConfigException(settings, "'exc_file' or 'interactions' settings are required");
   }
+
+  neighbour_list_ = neighbour_list_from_interactions(interaction_templates_);
+  neighbour_list_checks(neighbour_list_, interaction_checks);
 
   if (debug_is_enabled()) {
     std::ofstream debug_file(jams::output::hamiltonian_filename(name(), "DEBUG_exchange_nbr_list", "tsv"));
@@ -154,4 +155,45 @@ ExchangeHamiltonian::ExchangeHamiltonian(const libconfig::Setting &settings, con
 
 const jams::InteractionList<jams::Mat<double, 3, 3>,2> &ExchangeHamiltonian::neighbour_list() const {
   return neighbour_list_;
+}
+
+void ExchangeHamiltonian::add_energy_current_interactions(jams::EnergyCurrentInteractionSink& sink) const {
+  for (int cell_i_x = 0; cell_i_x < globals::lattice->size(0); ++cell_i_x) {
+    for (int cell_i_y = 0; cell_i_y < globals::lattice->size(1); ++cell_i_y) {
+      for (int cell_i_z = 0; cell_i_z < globals::lattice->size(2); ++cell_i_z) {
+        for (const auto& interaction : interaction_templates_) {
+          const auto site_i = globals::lattice->site_index_by_unit_cell_optional(
+              cell_i_x, cell_i_y, cell_i_z, interaction.basis_site_i);
+          if (!site_i) {
+            continue;
+          }
+
+          auto cell_j = jams::Vec<int, 3>{cell_i_x, cell_i_y, cell_i_z}
+              + interaction.lattice_translation_vector;
+          if (!globals::lattice->apply_boundary_conditions(cell_j)) {
+            continue;
+          }
+
+          const auto site_j = globals::lattice->site_index_by_unit_cell_optional(
+              cell_j[0], cell_j[1], cell_j[2], interaction.basis_site_j);
+          if (!site_j) {
+            continue;
+          }
+
+          if (globals::lattice->lattice_site_material_name(*site_i) != interaction.type_i ||
+              globals::lattice->lattice_site_material_name(*site_j) != interaction.type_j) {
+            continue;
+          }
+
+          const auto Jij = interaction_prefactor_ * input_energy_unit_conversion_
+              * interaction.interaction_value_tensor;
+          if (max_abs(Jij) <= energy_cutoff_ * input_energy_unit_conversion_) {
+            continue;
+          }
+
+          sink.insert(*site_i, *site_j, interaction.interaction_vector_cart, Jij);
+        }
+      }
+    }
+  }
 }

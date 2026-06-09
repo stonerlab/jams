@@ -159,9 +159,7 @@ Hamiltonian::EnergyCurrentInteractionSupport Hamiltonian::energy_current_interac
   return EnergyCurrentInteractionSupport::Unsupported;
 }
 
-void Hamiltonian::add_energy_current_interactions(jams::SparseMatrix<double>::Builder&,
-                                                  jams::SparseMatrix<double>::Builder&,
-                                                  jams::SparseMatrix<double>::Builder&) const {
+void Hamiltonian::add_energy_current_interactions(jams::EnergyCurrentInteractionSink&) const {
 }
 
 jams::Real Hamiltonian::calculate_energy_for_spin(int i, const jams::Vec<double, 3>& spin, jams::Real time)

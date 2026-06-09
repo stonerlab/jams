@@ -118,6 +118,7 @@ set(JAMS_SOURCES_CUDA
         hamiltonian/cuda_field_pulse.cu
         hamiltonian/cuda_landau.cu
         hamiltonian/cuda_random_anisotropy.cu
+        hamiltonian/cuda_sparse_interaction.cu
         hamiltonian/cuda_uniaxial_anisotropy.cu
         hamiltonian/cuda_uniaxial_microscopic_anisotropy.cu
         hamiltonian/cuda_zeeman.cu

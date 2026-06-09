@@ -193,9 +193,7 @@ jams::Vec<jams::Real, 3> DipoleFFTHamiltonian::calculate_field(const int i, jams
 }
 
 void DipoleFFTHamiltonian::add_energy_current_interactions(
-    jams::SparseMatrix<double>::Builder& rx_builder,
-    jams::SparseMatrix<double>::Builder& ry_builder,
-    jams::SparseMatrix<double>::Builder& rz_builder) const {
+    jams::EnergyCurrentInteractionSink& sink) const {
   const auto offset_range_x = tensor_offset_range(static_cast<int>(kspace_size_[0]), globals::lattice->is_periodic(0));
   const auto offset_range_y = tensor_offset_range(static_cast<int>(kspace_size_[1]), globals::lattice->is_periodic(1));
   const auto offset_range_z = tensor_offset_range(static_cast<int>(kspace_size_[2]), globals::lattice->is_periodic(2));
@@ -255,9 +253,8 @@ void DipoleFFTHamiltonian::add_energy_current_interactions(
 
                   const auto interaction = jams::dipole::interaction_tensor(
                       r_ij, mu_i, mu_j, globals::lattice->parameter());
-                  const auto r_ji = -r_ij;
                   jams::dipole::insert_displacement_weighted_interaction(
-                      rx_builder, ry_builder, rz_builder, *site_i, *site_j, r_ji, interaction);
+                      sink, *site_i, *site_j, r_ij, interaction);
                 }
               }
             }

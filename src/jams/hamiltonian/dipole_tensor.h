@@ -9,6 +9,12 @@ class DipoleTensorHamiltonian : public SparseInteractionHamiltonian {
 public:
     DipoleTensorHamiltonian(const libconfig::Setting &settings, unsigned int size);
 
+    EnergyCurrentInteractionSupport energy_current_interaction_support() const override {
+      return EnergyCurrentInteractionSupport::Supported;
+    }
+
+    void add_energy_current_interactions(jams::EnergyCurrentInteractionSink& sink) const override;
+
 private:
     jams::Real r_cutoff_; // cutoff radius for dipole interaction
 };
