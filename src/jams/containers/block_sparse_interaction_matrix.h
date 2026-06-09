@@ -373,6 +373,54 @@ inline Mat<T, 3, 3> unpack_tensor_components(const T* values, const InteractionT
 }
 
 template<typename T>
+inline Mat<T, 3, 3> unpack_tensor_components_component_major(const T* values,
+                                                             const std::size_t num_blocks,
+                                                             const std::size_t block,
+                                                             const InteractionTensorStorage storage) {
+  switch (storage) {
+    case InteractionTensorStorage::Isotropic: {
+      const T xx = values[block];
+      return {xx, 0, 0, 0, xx, 0, 0, 0, xx};
+    }
+    case InteractionTensorStorage::Anisotropic:
+      return {values[block], 0, 0, 0, values[num_blocks + block], 0, 0, 0, values[2 * num_blocks + block]};
+    case InteractionTensorStorage::Symmetric:
+      return {values[block],
+              values[num_blocks + block],
+              values[2 * num_blocks + block],
+              values[num_blocks + block],
+              values[3 * num_blocks + block],
+              values[4 * num_blocks + block],
+              values[2 * num_blocks + block],
+              values[4 * num_blocks + block],
+              values[5 * num_blocks + block]};
+    case InteractionTensorStorage::Antisymmetric:
+      return {0,
+              values[block],
+              values[num_blocks + block],
+              -values[block],
+              0,
+              values[2 * num_blocks + block],
+              -values[num_blocks + block],
+              -values[2 * num_blocks + block],
+              0};
+    case InteractionTensorStorage::General:
+      return {values[block],
+              values[num_blocks + block],
+              values[2 * num_blocks + block],
+              values[3 * num_blocks + block],
+              values[4 * num_blocks + block],
+              values[5 * num_blocks + block],
+              values[6 * num_blocks + block],
+              values[7 * num_blocks + block],
+              values[8 * num_blocks + block]};
+    case InteractionTensorStorage::Auto:
+      throw std::invalid_argument("cannot unpack auto tensor storage");
+  }
+  throw std::invalid_argument("unknown interaction tensor storage");
+}
+
+template<typename T>
 inline void multiply_tensor_components(const InteractionTensorStorage storage,
                                        const T* values,
                                        const T sx,
@@ -435,7 +483,11 @@ Mat<T, 3, 3> BlockSparseInteractionMatrix<T>::block_tensor(
   if (block < 0 || block >= num_blocks_) {
     throw std::runtime_error("Invalid block index for block sparse interaction matrix");
   }
-  return detail::unpack_tensor_components(val_.data() + block * components_per_block_, storage_);
+  return detail::unpack_tensor_components_component_major(
+      val_.data(),
+      static_cast<std::size_t>(num_blocks_),
+      static_cast<std::size_t>(block),
+      storage_);
 }
 
 template<typename T>
@@ -575,7 +627,16 @@ public:
     }
 
     index_container csr_cols(col_.begin(), col_.end());
-    value_container csr_vals(val_.begin(), val_.end());
+    std::vector<value_type> component_major_values(row_.size() * component_count());
+    const int components = component_count();
+    const auto blocks = row_.size();
+    for (std::size_t block = 0; block < blocks; ++block) {
+      for (auto c = 0; c < components; ++c) {
+        component_major_values[c * blocks + block] = val_[block * components + c];
+      }
+    }
+
+    value_container csr_vals(component_major_values.begin(), component_major_values.end());
 
     clear();
     return BlockSparseInteractionMatrix<T>(num_rows_, num_blocks, storage_, std::move(csr_rows), std::move(csr_cols), std::move(csr_vals));
@@ -774,7 +835,8 @@ Vec<T, 3> BlockSparseInteractionMatrix<T>::multiply_row_data(const index_type i,
 template<typename T>
 template<InteractionTensorStorage Storage, class X>
 Vec<T, 3> BlockSparseInteractionMatrix<T>::multiply_row_data_storage(const index_type i, const X* spins) const {
-  constexpr int components = detail::tensor_storage_component_count<Storage>();
+  const T* values = val_.data();
+  const auto blocks = num_blocks_;
   T hx = 0;
   T hy = 0;
   T hz = 0;
@@ -784,28 +846,28 @@ Vec<T, 3> BlockSparseInteractionMatrix<T>::multiply_row_data_storage(const index
     const auto sx = static_cast<T>(spins[base + 0]);
     const auto sy = static_cast<T>(spins[base + 1]);
     const auto sz = static_cast<T>(spins[base + 2]);
-    const T* v = val_.data() + n * components;
 
     if constexpr (Storage == InteractionTensorStorage::Isotropic) {
-      hx += v[0] * sx;
-      hy += v[0] * sy;
-      hz += v[0] * sz;
+      const T j0 = values[n];
+      hx += j0 * sx;
+      hy += j0 * sy;
+      hz += j0 * sz;
     } else if constexpr (Storage == InteractionTensorStorage::Anisotropic) {
-      hx += v[0] * sx;
-      hy += v[1] * sy;
-      hz += v[2] * sz;
+      hx += values[n] * sx;
+      hy += values[blocks + n] * sy;
+      hz += values[2 * blocks + n] * sz;
     } else if constexpr (Storage == InteractionTensorStorage::Symmetric) {
-      hx += v[0] * sx + v[1] * sy + v[2] * sz;
-      hy += v[1] * sx + v[3] * sy + v[4] * sz;
-      hz += v[2] * sx + v[4] * sy + v[5] * sz;
+      hx += values[n] * sx + values[blocks + n] * sy + values[2 * blocks + n] * sz;
+      hy += values[blocks + n] * sx + values[3 * blocks + n] * sy + values[4 * blocks + n] * sz;
+      hz += values[2 * blocks + n] * sx + values[4 * blocks + n] * sy + values[5 * blocks + n] * sz;
     } else if constexpr (Storage == InteractionTensorStorage::Antisymmetric) {
-      hx += v[0] * sy + v[1] * sz;
-      hy += -v[0] * sx + v[2] * sz;
-      hz += -v[1] * sx - v[2] * sy;
+      hx += values[n] * sy + values[blocks + n] * sz;
+      hy += -values[n] * sx + values[2 * blocks + n] * sz;
+      hz += -values[blocks + n] * sx - values[2 * blocks + n] * sy;
     } else {
-      hx += v[0] * sx + v[1] * sy + v[2] * sz;
-      hy += v[3] * sx + v[4] * sy + v[5] * sz;
-      hz += v[6] * sx + v[7] * sy + v[8] * sz;
+      hx += values[n] * sx + values[blocks + n] * sy + values[2 * blocks + n] * sz;
+      hy += values[3 * blocks + n] * sx + values[4 * blocks + n] * sy + values[5 * blocks + n] * sz;
+      hz += values[6 * blocks + n] * sx + values[7 * blocks + n] * sy + values[8 * blocks + n] * sz;
     }
   }
   return {hx, hy, hz};
