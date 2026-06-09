@@ -90,10 +90,23 @@ std::int64_t checked_layer_bin_index(
     const libconfig::Setting& settings,
     const double position_nm,
     const double z_min,
-    const double layer_thickness) {
-  const auto bin = std::floor((position_nm - z_min) / layer_thickness);
-  if (!std::isfinite(bin)
-      || bin < static_cast<double>(std::numeric_limits<std::int64_t>::min())
+    const double layer_thickness,
+    const double distance_tolerance) {
+  const auto scaled_position = (position_nm - z_min) / layer_thickness;
+  if (!std::isfinite(scaled_position)) {
+    throw jams::ConfigException(settings, "layer bin coordinate exceeds finite range");
+  }
+
+  auto bin = std::floor(scaled_position);
+  const auto nearest_boundary = std::round(scaled_position);
+  const auto boundary_distance_nm = std::abs(scaled_position - nearest_boundary) * layer_thickness;
+  if (boundary_distance_nm <= distance_tolerance) {
+    // Exact layer boundaries conventionally belong to the upper bin because
+    // floor(n) == n. Snap near-boundary round-off to the same convention.
+    bin = nearest_boundary;
+  }
+
+  if (bin < static_cast<double>(std::numeric_limits<std::int64_t>::min())
       || bin > static_cast<double>(std::numeric_limits<std::int64_t>::max())) {
     throw jams::ConfigException(settings, "layer bin index exceeds int64 range");
   }
@@ -144,7 +157,8 @@ std::vector<LayerBuildData> build_finite_thickness_layers(
     const libconfig::Setting& settings,
     const jams::monitors::SpinGroup& spin_group,
     const jams::Vec<double, 3>& layer_normal_unit,
-    const double layer_thickness) {
+    const double layer_thickness,
+    const double distance_tolerance) {
   if (spin_group.empty()) {
     return {};
   }
@@ -159,7 +173,12 @@ std::vector<LayerBuildData> build_finite_thickness_layers(
   for (std::size_t local_offset = 0; local_offset < spin_indices.size(); ++local_offset) {
     const auto spin_index = spin_indices[local_offset];
     const auto position_nm = projected_layer_position_nm(layer_normal_unit, spin_index);
-    const auto bin_index = checked_layer_bin_index(settings, position_nm, z_min, layer_thickness);
+    const auto bin_index = checked_layer_bin_index(
+        settings,
+        position_nm,
+        z_min,
+        layer_thickness,
+        distance_tolerance);
     const auto layer_position_nm = z_min + (static_cast<double>(bin_index) + 0.5) * layer_thickness;
     auto [layer_it, _] = layers.emplace(bin_index, LayerBuildData{layer_position_nm, {}});
     layer_it->second.local_spin_offsets.push_back(
@@ -208,7 +227,12 @@ MagnetisationLayersMonitor::MagnetisationLayersMonitor(
 
     const auto layers = layer_thickness == 0.0
         ? build_zero_thickness_layers(settings, spin_group, layer_normal_unit, distance_tolerance)
-        : build_finite_thickness_layers(settings, spin_group, layer_normal_unit, layer_thickness);
+        : build_finite_thickness_layers(
+            settings,
+            spin_group,
+            layer_normal_unit,
+            layer_thickness,
+            distance_tolerance);
 
     auto num_layers = layers.size();
     group_num_layers_[group_idx] = checked_int_count(settings, num_layers, "number of magnetisation layers");
