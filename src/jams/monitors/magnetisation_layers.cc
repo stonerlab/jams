@@ -44,6 +44,16 @@ void validate_non_negative_finite_setting(
   }
 }
 
+int checked_int_count(
+    const libconfig::Setting& settings,
+    const std::size_t count,
+    const char* quantity) {
+  if (count > static_cast<std::size_t>(std::numeric_limits<int>::max())) {
+    throw jams::ConfigException(settings, quantity, " exceeds int range");
+  }
+  return static_cast<int>(count);
+}
+
 double projected_layer_position_nm(
     const jams::Vec<double, 3>& layer_normal_unit,
     const int spin_index) {
@@ -82,6 +92,7 @@ std::int64_t checked_layer_bin_index(
 }
 
 std::vector<LayerBuildData> build_zero_thickness_layers(
+    const libconfig::Setting& settings,
     const jams::monitors::SpinGroup& spin_group,
     const jams::Vec<double, 3>& layer_normal_unit,
     const double distance_tolerance) {
@@ -92,7 +103,8 @@ std::vector<LayerBuildData> build_zero_thickness_layers(
     const auto spin_index = spin_indices[local_offset];
     const auto position_nm = projected_layer_position_nm(layer_normal_unit, spin_index);
     auto layer_it = find_or_insert_tolerant_layer(layers, position_nm, distance_tolerance);
-    layer_it->second.local_spin_offsets.push_back(static_cast<int>(local_offset));
+    layer_it->second.local_spin_offsets.push_back(
+        checked_int_count(settings, local_offset, "spin group local offset"));
   }
 
   std::vector<LayerBuildData> ordered_layers;
@@ -125,7 +137,8 @@ std::vector<LayerBuildData> build_finite_thickness_layers(
     const auto bin_index = checked_layer_bin_index(settings, position_nm, z_min, layer_thickness);
     const auto layer_position_nm = z_min + (static_cast<double>(bin_index) + 0.5) * layer_thickness;
     auto [layer_it, _] = layers.emplace(bin_index, LayerBuildData{layer_position_nm, {}});
-    layer_it->second.local_spin_offsets.push_back(static_cast<int>(local_offset));
+    layer_it->second.local_spin_offsets.push_back(
+        checked_int_count(settings, local_offset, "spin group local offset"));
   }
 
   std::vector<LayerBuildData> ordered_layers;
@@ -166,11 +179,11 @@ MagnetisationLayersMonitor::MagnetisationLayersMonitor(
     const auto& spin_group = spin_groups_[group_idx];
 
     const auto layers = layer_thickness == 0.0
-        ? build_zero_thickness_layers(spin_group, layer_normal_unit, distance_tolerance)
+        ? build_zero_thickness_layers(settings, spin_group, layer_normal_unit, distance_tolerance)
         : build_finite_thickness_layers(settings, spin_group, layer_normal_unit, layer_thickness);
 
     auto num_layers = layers.size();
-    group_num_layers_[group_idx] = num_layers;
+    group_num_layers_[group_idx] = checked_int_count(settings, num_layers, "number of magnetisation layers");
     group_spin_layer_indices_[group_idx].resize(spin_group.size());
     group_layer_magnetisation_[group_idx].resize(num_layers, 3);
 
@@ -185,7 +198,7 @@ MagnetisationLayersMonitor::MagnetisationLayersMonitor(
     int counter = 0;
     for (auto const &layer: layers) {
       layer_positions(counter) = layer.position_nm;
-      layer_spin_count(counter) = layer.local_spin_offsets.size();
+      layer_spin_count(counter) = checked_int_count(settings, layer.local_spin_offsets.size(), "layer spin count");
 
       layer_saturation_moment(counter) = 0.0;
       for (const auto local_offset : layer.local_spin_offsets) {
