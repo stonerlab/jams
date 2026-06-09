@@ -64,6 +64,15 @@ double projected_layer_position_nm(
       * globals::lattice->parameter() * kMeterToNanometer;
 }
 
+double default_distance_tolerance_nm() {
+  // The shared lattice tolerance is expressed in lattice-parameter units, but
+  // layer coordinates are projected and stored in nm. Convert the default at the
+  // monitor boundary so explicit distance_tolerance settings can remain in nm.
+  return jams::defaults::lattice_tolerance
+      * globals::lattice->parameter()
+      * kMeterToNanometer;
+}
+
 std::map<double, LayerBuildData>::iterator find_or_insert_tolerant_layer(
     std::map<double, LayerBuildData>& layers,
     const double position_nm,
@@ -172,7 +181,10 @@ MagnetisationLayersMonitor::MagnetisationLayersMonitor(
 
   jams::Vec<double, 3> layer_normal = jams::config_required<jams::Vec<double, 3>>(settings, "layer_normal");
   auto layer_thickness = jams::config_optional<double>(settings, "layer_thickness", 0.0);
-  auto distance_tolerance = jams::config_optional<double>(settings, "distance_tolerance", jams::defaults::lattice_tolerance);
+  auto distance_tolerance = jams::config_optional<double>(
+      settings,
+      "distance_tolerance",
+      default_distance_tolerance_nm());
   validate_layer_normal(settings, layer_normal);
   validate_non_negative_finite_setting(settings, layer_thickness, "layer_thickness");
   validate_non_negative_finite_setting(settings, distance_tolerance, "distance_tolerance");

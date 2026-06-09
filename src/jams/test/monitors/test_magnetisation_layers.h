@@ -177,6 +177,55 @@ TEST_F(MagnetisationLayersMonitorTest, RejectsNegativeDistanceTolerance) {
   }, jams::ConfigException);
 }
 
+TEST_F(MagnetisationLayersMonitorTest, DefaultDistanceToleranceScalesWithLatticeParameter) {
+  initialise_lattice_from_config(R"(
+    solver : {
+      module = "llg-heun-cpu";
+      t_step = 1.0e-16;
+      t_min  = 1.0e-16;
+      t_max  = 1.0e-16;
+    };
+
+    materials = (
+      { name = "A"; moment = 1.0; spin = [1.0, 0.0, 0.0]; }
+    );
+
+    unitcell : {
+      symops = false;
+      check_closeness = false;
+      parameter = 2.0e-9;
+      basis = (
+        [1.0, 0.0, 0.0],
+        [0.0, 1.0, 0.0],
+        [0.0, 0.0, 1.0]);
+      positions = (
+        ("A", [0.0, 0.0, 0.0]),
+        ("A", [0.0, 0.0, 0.000075])
+      );
+    };
+
+    lattice : {
+      size = [1, 1, 1];
+      periodic = [true, true, true];
+      normalise_spins = false;
+    };
+
+    monitors = (
+      {
+        module = "magnetisation-layers";
+        output_steps = 1;
+        layer_normal = [0.0, 0.0, 1.0];
+      }
+    );
+  )");
+
+  MagnetisationLayersMonitor monitor(first_monitor_settings());
+
+  const auto layer_spin_counts = read_layer_spin_counts();
+  ASSERT_EQ(layer_spin_counts.size(), 1u);
+  EXPECT_EQ(layer_spin_counts[0], 2);
+}
+
 TEST_F(MagnetisationLayersMonitorTest, FiniteThicknessLayersUseStableBinCentres) {
   initialise_lattice_from_config(R"(
     solver : {
