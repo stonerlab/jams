@@ -19,6 +19,7 @@
 #include "jams/helpers/utils.h"
 #include "jams/helpers/exception.h"
 #include "jams/interface/config.h"
+#include "jams/lattice/coordinates.h"
 
 
 void neighbour_list_checks(const jams::InteractionList<jams::Mat<double, 3, 3>, 2>& list, const std::vector<InteractionChecks>& checks);
@@ -119,26 +120,28 @@ namespace { //anon
       return std::nullopt;
     }
 
-    /// Returns the integer lattice translation vector T of an arbitrary vector r accounting for difficulties
-    /// in the precision at the edges and corners of the cell.
-    jams::Vec<double, 3> lattice_translation_vector(const jams::Vec<double, 3>& r_frac, const double tolerance) {
-      // If we are very close to the origin or edge of a cell then rounding with floor() to find the cell translation
-      // vector can be tricky because smaller errors due to floating point precision (not least from the user input)
-      // could put us in the wrong cell. Therefore we first check for the case that we are very close (within
-      // tolerance) of a cell origin, in which case we round to that origin. Otherwise we use
-      // floor() in the usual way.
-      jams::Vec<double, 3> T;
-      for (auto n = 0; n < 3; ++n) {
-        double nearest_integer = std::nearbyint(r_frac[n]);
-        double floored_value = std::floor(r_frac[n]);
-
-        if (approximately_zero(r_frac[n] - nearest_integer, tolerance)) {
-          T[n] = nearest_integer;
-        } else {
-          T[n] = floored_value;
-        }
+    jams::Vec<int, 3> require_integer_lattice_translation(
+        const jams::Vec<double, 3>& translation_frac,
+        const InteractionData& interaction,
+        const double tolerance) {
+      if (const auto translation = jams::lattice::nearest_integer_lattice_vector(translation_frac, tolerance)) {
+        return *translation;
       }
-      return T;
+
+      const jams::Vec<double, 3> nearest_integer{
+          std::nearbyint(translation_frac[0]),
+          std::nearbyint(translation_frac[1]),
+          std::nearbyint(translation_frac[2])};
+
+      throw jams::SanityException(
+          "interaction vector does not connect the two motif positions by an integer lattice translation\n",
+          "  basis_site_i: ", interaction.basis_site_i, " (input index ", interaction.basis_site_i + 1, ")\n",
+          "  basis_site_j: ", interaction.basis_site_j, " (input index ", interaction.basis_site_j + 1, ")\n",
+          "  interaction_vector_cart: ", interaction.interaction_vector_cart, "\n",
+          "  fractional translation: ", translation_frac, "\n",
+          "  nearest integer translation: ", nearest_integer, "\n",
+          "  residual: ", translation_frac - nearest_integer, "\n",
+          "  distance_tolerance: ", tolerance);
     }
 
     std::optional<int> find_unitcell_partner(int i, jams::Vec<double, 3> r_ij, double tolerance) {
@@ -149,7 +152,7 @@ namespace { //anon
       // fractional interaction vector shifted by motif position
       jams::Vec<double, 3> q_ij = r_ij_frac + p_i_frac;
 
-      return find_basis_site_index(q_ij - lattice_translation_vector(q_ij, tolerance), tolerance);
+      return find_basis_site_index(q_ij - jams::lattice::containing_cell_offset(q_ij, tolerance), tolerance);
     }
 
     void complete_interaction_typenames_names(std::vector<InteractionData>& interactions) {
@@ -187,6 +190,24 @@ namespace { //anon
         }
       }
       swap(interactions, new_data);
+    }
+
+    bool interaction_vectors_match_for_symmetry(
+        const jams::Vec<double, 3>& candidate_cart,
+        const jams::Vec<double, 3>& expected_cart,
+        const double tolerance) {
+      if (globals::lattice == nullptr) {
+        return jams::lattice::absolute_vector_equal(candidate_cart, expected_cart, tolerance);
+      }
+
+      // Interaction vectors are lattice-coordinate objects. Compare them in
+      // fractional coordinates with an absolute component tolerance so the
+      // accepted mismatch does not grow with either unit-cell scale or
+      // interaction-vector length.
+      return jams::lattice::absolute_vector_equal(
+          globals::lattice->cartesian_to_fractional(candidate_cart),
+          globals::lattice->cartesian_to_fractional(expected_cart),
+          tolerance);
     }
 } // namespace anon
 
@@ -353,7 +374,7 @@ interactions_from_settings(libconfig::Setting &setting, const InteractionFileDes
 }
 
 void
-post_process_interactions(std::vector<InteractionData> &interactions, const InteractionFileDescription& desc, CoordinateFormat coord_format, bool use_symops, double energy_cutoff, double radius_cutoff, double distance_tolerance) {
+post_process_interactions(std::vector<InteractionData> &interactions, const InteractionFileDescription& desc, CoordinateFormat coord_format, bool use_symops, double energy_cutoff, double radius_cutoff, double distance_tolerance, double radius_cutoff_tolerance) {
   if (coord_format == CoordinateFormat::FRACTIONAL) {
     apply_transform(interactions, [](InteractionData J) -> InteractionData {
         J.interaction_vector_cart = ::globals::lattice->fractional_to_cartesian(J.interaction_vector_cart);
@@ -390,7 +411,10 @@ post_process_interactions(std::vector<InteractionData> &interactions, const Inte
 
   if (radius_cutoff > 0.0) {
     apply_predicate(interactions, [&](InteractionData J) -> bool {
-      return jams::norm(J.interaction_vector_cart) > radius_cutoff + distance_tolerance;});
+      // radius_cutoff is a Cartesian distance in lattice-parameter units. Keep
+      // its tolerance separate from fractional matching tolerances so changing
+      // motif-matching precision does not also thicken the cutoff shell.
+      return jams::norm(J.interaction_vector_cart) > radius_cutoff + radius_cutoff_tolerance;});
   }
 
   // calculate the lattice translation vectors
@@ -398,13 +422,16 @@ post_process_interactions(std::vector<InteractionData> &interactions, const Inte
     jams::Vec<double, 3> p_i_frac = globals::lattice->basis_site_atom(J.basis_site_i).position_frac;
     jams::Vec<double, 3> p_j_frac = globals::lattice->basis_site_atom(J.basis_site_j).position_frac;
     jams::Vec<double, 3> r_ij_frac = globals::lattice->cartesian_to_fractional(J.interaction_vector_cart);
-    jams::Vec<double, 3> T = lattice_translation_vector(r_ij_frac + p_i_frac - p_j_frac, distance_tolerance);
+    const auto translation_frac = r_ij_frac + p_i_frac - p_j_frac;
 
-    // If r_ij_frac + p_i_frac - p_j_frac is not a cell translation vector then there is a problem with the inputted
-    // exchange vectors.
-    assert(jams::approximately_zero(T - (r_ij_frac + p_i_frac - p_j_frac), distance_tolerance));
-
-    J.lattice_translation_vector = {int(T[0]), int(T[1]), int(T[2])};
+    // The interaction vector must connect the two basis sites by an integer
+    // lattice translation. Validate this in all builds rather than relying on
+    // assert, because truncating a non-integer translation builds a wrong
+    // neighbour list.
+    J.lattice_translation_vector = require_integer_lattice_translation(
+        translation_frac,
+        J,
+        distance_tolerance);
     return J;
   });
 
@@ -493,11 +520,12 @@ generate_neighbour_list(std::ifstream &file,
                         double energy_cutoff,
                         double radius_cutoff,
                         double distance_tolerance,
-                        std::vector<InteractionChecks> checks) {
+                        std::vector<InteractionChecks> checks,
+                        double radius_cutoff_tolerance) {
   auto file_desc = discover_interaction_file_format(file);
   auto interactions = interactions_from_file(file, file_desc);
 
-  post_process_interactions(interactions, file_desc, coord_format, use_symops, energy_cutoff, radius_cutoff, distance_tolerance);
+  post_process_interactions(interactions, file_desc, coord_format, use_symops, energy_cutoff, radius_cutoff, distance_tolerance, radius_cutoff_tolerance);
   check_interaction_list_symmetry(interactions);
 
 
@@ -518,11 +546,12 @@ generate_neighbour_list(libconfig::Setting &setting,
                         double energy_cutoff,
                         double radius_cutoff,
                         double distance_tolerance,
-                        std::vector<InteractionChecks> checks) {
+                        std::vector<InteractionChecks> checks,
+                        double radius_cutoff_tolerance) {
   auto file_desc = discover_interaction_setting_format(setting);
   auto interactions = interactions_from_settings(setting, file_desc);
 
-  post_process_interactions(interactions, file_desc, coord_format, use_symops, energy_cutoff, radius_cutoff, distance_tolerance);
+  post_process_interactions(interactions, file_desc, coord_format, use_symops, energy_cutoff, radius_cutoff, distance_tolerance, radius_cutoff_tolerance);
   check_interaction_list_symmetry(interactions);
 
   // now the interaction data should be in the same format regardless of the input
@@ -626,16 +655,26 @@ void neighbour_list_checks(const jams::InteractionList<jams::Mat<double, 3, 3>, 
 
 void
 safety_check_distance_tolerance(const double &tolerance) {
-  // check that no atoms in the unit cell are closer together than the tolerance
+  if (tolerance < 0.0) {
+    throw jams::SanityException("distance_tolerance must be non-negative");
+  }
 
+  // Check that no two motif positions are indistinguishable under the same
+  // periodic fractional-coordinate criterion used by find_basis_site_index().
+  // Raw fractional differences miss pairs split across opposite unit-cell
+  // faces, while Cartesian distances would use the wrong units for this
+  // matching tolerance.
   for (auto i = 0; i < globals::lattice->num_basis_sites(); ++i) {
     for (auto j = i + 1; j < globals::lattice->num_basis_sites(); ++j) {
-      const auto distance = jams::norm(globals::lattice->basis_site_atom(i).position_frac - globals::lattice->basis_site_atom(
-          j).position_frac);
-      if (distance < tolerance) {
-        throw jams::SanityException("Atoms ", i, " and ", j, " in the unit cell are close together (", distance,
-                                    ") than the distance_tolerance (", tolerance, ").\n Check the positions",
-                                    "or relax distance_tolerance");
+      const auto position_i = globals::lattice->basis_site_atom(i).position_frac;
+      const auto position_j = globals::lattice->basis_site_atom(j).position_frac;
+      if (jams::lattice::fractional_positions_equivalent(position_i, position_j, tolerance)) {
+        throw jams::SanityException("Atoms ", i, " and ", j,
+                                    " in the unit cell are indistinguishable within distance_tolerance (",
+                                    tolerance, ") after applying periodic fractional wrapping.\n",
+                                    "  position_i: ", position_i, "\n",
+                                    "  position_j: ", position_j, "\n",
+                                    "Check the positions or relax distance_tolerance");
       }
     }
   }
@@ -657,7 +696,7 @@ void check_interaction_list_symmetry(const std::vector<InteractionData> &interac
       && candidate.basis_site_j == expected_reversed_J.basis_site_j
       && candidate.type_i == expected_reversed_J.type_i
       && candidate.type_j == expected_reversed_J.type_j
-      && jams::approximately_equal(candidate.interaction_vector_cart, expected_reversed_J.interaction_vector_cart, jams::defaults::lattice_tolerance)
+      && interaction_vectors_match_for_symmetry(candidate.interaction_vector_cart, expected_reversed_J.interaction_vector_cart, jams::defaults::lattice_tolerance)
       && approximately_equal(candidate.interaction_value_tensor, expected_reversed_J.interaction_value_tensor, 1e-4));
     });
 

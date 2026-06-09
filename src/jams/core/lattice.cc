@@ -17,6 +17,7 @@ extern "C"{
 #include <fstream>
 #include <iomanip>
 #include <map>
+#include <memory>
 #include <string>
 #include <utility>
 #include <functional>
@@ -39,6 +40,7 @@ extern "C"{
 #include "jams/interface/config.h"
 #include "lattice.h"
 #include <jams/maths/parallelepiped.h>
+#include <jams/lattice/coordinates.h>
 #include <jams/lattice/minimum_image.h>
 
 
@@ -48,34 +50,6 @@ using libconfig::Setting;
 using libconfig::Config;
 
 namespace {
-    /// Return fractional coordinate normalised to the range [0,1)
-    jams::Vec<double, 3> normalise_fractional_coordinate(jams::Vec<double, 3> r_frac, const double eps = jams::defaults::lattice_tolerance) {
-      for (auto n = 0; n < 3; ++n) {
-        if (r_frac[n] < 0.0) {
-          r_frac[n] = r_frac[n] + 1.0;
-        }
-        // If we end up exactly on the opposite face/edge of the cell then
-        // this should actually be in the next cell (i.e. fractional coordinates
-        // are in the range 0 <= r_frac[n] < 1. So we must map coordinates equal to 1
-        // back to 0.
-        if (approximately_equal(r_frac[n], 1.0, eps)) {
-          r_frac[n] = 0.0;
-        }
-      }
-      return r_frac;
-    }
-
-    /// Returns true if the fractional coordinate is correctly normalised in the range [0, 1)
-    bool is_fractional_coordinate_normalised(const jams::Vec<double, 3> &r_frac, const double eps = jams::defaults::lattice_tolerance) {
-      // check fractional coordinates are in the range 0 <= r_frac[n] < 1
-      for (auto n = 0; n < 3; ++n) {
-        if (r_frac[n] < 0.0 || r_frac[n] > 1.0 || approximately_equal(r_frac[n], 1.0, eps)) {
-          return false;
-        }
-      }
-      return true;
-    }
-
     void output_basis_vectors(const Cell& cell) {
       cout << "    a1 = " << jams::fmt::decimal << cell.a1() << "\n";
       cout << "    a2 = " << jams::fmt::decimal << cell.a2() << "\n";
@@ -92,41 +66,102 @@ namespace {
       return std::abs(value - std::round(value)) <= eps;
     }
 
-    bool absolute_vector_equal(
-        const jams::Vec<double, 3>& lhs,
-        const jams::Vec<double, 3>& rhs,
-        const double eps = jams::defaults::lattice_tolerance) {
-      for (auto n = 0; n < 3; ++n) {
-        if (std::abs(lhs[n] - rhs[n]) > eps) {
-          return false;
-        }
-      }
-      return true;
-    }
-
-    bool absolute_vector_exists_in_container(
-        const std::vector<jams::Vec<double, 3>>& container,
-        const jams::Vec<double, 3>& value,
-        const double eps = jams::defaults::lattice_tolerance) {
-      return std::any_of(container.begin(), container.end(), [&](const auto& existing) {
-        return absolute_vector_equal(existing, value, eps);
-      });
-    }
-
-    int positive_modulo(const int value, const int modulus) {
-      const int remainder = value % modulus;
-      return remainder < 0 ? remainder + modulus : remainder;
-    }
-
     int lattice_grid_dimension_from_extent(const double extent, const libconfig::Setting& setting) {
       if (!std::isfinite(extent) || !definately_greater_than(extent, 0.0, std::numeric_limits<double>::epsilon())) {
         throw jams::ConfigException(setting, "lattice size values must be finite and greater than zero");
       }
 
-      if (is_integer_extent(extent)) {
-        return static_cast<int>(std::round(extent));
+      const auto max_int_dimension = static_cast<double>(std::numeric_limits<int>::max());
+      const double grid_extent = is_integer_extent(extent) ? std::round(extent) : std::ceil(extent);
+      if (grid_extent > max_int_dimension) {
+        throw jams::ConfigException(setting, "lattice grid dimension exceeds int range");
       }
-      return static_cast<int>(std::ceil(extent));
+
+      return static_cast<int>(grid_extent);
+    }
+
+    std::size_t checked_size_product(
+        const std::size_t lhs,
+        const std::size_t rhs,
+        const libconfig::Setting& setting,
+        const char* quantity) {
+      if (lhs != 0 && rhs > std::numeric_limits<std::size_t>::max() / lhs) {
+        throw jams::ConfigException(setting, quantity, " exceeds size_t range");
+      }
+      return lhs * rhs;
+    }
+
+    std::size_t checked_lattice_vector_product(
+        const jams::Vec<int, 3>& dimensions,
+        const libconfig::Setting& setting,
+        const char* quantity) {
+      std::size_t product = 1;
+      for (auto n = 0; n < 3; ++n) {
+        product = checked_size_product(
+            product,
+            static_cast<std::size_t>(dimensions[n]),
+            setting,
+            quantity);
+      }
+      return product;
+    }
+
+    void require_count_fits_int(
+        const std::size_t count,
+        const libconfig::Setting& setting,
+        const char* quantity) {
+      const auto int_limit = static_cast<std::size_t>(std::numeric_limits<int>::max());
+      if (count > int_limit) {
+        throw jams::ConfigException(setting, quantity, " exceeds int range");
+      }
+    }
+
+    int checked_zero_padded_dimension(
+        const int dimension,
+        const libconfig::Setting& setting) {
+      if (dimension > std::numeric_limits<int>::max() / 2) {
+        throw jams::ConfigException(setting, "zero-padded kspace dimension exceeds int range");
+      }
+      return 2 * dimension;
+    }
+
+    struct LatticeIntegerCapacity {
+      std::size_t max_num_cells;
+      std::size_t max_num_sites;
+    };
+
+    LatticeIntegerCapacity checked_lattice_integer_capacity(
+        const jams::Vec<int, 3>& lattice_dimensions,
+        const jams::Vec<int, 3>& kmesh_size,
+        const std::size_t num_basis_sites,
+        const libconfig::Setting& lattice_settings) {
+      const auto max_num_cells = checked_lattice_vector_product(
+          lattice_dimensions,
+          lattice_settings,
+          "lattice cell count");
+      const auto max_num_sites = checked_size_product(
+          max_num_cells,
+          num_basis_sites,
+          lattice_settings,
+          "maximum lattice site count");
+      const auto max_num_spin_components = checked_size_product(
+          max_num_sites,
+          3,
+          lattice_settings,
+          "global spin component count");
+      const auto kspace_cell_count = checked_lattice_vector_product(
+          kmesh_size,
+          lattice_settings,
+          "kspace cell count");
+
+      // Site IDs, cell IDs, lattice-map entries and globals::num_spins remain
+      // int-backed throughout the simulator. Reject inputs that cannot be
+      // represented by those contracts before any dense arrays are allocated.
+      require_count_fits_int(max_num_cells, lattice_settings, "lattice cell count");
+      require_count_fits_int(max_num_sites, lattice_settings, "maximum lattice site count");
+      require_count_fits_int(max_num_spin_components, lattice_settings, "global spin component count");
+      require_count_fits_int(kspace_cell_count, lattice_settings, "kspace cell count");
+      return {max_num_cells, max_num_sites};
     }
 
     bool lattice_coordinate_inside_half_open_extent(
@@ -400,9 +435,9 @@ void Lattice::read_basis_sites_from_config(const libconfig::Setting &positions, 
       atom.position_frac = cartesian_to_fractional(atom.position_frac);
     }
 
-    atom.position_frac = normalise_fractional_coordinate(atom.position_frac);
+    atom.position_frac = jams::lattice::normalise_fractional_coordinate(atom.position_frac);
 
-    if (!is_fractional_coordinate_normalised(atom.position_frac)) {
+    if (!jams::lattice::is_normalised_fractional_coordinate(atom.position_frac)) {
       throw std::runtime_error("atom position " + std::to_string(i) + " is not a valid fractional coordinate");
     }
 
@@ -440,9 +475,9 @@ void Lattice::read_basis_sites_from_file(const std::string &filename, Coordinate
       atom.position_frac = cartesian_to_fractional(atom.position_frac);
     }
 
-    atom.position_frac = normalise_fractional_coordinate(atom.position_frac);
+    atom.position_frac = jams::lattice::normalise_fractional_coordinate(atom.position_frac);
 
-    if (!is_fractional_coordinate_normalised(atom.position_frac)) {
+    if (!jams::lattice::is_normalised_fractional_coordinate(atom.position_frac)) {
       throw std::runtime_error("atom position " + std::to_string(basis_sites_.size()) + " is not a valid fractional coordinate");
     }
     // check the material type is defined
@@ -715,11 +750,20 @@ void Lattice::generate_supercell(const libconfig::Setting &lattice_settings)
     // double any non-periodic dimensions for zero padding
     for (auto i = 0; i < 3; ++i) {
       if (!lattice_periodic[i]) {
-        kmesh_size[i] = 2*lattice_dimensions_[i];
+        kmesh_size[i] = checked_zero_padded_dimension(lattice_dimensions_[i], lattice_settings);
       }
     }
     cout << "\npadded kspace size " << kmesh_size << "\n";
   }
+
+  const auto integer_capacity = checked_lattice_integer_capacity(
+      lattice_dimensions_,
+      kmesh_size,
+      static_cast<std::size_t>(num_basis_sites()),
+      lattice_settings);
+
+  const auto max_num_cells = integer_capacity.max_num_cells;
+  const auto expected_num_atoms = integer_capacity.max_num_sites;
 
   kspace_size_ = {kmesh_size[0], kmesh_size[1], kmesh_size[2]};
   kspace_map_.resize(kspace_size_[0], kspace_size_[1], kspace_size_[2]);
@@ -734,9 +778,6 @@ void Lattice::generate_supercell(const libconfig::Setting &lattice_settings)
   lattice_map_.resize(this->size(0), this->size(1), this->size(2), this->num_basis_sites());
   // initialize everything to -1 so we can check for double assignment below
   lattice_map_.fill(-1);
-
-  const auto max_num_cells = jams::product(lattice_dimensions_);
-  const auto expected_num_atoms = num_basis_sites() * max_num_cells;
 
   cell_centers_.reserve(max_num_cells);
   cell_offsets_.reserve(max_num_cells);
@@ -935,7 +976,10 @@ void Lattice::calc_symmetry_operations() {
     }
   }
 
-  double (*spg_positions)[3] = new double[basis_sites_.size()][3];
+  // spglib takes C arrays as non-owning pointers. Keep the same contiguous
+  // double[][3] layout, but own the temporary storage with RAII so failure
+  // paths such as a null spglib dataset cannot leak it.
+  std::unique_ptr<double[][3]> spg_positions(new double[basis_sites_.size()][3]);
 
   for (auto i = 0; i < basis_sites_.size(); ++i) {
     for (auto j = 0; j < 3; ++j) {
@@ -943,13 +987,13 @@ void Lattice::calc_symmetry_operations() {
     }
   }
 
-  int *spg_types = new int[basis_sites_.size()];
+  std::unique_ptr<int[]> spg_types(new int[basis_sites_.size()]);
 
   for (auto i = 0; i < basis_sites_.size(); ++i) {
     spg_types[i] = basis_sites_[i].material_index;
   }
 
-  spglib_dataset_ = spg_get_dataset(spg_lattice, spg_positions, spg_types, basis_sites_.size(), jams::defaults::lattice_tolerance);
+  spglib_dataset_ = spg_get_dataset(spg_lattice, spg_positions.get(), spg_types.get(), basis_sites_.size(), jams::defaults::lattice_tolerance);
 
   if (spglib_dataset_ == nullptr) {
     symops_enabled_ = false;
@@ -1040,7 +1084,7 @@ void Lattice::calc_symmetry_operations() {
     }
   }
 
-  double (*primitive_positions)[3] = new double[basis_sites_.size()][3];
+  std::unique_ptr<double[][3]> primitive_positions(new double[basis_sites_.size()][3]);
 
   for (auto i = 0; i < basis_sites_.size(); ++i) {
     for (auto j = 0; j < 3; ++j) {
@@ -1048,13 +1092,13 @@ void Lattice::calc_symmetry_operations() {
     }
   }
 
-  int *primitive_types = new int[basis_sites_.size()];
+  std::unique_ptr<int[]> primitive_types(new int[basis_sites_.size()]);
 
   for (auto i = 0; i < basis_sites_.size(); ++i) {
     primitive_types[i] = spg_types[i];
   }
 
-  primitive_num_atoms = spg_find_primitive(primitive_lattice, primitive_positions, primitive_types, basis_sites_.size(), jams::defaults::lattice_tolerance);
+  primitive_num_atoms = spg_find_primitive(primitive_lattice, primitive_positions.get(), primitive_types.get(), basis_sites_.size(), jams::defaults::lattice_tolerance);
 
   // spg_find_primitive returns number of atoms in primitve cell
   if (primitive_num_atoms != basis_sites_.size()) {
@@ -1125,7 +1169,7 @@ bool Lattice::apply_boundary_conditions(jams::Vec<int, 3>& pos) const {
       if (!is_periodic(l) && (pos[l] < 0 || pos[l] >= globals::lattice->size(l))) {
         return false;
       } else {
-        pos[l] = positive_modulo(pos[l], globals::lattice->size(l));
+        pos[l] = jams::lattice::modulo_index(pos[l], globals::lattice->size(l));
       }
     }
     return true;
@@ -1135,19 +1179,19 @@ bool Lattice::apply_boundary_conditions(int &a, int &b, int &c) const {
     if (!is_periodic(0) && (a < 0 || a >= globals::lattice->size(0))) {
       return false;
     } else {
-      a = positive_modulo(a, globals::lattice->size(0));
+      a = jams::lattice::modulo_index(a, globals::lattice->size(0));
     }
 
     if (!is_periodic(1) && (b < 0 || b >= globals::lattice->size(1))) {
       return false;
     } else {
-      b = positive_modulo(b, globals::lattice->size(1));
+      b = jams::lattice::modulo_index(b, globals::lattice->size(1));
     }
 
     if (!is_periodic(2) && (c < 0 || c >= globals::lattice->size(2))) {
       return false;
     } else {
-      c = positive_modulo(c, globals::lattice->size(2));
+      c = jams::lattice::modulo_index(c, globals::lattice->size(2));
     }
 
     return true;
@@ -1174,7 +1218,7 @@ std::vector<jams::Vec<double, 3>> Lattice::generate_symmetric_points(int basis_s
     const auto r_sym_frac = rotation_matrix * r_frac;
 
     // check if the generated point is already in the vector
-    if (!absolute_vector_exists_in_container(symmetric_points_frac, r_sym_frac, tolerance)) {
+    if (!jams::lattice::absolute_vector_exists_in_container(symmetric_points_frac, r_sym_frac, tolerance)) {
       // it's not in the vector so append it
       symmetric_points_frac.push_back(r_sym_frac);
       symmetric_points.push_back(fractional_to_cartesian(r_sym_frac));
@@ -1197,7 +1241,7 @@ bool Lattice::is_a_symmetry_complete_set(const int motif_index, const std::vecto
     for (const auto r_sym : generate_symmetric_points(motif_index, r, tolerance)) {
       // if a symmetry generated point is not in our original collection of points then our original collection was not a complete set
       // and we return false
-      if (!absolute_vector_exists_in_container(points_frac, cartesian_to_fractional(r_sym), tolerance)) {
+      if (!jams::lattice::absolute_vector_exists_in_container(points_frac, cartesian_to_fractional(r_sym), tolerance)) {
         return false;
       }
     }
@@ -1295,17 +1339,22 @@ const std::vector<jams::Mat<double, 3, 3>> &Lattice::lattice_site_point_group_sy
         for (auto m = 0; m < num_basis_sites(); ++m) {
             auto motif_position = basis_site_atom(m).position_frac;
             for (auto n = 0; n < sym_translations_.size(); ++n) {
-                // The point groups are found only from space group operations which do not include translation
-                // so we must skip any elements with a translation.
-                if (!jams::approximately_zero(sym_translations_[n], jams::defaults::lattice_tolerance)) {
-                  continue;
-                }
-
                 auto rotation = sym_rotations_[n];
 
-                auto new_position = normalise_fractional_coordinate(rotation * motif_position);
-                // TODO: need to translate back into unit cell
-                if  (jams::approximately_equal(motif_position, new_position, jams::defaults::lattice_tolerance)) {
+                // A site-symmetry operation may carry a fractional
+                // translation: for example inversion about a site away from
+                // the origin is represented as R r + t. The rotation belongs
+                // to the local point group when the full operation maps the
+                // motif position onto itself modulo a lattice vector.
+                const auto new_position = rotation * motif_position + sym_translations_[n];
+                if (jams::lattice::fractional_positions_equivalent(
+                        motif_position,
+                        new_position,
+                        jams::defaults::lattice_tolerance)
+                    && std::find(
+                        basis_site_point_group_symops_[m].begin(),
+                        basis_site_point_group_symops_[m].end(),
+                        rotation) == basis_site_point_group_symops_[m].end()) {
                     basis_site_point_group_symops_[m].push_back(rotation);
                 }
             }

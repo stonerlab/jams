@@ -21,6 +21,16 @@ ExchangeHamiltonian::ExchangeHamiltonian(const libconfig::Setting &settings, con
   radius_cutoff_ = jams::config_optional<double>(settings, "radius_cutoff", 100.0);  // lattice parameters
   std::cout << "    interaction radius cutoff " << radius_cutoff_ << "\n";
 
+  // Cartesian tolerance for the radius cutoff shell, in the same lattice-parameter
+  // units as radius_cutoff. This is intentionally separate from
+  // distance_tolerance, which is used for fractional motif/translation matching.
+  radius_cutoff_tolerance_ = jams::config_optional<double>(
+      settings, "radius_cutoff_tolerance", jams::defaults::lattice_tolerance);
+  if (radius_cutoff_tolerance_ < 0.0) {
+    throw jams::ConfigException(settings, "radius_cutoff_tolerance must be non-negative");
+  }
+  std::cout << "    interaction radius cutoff tolerance " << radius_cutoff_tolerance_ << "\n";
+
   // fractional coordinate units
   distance_tolerance_ = jams::config_optional<double>(
       settings, "distance_tolerance", jams::defaults::lattice_tolerance);
@@ -110,7 +120,8 @@ ExchangeHamiltonian::ExchangeHamiltonian(const libconfig::Setting &settings, con
         energy_cutoff_,
         radius_cutoff_,
         distance_tolerance_,
-        interaction_checks);
+        interaction_checks,
+        radius_cutoff_tolerance_);
   } else if (settings.exists("interactions")) {
     neighbour_list_ = generate_neighbour_list(
         settings["interactions"],
@@ -119,7 +130,8 @@ ExchangeHamiltonian::ExchangeHamiltonian(const libconfig::Setting &settings, con
         energy_cutoff_,
         radius_cutoff_,
         distance_tolerance_,
-        interaction_checks);
+        interaction_checks,
+        radius_cutoff_tolerance_);
   } else {
     throw jams::ConfigException(settings, "'exc_file' or 'interactions' settings are required");
   }
