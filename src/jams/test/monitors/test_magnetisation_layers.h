@@ -13,6 +13,8 @@
 #include <jams/core/globals.h>
 #include <jams/core/lattice.h>
 #include <jams/helpers/exception.h>
+#include <jams/helpers/output.h>
+#include <jams/interface/highfive.h>
 #include <jams/monitors/magnetisation_layers.h>
 
 namespace jams::testing {
@@ -36,7 +38,11 @@ protected:
   }
 
   void initialise_lattice_with_monitor(const std::string& monitor_settings) {
-    globals::config->readString(base_config() + monitor_settings);
+    initialise_lattice_from_config(base_config() + monitor_settings);
+  }
+
+  void initialise_lattice_from_config(const std::string& config) {
+    globals::config->readString(config);
     globals::lattice->init_from_config(*globals::config);
   }
 
@@ -75,6 +81,24 @@ protected:
         normalise_spins = false;
       };
     )";
+  }
+
+  static std::vector<double> read_layer_positions() {
+    HighFive::File file(
+        jams::output::monitor_filename("magnetisation-layers", "h5"),
+        HighFive::File::ReadOnly);
+    std::vector<double> values;
+    file.getDataSet("/jams/monitors/magnetisation-layers/groups/A/layer_positions").read(values);
+    return values;
+  }
+
+  static std::vector<int> read_layer_spin_counts() {
+    HighFive::File file(
+        jams::output::monitor_filename("magnetisation-layers", "h5"),
+        HighFive::File::ReadOnly);
+    std::vector<int> values;
+    file.getDataSet("/jams/monitors/magnetisation-layers/groups/A/layer_spin_count").read(values);
+    return values;
   }
 
 private:
@@ -129,6 +153,106 @@ TEST_F(MagnetisationLayersMonitorTest, RejectsNegativeDistanceTolerance) {
   EXPECT_THROW({
     MagnetisationLayersMonitor monitor(first_monitor_settings());
   }, jams::ConfigException);
+}
+
+TEST_F(MagnetisationLayersMonitorTest, FiniteThicknessLayersUseStableBinCentres) {
+  initialise_lattice_from_config(R"(
+    solver : {
+      module = "llg-heun-cpu";
+      t_step = 1.0e-16;
+      t_min  = 1.0e-16;
+      t_max  = 1.0e-16;
+    };
+
+    materials = (
+      { name = "A"; moment = 1.0; spin = [1.0, 0.0, 0.0]; }
+    );
+
+    unitcell : {
+      symops = false;
+      parameter = 1.0e-9;
+      basis = (
+        [1.0, 0.0, 0.0],
+        [0.0, 1.0, 0.0],
+        [0.0, 0.0, 1.0]);
+      positions = (
+        ("A", [0.0, 0.0, 0.0])
+      );
+    };
+
+    lattice : {
+      size = [1, 1, 3];
+      periodic = [true, true, true];
+      normalise_spins = false;
+    };
+
+    monitors = (
+      {
+        module = "magnetisation-layers";
+        output_steps = 1;
+        layer_normal = [0.0, 0.0, 1.0];
+        layer_thickness = 1.0;
+      }
+    );
+  )");
+
+  MagnetisationLayersMonitor monitor(first_monitor_settings());
+
+  const auto layer_positions = read_layer_positions();
+  ASSERT_EQ(layer_positions.size(), 3u);
+  EXPECT_NEAR(layer_positions[0], 0.5, 1.0e-12);
+  EXPECT_NEAR(layer_positions[1], 1.5, 1.0e-12);
+  EXPECT_NEAR(layer_positions[2], 2.5, 1.0e-12);
+}
+
+TEST_F(MagnetisationLayersMonitorTest, ZeroThicknessLayersUseStrictMapWithToleranceLookup) {
+  initialise_lattice_from_config(R"(
+    solver : {
+      module = "llg-heun-cpu";
+      t_step = 1.0e-16;
+      t_min  = 1.0e-16;
+      t_max  = 1.0e-16;
+    };
+
+    materials = (
+      { name = "A"; moment = 1.0; spin = [1.0, 0.0, 0.0]; }
+    );
+
+    unitcell : {
+      symops = false;
+      check_closeness = false;
+      parameter = 1.0e-9;
+      basis = (
+        [1.0, 0.0, 0.0],
+        [0.0, 1.0, 0.0],
+        [0.0, 0.0, 1.0]);
+      positions = (
+        ("A", [0.0, 0.0, 0.0]),
+        ("A", [0.0, 0.0, 0.00005])
+      );
+    };
+
+    lattice : {
+      size = [1, 1, 1];
+      periodic = [true, true, true];
+      normalise_spins = false;
+    };
+
+    monitors = (
+      {
+        module = "magnetisation-layers";
+        output_steps = 1;
+        layer_normal = [0.0, 0.0, 1.0];
+        distance_tolerance = 1.0e-4;
+      }
+    );
+  )");
+
+  MagnetisationLayersMonitor monitor(first_monitor_settings());
+
+  const auto layer_spin_counts = read_layer_spin_counts();
+  ASSERT_EQ(layer_spin_counts.size(), 1u);
+  EXPECT_EQ(layer_spin_counts[0], 2);
 }
 
 }  // namespace jams::testing

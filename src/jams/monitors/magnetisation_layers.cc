@@ -12,10 +12,17 @@
 #include <jams/interface/highfive.h>
 
 #include <cmath>
+#include <cstdint>
 #include <limits>
 #include <map>
+#include <vector>
 
 namespace {
+struct LayerBuildData {
+  double position_nm = 0.0;
+  std::vector<int> spin_indices;
+};
+
 void validate_layer_normal(
     const libconfig::Setting& settings,
     const jams::Vec<double, 3>& layer_normal) {
@@ -38,6 +45,94 @@ void validate_non_negative_finite_setting(
     throw jams::ConfigException(settings, setting_name, " must be finite and non-negative");
   }
 }
+
+double projected_layer_position_nm(
+    const jams::Vec<double, 3>& layer_normal_unit,
+    const int spin_index) {
+  // Projecting directly onto the normal avoids building a full rotated
+  // coordinate buffer for every spin. The result is the same layer coordinate
+  // as the previous rotate-to-z implementation, expressed in nanometres.
+  return jams::dot(layer_normal_unit, globals::lattice->lattice_site_position_cart(spin_index))
+      * globals::lattice->parameter() * kMeterToNanometer;
+}
+
+std::map<double, LayerBuildData>::iterator find_or_insert_tolerant_layer(
+    std::map<double, LayerBuildData>& layers,
+    const double position_nm,
+    const double distance_tolerance) {
+  const auto first_candidate = layers.lower_bound(position_nm - distance_tolerance);
+  if (first_candidate != layers.end()
+      && std::abs(first_candidate->first - position_nm) <= distance_tolerance) {
+    return first_candidate;
+  }
+
+  return layers.emplace(position_nm, LayerBuildData{position_nm, {}}).first;
+}
+
+std::int64_t checked_layer_bin_index(
+    const libconfig::Setting& settings,
+    const double position_nm,
+    const double z_min,
+    const double layer_thickness) {
+  const auto bin = std::floor((position_nm - z_min) / layer_thickness);
+  if (!std::isfinite(bin)
+      || bin < static_cast<double>(std::numeric_limits<std::int64_t>::min())
+      || bin > static_cast<double>(std::numeric_limits<std::int64_t>::max())) {
+    throw jams::ConfigException(settings, "layer bin index exceeds int64 range");
+  }
+  return static_cast<std::int64_t>(bin);
+}
+
+std::vector<LayerBuildData> build_zero_thickness_layers(
+    const jams::monitors::SpinGroup& spin_group,
+    const jams::Vec<double, 3>& layer_normal_unit,
+    const double distance_tolerance) {
+  std::map<double, LayerBuildData> layers;
+
+  for (auto spin_index : spin_group.indices_span()) {
+    const auto position_nm = projected_layer_position_nm(layer_normal_unit, spin_index);
+    auto layer_it = find_or_insert_tolerant_layer(layers, position_nm, distance_tolerance);
+    layer_it->second.spin_indices.push_back(spin_index);
+  }
+
+  std::vector<LayerBuildData> ordered_layers;
+  ordered_layers.reserve(layers.size());
+  for (auto& [_, layer] : layers) {
+    ordered_layers.push_back(std::move(layer));
+  }
+  return ordered_layers;
+}
+
+std::vector<LayerBuildData> build_finite_thickness_layers(
+    const libconfig::Setting& settings,
+    const jams::monitors::SpinGroup& spin_group,
+    const jams::Vec<double, 3>& layer_normal_unit,
+    const double layer_thickness) {
+  if (spin_group.empty()) {
+    return {};
+  }
+
+  double z_min = std::numeric_limits<double>::max();
+  for (auto spin_index : spin_group.indices_span()) {
+    z_min = std::min(z_min, projected_layer_position_nm(layer_normal_unit, spin_index));
+  }
+
+  std::map<std::int64_t, LayerBuildData> layers;
+  for (auto spin_index : spin_group.indices_span()) {
+    const auto position_nm = projected_layer_position_nm(layer_normal_unit, spin_index);
+    const auto bin_index = checked_layer_bin_index(settings, position_nm, z_min, layer_thickness);
+    const auto layer_position_nm = z_min + (static_cast<double>(bin_index) + 0.5) * layer_thickness;
+    auto [layer_it, _] = layers.emplace(bin_index, LayerBuildData{layer_position_nm, {}});
+    layer_it->second.spin_indices.push_back(spin_index);
+  }
+
+  std::vector<LayerBuildData> ordered_layers;
+  ordered_layers.reserve(layers.size());
+  for (auto& [_, layer] : layers) {
+    ordered_layers.push_back(std::move(layer));
+  }
+  return ordered_layers;
+}
 }
 
 MagnetisationLayersMonitor::MagnetisationLayersMonitor(
@@ -50,6 +145,7 @@ MagnetisationLayersMonitor::MagnetisationLayersMonitor(
   validate_layer_normal(settings, layer_normal);
   validate_non_negative_finite_setting(settings, layer_thickness, "layer_thickness");
   validate_non_negative_finite_setting(settings, distance_tolerance, "distance_tolerance");
+  const auto layer_normal_unit = jams::unit_vector(layer_normal);
 
   grouping_ = jams::monitors::parse_spin_grouping(settings, "materials", "magnetisation");
   spin_groups_ = jams::monitors::make_spin_groups(grouping_);
@@ -67,43 +163,11 @@ MagnetisationLayersMonitor::MagnetisationLayersMonitor(
   for (std::size_t group_idx = 0; group_idx < spin_groups_.size(); ++group_idx) {
     const auto& spin_group = spin_groups_[group_idx];
 
-    // construct a rotation matrix which will rotate the system so that the norm
-    // is always along z
-    jams::Mat<double, 3, 3> rotation_matrix = rotation_matrix_between_vectors(layer_normal, jams::Vec<double, 3>{0, 0, 1});
+    const auto layers = layer_thickness == 0.0
+        ? build_zero_thickness_layers(spin_group, layer_normal_unit, distance_tolerance)
+        : build_finite_thickness_layers(settings, spin_group, layer_normal_unit, layer_thickness);
 
-    std::vector<double> rotated_z_position(globals::num_spins);
-
-    // Find the minimum value of z in the rotated system. This will be used as the
-    // baseline for layers with a finite thickness.
-    double z_min = std::numeric_limits<double>::max();
-    for (auto i : spin_group.indices_span()) {
-      auto r = rotation_matrix * ::globals::lattice->lattice_site_position_cart(i)
-               * globals::lattice->parameter() * kMeterToNanometer;
-      rotated_z_position[i] = r[2];
-      if (rotated_z_position[i] < z_min) {
-        z_min = rotated_z_position[i];
-      }
-    }
-
-    // Find the unique layer positions. If the z-component of the position (after
-    // rotating the system) is within lattice_tolerance of an existing position
-    // we consider them to be in the same layer.
-    auto comp_less = [&](double a, double b) -> bool {
-      if (layer_thickness == 0.0) {
-        return definately_less_than(a, b, distance_tolerance);
-      }
-      return definately_less_than(floor((a - z_min)/layer_thickness) , floor((b - z_min)/layer_thickness), distance_tolerance);
-    };
-
-
-    std::map<double, std::vector<int>, decltype(comp_less)> unique_positions(
-        comp_less);
-
-    for (auto i : spin_group.indices_span()) {
-      unique_positions[rotated_z_position[i]].push_back(i);
-    }
-
-    auto num_layers = unique_positions.size();
+    auto num_layers = layers.size();
     group_num_layers_[group_idx] = num_layers;
     group_layer_spin_indices_[group_idx].resize(num_layers);
     group_layer_magnetisation_[group_idx].resize(num_layers, 3);
@@ -115,21 +179,10 @@ MagnetisationLayersMonitor::MagnetisationLayersMonitor(
 
     const auto moments = globals::mus.host_view();
     int counter = 0;
-    for (auto const &z: unique_positions) {
-
-      double z_layer_pos;
-      if (layer_thickness == 0.0) {
-        z_layer_pos = z.first;
-      } else {
-        // compute bin index from representative z, then bin centre
-        auto bin_index = std::floor((z.first  - (z_min - 0.5 * layer_thickness)) / layer_thickness);
-
-        z_layer_pos = z_min + (bin_index + 0.5) * layer_thickness;
-      }
-
-      layer_positions(counter) = z_layer_pos;
-      layer_spin_count(counter) = z.second.size();
-      group_layer_spin_indices_[group_idx][counter] = jams::MultiArray<int, 1>(z.second);
+    for (auto const &layer: layers) {
+      layer_positions(counter) = layer.position_nm;
+      layer_spin_count(counter) = layer.spin_indices.size();
+      group_layer_spin_indices_[group_idx][counter] = jams::MultiArray<int, 1>(layer.spin_indices);
 
       layer_saturation_moment(counter) = 0.0;
       for (const auto spin_index : group_layer_spin_indices_[group_idx][counter].host_span()) {
