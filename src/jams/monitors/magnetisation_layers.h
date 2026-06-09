@@ -14,6 +14,8 @@
 /// domain walls where the magnetisation profile across the system is needed.
 /// Output from this monitor will be substantially smaller than outputting the
 /// whole spin system and calculating the magnetisation as a post-process.
+/// CUDA builds automatically use a CUDA reduction path when the active solver
+/// is a CUDA solver; the public module name and HDF5 layout are unchanged.
 ///
 /// The magnetisation is the total magnetisation (not normalised by number of
 /// spins) in units of Bohr magnetons. No transformations are applied, so
@@ -89,6 +91,7 @@
 #include <jams/containers/multiarray.h>
 #include <jams/monitors/spin_grouping.h>
 
+#include <memory>
 #include <vector>
 #include <string>
 
@@ -98,13 +101,22 @@ class MagnetisationLayersMonitor : public Monitor {
 public:
     explicit MagnetisationLayersMonitor(const libconfig::Setting &settings);
 
-    ~MagnetisationLayersMonitor() override = default;
+    ~MagnetisationLayersMonitor() override;
 
     void update(Solver& solver) override;
 
     inline void post_process() override {};
 
 private:
+    void accumulate_layer_magnetisation_cpu();
+
+#if HAS_CUDA
+    struct CudaBackend;
+
+    void prepare_cuda_backend_from_cpu_indices();
+    void accumulate_layer_magnetisation_cuda();
+#endif
+
     jams::monitors::SpinGrouping grouping_ = jams::monitors::SpinGrouping::NONE;
 
     std::string h5_group_root_name_;
@@ -113,6 +125,10 @@ private:
     std::vector<int> group_num_layers_;
     std::vector<jams::MultiArray<double,2>>           group_layer_magnetisation_;
     std::vector<jams::MultiArray<int,1>>              group_spin_layer_indices_;
+
+#if HAS_CUDA
+    std::unique_ptr<CudaBackend> cuda_backend_;
+#endif
 };
 
 #endif

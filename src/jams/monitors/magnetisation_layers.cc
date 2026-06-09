@@ -9,10 +9,19 @@
 #include <jams/helpers/output.h>
 #include <jams/interface/highfive.h>
 
+#if HAS_CUDA
+#include <jams/cuda/cuda_stream.h>
+#include <jams/monitors/cuda_magnetisation_layers_kernel.h>
+#endif
+
+#include <algorithm>
 #include <cmath>
 #include <cstdint>
 #include <limits>
 #include <map>
+#include <span>
+#include <stdexcept>
+#include <string>
 #include <vector>
 
 namespace {
@@ -20,6 +29,26 @@ struct LayerBuildData {
   double position_nm = 0.0;
   std::vector<int> local_spin_offsets;
 };
+
+#if HAS_CUDA
+constexpr std::size_t kCudaLayerChunkSize = 256;
+
+void copy_int_vector_to_device_only(
+    jams::MultiArray<int, 1>& target,
+    const std::vector<int>& values) {
+  target.resize(values.size());
+  if (values.empty()) {
+    return;
+  }
+
+  auto target_values = target.mutable_host_span();
+  std::copy(values.begin(), values.end(), target_values.begin());
+  // Static CUDA work arrays are never read on the host after construction.
+  // Copy them once, then release the duplicate host allocation.
+  target.device_data();
+  target.release_stale_host();
+}
+#endif
 
 void validate_layer_normal(
     const libconfig::Setting& settings,
@@ -50,6 +79,15 @@ int checked_int_count(
     const char* quantity) {
   if (count > static_cast<std::size_t>(std::numeric_limits<int>::max())) {
     throw jams::ConfigException(settings, quantity, " exceeds int range");
+  }
+  return static_cast<int>(count);
+}
+
+int checked_int_count_runtime(
+    const std::size_t count,
+    const char* quantity) {
+  if (count > static_cast<std::size_t>(std::numeric_limits<int>::max())) {
+    throw std::runtime_error(std::string(quantity) + " exceeds int range");
   }
   return static_cast<int>(count);
 }
@@ -194,6 +232,122 @@ std::vector<LayerBuildData> build_finite_thickness_layers(
 }
 }
 
+#if HAS_CUDA
+struct MagnetisationLayersMonitor::CudaBackend {
+  struct GroupWork {
+    jams::MultiArray<int, 1> spin_indices;
+    jams::MultiArray<int, 1> chunk_begin_offsets;
+    jams::MultiArray<int, 1> chunk_end_offsets;
+    jams::MultiArray<int, 1> chunk_layer_indices;
+  };
+
+  explicit CudaBackend(const std::size_t num_groups)
+      : group_work(num_groups) {}
+
+  void build_group_work_from_layers(
+      const std::size_t group_idx,
+      const libconfig::Setting& settings,
+      const jams::monitors::SpinGroup& spin_group,
+      const std::vector<LayerBuildData>& layers) {
+    std::vector<int> sorted_spin_indices;
+    std::vector<int> chunk_begin_offsets;
+    std::vector<int> chunk_end_offsets;
+    std::vector<int> chunk_layer_indices;
+
+    sorted_spin_indices.reserve(spin_group.size());
+    const auto group_spin_indices = spin_group.indices_span();
+
+    for (std::size_t layer_idx = 0; layer_idx < layers.size(); ++layer_idx) {
+      // Keep spins for each layer contiguous so each CUDA block can reduce one
+      // fixed-size chunk without needing per-spin layer lookups.
+      const auto layer_begin = sorted_spin_indices.size();
+      for (const auto local_offset : layers[layer_idx].local_spin_offsets) {
+        sorted_spin_indices.push_back(group_spin_indices[local_offset]);
+      }
+      const auto layer_end = sorted_spin_indices.size();
+
+      for (auto chunk_begin = layer_begin; chunk_begin < layer_end; chunk_begin += kCudaLayerChunkSize) {
+        const auto chunk_end = std::min(chunk_begin + kCudaLayerChunkSize, layer_end);
+        chunk_begin_offsets.push_back(checked_int_count(settings, chunk_begin, "cuda layer chunk begin"));
+        chunk_end_offsets.push_back(checked_int_count(settings, chunk_end, "cuda layer chunk end"));
+        chunk_layer_indices.push_back(checked_int_count(settings, layer_idx, "cuda layer chunk layer index"));
+      }
+    }
+
+    copy_to_device_only(group_idx, sorted_spin_indices, chunk_begin_offsets, chunk_end_offsets, chunk_layer_indices);
+  }
+
+  void build_group_work_from_cpu_indices(
+      const std::size_t group_idx,
+      const jams::monitors::SpinGroup& spin_group,
+      const jams::MultiArray<int, 1>& spin_layer_indices,
+      const int num_layers) {
+    if (num_layers < 0) {
+      throw std::runtime_error("number of cuda magnetisation layers is negative");
+    }
+
+    const auto group_spin_indices = spin_group.indices_span();
+    const auto layer_indices = spin_layer_indices.host_span();
+    const auto num_layers_size = static_cast<std::size_t>(num_layers);
+
+    std::vector<std::size_t> layer_counts(num_layers_size, 0);
+    for (const auto layer_index : layer_indices) {
+      if (layer_index < 0 || layer_index >= num_layers) {
+        throw std::runtime_error("cuda layer index is outside layer range");
+      }
+      ++layer_counts[static_cast<std::size_t>(layer_index)];
+    }
+
+    std::vector<std::size_t> layer_offsets(num_layers_size + 1, 0);
+    for (std::size_t layer_idx = 0; layer_idx < num_layers_size; ++layer_idx) {
+      layer_offsets[layer_idx + 1] = layer_offsets[layer_idx] + layer_counts[layer_idx];
+    }
+
+    std::vector<int> sorted_spin_indices(group_spin_indices.size());
+    auto layer_cursors = layer_offsets;
+    // This is the lazy CUDA path used if a monitor was constructed before the
+    // CUDA solver pointer was available. Rebuild the same layer-contiguous work
+    // order from the CPU membership array.
+    for (std::size_t n = 0; n < group_spin_indices.size(); ++n) {
+      const auto layer_index = static_cast<std::size_t>(layer_indices[n]);
+      sorted_spin_indices[layer_cursors[layer_index]++] = group_spin_indices[n];
+    }
+
+    std::vector<int> chunk_begin_offsets;
+    std::vector<int> chunk_end_offsets;
+    std::vector<int> chunk_layer_indices;
+    for (std::size_t layer_idx = 0; layer_idx < num_layers_size; ++layer_idx) {
+      for (auto chunk_begin = layer_offsets[layer_idx];
+           chunk_begin < layer_offsets[layer_idx + 1];
+           chunk_begin += kCudaLayerChunkSize) {
+        const auto chunk_end = std::min(chunk_begin + kCudaLayerChunkSize, layer_offsets[layer_idx + 1]);
+        chunk_begin_offsets.push_back(checked_int_count_runtime(chunk_begin, "cuda layer chunk begin"));
+        chunk_end_offsets.push_back(checked_int_count_runtime(chunk_end, "cuda layer chunk end"));
+        chunk_layer_indices.push_back(checked_int_count_runtime(layer_idx, "cuda layer chunk layer index"));
+      }
+    }
+
+    copy_to_device_only(group_idx, sorted_spin_indices, chunk_begin_offsets, chunk_end_offsets, chunk_layer_indices);
+  }
+
+  void copy_to_device_only(
+      const std::size_t group_idx,
+      const std::vector<int>& sorted_spin_indices,
+      const std::vector<int>& chunk_begin_offsets,
+      const std::vector<int>& chunk_end_offsets,
+      const std::vector<int>& chunk_layer_indices) {
+    auto& work = group_work[group_idx];
+    copy_int_vector_to_device_only(work.spin_indices, sorted_spin_indices);
+    copy_int_vector_to_device_only(work.chunk_begin_offsets, chunk_begin_offsets);
+    copy_int_vector_to_device_only(work.chunk_end_offsets, chunk_end_offsets);
+    copy_int_vector_to_device_only(work.chunk_layer_indices, chunk_layer_indices);
+  }
+
+  std::vector<GroupWork> group_work;
+  CudaStream stream;
+};
+#endif
+
 MagnetisationLayersMonitor::MagnetisationLayersMonitor(
     const libconfig::Setting &settings)
     : Monitor(settings) {
@@ -218,6 +372,12 @@ MagnetisationLayersMonitor::MagnetisationLayersMonitor(
   group_spin_layer_indices_.resize(num_groups);
   group_layer_magnetisation_.resize(num_groups);
 
+#if HAS_CUDA
+  if (globals::solver != nullptr && globals::solver->is_cuda_solver()) {
+    cuda_backend_ = std::make_unique<CudaBackend>(num_groups);
+  }
+#endif
+
   // Create a new h5 file, truncating any old file if it exists.
   HighFive::File file(jams::output::monitor_filename(name(), "h5"),
                       HighFive::File::ReadWrite | HighFive::File::Create | HighFive::File::Truncate);
@@ -236,8 +396,18 @@ MagnetisationLayersMonitor::MagnetisationLayersMonitor(
 
     auto num_layers = layers.size();
     group_num_layers_[group_idx] = checked_int_count(settings, num_layers, "number of magnetisation layers");
-    group_spin_layer_indices_[group_idx].resize(spin_group.size());
     group_layer_magnetisation_[group_idx].resize(num_layers, 3);
+
+    std::span<int> spin_layer_indices;
+#if HAS_CUDA
+    const bool use_cuda_backend = cuda_backend_ != nullptr;
+    if (!use_cuda_backend) {
+#endif
+      group_spin_layer_indices_[group_idx].resize(spin_group.size());
+      spin_layer_indices = group_spin_layer_indices_[group_idx].mutable_host_span();
+#if HAS_CUDA
+    }
+#endif
 
     // Move all the data into MultiArrays
     jams::MultiArray<double, 1> layer_positions(num_layers);
@@ -246,7 +416,6 @@ MagnetisationLayersMonitor::MagnetisationLayersMonitor(
 
     const auto moments = globals::mus.host_view();
     const auto spin_indices = spin_group.indices_span();
-    auto spin_layer_indices = group_spin_layer_indices_[group_idx].mutable_host_span();
     int counter = 0;
     for (auto const &layer: layers) {
       layer_positions(counter) = layer.position_nm;
@@ -254,13 +423,25 @@ MagnetisationLayersMonitor::MagnetisationLayersMonitor(
 
       layer_saturation_moment(counter) = 0.0;
       for (const auto local_offset : layer.local_spin_offsets) {
-        spin_layer_indices[local_offset] = counter;
+#if HAS_CUDA
+        if (!use_cuda_backend) {
+#endif
+          spin_layer_indices[local_offset] = counter;
+#if HAS_CUDA
+        }
+#endif
         const auto spin_index = spin_indices[local_offset];
         layer_saturation_moment(counter) += moments(spin_index) / kBohrMagnetonIU;
       }
 
       ++counter;
     }
+
+#if HAS_CUDA
+    if (use_cuda_backend) {
+      cuda_backend_->build_group_work_from_layers(group_idx, settings, spin_group, layers);
+    }
+#endif
 
     HighFive::Group h5_group = file.createGroup(h5_group_root_name_ +"/groups/" + spin_group.name + "/");
     {
@@ -313,26 +494,15 @@ MagnetisationLayersMonitor::MagnetisationLayersMonitor(
 }
 
 
-void MagnetisationLayersMonitor::update(Solver& solver) {
-  // Open the h5 file to write new data
-  HighFive::File file(
-      jams::output::monitor_filename(name(), "h5"), HighFive::File::ReadWrite);
+MagnetisationLayersMonitor::~MagnetisationLayersMonitor() = default;
 
-  HighFive::Group timeseries_group = file.createGroup(h5_group_root_name_ + "/timeseries/" +  zero_pad_number(solver.iteration(),9));
-
-  timeseries_group.createAttribute<double>("time", solver.time());
-  timeseries_group.createAttribute<double>("time_step", solver.time_step());
-  timeseries_group.createAttribute<std::string>("units", "ps");
-
+void MagnetisationLayersMonitor::accumulate_layer_magnetisation_cpu() {
   const auto& spins = globals::s;
   const auto& moments = globals::mus;
   const auto spin_values = spins.host_view();
   const auto moment_values = moments.host_view();
 
   for (std::size_t group_idx = 0; group_idx < spin_groups_.size(); ++group_idx) {
-
-    auto spin_group = timeseries_group.createGroup(spin_groups_[group_idx].name);
-
     group_layer_magnetisation_[group_idx].zero();
     auto& layer_magnetisation = group_layer_magnetisation_[group_idx];
     const auto spin_indices = spin_groups_[group_idx].indices_span();
@@ -350,6 +520,77 @@ void MagnetisationLayersMonitor::update(Solver& solver) {
       layer_magnetisation(layer_index, 1) += moment_mu_b * spin_values(spin_index, 1);
       layer_magnetisation(layer_index, 2) += moment_mu_b * spin_values(spin_index, 2);
     }
+  }
+}
+
+#if HAS_CUDA
+void MagnetisationLayersMonitor::prepare_cuda_backend_from_cpu_indices() {
+  cuda_backend_ = std::make_unique<CudaBackend>(spin_groups_.size());
+  for (std::size_t group_idx = 0; group_idx < spin_groups_.size(); ++group_idx) {
+    // This fallback preserves correctness if update() is first called with a
+    // CUDA solver after construction used the CPU membership arrays.
+    cuda_backend_->build_group_work_from_cpu_indices(
+        group_idx,
+        spin_groups_[group_idx],
+        group_spin_layer_indices_[group_idx],
+        group_num_layers_[group_idx]);
+  }
+}
+
+void MagnetisationLayersMonitor::accumulate_layer_magnetisation_cuda() {
+  if (cuda_backend_ == nullptr) {
+    prepare_cuda_backend_from_cpu_indices();
+  }
+
+  const auto& spins = globals::s;
+  const auto& moments = globals::mus;
+
+  for (std::size_t group_idx = 0; group_idx < spin_groups_.size(); ++group_idx) {
+    auto& layer_magnetisation = group_layer_magnetisation_[group_idx];
+    auto& work = cuda_backend_->group_work[group_idx];
+
+    execute_cuda_magnetisation_layers_kernel(
+        cuda_backend_->stream,
+        group_num_layers_[group_idx],
+        checked_int_count_runtime(work.chunk_layer_indices.size(), "number of cuda layer chunks"),
+        work.chunk_begin_offsets.device_data(),
+        work.chunk_end_offsets.device_data(),
+        work.chunk_layer_indices.device_data(),
+        work.spin_indices.device_data(),
+        spins.device_data(),
+        moments.device_data(),
+        layer_magnetisation.mutable_device_data());
+  }
+
+  cuda_backend_->stream.synchronize();
+}
+#endif
+
+void MagnetisationLayersMonitor::update(Solver& solver) {
+  // Open the h5 file to write new data
+  HighFive::File file(
+      jams::output::monitor_filename(name(), "h5"), HighFive::File::ReadWrite);
+
+  HighFive::Group timeseries_group = file.createGroup(h5_group_root_name_ + "/timeseries/" +  zero_pad_number(solver.iteration(),9));
+
+  timeseries_group.createAttribute<double>("time", solver.time());
+  timeseries_group.createAttribute<double>("time_step", solver.time_step());
+  timeseries_group.createAttribute<std::string>("units", "ps");
+
+#if HAS_CUDA
+  const bool using_cuda_backend = solver.is_cuda_solver();
+  if (using_cuda_backend) {
+    accumulate_layer_magnetisation_cuda();
+  } else {
+    accumulate_layer_magnetisation_cpu();
+  }
+#else
+  const bool using_cuda_backend = false;
+  accumulate_layer_magnetisation_cpu();
+#endif
+
+  for (std::size_t group_idx = 0; group_idx < spin_groups_.size(); ++group_idx) {
+    auto spin_group = timeseries_group.createGroup(spin_groups_[group_idx].name);
 
     auto dataset = spin_group.createDataSet<double>(
         "magnetisation",HighFive::DataSpace::From(group_layer_magnetisation_[group_idx]));
@@ -358,5 +599,12 @@ void MagnetisationLayersMonitor::update(Solver& solver) {
     dataset.createAttribute<std::string>("units", "bohr_magneton");
 
     dataset.write(group_layer_magnetisation_[group_idx]);
+#if HAS_CUDA
+    if (using_cuda_backend) {
+      group_layer_magnetisation_[group_idx].release_stale_host();
+    }
+#else
+    (void)using_cuda_backend;
+#endif
   }
 }
