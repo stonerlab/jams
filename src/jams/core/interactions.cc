@@ -578,6 +578,23 @@ generate_interaction_data(std::ifstream &file,
 }
 
 std::vector<InteractionData>
+generate_interaction_data(std::ifstream &file,
+                          CoordinateFormat coord_format,
+                          bool use_symops,
+                          double energy_cutoff,
+                          double radius_cutoff,
+                          double distance_tolerance,
+                          std::vector<InteractionChecks>,
+                          double radius_cutoff_tolerance) {
+  auto file_desc = discover_interaction_file_format(file);
+  auto interactions = interactions_from_file(file, file_desc);
+
+  post_process_interactions(interactions, file_desc, coord_format, use_symops, energy_cutoff, radius_cutoff, distance_tolerance, radius_cutoff_tolerance);
+  check_interaction_list_symmetry(interactions);
+  return interactions;
+}
+
+std::vector<InteractionData>
 generate_interaction_data(libconfig::Setting &setting,
                           CoordinateFormat coord_format,
                           bool use_symops,
@@ -588,6 +605,23 @@ generate_interaction_data(libconfig::Setting &setting,
   auto interactions = interactions_from_settings(setting, file_desc);
 
   post_process_interactions(interactions, file_desc, coord_format, use_symops, energy_cutoff, radius_cutoff, distance_tolerance);
+  check_interaction_list_symmetry(interactions);
+  return interactions;
+}
+
+std::vector<InteractionData>
+generate_interaction_data(libconfig::Setting &setting,
+                          CoordinateFormat coord_format,
+                          bool use_symops,
+                          double energy_cutoff,
+                          double radius_cutoff,
+                          double distance_tolerance,
+                          std::vector<InteractionChecks>,
+                          double radius_cutoff_tolerance) {
+  auto file_desc = discover_interaction_setting_format(setting);
+  auto interactions = interactions_from_settings(setting, file_desc);
+
+  post_process_interactions(interactions, file_desc, coord_format, use_symops, energy_cutoff, radius_cutoff, distance_tolerance, radius_cutoff_tolerance);
   check_interaction_list_symmetry(interactions);
   return interactions;
 }
