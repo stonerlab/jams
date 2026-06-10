@@ -12,7 +12,8 @@
 
 __global__ void cuda_llg_rkmk2_kernel_step_1
 (
-  const double * s_init_dev,
+  const double * s_step_dev,
+  double * s_init_dev,
   double * phi_dev,
   double * s_out_dev,
   const jams::Real * h_step_dev,  // field at the same time as s_step
@@ -35,7 +36,8 @@ __global__ void cuda_llg_rkmk2_kernel_step_1
 
   double s[3];
   for (auto n = 0; n < 3; ++n) {
-    s[n] = s_init_dev[base + n];
+    s[n] = s_step_dev[base + n];
+    s_init_dev[base + n] = s[n];
   }
 
   double omega[3];
@@ -176,19 +178,11 @@ void CUDALLGRKMK2Solver::run()
   DEBUG_CHECK_CUDA_ASYNC_STATUS
   record_spin_barrier_event();
 
-  cudaMemcpyAsync(s_init_.mutable_device_data(),           // void *               dst
-                globals::s.device_data(),               // const void *         src
-                globals::s.bytes(),   // size_t               count
-                cudaMemcpyDeviceToDevice,    // enum cudaMemcpyKind  kind
-                jams::instance().cuda_master_stream().get());                   // device stream
-
-  DEBUG_CHECK_CUDA_ASYNC_STATUS
-
-
   compute_fields(); // uses cuda_master_stream internally to synchronise
 
   cuda_llg_rkmk2_kernel_step_1<<<grid_size, block_size, 0, jams::instance().cuda_master_stream().get()>>>(
-    s_init_.device_data(),
+    globals::s.device_data(),
+    s_init_.mutable_device_data(),
     phi_.mutable_device_data(),
     globals::s.mutable_device_data(),
     globals::h.device_data(),
