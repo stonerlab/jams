@@ -171,6 +171,74 @@ __device__ inline void dexp_inv_so3(const double phi[3], const double v[3], doub
   }
 }
 
+__device__ __forceinline__ void rkmk_store_spin_and_cache
+(
+  double *s_out_dev,
+  jams::Real *s_cache_dev,
+  const unsigned base,
+  const double s[3]
+)
+{
+  for (auto n = 0; n < 3; ++n) {
+    s_out_dev[base + n] = s[n];
+  }
+
+  if (s_cache_dev != nullptr) {
+    for (auto n = 0; n < 3; ++n) {
+      s_cache_dev[base + n] = static_cast<jams::Real>(s[n]);
+    }
+  }
+}
+
+__device__ __forceinline__ void rkmk_noise_step_rodrigues
+(
+  const double s[3],
+  const jams::Real *noise_dev,
+  const jams::Real *gyro_dev,
+  const jams::Real *alpha_dev,
+  const unsigned idx,
+  const unsigned base,
+  const double dt,
+  double out[3]
+)
+{
+  const jams::Real h[3] = {
+    noise_dev[base + 0],
+    noise_dev[base + 1],
+    noise_dev[base + 2]
+  };
+
+  double w[3];
+  omega_llg(s, h, gyro_dev[idx], alpha_dev[idx], w);
+
+  const double phi[3] = {dt * w[0], dt * w[1], dt * w[2]};
+  rodrigues_rotate(phi, s, out);
+}
+
+__global__ inline void cuda_llg_noise_step_rodrigues_cache_kernel(
+  double* s_inout_dev,
+  jams::Real* s_cache_dev,
+  const jams::Real* noise_dev,
+  const jams::Real* gyro_dev,
+  const jams::Real* alpha_dev,
+  unsigned num_spins,
+  double dt)
+{
+  const unsigned idx = blockIdx.x * blockDim.x + threadIdx.x;
+  if (idx >= num_spins) return;
+  const unsigned base = 3u * idx;
+
+  const double s[3] = {
+    s_inout_dev[base + 0],
+    s_inout_dev[base + 1],
+    s_inout_dev[base + 2]
+  };
+
+  double out[3];
+  rkmk_noise_step_rodrigues(s, noise_dev, gyro_dev, alpha_dev, idx, base, dt, out);
+  rkmk_store_spin_and_cache(s_inout_dev, s_cache_dev, base, out);
+}
+
 
 __global__ inline void cuda_llg_noise_step_rodrigues_kernel(
   double* s_inout_dev,
@@ -184,26 +252,15 @@ __global__ inline void cuda_llg_noise_step_rodrigues_kernel(
   if (idx >= num_spins) return;
   const unsigned base = 3u * idx;
 
-  // Spin
-  double s[3] = {s_inout_dev[base+0], s_inout_dev[base+1], s_inout_dev[base+2]};
-
-  // Treat white noise as an effective field for this substep
-  jams::Real h[3] = {
-    noise_dev[base+0],
-    noise_dev[base+1],
-    noise_dev[base+2]
+  const double s[3] = {
+    s_inout_dev[base + 0],
+    s_inout_dev[base + 1],
+    s_inout_dev[base + 2]
   };
 
-  double w[3];
-  omega_llg(s, h, gyro_dev[idx], alpha_dev[idx], w);
-
-  double phi[3] = {dt * w[0], dt * w[1], dt * w[2]};
   double out[3];
-  rodrigues_rotate(phi, s, out);
-
-  s_inout_dev[base+0] = out[0];
-  s_inout_dev[base+1] = out[1];
-  s_inout_dev[base+2] = out[2];
+  rkmk_noise_step_rodrigues(s, noise_dev, gyro_dev, alpha_dev, idx, base, dt, out);
+  rkmk_store_spin_and_cache(s_inout_dev, nullptr, base, out);
 }
 
 __global__ inline void cuda_llg_noise_step_cayley_kernel(

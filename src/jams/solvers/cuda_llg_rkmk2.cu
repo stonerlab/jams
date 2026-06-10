@@ -10,76 +10,6 @@
 #include "jams/cuda/cuda_device_vector_ops.h"
 #include "jams/solvers/cuda_solver_functions.cuh"
 
-__device__ __forceinline__ void rkmk2_store_spin_and_cache
-(
-  double *s_out_dev,
-  jams::Real *s_cache_dev,
-  const unsigned base,
-  const double s[3]
-)
-{
-  for (auto n = 0; n < 3; ++n) {
-    s_out_dev[base + n] = s[n];
-  }
-
-  if (s_cache_dev != nullptr) {
-    for (auto n = 0; n < 3; ++n) {
-      s_cache_dev[base + n] = static_cast<jams::Real>(s[n]);
-    }
-  }
-}
-
-__device__ __forceinline__ void rkmk2_noise_step_rodrigues
-(
-  const double s[3],
-  const jams::Real *noise_dev,
-  const jams::Real *gyro_dev,
-  const jams::Real *alpha_dev,
-  const unsigned idx,
-  const unsigned base,
-  const double dt,
-  double out[3]
-)
-{
-  const jams::Real h[3] = {
-    noise_dev[base + 0],
-    noise_dev[base + 1],
-    noise_dev[base + 2]
-  };
-
-  double w[3];
-  omega_llg(s, h, gyro_dev[idx], alpha_dev[idx], w);
-
-  const double phi[3] = {dt * w[0], dt * w[1], dt * w[2]};
-  rodrigues_rotate(phi, s, out);
-}
-
-__global__ void cuda_llg_rkmk2_kernel_initial_noise
-(
-  double *s_inout_dev,
-  jams::Real *s_cache_dev,
-  const jams::Real *noise_dev,
-  const jams::Real *gyro_dev,
-  const jams::Real *alpha_dev,
-  const unsigned dev_num_spins,
-  const double dt
-)
-{
-  const unsigned int idx = blockIdx.x * blockDim.x + threadIdx.x;
-  if (idx >= dev_num_spins) return;
-
-  const unsigned int base = 3u * idx;
-  const double s[3] = {
-    s_inout_dev[base + 0],
-    s_inout_dev[base + 1],
-    s_inout_dev[base + 2]
-  };
-
-  double out[3];
-  rkmk2_noise_step_rodrigues(s, noise_dev, gyro_dev, alpha_dev, idx, base, dt, out);
-  rkmk2_store_spin_and_cache(s_inout_dev, s_cache_dev, base, out);
-}
-
 __global__ void cuda_llg_rkmk2_kernel_step_1
 (
   const double * s_step_dev,
@@ -125,7 +55,7 @@ __global__ void cuda_llg_rkmk2_kernel_step_1
 
   double s_out[3];
   rodrigues_rotate(phi, s, s_out);
-  rkmk2_store_spin_and_cache(s_out_dev, s_cache_dev, base, s_out);
+  rkmk_store_spin_and_cache(s_out_dev, s_cache_dev, base, s_out);
 }
 
 
@@ -187,8 +117,8 @@ __global__ void cuda_llg_rkmk2_kernel_step_2
   rodrigues_rotate(k, s_init, s_out);
 
   double s_noisy[3];
-  rkmk2_noise_step_rodrigues(s_out, noise_dev, gyro_dev, alpha_dev, idx, base, noise_dt, s_noisy);
-  rkmk2_store_spin_and_cache(s_out_dev, s_cache_dev, base, s_noisy);
+  rkmk_noise_step_rodrigues(s_out, noise_dev, gyro_dev, alpha_dev, idx, base, noise_dt, s_noisy);
+  rkmk_store_spin_and_cache(s_out_dev, s_cache_dev, base, s_noisy);
 }
 
 
@@ -241,7 +171,7 @@ void CUDALLGRKMK2Solver::run()
   thermostat_->record_done();
   thermostat_->wait_on(jams::instance().cuda_master_stream().get());
 
-  cuda_llg_rkmk2_kernel_initial_noise<<<grid_size, block_size, 0, jams::instance().cuda_master_stream().get()>>>(
+  cuda_llg_noise_step_rodrigues_cache_kernel<<<grid_size, block_size, 0, jams::instance().cuda_master_stream().get()>>>(
     globals::s.mutable_device_data(),
     field_spin_cache,
     thermostat_->device_data(),

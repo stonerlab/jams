@@ -11,9 +11,11 @@
 
 __global__ void cuda_llg_rkmk4_kernel_step_1
 (
-  const double * s_init_dev,
+  const double * s_step_dev,
+  double * s_init_dev,
   double * k1_dev,
-  double * s_step_dev,
+  double * s_out_dev,
+  jams::Real * s_cache_dev,
   const jams::Real * h_step_dev,
   const jams::Real * gyro_dev,
   const jams::Real * mus_dev,
@@ -34,7 +36,8 @@ __global__ void cuda_llg_rkmk4_kernel_step_1
 
   double s[3];
   for (auto n = 0; n < 3; ++n) {
-    s[n] = s_init_dev[base + n];
+    s[n] = s_step_dev[base + n];
+    s_init_dev[base + n] = s[n];
   }
 
   double omega[3];
@@ -53,10 +56,7 @@ __global__ void cuda_llg_rkmk4_kernel_step_1
 
   double s_out[3];
   rodrigues_rotate(phi, s, s_out);
-
-  for (auto n = 0; n < 3; ++n) {
-    s_step_dev[base + n] = s_out[n];
-  }
+  rkmk_store_spin_and_cache(s_out_dev, s_cache_dev, base, s_out);
 }
 
 __global__ void cuda_llg_rkmk4_kernel_step_2
@@ -66,6 +66,7 @@ __global__ void cuda_llg_rkmk4_kernel_step_2
   const double * k1_dev,
   double * k2_dev,
   double * s_out_dev,
+  jams::Real * s_cache_dev,
   const jams::Real * h_step_dev,
   const jams::Real * gyro_dev,
   const jams::Real * mus_dev,
@@ -121,10 +122,7 @@ __global__ void cuda_llg_rkmk4_kernel_step_2
 
   double s_out[3];
   rodrigues_rotate(phi2, s_init, s_out);
-
-  for (auto n = 0; n < 3; ++n) {
-    s_out_dev[base + n] = s_out[n];
-  }
+  rkmk_store_spin_and_cache(s_out_dev, s_cache_dev, base, s_out);
 }
 
 __global__ void cuda_llg_rkmk4_kernel_step_3
@@ -134,6 +132,7 @@ __global__ void cuda_llg_rkmk4_kernel_step_3
   const double * k2_dev,
   double * k3_dev,
   double * s_out_dev,
+  jams::Real * s_cache_dev,
   const jams::Real * h_step_dev,
   const jams::Real * gyro_dev,
   const jams::Real * mus_dev,
@@ -184,10 +183,7 @@ __global__ void cuda_llg_rkmk4_kernel_step_3
 
   double s_out[3];
   rodrigues_rotate(k3, s_init, s_out);
-
-  for (auto n = 0; n < 3; ++n) {
-    s_out_dev[base + n] = s_out[n];
-  }
+  rkmk_store_spin_and_cache(s_out_dev, s_cache_dev, base, s_out);
 }
 
 __global__ void cuda_llg_rkmk4_kernel_step_4
@@ -198,12 +194,15 @@ __global__ void cuda_llg_rkmk4_kernel_step_4
   const double * k2_dev,
   const double * k3_dev,
   double * s_out_dev,
+  jams::Real * s_cache_dev,
   const jams::Real * h_step_dev,
+  const jams::Real * noise_dev,
   const jams::Real * gyro_dev,
   const jams::Real * mus_dev,
   const jams::Real * alpha_dev,
   const unsigned dev_num_spins,
-  const double dt
+  const double dt,
+  const double noise_dt
 )
 {
   const unsigned int idx = blockIdx.x * blockDim.x + threadIdx.x;
@@ -250,9 +249,9 @@ __global__ void cuda_llg_rkmk4_kernel_step_4
   double s_out[3];
   rodrigues_rotate(k, s_init, s_out);
 
-  for (auto n = 0; n < 3; ++n) {
-    s_out_dev[base + n] = s_out[n];
-  }
+  double s_noisy[3];
+  rkmk_noise_step_rodrigues(s_out, noise_dev, gyro_dev, alpha_dev, idx, base, noise_dt, s_noisy);
+  rkmk_store_spin_and_cache(s_out_dev, s_cache_dev, base, s_noisy);
 }
 
 void CUDALLGRKMK4Solver::initialize(const libconfig::Setting& settings)
@@ -293,39 +292,37 @@ void CUDALLGRKMK4Solver::run()
   const dim3 block_size = {256, 1, 1};
   auto grid_size = cuda_grid_size(block_size, {static_cast<unsigned int>(globals::num_spins), 1, 1});
 
+  jams::Real* field_spin_cache = mutable_field_spin_cache_device_data();
+
   update_thermostat();
   thermostat_->record_done();
   thermostat_->wait_on(jams::instance().cuda_master_stream().get());
 
-  cuda_llg_noise_step_rodrigues_kernel<<<grid_size, block_size, 0, jams::instance().cuda_master_stream().get()>>>(
+  cuda_llg_noise_step_rodrigues_cache_kernel<<<grid_size, block_size, 0, jams::instance().cuda_master_stream().get()>>>(
     globals::s.mutable_device_data(),
+    field_spin_cache,
     thermostat_->device_data(),
     gyro_eff_.device_data(),
     globals::alpha.device_data(),
     globals::num_spins, half_dt);
   DEBUG_CHECK_CUDA_ASYNC_STATUS
-  record_spin_barrier_event();
-
-  cudaMemcpyAsync(s_init_.mutable_device_data(),
-                globals::s.device_data(),
-                globals::s.bytes(),
-                cudaMemcpyDeviceToDevice,
-                jams::instance().cuda_master_stream().get());
-  DEBUG_CHECK_CUDA_ASYNC_STATUS
+  record_spin_and_field_cache_barrier_event();
 
   compute_fields();
 
   cuda_llg_rkmk4_kernel_step_1<<<grid_size, block_size, 0, jams::instance().cuda_master_stream().get()>>>(
-    s_init_.device_data(),
+    globals::s.device_data(),
+    s_init_.mutable_device_data(),
     k1_.mutable_device_data(),
     globals::s.mutable_device_data(),
+    field_spin_cache,
     globals::h.device_data(),
     gyro_eff_.device_data(),
     globals::mus.device_data(),
     globals::alpha.device_data(),
     globals::num_spins, step_size_);
   DEBUG_CHECK_CUDA_ASYNC_STATUS
-  record_spin_barrier_event();
+  record_spin_and_field_cache_barrier_event();
 
   time_ = t0 + half_dt;
 
@@ -337,13 +334,14 @@ void CUDALLGRKMK4Solver::run()
     k1_.device_data(),
     k2_.mutable_device_data(),
     globals::s.mutable_device_data(),
+    field_spin_cache,
     globals::h.device_data(),
     gyro_eff_.device_data(),
     globals::mus.device_data(),
     globals::alpha.device_data(),
     globals::num_spins, step_size_);
   DEBUG_CHECK_CUDA_ASYNC_STATUS
-  record_spin_barrier_event();
+  record_spin_and_field_cache_barrier_event();
 
 
   compute_fields();
@@ -354,17 +352,22 @@ void CUDALLGRKMK4Solver::run()
     k2_.device_data(),
     k3_.mutable_device_data(),
     globals::s.mutable_device_data(),
+    field_spin_cache,
     globals::h.device_data(),
     gyro_eff_.device_data(),
     globals::mus.device_data(),
     globals::alpha.device_data(),
     globals::num_spins, step_size_);
   DEBUG_CHECK_CUDA_ASYNC_STATUS
-  record_spin_barrier_event();
+  record_spin_and_field_cache_barrier_event();
 
   time_ = t0 + step_size_;
 
   compute_fields();
+
+  update_thermostat();
+  thermostat_->record_done();
+  thermostat_->wait_on(jams::instance().cuda_master_stream().get());
 
   cuda_llg_rkmk4_kernel_step_4<<<grid_size, block_size, 0, jams::instance().cuda_master_stream().get()>>>(
     s_init_.device_data(),
@@ -373,27 +376,15 @@ void CUDALLGRKMK4Solver::run()
     k2_.device_data(),
     k3_.device_data(),
     globals::s.mutable_device_data(),
+    field_spin_cache,
     globals::h.device_data(),
+    thermostat_->device_data(),
     gyro_eff_.device_data(),
     globals::mus.device_data(),
     globals::alpha.device_data(),
-    globals::num_spins, step_size_);
+    globals::num_spins, step_size_, half_dt);
   DEBUG_CHECK_CUDA_ASYNC_STATUS
-  record_spin_barrier_event();
-
-  update_thermostat();
-  thermostat_->record_done();
-  thermostat_->wait_on(jams::instance().cuda_master_stream().get());
-
-
-  cuda_llg_noise_step_rodrigues_kernel<<<grid_size, block_size, 0,  jams::instance().cuda_master_stream().get()>>>(
-    globals::s.mutable_device_data(),
-    thermostat_->device_data(),
-    gyro_eff_.device_data(),
-    globals::alpha.device_data(),
-    globals::num_spins, half_dt);
-  DEBUG_CHECK_CUDA_ASYNC_STATUS
-  record_spin_barrier_event();
+  record_spin_and_field_cache_barrier_event();
 
   iteration_++;
   time_ = iteration_ * step_size_;
