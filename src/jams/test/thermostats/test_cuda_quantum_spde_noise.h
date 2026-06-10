@@ -42,6 +42,8 @@ void initialize_cuda_for_quantum_spde_tests(const unsigned long long seed) {
             CURAND_STATUS_SUCCESS);
   ASSERT_EQ(curandSetPseudoRandomGeneratorSeed(jams::instance().curand_generator(), seed),
             CURAND_STATUS_SUCCESS);
+  ASSERT_EQ(curandSetGeneratorOffset(jams::instance().curand_generator(), 0),
+            CURAND_STATUS_SUCCESS);
   ASSERT_EQ(curandGenerateSeeds(jams::instance().curand_generator()), CURAND_STATUS_SUCCESS);
 }
 
@@ -94,6 +96,18 @@ void fill_sigma(jams::MultiArray<jams::Real, 1>& sigma) {
   for (auto i = 0; i < sigma.size(); ++i) {
     sigma(i) = jams::Real{1.0};
   }
+}
+
+void generate_global_normal(jams::MultiArray<jams::Real, 1>& data) {
+#ifdef DO_MIXED_PRECISION
+  ASSERT_EQ(curandGenerateNormal(
+      jams::instance().curand_generator(), data.mutable_device_data(), data.size(), 0.0, 1.0),
+            CURAND_STATUS_SUCCESS);
+#else
+  ASSERT_EQ(curandGenerateNormalDouble(
+      jams::instance().curand_generator(), data.mutable_device_data(), data.size(), 0.0, 1.0),
+            CURAND_STATUS_SUCCESS);
+#endif
 }
 
 }  // namespace
@@ -325,6 +339,42 @@ TEST(CudaQuantumSpdeNoiseGeneratorTest, ZeroTemperatureWithZeroPointProducesNois
   }
   variance /= kProcessCount;
   EXPECT_GT(variance, 1.0e-12);
+}
+
+TEST(CudaQuantumSpdeNoiseGeneratorTest, InternalGeneratorDoesNotAdvanceGlobalCurand_GPU) {
+  if (!cuda_device_available()) {
+    GTEST_SKIP() << "CUDA runtime is enabled but no CUDA device is available";
+  }
+
+  constexpr unsigned long long kSeed = 86420ULL;
+  constexpr int kGlobalSampleCount = 2048;
+  constexpr int kProcessCount = 4096;
+  constexpr double kTimestepPs = 1.0e-3;
+  constexpr double kTemperature = 300.0;
+  constexpr double kDeltaTau = (kTimestepPs * kBoltzmannIU) / kHBarIU;
+
+  initialize_cuda_for_quantum_spde_tests(kSeed);
+  jams::MultiArray<jams::Real, 1> reference(kGlobalSampleCount);
+  generate_global_normal(reference);
+  const auto* reference_host = reference.host_data();
+
+  initialize_cuda_for_quantum_spde_tests(kSeed);
+  CudaStream stream(CudaStream::Priority::LOW);
+  jams::CudaQuantumSpdeNoiseGenerator generator(
+      kProcessCount, kDeltaTau, 25.0 * kTwoPi, false, stream);
+  jams::MultiArray<jams::Real, 1> sigma(kProcessCount);
+  jams::MultiArray<jams::Real, 1> noise(kProcessCount);
+  fill_sigma(sigma);
+  generator.update(noise.mutable_device_data(), sigma.device_data(), kTemperature);
+  generator.synchronize();
+
+  jams::MultiArray<jams::Real, 1> actual(kGlobalSampleCount);
+  generate_global_normal(actual);
+  const auto* actual_host = actual.host_data();
+
+  for (auto i = 0; i < kGlobalSampleCount; ++i) {
+    EXPECT_EQ(actual_host[i], reference_host[i]);
+  }
 }
 
 #endif  // HAS_CUDA

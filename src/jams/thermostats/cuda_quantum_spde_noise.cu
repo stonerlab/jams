@@ -4,6 +4,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstdint>
 #include <stdexcept>
 
 #include <jams/common.h>
@@ -14,18 +15,14 @@
 
 namespace {
 
-void generate_normal(jams::MultiArray<jams::Real, 1>& data) {
+void generate_normal(curandGenerator_t generator, jams::MultiArray<jams::Real, 1>& data) {
 #ifdef DO_MIXED_PRECISION
   CHECK_CURAND_STATUS(curandGenerateNormal(
-      jams::instance().curand_generator(), data.mutable_device_data(), data.size(), 0.0, 1.0));
+      generator, data.mutable_device_data(), data.size(), 0.0, 1.0));
 #else
   CHECK_CURAND_STATUS(curandGenerateNormalDouble(
-      jams::instance().curand_generator(), data.mutable_device_data(), data.size(), 0.0, 1.0));
+      generator, data.mutable_device_data(), data.size(), 0.0, 1.0));
 #endif
-}
-
-void reset_curand_stream_to_default() {
-  CHECK_CURAND_STATUS(curandSetStream(jams::instance().curand_generator(), nullptr));
 }
 
 void solve_3x3(double a[3][4]) {
@@ -245,6 +242,12 @@ CudaQuantumSpdeNoiseGenerator::CudaQuantumSpdeNoiseGenerator(
       omega_max_(omega_max),
       zero_point_(zero_point),
       update_stream_(update_stream) {
+  const auto seed = static_cast<std::uint64_t>(jams::instance().random_generator()());
+  CHECK_CURAND_STATUS(curandCreateGenerator(&curand_generator_, CURAND_RNG_PSEUDO_DEFAULT));
+  CHECK_CURAND_STATUS(curandSetPseudoRandomGeneratorSeed(curand_generator_, seed));
+  CHECK_CURAND_STATUS(curandSetStream(curand_generator_, curand_stream_.get()));
+  CHECK_CURAND_STATUS(curandGenerateSeeds(curand_generator_));
+
   cudaEventCreateWithFlags(&curand_done_, cudaEventDisableTiming);
   DEBUG_CHECK_CUDA_ASYNC_STATUS
   cudaEventCreateWithFlags(&eta1a_reusable_, cudaEventDisableTiming);
@@ -306,20 +309,23 @@ CudaQuantumSpdeNoiseGenerator::~CudaQuantumSpdeNoiseGenerator() {
     cudaEventDestroy(curand_done_);
     curand_done_ = nullptr;
   }
+
+  if (curand_generator_ != nullptr) {
+    curandDestroyGenerator(curand_generator_);
+    curand_generator_ = nullptr;
+  }
 }
 
 void CudaQuantumSpdeNoiseGenerator::generate_random_buffers() {
-  CHECK_CURAND_STATUS(curandSetStream(jams::instance().curand_generator(), curand_stream_.get()));
   if (zero_point_) {
-    generate_normal(eta0a_);
-    generate_normal(eta0b_);
+    generate_normal(curand_generator_, eta0a_);
+    generate_normal(curand_generator_, eta0b_);
   }
-  generate_normal(eta1a_);
-  generate_normal(eta1b_);
+  generate_normal(curand_generator_, eta1a_);
+  generate_normal(curand_generator_, eta1b_);
 
   cudaEventRecord(curand_done_, curand_stream_.get());
   DEBUG_CHECK_CUDA_ASYNC_STATUS
-  reset_curand_stream_to_default();
 }
 
 void CudaQuantumSpdeNoiseGenerator::prepare_fixed_temperature_coefficients(
@@ -431,12 +437,10 @@ void CudaQuantumSpdeNoiseGenerator::update(jams::Real* noise,
       cudaEventRecord(eta0b_reusable_, update_stream_.get());
       DEBUG_CHECK_CUDA_ASYNC_STATUS
 
-      CHECK_CURAND_STATUS(curandSetStream(jams::instance().curand_generator(), curand_stream_.get()));
-      generate_normal(eta0a_);
+      generate_normal(curand_generator_, eta0a_);
 
       cudaEventRecord(curand_done_, curand_stream_.get());
       DEBUG_CHECK_CUDA_ASYNC_STATUS
-      reset_curand_stream_to_default();
     }
 
     return;
@@ -469,8 +473,7 @@ void CudaQuantumSpdeNoiseGenerator::update(jams::Real* noise,
   cudaEventRecord(eta1b_reusable_, update_stream_.get());
   DEBUG_CHECK_CUDA_ASYNC_STATUS
 
-  CHECK_CURAND_STATUS(curandSetStream(jams::instance().curand_generator(), curand_stream_.get()));
-  generate_normal(eta1a_);
+  generate_normal(curand_generator_, eta1a_);
 
   if (zero_point_) {
     swap(eta0a_, eta0b_);
@@ -484,13 +487,11 @@ void CudaQuantumSpdeNoiseGenerator::update(jams::Real* noise,
     cudaEventRecord(eta0b_reusable_, update_stream_.get());
     DEBUG_CHECK_CUDA_ASYNC_STATUS
 
-    CHECK_CURAND_STATUS(curandSetStream(jams::instance().curand_generator(), curand_stream_.get()));
-    generate_normal(eta0a_);
+    generate_normal(curand_generator_, eta0a_);
   }
 
   cudaEventRecord(curand_done_, curand_stream_.get());
   DEBUG_CHECK_CUDA_ASYNC_STATUS
-  reset_curand_stream_to_default();
 }
 
 void CudaQuantumSpdeNoiseGenerator::synchronize() {

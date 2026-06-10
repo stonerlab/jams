@@ -99,6 +99,7 @@ class CudaQuantumSpdeNoiseGenerator {
 
   CudaStream& update_stream_;
   CudaStream curand_stream_{CudaStream::Priority::LOW};
+  curandGenerator_t curand_generator_ = nullptr;
   cudaEvent_t curand_done_{};
   cudaEvent_t eta1a_reusable_{};
   cudaEvent_t eta1b_reusable_{};
