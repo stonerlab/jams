@@ -31,9 +31,13 @@ class CudaSolver : public Solver {
 
     void notify_monitors() override
     {
-        synchronize_on_spin_barrier_event();
+        bool synchronized = false;
         for (auto& m : monitors_) {
             if (m->is_updating(iteration_)) {
+                if (!synchronized) {
+                    synchronize_on_spin_barrier_event();
+                    synchronized = true;
+                }
                 m->update(*this);
             }
         }
