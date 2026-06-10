@@ -149,6 +149,32 @@ TEST(QuantumSpdeNoiseGeneratorTest, StationaryCovarianceSolvesDiscreteLyapunov) 
   }
 }
 
+TEST(QuantumSpdeNoiseGeneratorTest, PrecomputedBoseUpdateMatchesExactHostUpdate) {
+  constexpr double kEtaSample = 0.37;
+  const double h_values[] = {1.0e-4, 1.0e-2, 4.0e-2, 2.5e-1};
+
+  for (const auto [gamma, omega] :
+       {std::pair{5.0142, 2.7189}, std::pair{6.0, 1.0}, std::pair{4.0, 2.0}}) {
+    for (const double h : h_values) {
+      const auto coeffs = jams::quantum_spde_bose_update_coefficients(gamma, omega, h);
+      const double eta0 = static_cast<double>(
+          static_cast<jams::Real>(kEtaSample) * coeffs.eta_scale);
+      const double force_eq = eta0 * coeffs.inv_omega2;
+
+      double expected[2] = {0.125, -0.75};
+      jams::quantum_spde_bose_exact_update_host(gamma, omega, eta0, h, expected);
+
+      const double actual0 = coeffs.m00 * 0.125 + coeffs.m01 * -0.75
+          + coeffs.force0 * force_eq;
+      const double actual1 = coeffs.m10 * 0.125 + coeffs.m11 * -0.75
+          + coeffs.force1 * force_eq;
+
+      EXPECT_NEAR(expected[0], actual0, 2.0e-12);
+      EXPECT_NEAR(expected[1], actual1, 2.0e-12);
+    }
+  }
+}
+
 TEST(CudaQuantumSpdeNoiseGeneratorTest, StationaryInitializationSamplesTargetMoments_GPU) {
   if (!cuda_device_available()) {
     GTEST_SKIP() << "CUDA runtime is enabled but no CUDA device is available";

@@ -4,6 +4,7 @@
 #define JAMS_CUDA_THERMOSTAT_LANGEVIN_BOSE_KERNEL_H
 
 #include <jams/helpers/mixed_precision.h>
+#include <jams/thermostats/cuda_quantum_spde_noise.h>
 
 __device__ inline double ou_linear_update(const double z, const jams::Real lambda, const jams::Real eta,
                                           const jams::Real h) {
@@ -111,6 +112,33 @@ __global__ inline void cuda_thermostat_quantum_spde_zero_point_kernel
     }
 
     noise[x] += sigma[x] * zero_point_scale * static_cast<jams::Real>(s0);
+  }
+}
+
+__global__ inline void cuda_thermostat_quantum_spde_zero_point_fast_kernel
+        (
+                jams::Real *__restrict__ noise,
+                double *__restrict__ zeta,
+                const jams::Real *__restrict__ eta,
+                const jams::Real *__restrict__ sigma,
+                const jams::QuantumSpdeZeroPointUpdateCoefficients coeffs,
+                const int N
+        ) {
+
+  const int x = blockIdx.x * blockDim.x + threadIdx.x;
+  if (x < N) {
+    double s0 = 0.0;
+
+    for (auto i = 0; i < 4; ++i) {
+      const auto zeta_index = 4 * x + i;
+      const double z_old = zeta[zeta_index];
+      const double e = static_cast<double>(eta[zeta_index] * coeffs.eta_scale[i]);
+      const double z_new = coeffs.decay[i] * z_old + (1.0 - coeffs.decay[i]) * e;
+      zeta[zeta_index] = z_new;
+      s0 += static_cast<double>(coeffs.weight[i]) * (e - z_new);
+    }
+
+    noise[x] += sigma[x] * coeffs.zero_point_scale * static_cast<jams::Real>(s0);
   }
 }
 
@@ -223,6 +251,43 @@ __global__ void cuda_thermostat_quantum_spde_no_zero_kernel
 
     s1 += 0.3429 * z[0];
 
+    noise[x] = T * sigma[x] * static_cast<jams::Real>(s1);
+  }
+}
+
+__global__ void cuda_thermostat_quantum_spde_no_zero_fast_kernel
+        (
+                jams::Real *__restrict__ noise,
+                double *__restrict__ zeta5,
+                double *__restrict__ zeta5p,
+                double *__restrict__ zeta6,
+                double *__restrict__ zeta6p,
+                const jams::Real *__restrict__ eta,
+                const jams::Real *__restrict__ sigma,
+                const jams::QuantumSpdeBoseUpdateCoefficients factor5,
+                const jams::QuantumSpdeBoseUpdateCoefficients factor6,
+                const jams::Real T,
+                const int N
+        ) {
+  const int x = blockIdx.x * blockDim.x + threadIdx.x;
+  if (x < N) {
+    const double force5 = static_cast<double>(eta[x] * factor5.eta_scale) * factor5.inv_omega2;
+    const double z5 = zeta5[x];
+    const double z5p = zeta5p[x];
+    const double z5_new = factor5.m00 * z5 + factor5.m01 * z5p + factor5.force0 * force5;
+    const double z5p_new = factor5.m10 * z5 + factor5.m11 * z5p + factor5.force1 * force5;
+    zeta5[x] = z5_new;
+    zeta5p[x] = z5p_new;
+
+    const double force6 = static_cast<double>(eta[N + x] * factor6.eta_scale) * factor6.inv_omega2;
+    const double z6 = zeta6[x];
+    const double z6p = zeta6p[x];
+    const double z6_new = factor6.m00 * z6 + factor6.m01 * z6p + factor6.force0 * force6;
+    const double z6p_new = factor6.m10 * z6 + factor6.m11 * z6p + factor6.force1 * force6;
+    zeta6[x] = z6_new;
+    zeta6p[x] = z6p_new;
+
+    const double s1 = 1.8315 * z5_new + 0.3429 * z6_new;
     noise[x] = T * sigma[x] * static_cast<jams::Real>(s1);
   }
 }

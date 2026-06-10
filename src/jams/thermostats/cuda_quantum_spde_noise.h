@@ -19,8 +19,33 @@ struct QuantumSpdeBoseCholesky {
   double l11 = 0.0;
 };
 
+struct QuantumSpdeBoseUpdateCoefficients {
+  double m00 = 0.0;
+  double m01 = 0.0;
+  double m10 = 0.0;
+  double m11 = 0.0;
+  double force0 = 0.0;
+  double force1 = 0.0;
+  double inv_omega2 = 0.0;
+  jams::Real eta_scale = 0.0;
+};
+
+struct QuantumSpdeZeroPointUpdateCoefficients {
+  double decay[4] = {};
+  jams::Real eta_scale[4] = {};
+  jams::Real weight[4] = {};
+  jams::Real zero_point_scale = 0.0;
+};
+
 void quantum_spde_bose_exact_update_host(double gamma, double omega, double eta0,
                                          double h, double z[2]);
+
+QuantumSpdeBoseUpdateCoefficients quantum_spde_bose_update_coefficients(double gamma,
+                                                                        double omega,
+                                                                        double h);
+
+QuantumSpdeZeroPointUpdateCoefficients quantum_spde_zero_point_update_coefficients(double delta_tau,
+                                                                                  double omega_max);
 
 QuantumSpdeBoseCholesky quantum_spde_stationary_bose_cholesky(double gamma,
                                                               double omega,
@@ -59,12 +84,18 @@ class CudaQuantumSpdeNoiseGenerator {
 
  private:
   void generate_random_buffers();
+  void prepare_fixed_temperature_coefficients(jams::Real temperature);
   void zero_state();
 
   int process_count_ = 0;
   double delta_tau_ = 0.0;
   double omega_max_ = 0.0;
   bool zero_point_ = false;
+  bool fast_coefficients_valid_ = false;
+  jams::Real fast_temperature_ = -1.0;
+  QuantumSpdeBoseUpdateCoefficients fast_factor5_;
+  QuantumSpdeBoseUpdateCoefficients fast_factor6_;
+  QuantumSpdeZeroPointUpdateCoefficients zero_point_coefficients_;
 
   CudaStream& update_stream_;
   CudaStream curand_stream_{CudaStream::Priority::LOW};
