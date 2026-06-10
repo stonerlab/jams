@@ -86,11 +86,13 @@ const jams::MultiArray<jams::Real, 2>& CudaSolver::spin_array_for_fields() {
 
 #if DO_MIXED_PRECISION
 const jams::MultiArray<jams::Real, 2>& CudaSolver::refresh_field_spin_array_async() {
-  if (field_spin_array_.elements() != globals::s.elements()) {
-    field_spin_array_.resize(globals::s.extent(0), globals::s.extent(1));
-  }
+  ensure_field_spin_cache_size();
 
   auto& master_stream = jams::instance().cuda_master_stream().get();
+  if (field_spin_cache_valid_) {
+    return field_spin_array_;
+  }
+
   wait_on_spin_barrier_event(master_stream);
   cuda_array_double_to_float(
       globals::s.elements(),
@@ -98,9 +100,7 @@ const jams::MultiArray<jams::Real, 2>& CudaSolver::refresh_field_spin_array_asyn
       field_spin_array_.mutable_device_data(),
       master_stream);
 
-  if (!field_spin_cache_event_) create_field_spin_cache_event();
-  cudaEventRecord(field_spin_cache_event_, master_stream);
-  DEBUG_CHECK_CUDA_ASYNC_STATUS
+  record_field_spin_cache_event(master_stream);
   return field_spin_array_;
 }
 #endif
