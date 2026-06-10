@@ -17,8 +17,7 @@ SparseInteractionHamiltonian::SparseInteractionHamiltonian(const libconfig::Sett
           size,
           jams::interaction_tensor_storage_from_string(
               jams::config_optional<std::string>(settings, "tensor_storage", "auto")),
-          jams::config_optional<double>(settings, "tensor_storage_tolerance", 0.0)),
-      s_float_(size, 3)
+          jams::config_optional<double>(settings, "tensor_storage_tolerance", 0.0))
 {
 }
 
@@ -35,20 +34,15 @@ void SparseInteractionHamiltonian::insert_interaction_tensor(const int i, const 
   interaction_matrix_builder_.insert(i, j, value);
 }
 
-void SparseInteractionHamiltonian::calculate_fields(jams::Real time) {
+void SparseInteractionHamiltonian::calculate_fields(jams::Real time, const jams::MultiArray<jams::Real, 2>& spins) {
   assert(is_finalized_);
   #if HAS_CUDA
     if (jams::instance().mode() == jams::Mode::GPU) {
-#if DO_MIXED_PRECISION
-      cuda_array_double_to_float(globals::s.elements(), globals::s.device_data(), s_float_.mutable_device_data(), cuda_stream_.get());
-      interaction_matrix_.multiply_gpu(s_float_, field_, cuda_stream_.get());
-#else
-      interaction_matrix_.multiply_gpu(globals::s, field_, cuda_stream_.get());
-#endif
+      interaction_matrix_.multiply_gpu(spins, field_, cuda_stream_.get());
       return;
     }
   #endif
-  interaction_matrix_.multiply(globals::s, field_);
+  interaction_matrix_.multiply(spins, field_);
 }
 
 jams::Vec<jams::Real, 3> SparseInteractionHamiltonian::calculate_field(const int i, jams::Real time) {
@@ -59,18 +53,21 @@ jams::Vec<jams::Real, 3> SparseInteractionHamiltonian::calculate_field(const int
   return field;
 }
 
-void SparseInteractionHamiltonian::calculate_energies(jams::Real time) {
+void SparseInteractionHamiltonian::calculate_energies(jams::Real time, const jams::MultiArray<jams::Real, 2>& spins) {
   assert(is_finalized_);
   #if HAS_CUDA
   if (jams::instance().mode() == jams::Mode::GPU) {
-    calculate_fields(time);
-    cuda_array_dot_product(globals::num_spins, jams::Real(-0.5), globals::s.device_data(), field_.device_data(), energy_.mutable_device_data(), cuda_stream_.get());
+    interaction_matrix_.multiply_gpu(spins, field_, cuda_stream_.get());
+    cuda_array_dot_product(globals::num_spins, jams::Real(-0.5), spins.device_data(), field_.device_data(), energy_.mutable_device_data(), cuda_stream_.get());
     return;
   }
   #endif
+  const auto spin_view = spins.host_view();
   #pragma omp parallel for
   for (int i = 0; i < globals::num_spins; ++i) {
-    energy_(i) = calculate_energy(i, time);
+    const auto field = interaction_matrix_.multiply_row(i, spins);
+    const jams::Vec<jams::Real, 3> s_i = {spin_view(i, 0), spin_view(i, 1), spin_view(i, 2)};
+    energy_(i) = -0.5 * jams::dot(s_i, field);
   }
 }
 
@@ -90,26 +87,27 @@ jams::Real SparseInteractionHamiltonian::calculate_energy(const int i, jams::Rea
   return -0.5 * jams::dot(s_i, field);
 }
 
-jams::Real SparseInteractionHamiltonian::calculate_total_energy(jams::Real time) {
+jams::Real SparseInteractionHamiltonian::calculate_total_energy(jams::Real time, const jams::MultiArray<jams::Real, 2>& spins) {
   assert(is_finalized_);
 
 #if HAS_CUDA
   if (jams::instance().mode() == jams::Mode::GPU)
   {
-    calculate_energies(time);
+    calculate_energies(time, spins);
     return cuda_reduce_array(energy_.device_data(), globals::num_spins, cuda_stream_.get());
   }
 #endif
 
 
   jams::Real total_energy = 0.0;
-  calculate_fields(time);
+  interaction_matrix_.multiply(spins, field_);
+  const auto spin_view = spins.host_view();
   #if HAS_OMP
-  #pragma omp parallel for default(none) shared(globals::num_spins, globals::s, field_) reduction(+:total_energy)
+  #pragma omp parallel for default(none) shared(globals::num_spins, spin_view, field_) reduction(+:total_energy)
   #endif
   for (auto i = 0; i < globals::num_spins; ++i) {
-    jams::Vec<double, 3> s_i = {globals::s(i,0), globals::s(i,1), globals::s(i,2)};
-    jams::Vec<double, 3> h_i = {field_(i,0), field_(i, 1), field_(i, 2)};
+    jams::Vec<jams::Real, 3> s_i = {spin_view(i, 0), spin_view(i, 1), spin_view(i, 2)};
+    jams::Vec<jams::Real, 3> h_i = {field_(i, 0), field_(i, 1), field_(i, 2)};
     total_energy += -0.5 * jams::dot(s_i, h_i);
   }
   return total_energy;

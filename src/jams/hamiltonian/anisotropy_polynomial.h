@@ -169,6 +169,9 @@ public:
     }
 
 protected:
+    jams::Vec<jams::Real, 3> calculate_field_from_spins(int i, jams::Real time, const SpinHostView& spins) override;
+    jams::Real calculate_energy_from_spins(int i, jams::Real time, const SpinHostView& spins) override;
+
     struct LocalAxes {
         bool has_axes = false;
         bool has_full_axes = false;

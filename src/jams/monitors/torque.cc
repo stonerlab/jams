@@ -74,13 +74,14 @@ void TorqueMonitor::update(Solver& solver) {
 
 TorqueMonitor::GroupedTorques TorqueMonitor::calculate_torques(Solver& solver) {
   const auto spins = globals::s.host_view();
+  const auto& field_spins = solver.spin_array_for_fields();
   const auto num_groups = spin_groups_.size();
   const auto num_hamiltonians = solver.hamiltonians().size();
   GroupedTorques torques(num_groups, HamiltonianTorques(num_hamiltonians, {0.0, 0.0, 0.0}));
 
   for (std::size_t hamiltonian_index = 0; hamiltonian_index < num_hamiltonians; ++hamiltonian_index) {
     auto& hamiltonian = solver.hamiltonians()[hamiltonian_index];
-    hamiltonian->calculate_fields(solver.time());
+    hamiltonian->calculate_fields(solver.time(), field_spins);
 
     for (std::size_t group_index = 0; group_index < num_groups; ++group_index) {
       const auto& group = spin_groups_[group_index];

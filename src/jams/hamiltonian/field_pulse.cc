@@ -142,6 +142,15 @@ jams::Real FieldPulseHamiltonian::calculate_energy_for_spin(int i, const jams::V
   return -jams::dot(jams::array_cast<jams::Real>(spin), field);
 }
 
+jams::Real FieldPulseHamiltonian::calculate_energy_from_spins(
+    const int i,
+    jams::Real time,
+    const SpinHostView& spins) {
+  const auto field = calculate_field(i, time);
+  const jams::Vec<jams::Real, 3> spin = {spins(i, 0), spins(i, 1), spins(i, 2)};
+  return -jams::dot(spin, field);
+}
+
 
 void FieldPulseHamiltonian::output_pulse() const {
   jams::output::TsvWriter tsv(

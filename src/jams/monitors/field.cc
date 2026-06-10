@@ -20,10 +20,11 @@ FieldMonitor::FieldMonitor(const libconfig::Setting &settings)
 
 void FieldMonitor::update(Solver& solver) {
   const auto moments = globals::mus.host_view();
+  const auto& field_spins = solver.spin_array_for_fields();
 
   std::vector<jams::Vec<double, 3>> total_field;
   for (auto &hamiltonian : solver.hamiltonians()) {
-    hamiltonian->calculate_fields(solver.time());
+    hamiltonian->calculate_fields(solver.time(), field_spins);
 
     jams::Vec<double, 3> field = {0.0, 0.0, 0.0};
     for (auto i = 0; i < globals::num_spins; ++i) {

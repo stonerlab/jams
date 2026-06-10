@@ -8,7 +8,7 @@
 __global__
 void cuda_landau_field_kernel(
     const int num_spins,
-    const double * spins,
+    const jams::Real * spins,
     const jams::Real *A,
     const jams::Real *B,
     const jams::Real *C,
@@ -18,7 +18,7 @@ void cuda_landau_field_kernel(
   const unsigned int base = 3u * idx;
   if (idx >= num_spins) return;
 
-  const jams::Real s[3] = {static_cast<jams::Real>(spins[base + 0]), static_cast<jams::Real>(spins[base + 1]), static_cast<jams::Real>(spins[base + 2])};
+  const jams::Real s[3] = {spins[base + 0], spins[base + 1], spins[base + 2]};
   const jams::Real s2 = s[0]*s[0] + s[1]*s[1] + s[2]*s[2];
 
   jams::Real h[3] = {0, 0, 0};
@@ -44,7 +44,7 @@ void cuda_landau_field_kernel(
 __global__
 void cuda_landau_energy_kernel(
     const int num_spins,
-    const double * spins,
+    const jams::Real * spins,
     const jams::Real *A,
     const jams::Real *B,
     const jams::Real *C,
@@ -54,7 +54,7 @@ void cuda_landau_energy_kernel(
   const unsigned int base = 3u * idx;
   if (idx >= num_spins) return;
 
-  const jams::Real s[3] = {static_cast<jams::Real>(spins[base + 0]), static_cast<jams::Real>(spins[base + 1]), static_cast<jams::Real>(spins[base + 2])};
+  const jams::Real s[3] = {spins[base + 0], spins[base + 1], spins[base + 2]};
 
   const jams::Real s2 = s[0]*s[0] + s[1]*s[1] + s[2]*s[2];
 
@@ -86,8 +86,8 @@ CudaLandauHamiltonian::CudaLandauHamiltonian(const libconfig::Setting &settings,
 
 }
 
-jams::Real CudaLandauHamiltonian::calculate_total_energy(jams::Real time) {
-  calculate_energies(time);
+jams::Real CudaLandauHamiltonian::calculate_total_energy(jams::Real time, const jams::MultiArray<jams::Real, 2>& spins) {
+  calculate_energies(time, spins);
   jams::Real e_total = 0.0;
   for (auto i = 0; i < energy_.size(); ++i) {
     e_total += energy_(i);
@@ -95,14 +95,14 @@ jams::Real CudaLandauHamiltonian::calculate_total_energy(jams::Real time) {
   return e_total;
 }
 
-void CudaLandauHamiltonian::calculate_energies(jams::Real time) {
+void CudaLandauHamiltonian::calculate_energies(jams::Real time, const jams::MultiArray<jams::Real, 2>& spins) {
   cuda_landau_energy_kernel<<<(globals::num_spins+dev_blocksize_-1)/dev_blocksize_, dev_blocksize_, 0, cuda_stream_.get()>>>
-      (globals::num_spins, globals::s.device_data(), landau_A_.device_data(), landau_B_.device_data(), landau_C_.device_data(), energy_.mutable_device_data());
+      (globals::num_spins, spins.device_data(), landau_A_.device_data(), landau_B_.device_data(), landau_C_.device_data(), energy_.mutable_device_data());
   DEBUG_CHECK_CUDA_ASYNC_STATUS;
 }
 
-void CudaLandauHamiltonian::calculate_fields(jams::Real time) {
+void CudaLandauHamiltonian::calculate_fields(jams::Real time, const jams::MultiArray<jams::Real, 2>& spins) {
   cuda_landau_field_kernel<<<(globals::num_spins+dev_blocksize_-1)/dev_blocksize_, dev_blocksize_, 0, cuda_stream_.get()>>>
-      (globals::num_spins, globals::s.device_data(), landau_A_.device_data(), landau_B_.device_data(), landau_C_.device_data(), field_.mutable_device_data());
+      (globals::num_spins, spins.device_data(), landau_A_.device_data(), landau_B_.device_data(), landau_C_.device_data(), field_.mutable_device_data());
   DEBUG_CHECK_CUDA_ASYNC_STATUS;
 }

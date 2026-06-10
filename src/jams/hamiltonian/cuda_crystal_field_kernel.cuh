@@ -6,7 +6,7 @@
 __global__ void cuda_crystal_field_energy_kernel(
     const unsigned int active_spin_count,
     const int* dev_active_spin_indices,
-    const jams::RealHi* dev_s,
+    const jams::Real* dev_s,
     const int* dev_spin_profile,
     const jams::Real* dev_u_axes,
     const jams::Real* dev_v_axes,
@@ -25,9 +25,9 @@ __global__ void cuda_crystal_field_energy_kernel(
 
   const int idx = dev_active_spin_indices[active_idx];
   const unsigned int base = 3u * idx;
-  const jams::Real sx = static_cast<jams::Real>(dev_s[base + 0]);
-  const jams::Real sy = static_cast<jams::Real>(dev_s[base + 1]);
-  const jams::Real sz = static_cast<jams::Real>(dev_s[base + 2]);
+  const jams::Real sx = dev_s[base + 0];
+  const jams::Real sy = dev_s[base + 1];
+  const jams::Real sz = dev_s[base + 2];
 
   dev_e[idx] = jams::tesseral_polynomial::energy_for_spin_with_profiles(
       idx,
@@ -48,7 +48,7 @@ __global__ void cuda_crystal_field_energy_kernel(
 __global__ void cuda_crystal_field_kernel(
     const unsigned int active_spin_count,
     const int* dev_active_spin_indices,
-    const jams::RealHi* dev_s,
+    const jams::Real* dev_s,
     const int* dev_spin_profile,
     const jams::Real* dev_u_axes,
     const jams::Real* dev_v_axes,
@@ -67,9 +67,9 @@ __global__ void cuda_crystal_field_kernel(
 
   const int idx = dev_active_spin_indices[active_idx];
   const unsigned int base = 3u * idx;
-  const jams::Real sx = static_cast<jams::Real>(dev_s[base + 0]);
-  const jams::Real sy = static_cast<jams::Real>(dev_s[base + 1]);
-  const jams::Real sz = static_cast<jams::Real>(dev_s[base + 2]);
+  const jams::Real sx = dev_s[base + 0];
+  const jams::Real sy = dev_s[base + 1];
+  const jams::Real sz = dev_s[base + 2];
 
   jams::Real h[3] = {0.0, 0.0, 0.0};
   jams::tesseral_polynomial::field_for_spin_with_profiles(

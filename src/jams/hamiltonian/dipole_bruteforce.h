@@ -24,6 +24,10 @@ public:
       return EnergyCurrentInteractionSupport::Supported;
     }
 
+protected:
+    jams::Vec<jams::Real, 3> calculate_field_from_spins(int i, jams::Real time, const SpinHostView& spins) override;
+    jams::Real calculate_energy_from_spins(int i, jams::Real time, const SpinHostView& spins) override;
+
 private:
     std::vector<jams::Vec<double, 3>>   frac_positions_;
     jams::Mat<jams::Real, 3, 3> supercell_matrix_;

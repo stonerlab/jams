@@ -108,6 +108,15 @@ jams::Real DipoleNeighbourListHamiltonian::calculate_energy_difference(int i, co
   return 0.5 * (e_final - e_initial);
 }
 
+jams::Real DipoleNeighbourListHamiltonian::calculate_energy_from_spins(
+    const int i,
+    jams::Real time,
+    const SpinHostView& spins) {
+  const jams::Vec<jams::Real, 3> s_i = {spins(i, 0), spins(i, 1), spins(i, 2)};
+  const auto field = calculate_field_from_spins(i, time, spins);
+  return -0.5 * jams::dot(s_i, field);
+}
+
 void DipoleNeighbourListHamiltonian::add_energy_current_interactions(
     jams::EnergyCurrentInteractionSink& sink) const {
   for (auto i = 0; i < neighbour_list_.size(); ++i) {
@@ -146,6 +155,33 @@ jams::Vec<jams::Real, 3> DipoleNeighbourListHamiltonian::calculate_field(const i
     if (j == i) continue;
 
     jams::Vec<jams::Real, 3> s_j = jams::array_cast<jams::Real>(jams::Vec<double, 3>{globals::s(j,0), globals::s(j,1), globals::s(j,2)});
+    jams::Vec<jams::Real, 3> r_ij =  neighbour.first - r_i;
+
+    const auto interaction = jams::dipole::interaction_tensor<jams::Real>(
+        jams::array_cast<double>(r_ij),
+        globals::mus(i),
+        globals::mus(j),
+        globals::lattice->parameter());
+    field += jams::dipole::interaction_field(interaction, s_j);
+  }
+  return field;
+}
+
+[[gnu::hot]]
+jams::Vec<jams::Real, 3> DipoleNeighbourListHamiltonian::calculate_field_from_spins(
+    const int i,
+    jams::Real time,
+    const SpinHostView& spins)
+{
+  jams::Vec<jams::Real, 3> r_i = {globals::positions(i,0), globals::positions(i,1), globals::positions(i,2)};
+
+  jams::Vec<jams::Real, 3> field = {0.0, 0.0, 0.0};
+  for (const auto & neighbour : neighbour_list_[i])
+  {
+    int j = neighbour.second;
+    if (j == i) continue;
+
+    const jams::Vec<jams::Real, 3> s_j = {spins(j, 0), spins(j, 1), spins(j, 2)};
     jams::Vec<jams::Real, 3> r_ij =  neighbour.first - r_i;
 
     const auto interaction = jams::dipole::interaction_tensor<jams::Real>(

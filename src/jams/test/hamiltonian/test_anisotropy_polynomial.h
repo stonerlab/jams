@@ -201,6 +201,17 @@ protected:
         }
     }
 
+    jams::MultiArray<jams::Real, 2> current_test_spins() const
+    {
+        jams::MultiArray<jams::Real, 2> spins(globals::num_spins, 3);
+        for (auto i = 0; i < globals::num_spins; ++i) {
+            for (auto j = 0; j < 3; ++j) {
+                spins(i, j) = static_cast<jams::Real>(globals::s(i, j));
+            }
+        }
+        return spins;
+    }
+
     std::unique_ptr<AnisotropyPolynomialHamiltonian> cpu_hamiltonian_;
     std::unique_ptr<CudaAnisotropyPolynomialHamiltonian> cuda_hamiltonian_;
 };
@@ -541,20 +552,21 @@ TEST_F(CudaAnisotropyPolynomialHamiltonianTests, energies_and_fields_match_cpu)
 {
     set_test_spins();
 
-    cpu_hamiltonian_->calculate_energies(0.0);
-    cuda_hamiltonian_->calculate_energies(0.0);
+    const auto field_spins = current_test_spins();
+    cpu_hamiltonian_->calculate_energies(0.0, field_spins);
+    cuda_hamiltonian_->calculate_energies(0.0, field_spins);
 
     const double tolerance = 5e-6;
     for (int i = 0; i < globals::num_spins; ++i) {
         ASSERT_NEAR(cuda_hamiltonian_->energy(i), cpu_hamiltonian_->energy(i), tolerance);
     }
 
-    const double cuda_total = cuda_hamiltonian_->calculate_total_energy(0.0);
-    const double cpu_total = cpu_hamiltonian_->calculate_total_energy(0.0);
+    const double cuda_total = cuda_hamiltonian_->calculate_total_energy(0.0, field_spins);
+    const double cpu_total = cpu_hamiltonian_->calculate_total_energy(0.0, field_spins);
     ASSERT_NEAR(cuda_total, cpu_total, tolerance);
 
-    cpu_hamiltonian_->calculate_fields(0.0);
-    cuda_hamiltonian_->calculate_fields(0.0);
+    cpu_hamiltonian_->calculate_fields(0.0, field_spins);
+    cuda_hamiltonian_->calculate_fields(0.0, field_spins);
 
     for (int i = 0; i < globals::num_spins; ++i) {
         for (int j = 0; j < 3; ++j) {

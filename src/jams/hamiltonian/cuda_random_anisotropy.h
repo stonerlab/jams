@@ -17,9 +17,9 @@ class CudaRandomAnisotropyHamiltonian : public RandomAnisotropyHamiltonian {
       CudaRandomAnisotropyHamiltonian(const libconfig::Setting &settings, const unsigned int size);
       ~CudaRandomAnisotropyHamiltonian() override = default;
 
-      void   calculate_energies(jams::Real time) override;
-      void   calculate_fields(jams::Real time) override;
-      jams::Real calculate_total_energy(jams::Real time) override;
+      void   calculate_energies(jams::Real time, const jams::MultiArray<jams::Real, 2>& spins) override;
+      void   calculate_fields(jams::Real time, const jams::MultiArray<jams::Real, 2>& spins) override;
+      jams::Real calculate_total_energy(jams::Real time, const jams::MultiArray<jams::Real, 2>& spins) override;
 
       jams::Vec<jams::Real, 3>   calculate_field(const int i, jams::Real time) final {
         JAMS_UNIMPLEMENTED_FUNCTION; }

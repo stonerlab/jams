@@ -22,6 +22,20 @@
 #include "jams/test/hamiltonian/test_dipole_input.h"
 #include "jams/test/output.h"
 
+namespace {
+
+jams::MultiArray<jams::Real, 2> current_test_field_spins() {
+  jams::MultiArray<jams::Real, 2> spins(globals::num_spins, 3);
+  for (auto i = 0; i < globals::num_spins; ++i) {
+    for (auto n = 0; n < 3; ++n) {
+      spins(i, n) = static_cast<jams::Real>(globals::s(i, n));
+    }
+  }
+  return spins;
+}
+
+}  // namespace
+
 
 #if HAS_CUDA
 #include "jams/hamiltonian/cuda_dipole_fft.h"
@@ -126,9 +140,10 @@ public:
       jams::testing::toggle_cout();
 
       double analytic = analytic_prefactor * expected_eigenvalue;
-      double numeric = hamiltonian->calculate_total_energy(0) / double(globals::num_spins);
+      auto field_spins = current_test_field_spins();
+      double numeric = hamiltonian->calculate_total_energy(0, field_spins) / double(globals::num_spins);
       double reference =
-          reference_hamiltonian->calculate_total_energy(0) / double(globals::num_spins);
+          reference_hamiltonian->calculate_total_energy(0, field_spins) / double(globals::num_spins);
 
       std::cout << "spins:      " << spin_config_name << "\n";
       std::cout << "expected:   " << jams::fmt::sci << analytic << " meV/spin\n";
@@ -139,8 +154,8 @@ public:
       ASSERT_NEAR(numeric, analytic, target_accuracy);
       ASSERT_NEAR(numeric, reference, target_accuracy);
 
-      hamiltonian->calculate_fields(0);
-      reference_hamiltonian->calculate_fields(0);
+      hamiltonian->calculate_fields(0, field_spins);
+      reference_hamiltonian->calculate_fields(0, field_spins);
 
       for (auto i = 0; i < globals::num_spins; ++i) {
         for (auto j = 0; j < 3; ++j) {
@@ -165,9 +180,10 @@ public:
         globals::s(i, 2) = spin[2];
       }
 
-      double numeric = hamiltonian->calculate_total_energy(0) / double(globals::num_spins);
+      auto field_spins = current_test_field_spins();
+      double numeric = hamiltonian->calculate_total_energy(0, field_spins) / double(globals::num_spins);
       double reference =
-          reference_hamiltonian->calculate_total_energy(0) / double(globals::num_spins);
+          reference_hamiltonian->calculate_total_energy(0, field_spins) / double(globals::num_spins);
 
       std::cout << "spin:       random" << "\n";
       std::cout << "expected:   " << jams::fmt::sci << reference << " meV/spin\n";
@@ -177,8 +193,8 @@ public:
 
       ASSERT_NEAR(numeric, reference, target_accuracy);
 
-      hamiltonian->calculate_fields(0);
-      reference_hamiltonian->calculate_fields(0);
+      hamiltonian->calculate_fields(0, field_spins);
+      reference_hamiltonian->calculate_fields(0, field_spins);
 
       for (auto i = 0; i < globals::num_spins; ++i) {
         for (auto j = 0; j < 3; ++j) {
@@ -201,9 +217,10 @@ public:
             globals::s(i, 2) = spin_direction[2];
         }
 
-        double numeric = hamiltonian->calculate_total_energy(0) / double(globals::num_spins);
+        auto field_spins = current_test_field_spins();
+        double numeric = hamiltonian->calculate_total_energy(0, field_spins) / double(globals::num_spins);
         double reference =
-                reference_hamiltonian->calculate_total_energy(0) / double(globals::num_spins);
+                reference_hamiltonian->calculate_total_energy(0, field_spins) / double(globals::num_spins);
 
         std::cout << "spin:       " << spin_direction << "\n";
         std::cout << "expected:   " << jams::fmt::sci << reference << " meV/spin\n";
@@ -211,8 +228,8 @@ public:
         std::cout << "difference: " << jams::fmt::sci << std::abs(reference - numeric) << " meV/spin\n";
         std::cout << "tolerance:  " << jams::fmt::sci << target_accuracy << " meV/spin\n" << std::endl;
 
-        hamiltonian->calculate_fields(0);
-        reference_hamiltonian->calculate_fields(0);
+        hamiltonian->calculate_fields(0, field_spins);
+        reference_hamiltonian->calculate_fields(0, field_spins);
 
         ASSERT_NEAR(numeric, reference, target_accuracy);
         for (auto i = 0; i < globals::num_spins; ++i) {
@@ -307,12 +324,13 @@ TEST_F(CroppedDipoleFFTHamiltonianTest, CpuFftMatchesBruteforceForCroppedTopMoti
   DipoleFFTHamiltonian fft_hamiltonian(settings, globals::num_spins);
   DipoleBruteforceHamiltonian bruteforce_hamiltonian(settings, globals::num_spins);
 
-  const double fft_energy = fft_hamiltonian.calculate_total_energy(0.0) / static_cast<double>(globals::num_spins);
-  const double bruteforce_energy = bruteforce_hamiltonian.calculate_total_energy(0.0) / static_cast<double>(globals::num_spins);
+  auto field_spins = current_test_field_spins();
+  const double fft_energy = fft_hamiltonian.calculate_total_energy(0.0, field_spins) / static_cast<double>(globals::num_spins);
+  const double bruteforce_energy = bruteforce_hamiltonian.calculate_total_energy(0.0, field_spins) / static_cast<double>(globals::num_spins);
   ASSERT_NEAR(fft_energy, bruteforce_energy, 1.0e-5);
 
-  fft_hamiltonian.calculate_fields(0.0);
-  bruteforce_hamiltonian.calculate_fields(0.0);
+  fft_hamiltonian.calculate_fields(0.0, field_spins);
+  bruteforce_hamiltonian.calculate_fields(0.0, field_spins);
   for (unsigned int i = 0; i < globals::num_spins; ++i) {
     for (auto n = 0; n < 3; ++n) {
       ASSERT_NEAR(fft_hamiltonian.field(i, n), bruteforce_hamiltonian.field(i, n), 1.0e-5);
@@ -362,12 +380,13 @@ TEST_F(CroppedDipoleFFTHamiltonianTest, CudaFftMatchesBruteforceForCroppedTopMot
   CudaDipoleFFTHamiltonian fft_hamiltonian(settings, globals::num_spins);
   DipoleBruteforceHamiltonian bruteforce_hamiltonian(settings, globals::num_spins);
 
-  const double fft_energy = fft_hamiltonian.calculate_total_energy(0.0) / static_cast<double>(globals::num_spins);
-  const double bruteforce_energy = bruteforce_hamiltonian.calculate_total_energy(0.0) / static_cast<double>(globals::num_spins);
+  auto field_spins = current_test_field_spins();
+  const double fft_energy = fft_hamiltonian.calculate_total_energy(0.0, field_spins) / static_cast<double>(globals::num_spins);
+  const double bruteforce_energy = bruteforce_hamiltonian.calculate_total_energy(0.0, field_spins) / static_cast<double>(globals::num_spins);
   ASSERT_NEAR(fft_energy, bruteforce_energy, 1.0e-5);
 
-  fft_hamiltonian.calculate_fields(0.0);
-  bruteforce_hamiltonian.calculate_fields(0.0);
+  fft_hamiltonian.calculate_fields(0.0, field_spins);
+  bruteforce_hamiltonian.calculate_fields(0.0, field_spins);
   cudaDeviceSynchronize();
   for (unsigned int i = 0; i < globals::num_spins; ++i) {
     for (auto n = 0; n < 3; ++n) {

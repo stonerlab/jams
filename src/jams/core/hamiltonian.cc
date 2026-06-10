@@ -1,6 +1,8 @@
 // Copyright 2014 Joseph Barker. All rights reserved.
 
+#include <algorithm>
 #include <string>
+#include <utility>
 
 #include <libconfig.h++>
 
@@ -119,27 +121,29 @@ Hamiltonian * Hamiltonian::create(const libconfig::Setting &settings, const unsi
   throw std::runtime_error("unknown hamiltonian " + jams::config_required<std::string>(settings, "module"));
 }
 
-void Hamiltonian::calculate_fields(jams::Real time)
+void Hamiltonian::calculate_fields(jams::Real time, const SpinArray& spins)
 {
+  const auto spin_view = spins.host_view();
   for (auto i = 0; i < globals::num_spins; ++i) {
-    auto local_field = calculate_field(i, time);
+    auto local_field = calculate_field_from_spins(i, time, spin_view);
     for (auto j = 0; j < 3; ++j) {
       field_(i, j) = local_field[j];
     }
   }
 }
 
-void Hamiltonian::calculate_energies(jams::Real time)
+void Hamiltonian::calculate_energies(jams::Real time, const SpinArray& spins)
 {
+  const auto spin_view = spins.host_view();
   for (auto i = 0; i < globals::num_spins; ++i) {
-    energy_(i) = calculate_energy(i, time);
+    energy_(i) = calculate_energy_from_spins(i, time, spin_view);
   }
 }
 
-jams::Real Hamiltonian::calculate_total_energy(jams::Real time)
+jams::Real Hamiltonian::calculate_total_energy(jams::Real time, const SpinArray& spins)
 {
   double e_total = 0.0;
-  calculate_energies(time);
+  calculate_energies(time, spins);
   for (auto i = 0; i < globals::num_spins; ++i) {
     e_total += energy_(i);
   }
@@ -160,6 +164,44 @@ Hamiltonian::EnergyCurrentInteractionSupport Hamiltonian::energy_current_interac
 }
 
 void Hamiltonian::add_energy_current_interactions(jams::EnergyCurrentInteractionSink&) const {
+}
+
+jams::Vec<jams::Real, 3> Hamiltonian::calculate_field_from_spins(
+    int i,
+    jams::Real time,
+    const SpinHostView&)
+{
+  return calculate_field(i, time);
+}
+
+jams::Real Hamiltonian::calculate_energy_from_spins(
+    int i,
+    jams::Real time,
+    const SpinHostView&)
+{
+  return calculate_energy(i, time);
+}
+
+const Hamiltonian::SpinArray& Hamiltonian::global_spin_array_for_fields()
+{
+#if DO_MIXED_PRECISION
+  if (fallback_spin_array_.elements() != globals::s.elements()) {
+    fallback_spin_array_.resize(globals::s.extent(0), globals::s.extent(1));
+  }
+
+  const auto global_spins = std::as_const(globals::s).host_span();
+  auto fallback_spins = fallback_spin_array_.mutable_host_span();
+  std::transform(
+      global_spins.begin(),
+      global_spins.end(),
+      fallback_spins.begin(),
+      [](const double value) {
+        return static_cast<jams::Real>(value);
+      });
+  return fallback_spin_array_;
+#else
+  return globals::s;
+#endif
 }
 
 jams::Real Hamiltonian::calculate_energy_for_spin(int i, const jams::Vec<double, 3>& spin, jams::Real time)

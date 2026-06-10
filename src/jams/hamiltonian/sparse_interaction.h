@@ -20,11 +20,11 @@ class SparseInteractionHamiltonian : public Hamiltonian {
 public:
     SparseInteractionHamiltonian(const libconfig::Setting &settings, unsigned int size);
 
-    jams::Real calculate_total_energy(jams::Real time) override;
+    jams::Real calculate_total_energy(jams::Real time, const jams::MultiArray<jams::Real, 2>& spins) override;
 
-    void calculate_energies(jams::Real time) override;
+    void calculate_energies(jams::Real time, const jams::MultiArray<jams::Real, 2>& spins) override;
 
-    void calculate_fields(jams::Real time) override;
+    void calculate_fields(jams::Real time, const jams::MultiArray<jams::Real, 2>& spins) override;
 
     jams::Vec<jams::Real, 3> calculate_field(int i, jams::Real time) override;
 
@@ -53,7 +53,6 @@ private:
     bool is_finalized_ = false; // is the sparse matrix finalized and built
     jams::BlockSparseInteractionMatrix<jams::Real>::Builder interaction_matrix_builder_;
     jams::BlockSparseInteractionMatrix<jams::Real> interaction_matrix_;
-    jams::MultiArray<float, 2> s_float_;
 };
 
 #endif //JAMS_HAMILTONIAN_SPARSE_INTERACTION_H

@@ -43,6 +43,8 @@ public:
     }
 
 protected:
+    jams::Real calculate_energy_from_spins(int i, jams::Real time, const SpinHostView& spins) override;
+
     jams::Real calculate_energy_for_spin(int i, const jams::Vec<double, 3> &spin, jams::Real time) override;
 
 private:

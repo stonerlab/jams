@@ -4,23 +4,24 @@
 #include <jams/core/lattice.h>
 #include <jams/core/globals.h>
 #include <jams/core/interactions.h>
+#include <jams/cuda/cuda_array_kernels.h>
 #include <jams/cuda/cuda_device_vector_ops.h>
 #include <jams/interface/config.h>
 
 #include <fstream>
 
 __global__ void cuda_biquadratic_exchange_field_kernel(
-    const unsigned int num_spins, const double * dev_s, const int * dev_rows, const int * dev_cols, const jams::Real * dev_vals, jams::Real * dev_h) {
+    const unsigned int num_spins, const jams::Real * dev_s, const int * dev_rows, const int * dev_cols, const jams::Real * dev_vals, jams::Real * dev_h) {
   const unsigned int idx = blockIdx.x * blockDim.x + threadIdx.x;
   const unsigned int base = 3 * idx;
   if (idx >= num_spins) return;
 
   jams::Real3 h_i {static_cast<jams::Real>(0.0), static_cast<jams::Real>(0.0), static_cast<jams::Real>(0.0)};
-  const jams::Real3 s_i {static_cast<jams::Real>(dev_s[base + 0]), static_cast<jams::Real>(dev_s[base + 1]), static_cast<jams::Real>(dev_s[base + 2])};
+  const jams::Real3 s_i {dev_s[base + 0], dev_s[base + 1], dev_s[base + 2]};
 
   for (auto m = dev_rows[idx]; m < dev_rows[idx + 1]; ++m) {
     auto j = dev_cols[m];
-    const jams::Real3 s_j = {static_cast<jams::Real>(dev_s[3*j + 0]), static_cast<jams::Real>(dev_s[3*j + 1]), static_cast<jams::Real>(dev_s[3*j + 2])};
+    const jams::Real3 s_j = {dev_s[3*j + 0], dev_s[3*j + 1], dev_s[3*j + 2]};
     const jams::Real B_ij = dev_vals[m];
     const jams::Real s_i_dot_s_j = dot(s_i, s_j);
 
@@ -163,14 +164,14 @@ CudaBiquadraticExchangeHamiltonian::CudaBiquadraticExchangeHamiltonian(
 }
 
 
-void CudaBiquadraticExchangeHamiltonian::calculate_fields(jams::Real time) {
+void CudaBiquadraticExchangeHamiltonian::calculate_fields(jams::Real time, const jams::MultiArray<jams::Real, 2>& spins) {
   assert(is_finalized_);
 
   const dim3 block_size = {128, 1, 1};
   auto grid_size = cuda_grid_size(block_size, {static_cast<unsigned int>(globals::num_spins), 1, 1});
 
-  cuda_biquadratic_exchange_field_kernel<<<grid_size, block_size>>>
-      (globals::num_spins, globals::s.device_data(), interaction_matrix_.row_device_data(),
+  cuda_biquadratic_exchange_field_kernel<<<grid_size, block_size, 0, cuda_stream_.get()>>>
+      (globals::num_spins, spins.device_data(), interaction_matrix_.row_device_data(),
        interaction_matrix_.col_device_data(), interaction_matrix_.val_device_data(),
        field_.mutable_device_data());
   DEBUG_CHECK_CUDA_ASYNC_STATUS
@@ -178,21 +179,12 @@ void CudaBiquadraticExchangeHamiltonian::calculate_fields(jams::Real time) {
 }
 
 
-jams::Real CudaBiquadraticExchangeHamiltonian::calculate_total_energy(jams::Real time) {
-  using namespace globals;
+jams::Real CudaBiquadraticExchangeHamiltonian::calculate_total_energy(jams::Real time, const jams::MultiArray<jams::Real, 2>& spins) {
   assert(is_finalized_);
 
-  calculate_fields(time);
-  double total_energy = 0.0;
-  #if HAS_OMP
-  #pragma omp parallel for default(none) shared(num_spins, s, field_) reduction(+:total_energy)
-  #endif
-  for (auto i = 0; i < globals::num_spins; ++i) {
-    jams::Vec<double, 3> s_i = {s(i,0), s(i,1), s(i,2)};
-    jams::Vec<double, 3> h_i = {field_(i,0), field_(i, 1), field_(i, 2)};
-    total_energy += -jams::dot(s_i, 0.5*h_i);
-  }
-  return 0.5 * total_energy;
+  calculate_fields(time, spins);
+  cuda_array_dot_product(globals::num_spins, jams::Real(-0.25), spins.device_data(), field_.device_data(), energy_.mutable_device_data(), cuda_stream_.get());
+  return cuda_reduce_array(energy_.device_data(), globals::num_spins, cuda_stream_.get());
 }
 
 

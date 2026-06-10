@@ -615,9 +615,55 @@ jams::Vec<jams::Real, 3> AnisotropyPolynomialHamiltonian::calculate_field(int i,
     return {field[0], field[1], field[2]};
 }
 
+jams::Vec<jams::Real, 3> AnisotropyPolynomialHamiltonian::calculate_field_from_spins(
+    int i,
+    jams::Real time,
+    const SpinHostView& spins)
+{
+    jams::Real field[3];
+    jams::tesseral_polynomial::field_for_spin_with_profiles(
+        i,
+        jams::Real(spins(i, 0)),
+        jams::Real(spins(i, 1)),
+        jams::Real(spins(i, 2)),
+        std::as_const(spin_profile_).host_data(),
+        std::as_const(u_axes_).host_data(),
+        std::as_const(v_axes_).host_data(),
+        std::as_const(w_axes_).host_data(),
+        std::as_const(profile_axis_modes_).host_data(),
+        std::as_const(profile_pointer_).host_data(),
+        std::as_const(tesseral_keys_).host_data(),
+        std::as_const(tesseral_coefficients_).host_data(),
+        std::as_const(axial_polynomial_coefficients_).host_data(),
+        field);
+
+    return {field[0], field[1], field[2]};
+}
+
 jams::Real AnisotropyPolynomialHamiltonian::calculate_energy(int i, jams::Real time)
 {
     const auto spins = std::as_const(globals::s).host_view();
+    return jams::tesseral_polynomial::energy_for_spin_with_profiles(
+        i,
+        jams::Real(spins(i, 0)),
+        jams::Real(spins(i, 1)),
+        jams::Real(spins(i, 2)),
+        std::as_const(spin_profile_).host_data(),
+        std::as_const(u_axes_).host_data(),
+        std::as_const(v_axes_).host_data(),
+        std::as_const(w_axes_).host_data(),
+        std::as_const(profile_axis_modes_).host_data(),
+        std::as_const(profile_pointer_).host_data(),
+        std::as_const(tesseral_keys_).host_data(),
+        std::as_const(tesseral_coefficients_).host_data(),
+        std::as_const(axial_polynomial_coefficients_).host_data());
+}
+
+jams::Real AnisotropyPolynomialHamiltonian::calculate_energy_from_spins(
+    int i,
+    jams::Real time,
+    const SpinHostView& spins)
+{
     return jams::tesseral_polynomial::energy_for_spin_with_profiles(
         i,
         jams::Real(spins(i, 0)),

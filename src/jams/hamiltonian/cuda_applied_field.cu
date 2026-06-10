@@ -5,11 +5,11 @@
 #include <jams/cuda/cuda_array_kernels.h>
 
 
-__global__ void cuda_applied_field_energy_kernel(const unsigned int num_spins, const double * dev_s, const jams::Real * dev_mus, const jams::Real3 b_field, jams::Real * dev_e) {
+__global__ void cuda_applied_field_energy_kernel(const unsigned int num_spins, const jams::Real * dev_s, const jams::Real * dev_mus, const jams::Real3 b_field, jams::Real * dev_e) {
     const unsigned int idx = blockIdx.x * blockDim.x + threadIdx.x;
     if (idx >= num_spins) return;
 
-    jams::Real3 s = {static_cast<jams::Real>(dev_s[3 * idx + 0]), static_cast<jams::Real>(dev_s[3 * idx + 1]), static_cast<jams::Real>(dev_s[3 * idx + 2])};
+    jams::Real3 s = {dev_s[3 * idx + 0], dev_s[3 * idx + 1], dev_s[3 * idx + 2]};
     dev_e[idx] = -dev_mus[idx] * dot(s, b_field);
 }
 
@@ -28,7 +28,7 @@ CudaAppliedFieldHamiltonian::CudaAppliedFieldHamiltonian(
     const libconfig::Setting &settings, const unsigned int size) : AppliedFieldHamiltonian(
     settings, size) {}
 
-void CudaAppliedFieldHamiltonian::calculate_fields(jams::Real time) {
+void CudaAppliedFieldHamiltonian::calculate_fields(jams::Real time, const jams::MultiArray<jams::Real, 2>& spins) {
   dim3 block_size;
   block_size.x = 256;
 
@@ -42,7 +42,7 @@ void CudaAppliedFieldHamiltonian::calculate_fields(jams::Real time) {
     DEBUG_CHECK_CUDA_ASYNC_STATUS;
 }
 
-void CudaAppliedFieldHamiltonian::calculate_energies(jams::Real time) {
+void CudaAppliedFieldHamiltonian::calculate_energies(jams::Real time, const jams::MultiArray<jams::Real, 2>& spins) {
   dim3 block_size;
   block_size.x = 256;
 
@@ -51,13 +51,13 @@ void CudaAppliedFieldHamiltonian::calculate_energies(jams::Real time) {
 
   const jams::Vec<jams::Real, 3> b_field = time_dependent_field_->field(time);
   cuda_applied_field_energy_kernel<<<grid_size, block_size, 0, cuda_stream_.get() >>>
-      (globals::num_spins, globals::s.device_data(), globals::mus.device_data(),
+      (globals::num_spins, spins.device_data(), globals::mus.device_data(),
        {b_field[0], b_field[1], b_field[2]}, energy_.mutable_device_data());
   DEBUG_CHECK_CUDA_ASYNC_STATUS;
 }
 
-jams::Real CudaAppliedFieldHamiltonian::calculate_total_energy(jams::Real time)
+jams::Real CudaAppliedFieldHamiltonian::calculate_total_energy(jams::Real time, const jams::MultiArray<jams::Real, 2>& spins)
 {
-    calculate_energies(time);
+    calculate_energies(time, spins);
     return cuda_reduce_array(energy_.device_data(), globals::num_spins, cuda_stream_.get());
 }

@@ -41,7 +41,7 @@ CudaFieldPulseHamiltonian::CudaFieldPulseHamiltonian(
   output_pulse();
 }
 
-void CudaFieldPulseHamiltonian::calculate_fields(jams::Real time) {
+void CudaFieldPulseHamiltonian::calculate_fields(jams::Real time, const jams::MultiArray<jams::Real, 2>& spins) {
 
   dim3 block_size;
   block_size.x = 64;

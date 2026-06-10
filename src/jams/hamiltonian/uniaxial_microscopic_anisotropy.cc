@@ -81,9 +81,13 @@ jams::Real UniaxialMicroscopicAnisotropyHamiltonian::calculate_energy_difference
 }
 
 
-void UniaxialMicroscopicAnisotropyHamiltonian::calculate_energies(jams::Real time) {
+void UniaxialMicroscopicAnisotropyHamiltonian::calculate_energies(jams::Real time, const jams::MultiArray<jams::Real, 2>& spins) {
+  const auto spin_view = spins.host_view();
   for (int i = 0; i < energy_.size(); ++i) {
-    energy_(i) = calculate_energy(i, time);
+    energy_(i) = 0.0;
+    for (int n = 0; n < mca_order_.size(); ++n) {
+      energy_(i) += mca_value_(n, i) * legendre_poly(spin_view(i, 2), mca_order_(n));
+    }
   }
 }
 
@@ -98,11 +102,12 @@ jams::Vec<jams::Real, 3> UniaxialMicroscopicAnisotropyHamiltonian::calculate_fie
   return field;
 }
 
-void UniaxialMicroscopicAnisotropyHamiltonian::calculate_fields(jams::Real time) {
+void UniaxialMicroscopicAnisotropyHamiltonian::calculate_fields(jams::Real time, const jams::MultiArray<jams::Real, 2>& spins) {
+  const auto spin_view = spins.host_view();
   field_.zero();
   for (int n = 0; n < mca_order_.size(); ++n) {
     for (int i = 0; i < field_.extent(0); ++i) {
-      field_(i, 2) += -mca_value_(n,i) * legendre_dpoly(globals::s(i, 2), mca_order_(n));
+      field_(i, 2) += -mca_value_(n,i) * legendre_dpoly(spin_view(i, 2), mca_order_(n));
     }
   }
 }

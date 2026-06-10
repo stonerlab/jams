@@ -11,7 +11,7 @@ __global__
 void cuda_anisotropy_polynomial_energy_kernel(
     const int active_spin_count,
     const int *__restrict__ active_spin_indices,
-    const jams::RealHi *__restrict__ spins,
+    const jams::Real *__restrict__ spins,
     const int *__restrict__ spin_profile,
     const jams::Real *__restrict__ u_axes,
     const jams::Real *__restrict__ v_axes,
@@ -30,9 +30,9 @@ void cuda_anisotropy_polynomial_energy_kernel(
 
     const int idx = active_spin_indices[active_idx];
     const unsigned int base = 3u * idx;
-    const jams::Real sx_global = static_cast<jams::Real>(spins[base + 0]);
-    const jams::Real sy_global = static_cast<jams::Real>(spins[base + 1]);
-    const jams::Real sz_global = static_cast<jams::Real>(spins[base + 2]);
+    const jams::Real sx_global = spins[base + 0];
+    const jams::Real sy_global = spins[base + 1];
+    const jams::Real sz_global = spins[base + 2];
 
     energies[idx] = jams::tesseral_polynomial::energy_for_spin_with_profiles(
         int(idx),
@@ -54,7 +54,7 @@ __global__
 void cuda_anisotropy_polynomial_field_kernel(
     const int active_spin_count,
     const int *__restrict__ active_spin_indices,
-    const jams::RealHi *__restrict__ spins,
+    const jams::Real *__restrict__ spins,
     const int *__restrict__ spin_profile,
     const jams::Real *__restrict__ u_axes,
     const jams::Real *__restrict__ v_axes,
@@ -73,9 +73,9 @@ void cuda_anisotropy_polynomial_field_kernel(
 
     const int idx = active_spin_indices[active_idx];
     const unsigned int base = 3u * idx;
-    const jams::Real sx_global = static_cast<jams::Real>(spins[base + 0]);
-    const jams::Real sy_global = static_cast<jams::Real>(spins[base + 1]);
-    const jams::Real sz_global = static_cast<jams::Real>(spins[base + 2]);
+    const jams::Real sx_global = spins[base + 0];
+    const jams::Real sy_global = spins[base + 1];
+    const jams::Real sz_global = spins[base + 2];
 
     jams::Real field[3];
     jams::tesseral_polynomial::field_for_spin_with_profiles(
@@ -108,7 +108,7 @@ CudaAnisotropyPolynomialHamiltonian::CudaAnisotropyPolynomialHamiltonian(
 {
 }
 
-void CudaAnisotropyPolynomialHamiltonian::calculate_fields(jams::Real time)
+void CudaAnisotropyPolynomialHamiltonian::calculate_fields(jams::Real time, const jams::MultiArray<jams::Real, 2>& spins)
 {
     CHECK_CUDA_STATUS(cudaMemsetAsync(
         field_.mutable_device_data(),
@@ -126,7 +126,7 @@ void CudaAnisotropyPolynomialHamiltonian::calculate_fields(jams::Real time)
     cuda_anisotropy_polynomial_field_kernel<<<num_blocks, dev_blocksize_, 0, cuda_stream_.get()>>>(
         active_spin_count,
         active_spin_indices_.device_data(),
-        globals::s.device_data(),
+        spins.device_data(),
         spin_profile_.device_data(),
         u_axes_.device_data(),
         v_axes_.device_data(),
@@ -140,7 +140,7 @@ void CudaAnisotropyPolynomialHamiltonian::calculate_fields(jams::Real time)
     DEBUG_CHECK_CUDA_ASYNC_STATUS;
 }
 
-void CudaAnisotropyPolynomialHamiltonian::calculate_energies(jams::Real time)
+void CudaAnisotropyPolynomialHamiltonian::calculate_energies(jams::Real time, const jams::MultiArray<jams::Real, 2>& spins)
 {
     CHECK_CUDA_STATUS(cudaMemsetAsync(
         energy_.mutable_device_data(),
@@ -158,7 +158,7 @@ void CudaAnisotropyPolynomialHamiltonian::calculate_energies(jams::Real time)
     cuda_anisotropy_polynomial_energy_kernel<<<num_blocks, dev_blocksize_, 0, cuda_stream_.get()>>>(
         active_spin_count,
         active_spin_indices_.device_data(),
-        globals::s.device_data(),
+        spins.device_data(),
         spin_profile_.device_data(),
         u_axes_.device_data(),
         v_axes_.device_data(),
@@ -172,8 +172,8 @@ void CudaAnisotropyPolynomialHamiltonian::calculate_energies(jams::Real time)
     DEBUG_CHECK_CUDA_ASYNC_STATUS;
 }
 
-jams::Real CudaAnisotropyPolynomialHamiltonian::calculate_total_energy(jams::Real time)
+jams::Real CudaAnisotropyPolynomialHamiltonian::calculate_total_energy(jams::Real time, const jams::MultiArray<jams::Real, 2>& spins)
 {
-    calculate_energies(time);
+    calculate_energies(time, spins);
     return jams::scalar_field_reduce_cuda(energy_, cuda_stream_.get());
 }

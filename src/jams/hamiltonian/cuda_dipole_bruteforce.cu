@@ -4,6 +4,7 @@
 
 #include <jams/core/globals.h>
 #include <jams/core/lattice.h>
+#include <jams/cuda/cuda_array_kernels.h>
 #include <jams/cuda/cuda_stream.h>
 #include <jams/helpers/consts.h>
 #include <jams/interface/config.h>
@@ -74,17 +75,9 @@ CudaDipoleBruteforceHamiltonian::CudaDipoleBruteforceHamiltonian(const libconfig
 
 // --------------------------------------------------------------------------
 
-jams::Real CudaDipoleBruteforceHamiltonian::calculate_total_energy(jams::Real time) {
-    double e_total = 0.0;
-
-    calculate_fields(time);
-    for (int i = 0; i < globals::num_spins; ++i) {
-        e_total += -0.5 * (  globals::s(i,0)*field_(i,0)
-                           + globals::s(i,1)*field_(i,1)
-                           + globals::s(i,2)*field_(i,2) );
-    }
-
-    return e_total;
+jams::Real CudaDipoleBruteforceHamiltonian::calculate_total_energy(jams::Real time, const jams::MultiArray<jams::Real, 2>& spins) {
+    calculate_energies(time, spins);
+    return cuda_reduce_array(energy_.device_data(), globals::num_spins, cuda_stream_.get());
 }
 
 jams::Real CudaDipoleBruteforceHamiltonian::calculate_one_spin_energy(const int i, const jams::Vec<double, 3> &s_i, jams::Real time) {
@@ -144,10 +137,9 @@ void CudaDipoleBruteforceHamiltonian::add_energy_current_interactions(
   }
 }
 
-void CudaDipoleBruteforceHamiltonian::calculate_energies(jams::Real time) {
-    for (auto i = 0; i < globals::num_spins; ++i) {
-        energy_(i) = calculate_energy(i, time);
-    }
+void CudaDipoleBruteforceHamiltonian::calculate_energies(jams::Real time, const jams::MultiArray<jams::Real, 2>& spins) {
+    calculate_fields(time, spins);
+    cuda_array_dot_product(globals::num_spins, jams::Real(-0.5), spins.device_data(), field_.device_data(), energy_.mutable_device_data(), cuda_stream_.get());
 }
 
 jams::Vec<jams::Real, 3> CudaDipoleBruteforceHamiltonian::calculate_field(const int i, jams::Real time) {
@@ -201,10 +193,8 @@ jams::Vec<jams::Real, 3> CudaDipoleBruteforceHamiltonian::calculate_field(const 
   return {hx, hy, hz};
 }
 
-void CudaDipoleBruteforceHamiltonian::calculate_fields(jams::Real time) {
-    CudaStream stream;
-
-    DipoleBruteforceKernel<<<(globals::num_spins + block_size - 1)/block_size, block_size, 0, stream.get() >>>
-        (globals::s.device_data(), r_float_.device_data(), mus_float_.device_data(), globals::num_spins, field_.mutable_device_data());
+void CudaDipoleBruteforceHamiltonian::calculate_fields(jams::Real time, const jams::MultiArray<jams::Real, 2>& spins) {
+    DipoleBruteforceKernel<<<(globals::num_spins + block_size - 1)/block_size, block_size, 0, cuda_stream_.get() >>>
+        (spins.device_data(), r_float_.device_data(), mus_float_.device_data(), globals::num_spins, field_.mutable_device_data());
     DEBUG_CHECK_CUDA_ASYNC_STATUS;
 }

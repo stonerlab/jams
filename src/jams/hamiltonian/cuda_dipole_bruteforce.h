@@ -9,14 +9,14 @@ class CudaDipoleBruteforceHamiltonian : public Hamiltonian {
     public:
         CudaDipoleBruteforceHamiltonian(const libconfig::Setting &settings, const unsigned int size);
 
-        jams::Real calculate_total_energy(jams::Real time) override;
+        jams::Real calculate_total_energy(jams::Real time, const jams::MultiArray<jams::Real, 2>& spins) override;
         jams::Real calculate_energy(const int i, jams::Real time) override;
         jams::Real calculate_one_spin_energy(const int i, const jams::Vec<double, 3> &s_i, jams::Real time);
         jams::Real calculate_energy_difference(int i, const jams::Vec<double, 3> &spin_initial, const jams::Vec<double, 3> &spin_final, jams::Real time) override;
-        void   calculate_energies(jams::Real time) override;
+        void   calculate_energies(jams::Real time, const jams::MultiArray<jams::Real, 2>& spins) override;
 
         jams::Vec<jams::Real, 3>   calculate_field(const int i, jams::Real time) override;
-        void   calculate_fields(jams::Real time) override;
+        void   calculate_fields(jams::Real time, const jams::MultiArray<jams::Real, 2>& spins) override;
 
         void add_energy_current_interactions(jams::EnergyCurrentInteractionSink& sink) const override;
 

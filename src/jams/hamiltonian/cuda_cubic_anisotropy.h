@@ -12,9 +12,9 @@ class CudaCubicAnisotropyHamiltonian : public CubicAnisotropyHamiltonian {
 public:
     CudaCubicAnisotropyHamiltonian(const libconfig::Setting &settings, const unsigned int size);
 
-    jams::Real calculate_total_energy(jams::Real time) override;
-    void   calculate_energies(jams::Real time) override;
-    void   calculate_fields(jams::Real time) override;
+    jams::Real calculate_total_energy(jams::Real time, const jams::MultiArray<jams::Real, 2>& spins) override;
+    void   calculate_energies(jams::Real time, const jams::MultiArray<jams::Real, 2>& spins) override;
+    void   calculate_fields(jams::Real time, const jams::MultiArray<jams::Real, 2>& spins) override;
 private:
     unsigned int dev_blocksize_ = 64;
 };

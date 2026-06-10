@@ -146,6 +146,32 @@ jams::Real CubicAnisotropyHamiltonian::calculate_energy(const int i, jams::Real 
     return static_cast<jams::Real>(energy);
 }
 
+jams::Real CubicAnisotropyHamiltonian::calculate_energy_from_spins(
+    const int i,
+    jams::Real time,
+    const SpinHostView& spins) {
+    jams::Real energy = 0.0;
+
+    const jams::Vec<jams::Real, 3> spin = {spins(i, 0), spins(i, 1), spins(i, 2)};
+    const jams::Vec<jams::Real, 3> u = {u_axes_(i, 0), u_axes_(i, 1), u_axes_(i, 2)};
+    const jams::Vec<jams::Real, 3> v = {v_axes_(i, 0), v_axes_(i, 1), v_axes_(i, 2)};
+    const jams::Vec<jams::Real, 3> w = {w_axes_(i, 0), w_axes_(i, 1), w_axes_(i, 2)};
+
+    const auto Su2 = jams::dot_squared(spin, u);
+    const auto Sv2 = jams::dot_squared(spin, v);
+    const auto Sw2 = jams::dot_squared(spin, w);
+
+    if(order_(i) == 1) {
+      energy += -magnitude_(i) * (Su2 * Sv2 + Sv2 * Sw2 + Sw2 * Su2);
+    }
+
+    if(order_(i) == 2){
+      energy += -magnitude_(i) * (Su2 * Sv2 * Sw2);
+    }
+
+    return energy;
+}
+
 jams::Real CubicAnisotropyHamiltonian::calculate_energy_difference(int i, const jams::Vec<double, 3> &spin_initial,
                                                                const jams::Vec<double, 3> &spin_final, jams::Real time) {
     double e_initial = 0.0;
@@ -208,6 +234,41 @@ jams::Vec<jams::Real, 3> CubicAnisotropyHamiltonian::calculate_field(const int i
                               + w[j] * Sw * pow2(Su) * pow2(Sv) );
       }
     }
+
+  return jams::array_cast<jams::Real>(field);
+}
+
+jams::Vec<jams::Real, 3> CubicAnisotropyHamiltonian::calculate_field_from_spins(
+    const int i,
+    jams::Real time,
+    const SpinHostView& spins) {
+  jams::Vec<double, 3> field = {0.0, 0.0, 0.0};
+
+  jams::Vec<double, 3> spin = {spins(i, 0), spins(i, 1), spins(i, 2)};
+
+  jams::Vec<double, 3> u = {u_axes_(i, 0), u_axes_(i, 1), u_axes_(i, 2)};
+  jams::Vec<double, 3> v = {v_axes_(i, 0), v_axes_(i, 1), v_axes_(i, 2)};
+  jams::Vec<double, 3> w = {w_axes_(i, 0), w_axes_(i, 1), w_axes_(i, 2)};
+
+  double Su = jams::dot(spin, u);
+  double Sv = jams::dot(spin, v);
+  double Sw = jams::dot(spin, w);
+
+  auto pre = 2.0 * magnitude_(i);
+
+  if (order_(i) == 1) {
+    for (auto j = 0; j < 3; ++j) {
+      field[j] += pre * (u[j] * Su * (pow2(Sv) + pow2(Sw)) + v[j] * Sv * (pow2(Sw) + pow2(Su))
+                          + w[j] * Sw * (pow2(Su) + pow2(Sv)));
+    }
+  }
+
+  if (order_(i) == 2) {
+    for (auto j = 0; j < 3; ++j) {
+      field[j] += pre * (u[j] * Su * pow2(Sv) * pow2(Sw) + v[j] * Sv * pow2(Sw) * pow2(Su)
+                          + w[j] * Sw * pow2(Su) * pow2(Sv));
+    }
+  }
 
   return jams::array_cast<jams::Real>(field);
 }

@@ -27,15 +27,15 @@ public:
 
     CudaFieldPulseHamiltonian(const libconfig::Setting &settings, unsigned int size);
 
-    jams::Real calculate_total_energy(jams::Real time) override {
+    jams::Real calculate_total_energy(jams::Real time, const jams::MultiArray<jams::Real, 2>& spins) override {
       throw jams::unimplemented_error("CudaFieldPulseHamiltonian::calculate_total_energy is unimplemented");
     }
 
-    void calculate_energies(jams::Real time) override {
+    void calculate_energies(jams::Real time, const jams::MultiArray<jams::Real, 2>& spins) override {
       throw jams::unimplemented_error("CudaFieldPulseHamiltonian::calculate_energies is unimplemented");
     }
 
-    void calculate_fields(jams::Real time) override;
+    void calculate_fields(jams::Real time, const jams::MultiArray<jams::Real, 2>& spins) override;
 
     jams::Vec<jams::Real, 3> calculate_field(int i, jams::Real time) override {
       throw jams::unimplemented_error("CudaFieldPulseHamiltonian::calculate_field is unimplemented");

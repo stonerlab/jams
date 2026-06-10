@@ -22,6 +22,9 @@ namespace libconfig { class Setting; }
 
 class Hamiltonian : public Base {
 public:
+    using SpinArray = jams::MultiArray<jams::Real, 2>;
+    using SpinHostView = SpinArray::const_host_view_type;
+
     enum class EnergyCurrentInteractionSupport {
       None,
       Supported,
@@ -44,13 +47,13 @@ public:
     virtual jams::Real calculate_energy(int i, jams::Real time) = 0;
 
     // calculate the field at each spin and store in field_
-    virtual void calculate_fields(jams::Real time);
+    virtual void calculate_fields(jams::Real time, const SpinArray& spins);
 
     // calculate the energy of each spin and store in energy_
-    virtual void calculate_energies(jams::Real time);
+    virtual void calculate_energies(jams::Real time, const SpinArray& spins);
 
     // calculate the total energy of this Hamiltonian term
-    virtual jams::Real calculate_total_energy(jams::Real time);
+    virtual jams::Real calculate_total_energy(jams::Real time, const SpinArray& spins);
 
     // calculate the energy difference of spin i in initial and final states
     virtual jams::Real calculate_energy_difference(int i, const jams::Vec<double, 3> &spin_initial, const jams::Vec<double, 3> &spin_final, jams::Real time);
@@ -117,6 +120,10 @@ public:
 #endif
 
 protected:
+    virtual jams::Vec<jams::Real, 3> calculate_field_from_spins(int i, jams::Real time, const SpinHostView& spins);
+    virtual jams::Real calculate_energy_from_spins(int i, jams::Real time, const SpinHostView& spins);
+    const SpinArray& global_spin_array_for_fields();
+
     // calculate the energy of spin i for a proposed spin direction without
     // changing globals::s. Hamiltonians that use the base energy-difference
     // implementation must override this.
@@ -130,6 +137,9 @@ protected:
 
     jams::MultiArray<jams::Real, 1> energy_; // energy of every spin for this Hamiltonian
     jams::MultiArray<jams::Real, 2> field_; // field at every spin for this Hamiltonianl
+#if DO_MIXED_PRECISION
+    SpinArray fallback_spin_array_;
+#endif
 
 #if HAS_CUDA
   CudaStream cuda_stream_ {};

@@ -40,7 +40,7 @@ CudaZeemanHamiltonian::CudaZeemanHamiltonian(const libconfig::Setting &settings,
         : ZeemanHamiltonian(settings, size) {
 }
 
-void CudaZeemanHamiltonian::calculate_fields(jams::Real time) {
+void CudaZeemanHamiltonian::calculate_fields(jams::Real time, const jams::MultiArray<jams::Real, 2>& spins) {
     dim3 block_size;
         block_size.x = 32;
         block_size.y = 4;

@@ -69,6 +69,8 @@ class Solver {
 
   virtual void compute_fields();
 
+  virtual const jams::MultiArray<jams::Real, 2>& spin_array_for_fields();
+
   std::vector<std::unique_ptr<Hamiltonian>>& hamiltonians() {
     return hamiltonians_;
   }
@@ -92,6 +94,10 @@ class Solver {
   std::unique_ptr<Thermostat> thermostat_;
   std::vector<std::unique_ptr<Monitor>> monitors_;
   std::vector<std::unique_ptr<Hamiltonian>> hamiltonians_;
+
+#if DO_MIXED_PRECISION
+  jams::MultiArray<jams::Real, 2> field_spin_array_;
+#endif
 };
 
 #endif  // JAMS_CORE_SOLVER_H

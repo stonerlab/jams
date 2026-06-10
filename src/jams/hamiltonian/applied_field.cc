@@ -136,4 +136,12 @@ jams::Real AppliedFieldHamiltonian::calculate_energy_for_spin(int i, const jams:
           + spin[2] * field[2]);
 }
 
+jams::Real AppliedFieldHamiltonian::calculate_energy_from_spins(
+    const int i,
+    jams::Real time,
+    const SpinHostView& spins) {
+  const auto field = calculate_field(i, time);
+  const jams::Vec<jams::Real, 3> spin = {spins(i, 0), spins(i, 1), spins(i, 2)};
+  return -jams::dot(spin, field);
+}
 

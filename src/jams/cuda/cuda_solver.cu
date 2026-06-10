@@ -14,9 +14,19 @@
 void CudaSolver::compute_fields() {
   if (hamiltonians_.empty()) return;
 
+#if DO_MIXED_PRECISION
+  const auto& spins = refresh_field_spin_array_async();
+#else
+  const auto& spins = globals::s;
+#endif
+
   for (auto& hh : hamiltonians_) {
+#if DO_MIXED_PRECISION
+    wait_on_field_spin_cache_event(hh->get_stream());
+#else
     wait_on_spin_barrier_event(hh->get_stream());
-    hh->calculate_fields(this->time());
+#endif
+    hh->calculate_fields(this->time(), spins);
     hh->record_done();
   }
 
@@ -50,3 +60,36 @@ void CudaSolver::compute_fields() {
       globals::h.mutable_device_data(),
       jams::instance().cuda_master_stream().get());
 }
+
+const jams::MultiArray<jams::Real, 2>& CudaSolver::spin_array_for_fields() {
+#if DO_MIXED_PRECISION
+  const auto& spins = refresh_field_spin_array_async();
+  cudaEventSynchronize(field_spin_cache_event_);
+  DEBUG_CHECK_CUDA_ASYNC_STATUS
+  return spins;
+#else
+  synchronize_on_spin_barrier_event();
+  return globals::s;
+#endif
+}
+
+#if DO_MIXED_PRECISION
+const jams::MultiArray<jams::Real, 2>& CudaSolver::refresh_field_spin_array_async() {
+  if (field_spin_array_.elements() != globals::s.elements()) {
+    field_spin_array_.resize(globals::s.extent(0), globals::s.extent(1));
+  }
+
+  auto& master_stream = jams::instance().cuda_master_stream().get();
+  wait_on_spin_barrier_event(master_stream);
+  cuda_array_double_to_float(
+      globals::s.elements(),
+      globals::s.device_data(),
+      field_spin_array_.mutable_device_data(),
+      master_stream);
+
+  if (!field_spin_cache_event_) create_field_spin_cache_event();
+  cudaEventRecord(field_spin_cache_event_, master_stream);
+  DEBUG_CHECK_CUDA_ASYNC_STATUS
+  return field_spin_array_;
+}
+#endif

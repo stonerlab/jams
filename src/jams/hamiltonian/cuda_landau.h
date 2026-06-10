@@ -22,9 +22,9 @@ public:
     inline jams::Real calculate_energy_difference(int i, const jams::Vec<double, 3> &spin_initial, const jams::Vec<double, 3> &spin_final, jams::Real time)  override
     { throw jams::unimplemented_error("CudaLandauHamiltonian::calculate_energy_difference"); }
 
-    jams::Real calculate_total_energy(jams::Real time) override;
-    void calculate_fields(jams::Real time) override;
-    void calculate_energies(jams::Real time) override;
+    jams::Real calculate_total_energy(jams::Real time, const jams::MultiArray<jams::Real, 2>& spins) override;
+    void calculate_fields(jams::Real time, const jams::MultiArray<jams::Real, 2>& spins) override;
+    void calculate_energies(jams::Real time, const jams::MultiArray<jams::Real, 2>& spins) override;
 
     EnergyCurrentInteractionSupport energy_current_interaction_support() const override {
       return EnergyCurrentInteractionSupport::None;

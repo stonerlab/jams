@@ -26,8 +26,9 @@ void EnergyMonitor::update(Solver& solver) {
   auto values = make_reserved<double>(tsv_.num_cols());
 
   solver.append_monitor_coordinates(values);
+  const auto& field_spins = solver.spin_array_for_fields();
   for (auto &h : solver.hamiltonians()) {
-    values.push_back(h->calculate_total_energy(solver.time()));
+    values.push_back(h->calculate_total_energy(solver.time(), field_spins));
   }
 
   tsv_.write_row(values);

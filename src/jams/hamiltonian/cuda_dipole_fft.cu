@@ -136,7 +136,7 @@ __global__ void cuda_dipole_convolution(
 __global__ void cuda_pack_lattice_vector_field(
     const unsigned int num_slots,
     const int* site_map,
-    const double* active_field,
+    const jams::Real* active_field,
     jams::Real* dense_field)
 {
   const unsigned int slot = blockIdx.x * blockDim.x + threadIdx.x;
@@ -146,9 +146,9 @@ __global__ void cuda_pack_lattice_vector_field(
   const unsigned int dense_base = 3 * slot;
   if (active_site >= 0) {
     const unsigned int active_base = 3 * static_cast<unsigned int>(active_site);
-    dense_field[dense_base + 0] = static_cast<jams::Real>(active_field[active_base + 0]);
-    dense_field[dense_base + 1] = static_cast<jams::Real>(active_field[active_base + 1]);
-    dense_field[dense_base + 2] = static_cast<jams::Real>(active_field[active_base + 2]);
+    dense_field[dense_base + 0] = active_field[active_base + 0];
+    dense_field[dense_base + 1] = active_field[active_base + 1];
+    dense_field[dense_base + 2] = active_field[active_base + 2];
   } else {
     dense_field[dense_base + 0] = static_cast<jams::Real>(0.0);
     dense_field[dense_base + 1] = static_cast<jams::Real>(0.0);
@@ -348,8 +348,6 @@ CudaDipoleFFTHamiltonian::CudaDipoleFFTHamiltonian(const libconfig::Setting &set
     }
     rspace_s_dense_.zero();
     rspace_h_dense_.zero();
-  } else {
-    s_float_.resize(globals::s.extent(0), globals::s.extent(1));
   }
 
   const auto num_tensor_components = 6;
@@ -391,8 +389,8 @@ CudaDipoleFFTHamiltonian::CudaDipoleFFTHamiltonian(const libconfig::Setting &set
   CHECK_CUFFT_STATUS(cufftSetStream(cuda_fft_h_kspace_to_rspace, cuda_stream_.get()));
 }
 
-jams::Real CudaDipoleFFTHamiltonian::calculate_total_energy(jams::Real time) {
-  calculate_energies(time);
+jams::Real CudaDipoleFFTHamiltonian::calculate_total_energy(jams::Real time, const jams::MultiArray<jams::Real, 2>& spins) {
+  calculate_energies(time, spins);
   return cuda_reduce_array(energy_.device_data(), globals::num_spins, cuda_stream_.get());
 }
 
@@ -409,10 +407,10 @@ jams::Real CudaDipoleFFTHamiltonian::calculate_energy_difference(
   throw jams::unimplemented_error("CudaDipoleFFTHamiltonian::calculate_energy_difference is not implemented");
 }
 
-void CudaDipoleFFTHamiltonian::calculate_energies(jams::Real time) {
-  calculate_fields(time);
+void CudaDipoleFFTHamiltonian::calculate_energies(jams::Real time, const jams::MultiArray<jams::Real, 2>& spins) {
+  calculate_fields(time, spins);
   const auto minus_half = static_cast<jams::Real>(-0.5);
-  cuda_array_dot_product(globals::num_spins, minus_half, globals::s.device_data(), field_.device_data(), energy_.mutable_device_data(), cuda_stream_.get());
+  cuda_array_dot_product(globals::num_spins, minus_half, spins.device_data(), field_.device_data(), energy_.mutable_device_data(), cuda_stream_.get());
 }
 
 jams::Vec<jams::Real, 3> CudaDipoleFFTHamiltonian::calculate_field(const int i, jams::Real time) {
@@ -492,7 +490,7 @@ void CudaDipoleFFTHamiltonian::add_energy_current_interactions(
   }
 }
 
-void CudaDipoleFFTHamiltonian::calculate_fields(jams::Real time) {
+void CudaDipoleFFTHamiltonian::calculate_fields(jams::Real time, const jams::MultiArray<jams::Real, 2>& spins) {
 
   if (use_dense_fft_buffers_) {
     const unsigned int num_dense_slots = fft_site_map_.size();
@@ -501,7 +499,7 @@ void CudaDipoleFFTHamiltonian::calculate_fields(jams::Real time) {
     cuda_pack_lattice_vector_field<<<pack_grid, pack_block, 0, cuda_stream_.get()>>>(
         num_dense_slots,
         fft_site_map_.device_data(),
-        globals::s.device_data(),
+        spins.device_data(),
         rspace_s_dense_.mutable_device_data());
     DEBUG_CHECK_CUDA_ASYNC_STATUS;
 
@@ -512,10 +510,9 @@ void CudaDipoleFFTHamiltonian::calculate_fields(jams::Real time) {
 #endif
   } else {
 #if DO_MIXED_PRECISION
-    cuda_array_double_to_float(globals::s.elements(), globals::s.device_data(), s_float_.mutable_device_data(), cuda_stream_.get());
-    CHECK_CUFFT_STATUS(cufftExecR2C(cuda_fft_s_rspace_to_kspace, const_cast<cufftReal*>(reinterpret_cast<const cufftReal*>(s_float_.device_data())), kspace_s_.mutable_device_data()));
+    CHECK_CUFFT_STATUS(cufftExecR2C(cuda_fft_s_rspace_to_kspace, const_cast<cufftReal*>(reinterpret_cast<const cufftReal*>(spins.device_data())), kspace_s_.mutable_device_data()));
 #else
-    CHECK_CUFFT_STATUS(cufftExecD2Z(cuda_fft_s_rspace_to_kspace, const_cast<cufftDoubleReal*>(reinterpret_cast<const cufftDoubleReal*>(globals::s.device_data())), kspace_s_.mutable_device_data()));
+    CHECK_CUFFT_STATUS(cufftExecD2Z(cuda_fft_s_rspace_to_kspace, const_cast<cufftDoubleReal*>(reinterpret_cast<const cufftDoubleReal*>(spins.device_data())), kspace_s_.mutable_device_data()));
 #endif
   }
 

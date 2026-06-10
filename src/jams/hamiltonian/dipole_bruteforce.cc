@@ -56,6 +56,15 @@ jams::Real DipoleBruteforceHamiltonian::calculate_energy_difference(int i, const
   return 0.5 * (e_final - e_initial);
 }
 
+jams::Real DipoleBruteforceHamiltonian::calculate_energy_from_spins(
+    const int i,
+    jams::Real time,
+    const SpinHostView& spins) {
+  const jams::Vec<jams::Real, 3> s_i = {spins(i, 0), spins(i, 1), spins(i, 2)};
+  const auto field = calculate_field_from_spins(i, time, spins);
+  return -0.5 * jams::dot(s_i, field);
+}
+
 void DipoleBruteforceHamiltonian::add_energy_current_interactions(
     jams::EnergyCurrentInteractionSink& sink) const {
   assert(r_cutoff_ <= globals::lattice->max_interaction_radius());
@@ -125,6 +134,51 @@ jams::Vec<jams::Real, 3> DipoleBruteforceHamiltonian::calculate_field(const int 
     if (j == i) continue;
 
     const auto s_j = jams::array_cast<jams::Real>(jams::Vec<double, 3>{globals::s(j,0), globals::s(j,1), globals::s(j,2)});
+    auto r_ij = jams::array_cast<jams::Real>(displacement(i, j));
+
+    const jams::Real r_abs_sq = jams::norm_squared(r_ij);
+
+    const jams::Real eps = jams::defaults::lattice_tolerance;
+    if (definately_greater_than(r_abs_sq, r_cut_squared, eps)) continue;
+    const auto interaction = jams::dipole::interaction_tensor<jams::Real>(
+        jams::array_cast<double>(r_ij),
+        globals::mus(i),
+        globals::mus(j),
+        globals::lattice->parameter());
+    const auto h_ij = jams::dipole::interaction_field(interaction, s_j);
+    hx += h_ij[0];
+    hy += h_ij[1];
+    hz += h_ij[2];
+  }
+
+  return {hx, hy, hz};
+}
+
+[[gnu::hot]]
+jams::Vec<jams::Real, 3> DipoleBruteforceHamiltonian::calculate_field_from_spins(
+    const int i,
+    jams::Real time,
+    const SpinHostView& spins) {
+  assert(r_cutoff_ <= globals::lattice->max_interaction_radius());
+
+  auto displacement = [](const int i, const int j) {
+      return jams::minimum_image_smith_method(
+          globals::lattice->get_supercell().matrix(),
+          globals::lattice->get_supercell().inverse_matrix(),
+          globals::lattice->get_supercell().periodic(),
+          globals::lattice->lattice_site_position_cart(i),
+          globals::lattice->lattice_site_position_cart(j));
+  };
+
+  const jams::Real r_cut_squared = pow2(r_cutoff_);
+  jams::Real hx = 0, hy = 0, hz = 0;
+  #if HAS_OMP
+  #pragma omp parallel for reduction(+:hx, hy, hz)
+  #endif
+  for (auto j = 0; j < globals::num_spins; ++j) {
+    if (j == i) continue;
+
+    const jams::Vec<jams::Real, 3> s_j = {spins(j, 0), spins(j, 1), spins(j, 2)};
     auto r_ij = jams::array_cast<jams::Real>(displacement(i, j));
 
     const jams::Real r_abs_sq = jams::norm_squared(r_ij);

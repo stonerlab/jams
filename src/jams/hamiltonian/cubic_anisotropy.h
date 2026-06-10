@@ -67,6 +67,10 @@ public:
       return EnergyCurrentInteractionSupport::None;
     }
 
+protected:
+    jams::Vec<jams::Real, 3> calculate_field_from_spins(int i, jams::Real time, const SpinHostView& spins) override;
+    jams::Real calculate_energy_from_spins(int i, jams::Real time, const SpinHostView& spins) override;
+
 private:
     jams::MultiArray<unsigned, 1> order_;
     jams::MultiArray<jams::Real, 2> u_axes_;

@@ -14,7 +14,7 @@ class UniaxialAnisotropyHamiltonian : public Hamiltonian {
 public:
     UniaxialAnisotropyHamiltonian(const libconfig::Setting &settings, unsigned int size);
 
-    void calculate_energies(jams::Real time) override;
+    void calculate_energies(jams::Real time, const jams::MultiArray<jams::Real, 2>& spins) override;
 
     jams::Vec<jams::Real, 3> calculate_field(int i, jams::Real time) override;
 
@@ -25,6 +25,10 @@ public:
     EnergyCurrentInteractionSupport energy_current_interaction_support() const override {
       return EnergyCurrentInteractionSupport::None;
     }
+
+protected:
+    jams::Vec<jams::Real, 3> calculate_field_from_spins(int i, jams::Real time, const SpinHostView& spins) override;
+    jams::Real calculate_energy_from_spins(int i, jams::Real time, const SpinHostView& spins) override;
 
 private:
     int power_; // anisotropy power exponent

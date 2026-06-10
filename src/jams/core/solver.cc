@@ -5,6 +5,7 @@
 #include <stdexcept>
 #include <string>
 #include <type_traits>
+#include <utility>
 #include <jams/interface/config.h>
 
 #include "jams/helpers/error.h"
@@ -67,8 +68,10 @@ void Solver::initialize_gyro_eff(
 void Solver::compute_fields() {
   if (hamiltonians_.empty()) return;
 
+  const auto& spins = spin_array_for_fields();
+
   for (auto& hh : hamiltonians_) {
-    hh->calculate_fields(this->time());
+    hh->calculate_fields(this->time(), spins);
   }
 
   std::copy(hamiltonians_[0]->ptr_field(), hamiltonians_[0]->ptr_field()+globals::num_spins3, globals::h.data());
@@ -91,6 +94,27 @@ void Solver::compute_fields() {
         }
       }
 
+}
+
+const jams::MultiArray<jams::Real, 2>& Solver::spin_array_for_fields() {
+#if DO_MIXED_PRECISION
+  if (field_spin_array_.elements() != globals::s.elements()) {
+    field_spin_array_.resize(globals::s.extent(0), globals::s.extent(1));
+  }
+
+  const auto global_spins = std::as_const(globals::s).host_span();
+  auto field_spins = field_spin_array_.mutable_host_span();
+  std::transform(
+      global_spins.begin(),
+      global_spins.end(),
+      field_spins.begin(),
+      [](const double value) {
+        return static_cast<jams::Real>(value);
+      });
+  return field_spin_array_;
+#else
+  return globals::s;
+#endif
 }
 
 

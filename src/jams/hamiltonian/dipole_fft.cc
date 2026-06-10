@@ -156,14 +156,15 @@ DipoleFFTHamiltonian::DipoleFFTHamiltonian(const libconfig::Setting &settings, c
 }
 
 
-jams::Real DipoleFFTHamiltonian::calculate_total_energy(jams::Real time) {
+jams::Real DipoleFFTHamiltonian::calculate_total_energy(jams::Real time, const jams::MultiArray<jams::Real, 2>& spins) {
     jams::Real e_total = 0.0;
 
-    calculate_fields(time);
+    calculate_fields(time, spins);
+    const auto spin_view = spins.host_view();
     for (auto i = 0; i < globals::num_spins; ++i) {
-        e_total += (  globals::s(i,0) * field_(i, 0)
-                    + globals::s(i,1) * field_(i, 1)
-                    + globals::s(i,2) * field_(i, 2) );
+        e_total += (  spin_view(i, 0) * field_(i, 0)
+                    + spin_view(i, 1) * field_(i, 1)
+                    + spin_view(i, 2) * field_(i, 2) );
     }
 
     return -0.5*e_total;
@@ -179,7 +180,7 @@ jams::Real DipoleFFTHamiltonian::calculate_energy(const int i, jams::Real time) 
 jams::Real DipoleFFTHamiltonian::calculate_energy_difference(
     int i, const jams::Vec<double, 3> &spin_initial, const jams::Vec<double, 3> &spin_final, jams::Real time)
 {
-    calculate_fields(time);
+    calculate_fields(time, global_spin_array_for_fields());
     const jams::Vec<jams::Real, 3> h = {field_(i, 0), field_(i, 1), field_(i, 2)};
 
     return -0.5 * ((spin_final[0] * h[0] + spin_final[1] * h[1] + spin_final[2] * h[2])
@@ -188,7 +189,7 @@ jams::Real DipoleFFTHamiltonian::calculate_energy_difference(
 
 
 jams::Vec<jams::Real, 3> DipoleFFTHamiltonian::calculate_field(const int i, jams::Real time) {
-    calculate_fields(time);
+    calculate_fields(time, global_spin_array_for_fields());
     return {field_(i, 0), field_(i, 1), field_(i, 2)};
 }
 
@@ -402,7 +403,8 @@ DipoleFFTHamiltonian::generate_kspace_dipole_tensor(const int pos_i, const int p
 }
 
 
-void DipoleFFTHamiltonian::calculate_fields(jams::Real time) {
+void DipoleFFTHamiltonian::calculate_fields(jams::Real time, const jams::MultiArray<jams::Real, 2>& spins) {
+  const auto spin_view = spins.host_view();
   zero(field_);
 
   for (auto pos_i = 0; pos_i < ::globals::lattice->num_basis_sites(); ++pos_i) {
@@ -417,7 +419,7 @@ void DipoleFFTHamiltonian::calculate_fields(jams::Real time) {
               continue;
             }
             for (auto m = 0; m < 3; ++m) {
-              rspace_s_(kx, ky, kz, m) = globals::s(*index, m);
+              rspace_s_(kx, ky, kz, m) = spin_view(*index, m);
             }
           }
         }

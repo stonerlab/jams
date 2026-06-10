@@ -83,7 +83,7 @@ inline bool cuda_definately_greater_than(const T& a, const T& b, const T& epsilo
 
 __global__ void dipole_bruteforce_kernel
 (
-    const double * s_dev,
+    const jams::Real * s_dev,
     const jams::Real * r_dev,
     const jams::Real * mus_dev,
     const unsigned int num_spins,
@@ -114,7 +114,7 @@ __global__ void dipole_bruteforce_kernel
       }
 
       for (n = 0; n < 3; ++n) {
-          sj[n] = static_cast<jams::Real>(s_dev[base_j + n]);
+          sj[n] = s_dev[base_j + n];
       }
 
       CalculateDisplacementVector(ri, rj, r_ij);
@@ -155,7 +155,7 @@ __global__ void dipole_bruteforce_kernel
 //-----------------------------------------------------------------------------
 __global__ 
 void DipoleBruteforceKernel(
-    const double * s_dev,
+    const jams::Real * s_dev,
     const jams::Real * r_dev,
     const jams::Real * mus_dev,
     const unsigned int num_spins,
@@ -199,7 +199,7 @@ void DipoleBruteforceKernel(
         }
         #pragma unroll
         for (unsigned int n = 0; n < 3; ++n) {
-            s_j[thread_idx][n] = static_cast<jams::Real>(s_dev[3 * shared_idx + n]);
+            s_j[thread_idx][n] = s_dev[3 * shared_idx + n];
         }
       }
       // sync to make sure the shared data is filled from all block threads
@@ -277,7 +277,7 @@ void DipoleBruteforceKernel(
 
 __global__ void dipole_bruteforce_sharemem_kernel
 (
-    const double * s_dev,
+    const jams::Real * s_dev,
     const jams::Real * r_dev,
     const jams::Real * mus_dev,
     const unsigned int num_spins,
@@ -321,7 +321,7 @@ __global__ void dipole_bruteforce_sharemem_kernel
       }
 
       for (unsigned int n = 0; n < 3; ++n) {
-          sj[thread_idx][n] = static_cast<jams::Real>(s_dev[3*shared_idx + n]);
+          sj[thread_idx][n] = s_dev[3*shared_idx + n];
       }
     }
     // sync to make sure the shared data is filled from all block threads
