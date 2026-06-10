@@ -3,9 +3,11 @@
 
 #include "gtest/gtest.h"
 
+#include <algorithm>
 #include <cmath>
 #include <memory>
 #include <string>
+#include <vector>
 
 #include <libconfig.h++>
 
@@ -38,6 +40,64 @@ protected:
   void initialise_lattice_with_z_motif(const std::string& lattice_config) {
     globals::config->readString(base_z_motif_config() + lattice_config);
     globals::lattice->init_from_config(*globals::config);
+  }
+
+  void initialise_lattice_with_high_z_motif(const std::string& lattice_config) {
+    globals::config->readString(base_high_z_motif_config() + lattice_config);
+    globals::lattice->init_from_config(*globals::config);
+  }
+
+  void initialise_lattice_with_large_unitcell(const std::string& lattice_config) {
+    globals::config->readString(base_large_unitcell_config() + lattice_config);
+    globals::lattice->init_from_config(*globals::config);
+  }
+
+  void initialise_lattice_with_large_symmetry_unitcell(const std::string& lattice_config) {
+    globals::config->readString(base_large_symmetry_unitcell_config() + lattice_config);
+    globals::lattice->init_from_config(*globals::config);
+  }
+
+  static bool cartesian_point_set_contains_fractional(
+      const std::vector<jams::Vec<double, 3>>& points_cart,
+      const jams::Vec<double, 3>& expected_frac,
+      const double tolerance) {
+    for (const auto& point_cart : points_cart) {
+      const auto point_frac = globals::lattice->cartesian_to_fractional(point_cart);
+
+      bool match = true;
+      for (auto n = 0; n < 3; ++n) {
+        if (std::abs(point_frac[n] - expected_frac[n]) > tolerance) {
+          match = false;
+          break;
+        }
+      }
+
+      if (match) {
+        return true;
+      }
+    }
+
+    return false;
+  }
+
+  static bool erase_cartesian_point_with_fractional_position(
+      std::vector<jams::Vec<double, 3>>& points_cart,
+      const jams::Vec<double, 3>& expected_frac,
+      const double tolerance) {
+    const auto original_size = points_cart.size();
+    points_cart.erase(
+        std::remove_if(points_cart.begin(), points_cart.end(), [&](const auto& point_cart) {
+          const auto point_frac = globals::lattice->cartesian_to_fractional(point_cart);
+          for (auto n = 0; n < 3; ++n) {
+            if (std::abs(point_frac[n] - expected_frac[n]) > tolerance) {
+              return false;
+            }
+          }
+          return true;
+        }),
+        points_cart.end());
+
+    return points_cart.size() != original_size;
   }
 
   static std::string base_config() {
@@ -93,6 +153,93 @@ protected:
         positions = (
           ("A", [0.0, 0.0, 0.0]),
           ("B", [0.0, 0.0, 0.5])
+        );
+      };
+    )";
+  }
+
+  static std::string base_high_z_motif_config() {
+    return R"(
+      solver : {
+        module = "llg-heun-cpu";
+        t_step = 1.0e-16;
+        t_min  = 1.0e-16;
+        t_max  = 1.0e-16;
+      };
+
+      materials = (
+        { name = "A"; moment = 1.0; spin = [1.0, 0.0, 0.0]; },
+        { name = "B"; moment = 2.0; spin = [2.0, 0.0, 0.0]; }
+      );
+
+      unitcell : {
+        symops = false;
+        parameter = 1.0e-9;
+        basis = (
+          [1.0, 0.0, 0.0],
+          [0.0, 1.0, 0.0],
+          [0.0, 0.0, 1.0]);
+        positions = (
+          ("A", [0.0, 0.0, 0.0]),
+          ("B", [0.0, 0.0, 0.916667])
+        );
+      };
+    )";
+  }
+
+  static std::string base_large_unitcell_config() {
+    return R"(
+      solver : {
+        module = "llg-heun-cpu";
+        t_step = 1.0e-16;
+        t_min  = 1.0e-16;
+        t_max  = 1.0e-16;
+      };
+
+      materials = (
+        { name = "A"; moment = 1.0; spin = [1.0, 0.0, 0.0]; },
+        { name = "B"; moment = 2.0; spin = [2.0, 0.0, 0.0]; }
+      );
+
+      unitcell : {
+        symops = false;
+        check_closeness = false;
+        parameter = 1.0e-9;
+        basis = (
+          [1000000.0, 0.0, 0.0],
+          [0.0, 1000000.0, 0.0],
+          [0.0, 0.0, 1000000.0]);
+        positions = (
+          ("A", [0.0, 0.0, 0.0]),
+          ("B", [0.0, 0.0, 0.916667])
+        );
+      };
+    )";
+  }
+
+  static std::string base_large_symmetry_unitcell_config() {
+    return R"(
+      solver : {
+        module = "llg-heun-cpu";
+        t_step = 1.0e-16;
+        t_min  = 1.0e-16;
+        t_max  = 1.0e-16;
+      };
+
+      materials = (
+        { name = "A"; moment = 1.0; spin = [1.0, 0.0, 0.0]; }
+      );
+
+      unitcell : {
+        symops = true;
+        check_closeness = false;
+        parameter = 1.0e-9;
+        basis = (
+          [1000000.0, 0.0, 0.0],
+          [0.0, 1000000.0, 0.0],
+          [0.0, 0.0, 1000000.0]);
+        positions = (
+          ("A", [0.0, 0.0, 0.0])
         );
       };
     )";
@@ -212,6 +359,242 @@ TEST_F(LatticeSizeTest, IntegerSizeSpinArrayIsDenseSpatialFftInput) {
   }
 }
 
+TEST_F(LatticeSizeTest, LargePeriodicSupercellKeepsHighMotifInLastCell) {
+  initialise_lattice_with_high_z_motif(R"(
+    lattice : {
+      size = [1, 1, 1024];
+      periodic = [true, true, true];
+      normalise_spins = false;
+    };
+  )");
+
+  EXPECT_EQ(globals::lattice->size(), (jams::Vec<int, 3>{1, 1, 1024}));
+  EXPECT_EQ(globals::num_spins, 2048);
+  EXPECT_TRUE(globals::lattice->has_site_at_unit_cell(0, 0, 1023, 0));
+  EXPECT_TRUE(globals::lattice->has_site_at_unit_cell(0, 0, 1023, 1));
+
+  const int high_z_site = globals::lattice->site_index_by_unit_cell(0, 0, 1023, 1);
+  EXPECT_EQ(globals::lattice->cell_offset(high_z_site), (jams::Vec<int, 3>{0, 0, 1023}));
+  EXPECT_EQ(globals::lattice->lattice_site_basis_index(high_z_site), 1u);
+}
+
+TEST_F(LatticeSizeTest, LargeUnitCellVectorsKeepHighMotifInsideExtent) {
+  initialise_lattice_with_large_unitcell(R"(
+    lattice : {
+      size = [1, 1, 1];
+      periodic = [true, true, true];
+      normalise_spins = false;
+    };
+  )");
+
+  EXPECT_EQ(globals::lattice->size(), (jams::Vec<int, 3>{1, 1, 1}));
+  EXPECT_EQ(globals::num_spins, 2);
+  EXPECT_TRUE(globals::lattice->has_site_at_unit_cell(0, 0, 0, 0));
+  EXPECT_TRUE(globals::lattice->has_site_at_unit_cell(0, 0, 0, 1));
+  EXPECT_EQ(globals::lattice->get_supercell().a3(), (jams::Vec<double, 3>{0.0, 0.0, 1000000.0}));
+}
+
+TEST_F(LatticeSizeTest, LatticeSiteCountAboveIntRangeThrowsBeforeAllocation) {
+  globals::config->readString(base_config() + R"(
+    lattice : {
+      size = [32768, 32768, 1];
+      periodic = [true, true, true];
+      normalise_spins = false;
+    };
+  )");
+
+  EXPECT_THROW(globals::lattice->init_from_config(*globals::config), jams::ConfigException);
+}
+
+TEST_F(LatticeSizeTest, SpinComponentCountAboveIntRangeThrowsBeforeAllocation) {
+  globals::config->readString(base_config() + R"(
+    lattice : {
+      size = [400000000, 1, 1];
+      periodic = [true, true, true];
+      normalise_spins = false;
+    };
+  )");
+
+  EXPECT_THROW(globals::lattice->init_from_config(*globals::config), jams::ConfigException);
+}
+
+TEST_F(LatticeSizeTest, ZeroPaddedKspaceDimensionAboveIntRangeThrowsBeforeAllocation) {
+  globals::config->readString(base_config() + R"(
+    lattice : {
+      size = [1073741824, 1, 1];
+      periodic = [false, true, true];
+      normalise_spins = false;
+    };
+  )");
+
+  EXPECT_THROW(globals::lattice->init_from_config(*globals::config), jams::ConfigException);
+}
+
+TEST_F(LatticeSizeTest, FractionalMotifPositionsAreNormalisedModuloUnitCell) {
+  globals::config->readString(R"(
+    solver : {
+      module = "llg-heun-cpu";
+      t_step = 1.0e-16;
+      t_min  = 1.0e-16;
+      t_max  = 1.0e-16;
+    };
+
+    materials = (
+      { name = "A"; moment = 1.0; spin = [1.0, 0.0, 0.0]; }
+    );
+
+    unitcell : {
+      symops = false;
+      parameter = 1.0e-9;
+      basis = (
+        [1.0, 0.0, 0.0],
+        [0.0, 1.0, 0.0],
+        [0.0, 0.0, 1.0]);
+      positions = (
+        ("A", [1.25, -1.25, 2.0])
+      );
+    };
+
+    lattice : {
+      size = [1, 1, 1];
+      periodic = [true, true, true];
+      normalise_spins = false;
+    };
+  )");
+
+  globals::lattice->init_from_config(*globals::config);
+
+  EXPECT_EQ(
+      globals::lattice->basis_site_atom(0).position_frac,
+      (jams::Vec<double, 3>{0.25, 0.75, 0.0}));
+}
+
+TEST_F(LatticeSizeTest, SymmetricPointDeduplicationUsesAbsoluteFractionalTolerance) {
+  initialise_lattice_with_large_symmetry_unitcell(R"(
+    lattice : {
+      size = [1, 1, 1];
+      periodic = [true, true, true];
+      normalise_spins = false;
+    };
+  )");
+
+  const jams::Vec<double, 3> point_frac{10000.0, 10001.0, 0.0};
+  const jams::Vec<double, 3> swapped_frac{10001.0, 10000.0, 0.0};
+
+  const auto symmetric_points = globals::lattice->generate_symmetric_points(
+      0,
+      globals::lattice->fractional_to_cartesian(point_frac),
+      1.0e-4);
+
+  EXPECT_TRUE(cartesian_point_set_contains_fractional(symmetric_points, swapped_frac, 1.0e-4));
+}
+
+TEST_F(LatticeSizeTest, SymmetryCompleteSetUsesAbsoluteFractionalTolerance) {
+  initialise_lattice_with_large_symmetry_unitcell(R"(
+    lattice : {
+      size = [1, 1, 1];
+      periodic = [true, true, true];
+      normalise_spins = false;
+    };
+  )");
+
+  const jams::Vec<double, 3> point_frac{10000.0, 10001.0, 0.0};
+  const jams::Vec<double, 3> swapped_frac{10001.0, 10000.0, 0.0};
+
+  auto incomplete_points = globals::lattice->generate_symmetric_points(
+      0,
+      globals::lattice->fractional_to_cartesian(point_frac),
+      1.0e-4);
+
+  ASSERT_TRUE(erase_cartesian_point_with_fractional_position(incomplete_points, swapped_frac, 1.0e-4));
+  EXPECT_FALSE(globals::lattice->is_a_symmetry_complete_set(0, incomplete_points, 1.0e-4));
+}
+
+TEST_F(LatticeSizeTest, PointGroupIncludesTranslatedSymmetryOperations) {
+  globals::config->readString(R"(
+    solver : {
+      module = "llg-heun-cpu";
+      t_step = 1.0e-16;
+      t_min  = 1.0e-16;
+      t_max  = 1.0e-16;
+    };
+
+    materials = (
+      { name = "A"; moment = 1.0; spin = [1.0, 0.0, 0.0]; }
+    );
+
+    unitcell : {
+      symops = true;
+      parameter = 1.0e-9;
+      basis = (
+        [1.0, 0.0, 0.0],
+        [0.0, 1.0, 0.0],
+        [0.0, 0.0, 1.0]);
+      positions = (
+        ("A", [0.25, 0.0, 0.0])
+      );
+    };
+
+    lattice : {
+      size = [1, 1, 1];
+      periodic = [true, true, true];
+      normalise_spins = false;
+    };
+  )");
+
+  globals::lattice->init_from_config(*globals::config);
+
+  const jams::Mat<double, 3, 3> inversion{
+      -1.0, 0.0, 0.0,
+       0.0,-1.0, 0.0,
+       0.0, 0.0,-1.0};
+
+  const auto& symops = globals::lattice->lattice_site_point_group_symops(0);
+  EXPECT_NE(std::find(symops.begin(), symops.end(), inversion), symops.end());
+}
+
+TEST_F(LatticeSizeTest, PeriodicBoundaryConditionsWrapMultipleCells) {
+  initialise_lattice(R"(
+    lattice : {
+      size = [3, 4, 5];
+      periodic = [true, true, true];
+    };
+  )");
+
+  jams::Vec<int, 3> pos{-7, 10, -11};
+  EXPECT_TRUE(globals::lattice->apply_boundary_conditions(pos));
+  EXPECT_EQ(pos, (jams::Vec<int, 3>{2, 2, 4}));
+
+  int a = 7;
+  int b = -10;
+  int c = 16;
+  EXPECT_TRUE(globals::lattice->apply_boundary_conditions(a, b, c));
+  EXPECT_EQ(a, 1);
+  EXPECT_EQ(b, 2);
+  EXPECT_EQ(c, 1);
+}
+
+TEST_F(LatticeSizeTest, OpenBoundaryConditionsRejectOutOfRangeBeforeWrapping) {
+  initialise_lattice(R"(
+    lattice : {
+      size = [3, 4, 5];
+      periodic = [true, false, true];
+    };
+  )");
+
+  jams::Vec<int, 3> pos{-4, -1, 11};
+  EXPECT_FALSE(globals::lattice->apply_boundary_conditions(pos));
+  EXPECT_EQ(pos, (jams::Vec<int, 3>{2, -1, 11}));
+
+  int a = -4;
+  int b = 4;
+  int c = 11;
+  EXPECT_FALSE(globals::lattice->apply_boundary_conditions(a, b, c));
+  EXPECT_EQ(a, 2);
+  EXPECT_EQ(b, 4);
+  EXPECT_EQ(c, 11);
+}
+
 TEST_F(LatticeSizeTest, NonIntegerSizeCropsUpperLatticePlane) {
   initialise_lattice_with_z_motif(R"(
     lattice : {
@@ -247,6 +630,18 @@ TEST_F(LatticeSizeTest, NonIntegerSizeRequiresOpenBoundaryInCroppedDirection) {
   globals::config->readString(base_z_motif_config() + R"(
     lattice : {
       size = [1.0, 1.0, 2.5];
+      periodic = [true, true, true];
+      normalise_spins = false;
+    };
+  )");
+
+  EXPECT_THROW(globals::lattice->init_from_config(*globals::config), jams::ConfigException);
+}
+
+TEST_F(LatticeSizeTest, LargeNonIntegerSizeRequiresOpenBoundaryInCroppedDirection) {
+  globals::config->readString(base_z_motif_config() + R"(
+    lattice : {
+      size = [1.0, 1.0, 10000000.5];
       periodic = [true, true, true];
       normalise_spins = false;
     };

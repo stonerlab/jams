@@ -5,6 +5,14 @@
 #ifndef JAMS_INTERACTION_LIST_H
 #define JAMS_INTERACTION_LIST_H
 
+#include <algorithm>
+#include <array>
+#include <cassert>
+#include <cstddef>
+#include <iterator>
+#include <utility>
+#include <vector>
+
 #include "jams/containers/vector_set.h"
 #include "jams/containers/unordered_vector_set.h"
 
@@ -18,7 +26,7 @@ namespace jams {
         friend class InteractionMatrix;
     public:
         using value_type = T;
-        using size_type = int;
+        using size_type = std::size_t;
         using index_type = int;
         using index_array_type = std::array<int, N>;
         using pair_type = std::pair<const index_array_type&, const value_type&>;
@@ -26,13 +34,15 @@ namespace jams {
         InteractionList()  = default;
 
         void insert(const index_array_type& index, const T &value) {
-          auto insert_pos = indicies_.insert_and_get_position(index);
-          assert(insert_pos >= 0);
-          assert(insert_pos < indicies_.size() + 1);
+          const auto insert_pos_signed = indicies_.insert_and_get_position(index);
+          assert(insert_pos_signed >= 0);
+          const auto insert_pos = static_cast<size_type>(insert_pos_signed);
+          assert(insert_pos < indicies_.size());
 
-          auto value_pos = value_table_.insert_and_get_position(value);
-          assert(value_pos >= 0);
-          assert(value_pos < value_table_.size() + 1);
+          const auto value_pos_signed = value_table_.insert_and_get_position(value);
+          assert(value_pos_signed >= 0);
+          const auto value_pos = static_cast<size_type>(value_pos_signed);
+          assert(value_pos < value_table_.size());
 
           // now put the lookup index into the same position as indicies_
           value_lookup_.insert(value_lookup_.begin() + insert_pos, value_pos);
@@ -48,6 +58,10 @@ namespace jams {
 
         inline size_type size() const {
           return indicies_.size();
+        }
+
+        inline size_type num_interactions() const {
+          return size();
         }
 
         inline size_type memory() const {
@@ -81,9 +95,10 @@ namespace jams {
               bool operator() ( index_type i, const index_array_type& x ) const { return i < std::get<0>(x); }
           };
 
-          auto range = std::equal_range(std::begin(indicies_), std::end(indicies_), i, Comp{});
+          const auto range = std::equal_range(std::begin(indicies_), std::end(indicies_), i, Comp{});
           return std::make_pair(
-              std::distance(begin(indicies_), range.first), std::distance(begin(indicies_), range.second));
+              static_cast<size_type>(std::distance(begin(indicies_), range.first)),
+              static_cast<size_type>(std::distance(begin(indicies_), range.second)));
         }
 
         jams::VectorSet<index_array_type> indicies_;

@@ -2,11 +2,14 @@
 #include "gmock/gmock.h"
 #include "jams/test/containers/test_vector_set.h"
 #include "jams/test/containers/test_unordered_vector_set.h"
+#include "jams/test/containers/test_interaction_list.h"
 #include "jams/test/containers/test_neartree.h"
 #include "jams/test/containers/test_cell.h"
+#include "jams/test/core/test_interactions.h"
 #include <jams/lattice/minimum_image.t.h>
 #include <jams/lattice/interaction_neartree.t.h>
 #include <jams/test/lattice/test_lattice_size.h>
+#include <jams/test/monitors/test_magnetisation_layers.h>
 
 #include "jams/test/hamiltonian/test_crystal_field.h"
 #include "jams/test/hamiltonian/test_dipole.h"

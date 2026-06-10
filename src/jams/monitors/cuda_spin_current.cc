@@ -42,7 +42,7 @@ CudaSpinCurrentMonitor::CudaSpinCurrentMonitor(const libconfig::Setting &setting
   jams::SparseMatrix<jams::Vec<double, 3>>::Builder sparse_matrix_builder(globals::num_spins, globals::num_spins);
 
   const auto& nbr_list = exchange_hamiltonian.neighbour_list();
-  for (auto n = 0; n < nbr_list.size(); ++n) {
+  for (decltype(nbr_list.size()) n = 0; n < nbr_list.size(); ++n) {
     auto i = nbr_list[n].first[0];
     auto j = nbr_list[n].first[1];
     auto Jij = nbr_list[n].second[0][0];

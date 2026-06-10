@@ -13,6 +13,7 @@
 
 #include "jams/core/types.h"
 #include "jams/containers/mat3.h"
+#include "jams/helpers/defaults.h"
 #include "jams/helpers/utils.h"
 #include "jams/containers/unordered_vector_set.h"
 #include "jams/containers/vector_set.h"
@@ -97,7 +98,8 @@ generate_neighbour_list(std::ifstream &file,
                         double energy_cutoff,
                         double radius_cutoff,
                         double distance_tolerance,
-                        std::vector<InteractionChecks> checks);
+                        std::vector<InteractionChecks> checks,
+                        double radius_cutoff_tolerance = jams::defaults::lattice_tolerance);
 
 jams::InteractionList<jams::Mat<double, 3, 3>, 2>
 generate_neighbour_list(libconfig::Setting &settings,
@@ -106,7 +108,8 @@ generate_neighbour_list(libconfig::Setting &settings,
                         double energy_cutoff,
                         double radius_cutoff,
                         double distance_tolerance,
-                        std::vector<InteractionChecks> checks);
+                        std::vector<InteractionChecks> checks,
+                        double radius_cutoff_tolerance = jams::defaults::lattice_tolerance);
 
 void
 safety_check_distance_tolerance(const double &tolerance);
@@ -124,7 +127,7 @@ void
 write_neighbour_list(std::ostream &output, const jams::InteractionList<jams::Mat<double, 3, 3>, 2> &list);
 
 void
-post_process_interactions(std::vector<InteractionData> &interactions, const InteractionFileDescription& desc, CoordinateFormat coord_format, bool use_symops, double energy_cutoff, double radius_cutoff, double distance_tolerance);
+post_process_interactions(std::vector<InteractionData> &interactions, const InteractionFileDescription& desc, CoordinateFormat coord_format, bool use_symops, double energy_cutoff, double radius_cutoff, double distance_tolerance, double radius_cutoff_tolerance = jams::defaults::lattice_tolerance);
 
 template <class T>
 class InteractionList {

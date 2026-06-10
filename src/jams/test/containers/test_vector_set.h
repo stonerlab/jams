@@ -35,6 +35,10 @@ ASSERT_EQ(vset.size(), 3);
 ASSERT_EQ(vset[0], -3.0);
 ASSERT_EQ(vset[1], 1.0);
 ASSERT_EQ(vset[2], 2.0);
+
+ASSERT_EQ(vset.insert_and_get_position(-4.0), 0);
+ASSERT_EQ(vset.insert_and_get_position(1.5), 3);
+ASSERT_EQ(vset.insert_and_get_position(2.0), 4);
 }
 
 TEST(VectorSetTest, VecDouble3) {

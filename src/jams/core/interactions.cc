@@ -1,4 +1,5 @@
 #include <cmath>
+#include <cstddef>
 #include <iomanip>
 #include <fstream>
 #include <string>
@@ -6,6 +7,7 @@
 #include <set>
 #include <numeric>
 #include <optional>
+#include <utility>
 #include <jams/helpers/output.h>
 
 #include "jams/core/types.h"
@@ -17,11 +19,75 @@
 #include "jams/helpers/utils.h"
 #include "jams/helpers/exception.h"
 #include "jams/interface/config.h"
+#include "jams/lattice/coordinates.h"
 
 
 void neighbour_list_checks(const jams::InteractionList<jams::Mat<double, 3, 3>, 2>& list, const std::vector<InteractionChecks>& checks);
 
 namespace { //anon
+    std::string format_unit_cell_offset(const jams::Vec<int, 3>& offset) {
+      std::ostringstream stream;
+      stream << offset[0] << ", " << offset[1] << ", " << offset[2];
+      return stream.str();
+    }
+
+    struct NeighbourListSkipRecord {
+      std::size_t count = 0;
+      std::string sample;
+
+      void record(std::string sample_message) {
+        ++count;
+        if (sample.empty()) {
+          sample = std::move(sample_message);
+        }
+      }
+    };
+
+    struct NeighbourListSkipDiagnostics {
+      NeighbourListSkipRecord missing_local_site;
+      NeighbourListSkipRecord open_boundary;
+      NeighbourListSkipRecord missing_neighbour_site;
+      NeighbourListSkipRecord material_mismatch;
+
+      std::size_t total() const {
+        return missing_local_site.count
+               + open_boundary.count
+               + missing_neighbour_site.count
+               + material_mismatch.count;
+      }
+
+      void write_summary_if_any() const {
+        if (total() == 0) {
+          return;
+        }
+
+        std::cout << "    skipped neighbour-list candidates: " << total() << "\n";
+        write_record("missing local sites", missing_local_site);
+        write_record("outside open boundaries", open_boundary);
+        write_record("missing neighbour sites", missing_neighbour_site);
+        write_record("material/type mismatches", material_mismatch);
+      }
+
+      static void write_record(const char* label, const NeighbourListSkipRecord& record) {
+        if (record.count == 0) {
+          return;
+        }
+
+        std::cout << "      " << label << ": " << record.count << "\n";
+        std::cout << "        first: " << record.sample << "\n";
+      }
+    };
+
+    std::string format_candidate_site(
+        const char* label,
+        const int motif,
+        const jams::Vec<int, 3>& unit_cell) {
+      std::ostringstream stream;
+      stream << label << " motif " << motif << " (input index " << motif + 1 << ")"
+             << " unit cell " << format_unit_cell_offset(unit_cell);
+      return stream.str();
+    }
+
     void apply_symops(std::vector<InteractionData>& interactions) {
       std::vector<InteractionData> symops_interaction_data;
 
@@ -54,26 +120,28 @@ namespace { //anon
       return std::nullopt;
     }
 
-    /// Returns the integer lattice translation vector T of an arbitrary vector r accounting for difficulties
-    /// in the precision at the edges and corners of the cell.
-    jams::Vec<double, 3> lattice_translation_vector(const jams::Vec<double, 3>& r_frac, const double tolerance) {
-      // If we are very close to the origin or edge of a cell then rounding with floor() to find the cell translation
-      // vector can be tricky because smaller errors due to floating point precision (not least from the user input)
-      // could put us in the wrong cell. Therefore we first check for the case that we are very close (within
-      // tolerance) of a cell origin, in which case we round to that origin. Otherwise we use
-      // floor() in the usual way.
-      jams::Vec<double, 3> T;
-      for (auto n = 0; n < 3; ++n) {
-        double nearest_integer = std::nearbyint(r_frac[n]);
-        double floored_value = std::floor(r_frac[n]);
-
-        if (approximately_zero(r_frac[n] - nearest_integer, tolerance)) {
-          T[n] = nearest_integer;
-        } else {
-          T[n] = floored_value;
-        }
+    jams::Vec<int, 3> require_integer_lattice_translation(
+        const jams::Vec<double, 3>& translation_frac,
+        const InteractionData& interaction,
+        const double tolerance) {
+      if (const auto translation = jams::lattice::nearest_integer_lattice_vector(translation_frac, tolerance)) {
+        return *translation;
       }
-      return T;
+
+      const jams::Vec<double, 3> nearest_integer{
+          std::nearbyint(translation_frac[0]),
+          std::nearbyint(translation_frac[1]),
+          std::nearbyint(translation_frac[2])};
+
+      throw jams::SanityException(
+          "interaction vector does not connect the two motif positions by an integer lattice translation\n",
+          "  basis_site_i: ", interaction.basis_site_i, " (input index ", interaction.basis_site_i + 1, ")\n",
+          "  basis_site_j: ", interaction.basis_site_j, " (input index ", interaction.basis_site_j + 1, ")\n",
+          "  interaction_vector_cart: ", interaction.interaction_vector_cart, "\n",
+          "  fractional translation: ", translation_frac, "\n",
+          "  nearest integer translation: ", nearest_integer, "\n",
+          "  residual: ", translation_frac - nearest_integer, "\n",
+          "  distance_tolerance: ", tolerance);
     }
 
     std::optional<int> find_unitcell_partner(int i, jams::Vec<double, 3> r_ij, double tolerance) {
@@ -84,7 +152,7 @@ namespace { //anon
       // fractional interaction vector shifted by motif position
       jams::Vec<double, 3> q_ij = r_ij_frac + p_i_frac;
 
-      return find_basis_site_index(q_ij - lattice_translation_vector(q_ij, tolerance), tolerance);
+      return find_basis_site_index(q_ij - jams::lattice::containing_cell_offset(q_ij, tolerance), tolerance);
     }
 
     void complete_interaction_typenames_names(std::vector<InteractionData>& interactions) {
@@ -122,6 +190,24 @@ namespace { //anon
         }
       }
       swap(interactions, new_data);
+    }
+
+    bool interaction_vectors_match_for_symmetry(
+        const jams::Vec<double, 3>& candidate_cart,
+        const jams::Vec<double, 3>& expected_cart,
+        const double tolerance) {
+      if (globals::lattice == nullptr) {
+        return jams::lattice::absolute_vector_equal(candidate_cart, expected_cart, tolerance);
+      }
+
+      // Interaction vectors are lattice-coordinate objects. Compare them in
+      // fractional coordinates with an absolute component tolerance so the
+      // accepted mismatch does not grow with either unit-cell scale or
+      // interaction-vector length.
+      return jams::lattice::absolute_vector_equal(
+          globals::lattice->cartesian_to_fractional(candidate_cart),
+          globals::lattice->cartesian_to_fractional(expected_cart),
+          tolerance);
     }
 } // namespace anon
 
@@ -288,7 +374,7 @@ interactions_from_settings(libconfig::Setting &setting, const InteractionFileDes
 }
 
 void
-post_process_interactions(std::vector<InteractionData> &interactions, const InteractionFileDescription& desc, CoordinateFormat coord_format, bool use_symops, double energy_cutoff, double radius_cutoff, double distance_tolerance) {
+post_process_interactions(std::vector<InteractionData> &interactions, const InteractionFileDescription& desc, CoordinateFormat coord_format, bool use_symops, double energy_cutoff, double radius_cutoff, double distance_tolerance, double radius_cutoff_tolerance) {
   if (coord_format == CoordinateFormat::FRACTIONAL) {
     apply_transform(interactions, [](InteractionData J) -> InteractionData {
         J.interaction_vector_cart = ::globals::lattice->fractional_to_cartesian(J.interaction_vector_cart);
@@ -325,7 +411,10 @@ post_process_interactions(std::vector<InteractionData> &interactions, const Inte
 
   if (radius_cutoff > 0.0) {
     apply_predicate(interactions, [&](InteractionData J) -> bool {
-      return definately_greater_than(jams::norm(J.interaction_vector_cart), radius_cutoff, jams::defaults::lattice_tolerance);});
+      // radius_cutoff is a Cartesian distance in lattice-parameter units. Keep
+      // its tolerance separate from fractional matching tolerances so changing
+      // motif-matching precision does not also thicken the cutoff shell.
+      return jams::norm(J.interaction_vector_cart) > radius_cutoff + radius_cutoff_tolerance;});
   }
 
   // calculate the lattice translation vectors
@@ -333,13 +422,16 @@ post_process_interactions(std::vector<InteractionData> &interactions, const Inte
     jams::Vec<double, 3> p_i_frac = globals::lattice->basis_site_atom(J.basis_site_i).position_frac;
     jams::Vec<double, 3> p_j_frac = globals::lattice->basis_site_atom(J.basis_site_j).position_frac;
     jams::Vec<double, 3> r_ij_frac = globals::lattice->cartesian_to_fractional(J.interaction_vector_cart);
-    jams::Vec<double, 3> T = lattice_translation_vector(r_ij_frac + p_i_frac - p_j_frac, distance_tolerance);
+    const auto translation_frac = r_ij_frac + p_i_frac - p_j_frac;
 
-    // If r_ij_frac + p_i_frac - p_j_frac is not a cell translation vector then there is a problem with the inputted
-    // exchange vectors.
-    assert(jams::approximately_zero(T - (r_ij_frac + p_i_frac - p_j_frac), distance_tolerance));
-
-    J.lattice_translation_vector = {int(T[0]), int(T[1]), int(T[2])};
+    // The interaction vector must connect the two basis sites by an integer
+    // lattice translation. Validate this in all builds rather than relying on
+    // assert, because truncating a non-integer translation builds a wrong
+    // neighbour list.
+    J.lattice_translation_vector = require_integer_lattice_translation(
+        translation_frac,
+        J,
+        distance_tolerance);
     return J;
   });
 
@@ -348,6 +440,7 @@ post_process_interactions(std::vector<InteractionData> &interactions, const Inte
 jams::InteractionList<jams::Mat<double, 3, 3>, 2>
 neighbour_list_from_interactions(std::vector<InteractionData> &interactions) {
   jams::InteractionList<jams::Mat<double, 3, 3>, 2> nbr_list;
+  NeighbourListSkipDiagnostics skip_diagnostics;
 
   // loop over the translation vectors for lattice size
   for (int i = 0; i < globals::lattice->size(0); ++i) {
@@ -359,20 +452,29 @@ neighbour_list_from_interactions(std::vector<InteractionData> &interactions) {
 
           const auto local_site_optional = globals::lattice->site_index_by_unit_cell_optional(i, j, k, m);
           if (!local_site_optional) {
+            skip_diagnostics.missing_local_site.record(
+                format_candidate_site("local", m, {i, j, k}));
             continue;
           }
           const int local_site = *local_site_optional;
 
           jams::Vec<int, 3> d_unit_cell = jams::Vec<int, 3>{i, j, k} + I.lattice_translation_vector;
+          const jams::Vec<int, 3> unwrapped_unit_cell = d_unit_cell;
 
           // check if interaction goes outside of an open boundary
           if (globals::lattice->apply_boundary_conditions(d_unit_cell[0], d_unit_cell[1], d_unit_cell[2]) == false) {
+            skip_diagnostics.open_boundary.record(
+                format_candidate_site("neighbour", I.basis_site_j, unwrapped_unit_cell)
+                + " from local site " + std::to_string(local_site));
             continue;
           }
 
           const auto nbr_site_optional = globals::lattice->site_index_by_unit_cell_optional(
               d_unit_cell[0], d_unit_cell[1], d_unit_cell[2], I.basis_site_j);
           if (!nbr_site_optional) {
+            skip_diagnostics.missing_neighbour_site.record(
+                format_candidate_site("neighbour", I.basis_site_j, d_unit_cell)
+                + " from local site " + std::to_string(local_site));
             continue;
           }
           const int nbr_site = *nbr_site_optional;
@@ -389,6 +491,14 @@ neighbour_list_from_interactions(std::vector<InteractionData> &interactions) {
 
           // catch if the site has a different material (presumably an impurity site)
           if (globals::lattice->lattice_site_material_name(local_site) != I.type_i || globals::lattice->lattice_site_material_name(nbr_site) != I.type_j) {
+            std::ostringstream sample;
+            sample << "local site " << local_site
+                   << " material " << globals::lattice->lattice_site_material_name(local_site)
+                   << " expected " << I.type_i
+                   << ", neighbour site " << nbr_site
+                   << " material " << globals::lattice->lattice_site_material_name(nbr_site)
+                   << " expected " << I.type_j;
+            skip_diagnostics.material_mismatch.record(sample.str());
             continue;
           }
 
@@ -397,6 +507,8 @@ neighbour_list_from_interactions(std::vector<InteractionData> &interactions) {
       }
     }
   }
+
+  skip_diagnostics.write_summary_if_any();
 
   return nbr_list;
 }
@@ -408,10 +520,17 @@ generate_neighbour_list(std::ifstream &file,
                         double energy_cutoff,
                         double radius_cutoff,
                         double distance_tolerance,
-                        std::vector<InteractionChecks> checks) {
-  auto interactions = generate_interaction_data(
-      file, coord_format, use_symops, energy_cutoff, radius_cutoff, distance_tolerance);
+                        std::vector<InteractionChecks> checks,
+                        double radius_cutoff_tolerance) {
+  auto file_desc = discover_interaction_file_format(file);
+  auto interactions = interactions_from_file(file, file_desc);
 
+  post_process_interactions(interactions, file_desc, coord_format, use_symops, energy_cutoff, radius_cutoff, distance_tolerance, radius_cutoff_tolerance);
+  check_interaction_list_symmetry(interactions);
+
+
+  // now the interaction data should be in the same format regardless of the input
+  // calculate the neighbourlist from here
   auto nbrs = neighbour_list_from_interactions(interactions);
 
   neighbour_list_checks(nbrs, checks);
@@ -426,10 +545,16 @@ generate_neighbour_list(libconfig::Setting &setting,
                         double energy_cutoff,
                         double radius_cutoff,
                         double distance_tolerance,
-                        std::vector<InteractionChecks> checks) {
-  auto interactions = generate_interaction_data(
-      setting, coord_format, use_symops, energy_cutoff, radius_cutoff, distance_tolerance);
+                        std::vector<InteractionChecks> checks,
+                        double radius_cutoff_tolerance) {
+  auto file_desc = discover_interaction_setting_format(setting);
+  auto interactions = interactions_from_settings(setting, file_desc);
 
+  post_process_interactions(interactions, file_desc, coord_format, use_symops, energy_cutoff, radius_cutoff, distance_tolerance, radius_cutoff_tolerance);
+  check_interaction_list_symmetry(interactions);
+
+  // now the interaction data should be in the same format regardless of the input
+  // calculate the neighbourlist from here
   auto nbrs = neighbour_list_from_interactions(interactions);
 
   neighbour_list_checks(nbrs, checks);
@@ -480,17 +605,40 @@ void neighbour_list_checks(const jams::InteractionList<jams::Mat<double, 3, 3>, 
         break;
       case InteractionChecks::kIdenticalMotifNeighbourCount:
         if (globals::lattice->is_periodic(0) && globals::lattice->is_periodic(1) && globals::lattice->is_periodic(2)) {
-          std::vector<unsigned> motif_position_interactions(
-              globals::lattice->num_basis_sites());
-            for (auto i = 0; i < globals::lattice->num_basis_sites(); ++i) {
-              motif_position_interactions[i] = list.num_interactions(i);
-            }
+          using list_size_type = jams::InteractionList<jams::Mat<double, 3, 3>, 2>::size_type;
+          std::vector<list_size_type> motif_position_interactions(globals::lattice->num_basis_sites());
+          std::vector<int> motif_position_reference_site(globals::lattice->num_basis_sites(), -1);
 
-            for (auto i = 0; i < globals::num_spins; ++i) {
-              auto pos = globals::lattice->lattice_site_basis_index(i);
-              if (list.num_interactions(i) != motif_position_interactions[pos]) {
-                throw std::runtime_error(
-                    "inconsistent neighbour list: some sites have different numbers of neighbours for the same motif position");
+          for (auto motif = 0; motif < globals::lattice->num_basis_sites(); ++motif) {
+            for (auto site = 0; site < globals::num_spins; ++site) {
+              if (globals::lattice->lattice_site_basis_index(site) == static_cast<unsigned>(motif)) {
+                motif_position_interactions[motif] = list.num_interactions(site);
+                motif_position_reference_site[motif] = site;
+                break;
+              }
+            }
+          }
+
+          for (auto i = 0; i < globals::num_spins; ++i) {
+            const auto pos = globals::lattice->lattice_site_basis_index(i);
+            const auto actual_count = list.num_interactions(i);
+            const auto expected_count = motif_position_interactions[pos];
+            if (actual_count != expected_count) {
+              std::ostringstream message;
+              message << "inconsistent neighbour list: some sites have different numbers of neighbours for the same motif position\n"
+                      << "  site: " << i << "\n"
+                      << "  motif position: " << pos << " (input index " << pos + 1 << ")\n"
+                      << "  unit cell: " << format_unit_cell_offset(globals::lattice->cell_offset(i)) << "\n"
+                      << "  expected neighbours: " << expected_count;
+              const int reference_site = motif_position_reference_site[pos];
+              if (reference_site >= 0) {
+                message << " from reference site " << reference_site
+                        << " in unit cell "
+                        << format_unit_cell_offset(globals::lattice->cell_offset(reference_site));
+              }
+              message << "\n"
+                      << "  actual neighbours: " << actual_count;
+              throw std::runtime_error(message.str());
             }
           }
         }
@@ -535,16 +683,26 @@ void neighbour_list_checks(const jams::InteractionList<jams::Mat<double, 3, 3>, 
 
 void
 safety_check_distance_tolerance(const double &tolerance) {
-  // check that no atoms in the unit cell are closer together than the tolerance
+  if (tolerance < 0.0) {
+    throw jams::SanityException("distance_tolerance must be non-negative");
+  }
 
+  // Check that no two motif positions are indistinguishable under the same
+  // periodic fractional-coordinate criterion used by find_basis_site_index().
+  // Raw fractional differences miss pairs split across opposite unit-cell
+  // faces, while Cartesian distances would use the wrong units for this
+  // matching tolerance.
   for (auto i = 0; i < globals::lattice->num_basis_sites(); ++i) {
     for (auto j = i + 1; j < globals::lattice->num_basis_sites(); ++j) {
-      const auto distance = jams::norm(globals::lattice->basis_site_atom(i).position_frac - globals::lattice->basis_site_atom(
-          j).position_frac);
-      if (distance < tolerance) {
-        throw jams::SanityException("Atoms ", i, " and ", j, " in the unit cell are close together (", distance,
-                                    ") than the distance_tolerance (", tolerance, ").\n Check the positions",
-                                    "or relax distance_tolerance");
+      const auto position_i = globals::lattice->basis_site_atom(i).position_frac;
+      const auto position_j = globals::lattice->basis_site_atom(j).position_frac;
+      if (jams::lattice::fractional_positions_equivalent(position_i, position_j, tolerance)) {
+        throw jams::SanityException("Atoms ", i, " and ", j,
+                                    " in the unit cell are indistinguishable within distance_tolerance (",
+                                    tolerance, ") after applying periodic fractional wrapping.\n",
+                                    "  position_i: ", position_i, "\n",
+                                    "  position_j: ", position_j, "\n",
+                                    "Check the positions or relax distance_tolerance");
       }
     }
   }
@@ -552,30 +710,30 @@ safety_check_distance_tolerance(const double &tolerance) {
 
 void check_interaction_list_symmetry(const std::vector<InteractionData> &interactions) {
   for (const auto &J : interactions) {
-    InteractionData sym_J;
-    sym_J.basis_site_i = J.basis_site_j;
-    sym_J.basis_site_j = J.basis_site_i;
-    sym_J.interaction_vector_cart = -J.interaction_vector_cart;
-    sym_J.interaction_value_tensor = transpose(J.interaction_value_tensor);
-    sym_J.type_i = J.type_j;
-    sym_J.type_j = J.type_i;
+    InteractionData expected_reversed_J;
+    expected_reversed_J.basis_site_i = J.basis_site_j;
+    expected_reversed_J.basis_site_j = J.basis_site_i;
+    expected_reversed_J.interaction_vector_cart = -J.interaction_vector_cart;
+    expected_reversed_J.interaction_value_tensor = transpose(J.interaction_value_tensor);
+    expected_reversed_J.type_i = J.type_j;
+    expected_reversed_J.type_j = J.type_i;
 
 
-    auto it = std::find_if(interactions.begin(), interactions.end(), [&](const InteractionData& sym_J){
-      return (sym_J.basis_site_i == J.basis_site_i
-      && sym_J.basis_site_j == J.basis_site_j
-      && sym_J.type_i == J.type_i
-      && sym_J.type_j == J.type_j
-      && jams::approximately_equal(sym_J.interaction_vector_cart, J.interaction_vector_cart, jams::defaults::lattice_tolerance)
-      && approximately_equal(sym_J.interaction_value_tensor, J.interaction_value_tensor, 1e-4));
+    auto it = std::find_if(interactions.begin(), interactions.end(), [&](const InteractionData& candidate){
+      return (candidate.basis_site_i == expected_reversed_J.basis_site_i
+      && candidate.basis_site_j == expected_reversed_J.basis_site_j
+      && candidate.type_i == expected_reversed_J.type_i
+      && candidate.type_j == expected_reversed_J.type_j
+      && interaction_vectors_match_for_symmetry(candidate.interaction_vector_cart, expected_reversed_J.interaction_vector_cart, jams::defaults::lattice_tolerance)
+      && approximately_equal(candidate.interaction_value_tensor, expected_reversed_J.interaction_value_tensor, 1e-4));
     });
 
     if (it == interactions.end()) {
       std::string message = "Interaction template is not symmetric. " +
-      std::to_string(sym_J.basis_site_i + 1) + " " + std::to_string(sym_J.basis_site_j + 1) + " " +
-        std::to_string(sym_J.interaction_vector_cart[0]) + " " +
-          std::to_string(sym_J.interaction_vector_cart[1]) + " " +
-            std::to_string(sym_J.interaction_vector_cart[2]);
+      std::to_string(expected_reversed_J.basis_site_i + 1) + " " + std::to_string(expected_reversed_J.basis_site_j + 1) + " " +
+        std::to_string(expected_reversed_J.interaction_vector_cart[0]) + " " +
+          std::to_string(expected_reversed_J.interaction_vector_cart[1]) + " " +
+            std::to_string(expected_reversed_J.interaction_vector_cart[2]);
 
       throw jams::SanityException(message);
     }
@@ -638,7 +796,7 @@ write_neighbour_list(std::ostream &output, const jams::InteractionList<jams::Mat
   output << jams::fmt::sci << "Jij_zy";
   output << jams::fmt::sci << "Jij_zz" << "\n";
 
-  for (int n = 0; n < list.size(); ++n) {
+  for (jams::InteractionList<jams::Mat<double, 3, 3>, 2>::size_type n = 0; n < list.size(); ++n) {
       auto i = list[n].first[0];
       auto j = list[n].first[1];
       auto rij = globals::lattice->displacement(i, j);
