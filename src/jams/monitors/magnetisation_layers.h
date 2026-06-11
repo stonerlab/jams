@@ -43,13 +43,25 @@
 ///                     (shape = [num_layers], type = int)
 ///
 /// For ParaView visualisation, a sidecar XDMF file is written alongside the H5
-/// file. Static slab and glyph-seed geometry for each layer is stored under
+/// file. Static clipped supercell geometry and glyph-seed geometry for each
+/// layer is stored under
 /// "/jams/monitors/<monitor-name>/groups/<group-name>/xdmf":
 ///
-/// - volume_points:    Eight XYZ vertices per layer slab, in nm
-///                     (shape = [num_layers * 8, 3], type = double)
-/// - volume_cells:     Hexahedron connectivity for each layer slab
-///                     (shape = [num_layers, 8], type = int)
+/// - volume_points:    XYZ vertices for clipped layer volumes, in nm
+///                     (shape = [num_volume_points, 3], type = double)
+/// - volume_tetrahedra:
+///                     Tetrahedron connectivity for clipped layer volumes
+///                     (shape = [num_volume_tetrahedra, 4], type = int)
+/// - volume_tetra_layer_index:
+///                     Layer index for each volume tetrahedron
+///                     (shape = [num_volume_tetrahedra], type = int)
+/// - slice_points:     XYZ vertices for exact layer-centre slice faces, in nm
+///                     (shape = [num_slice_points, 3], type = double)
+/// - slice_triangles:  Triangle connectivity for exact layer-centre slice faces
+///                     (shape = [num_slice_triangles, 3], type = int)
+/// - slice_triangle_layer_index:
+///                     Layer index for each slice triangle
+///                     (shape = [num_slice_triangles], type = int)
 /// - glyph_points:     One XYZ point per layer for arrow glyph filters
 ///                     (shape = [num_layers, 3], type = double)
 ///
@@ -144,6 +156,13 @@ private:
     std::vector<jams::monitors::SpinGroup> spin_groups_;
     std::vector<int> group_num_layers_;
     std::vector<XdmfTimeStep> xdmf_time_steps_;
+    std::vector<std::vector<double>> group_layer_positions_;
+    std::vector<std::vector<double>> group_layer_saturation_moment_;
+    std::vector<std::vector<int>> group_layer_spin_count_;
+    std::vector<std::vector<int>> group_volume_tetra_layer_indices_;
+    std::vector<std::vector<int>> group_slice_triangle_layer_indices_;
+    std::vector<int> group_volume_point_counts_;
+    std::vector<int> group_slice_point_counts_;
     std::vector<jams::MultiArray<double,2>>           group_layer_magnetisation_;
     std::vector<jams::MultiArray<int,1>>              group_spin_layer_indices_;
 

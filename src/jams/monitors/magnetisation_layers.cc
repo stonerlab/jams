@@ -23,6 +23,7 @@
 #include <iomanip>
 #include <limits>
 #include <map>
+#include <optional>
 #include <span>
 #include <stdexcept>
 #include <string>
@@ -42,6 +43,26 @@ struct PlaneBasis {
 struct LayerVolumeBounds {
   double lower_nm = 0.0;
   double upper_nm = 0.0;
+};
+
+struct HalfSpace {
+  jams::Vec<double, 3> normal{0.0, 0.0, 1.0};
+  double offset = 0.0;
+};
+
+struct ClippedPolyhedron {
+  std::vector<jams::Vec<double, 3>> vertices;
+  std::vector<std::vector<int>> faces;
+};
+
+struct LayerGeometry {
+  std::vector<jams::Vec<double, 3>> volume_points;
+  std::vector<std::array<int, 4>> volume_tetrahedra;
+  std::vector<int> volume_tetra_layer_indices;
+  std::vector<jams::Vec<double, 3>> slice_points;
+  std::vector<std::array<int, 3>> slice_triangles;
+  std::vector<int> slice_triangle_layer_indices;
+  std::vector<jams::Vec<double, 3>> glyph_points;
 };
 
 #if HAS_CUDA
@@ -181,6 +202,37 @@ std::array<jams::Vec<double, 3>, 8> supercell_corners_nm() {
   };
 }
 
+std::array<HalfSpace, 6> supercell_halfspaces_nm() {
+  const auto& supercell = globals::lattice->get_supercell();
+  const double scale = globals::lattice->parameter() * kMeterToNanometer;
+  const Cell supercell_nm(
+      supercell.a1() * scale,
+      supercell.a2() * scale,
+      supercell.a3() * scale,
+      supercell.periodic());
+
+  const auto b1 = supercell_nm.b1();
+  const auto b2 = supercell_nm.b2();
+  const auto b3 = supercell_nm.b3();
+  return {
+      HalfSpace{b1, 1.0},
+      HalfSpace{-b1, 0.0},
+      HalfSpace{b2, 1.0},
+      HalfSpace{-b2, 0.0},
+      HalfSpace{b3, 1.0},
+      HalfSpace{-b3, 0.0},
+  };
+}
+
+double geometry_tolerance_nm(
+    const std::array<jams::Vec<double, 3>, 8>& corners) {
+  double max_corner_norm = 0.0;
+  for (const auto& corner : corners) {
+    max_corner_norm = std::max(max_corner_norm, jams::norm(corner));
+  }
+  return std::max(1.0e-10, max_corner_norm * 1.0e-12);
+}
+
 double projected_sample_thickness_nm(
     const std::array<jams::Vec<double, 3>, 8>& corners,
     const jams::Vec<double, 3>& layer_normal_unit) {
@@ -192,6 +244,21 @@ double projected_sample_thickness_nm(
     upper = std::max(upper, projection);
   }
   return upper - lower;
+}
+
+LayerVolumeBounds projected_sample_bounds_nm(
+    const std::array<jams::Vec<double, 3>, 8>& corners,
+    const jams::Vec<double, 3>& layer_normal_unit) {
+  LayerVolumeBounds bounds{
+      std::numeric_limits<double>::max(),
+      std::numeric_limits<double>::lowest(),
+  };
+  for (const auto& corner : corners) {
+    const auto projection = jams::dot(corner, layer_normal_unit);
+    bounds.lower_nm = std::min(bounds.lower_nm, projection);
+    bounds.upper_nm = std::max(bounds.upper_nm, projection);
+  }
+  return bounds;
 }
 
 std::vector<LayerVolumeBounds> build_layer_volume_bounds(
@@ -235,18 +302,331 @@ std::vector<LayerVolumeBounds> build_layer_volume_bounds(
   return bounds;
 }
 
-void write_xdmf_volume_and_glyph_geometry(
-    HighFive::Group& h5_group,
+bool halfspace_contains(
+    const HalfSpace& halfspace,
+    const jams::Vec<double, 3>& point,
+    const double tolerance) {
+  return jams::dot(halfspace.normal, point) <= halfspace.offset + tolerance;
+}
+
+void add_unique_halfspace(
+    std::vector<HalfSpace>& halfspaces,
+    const HalfSpace& candidate,
+    const double tolerance) {
+  const auto candidate_norm = jams::norm(candidate.normal);
+  const auto candidate_unit = candidate.normal / candidate_norm;
+  const auto candidate_offset = candidate.offset / candidate_norm;
+  for (const auto& halfspace : halfspaces) {
+    const auto halfspace_norm = jams::norm(halfspace.normal);
+    const auto halfspace_unit = halfspace.normal / halfspace_norm;
+    const auto halfspace_offset = halfspace.offset / halfspace_norm;
+    if (jams::norm(halfspace_unit - candidate_unit) <= tolerance
+        && std::abs(halfspace_offset - candidate_offset) <= tolerance) {
+      return;
+    }
+  }
+  halfspaces.push_back(candidate);
+}
+
+int add_unique_point(
+    std::vector<jams::Vec<double, 3>>& points,
+    const jams::Vec<double, 3>& point,
+    const double tolerance) {
+  for (std::size_t i = 0; i < points.size(); ++i) {
+    if (jams::norm(points[i] - point) <= tolerance) {
+      return static_cast<int>(i);
+    }
+  }
+
+  points.push_back(point);
+  return static_cast<int>(points.size() - 1);
+}
+
+std::optional<jams::Vec<double, 3>> intersect_three_planes(
+    const HalfSpace& a,
+    const HalfSpace& b,
+    const HalfSpace& c,
+    const double tolerance) {
+  const auto b_cross_c = jams::cross(b.normal, c.normal);
+  const auto denominator = jams::dot(a.normal, b_cross_c);
+  if (std::abs(denominator) <= tolerance) {
+    return std::nullopt;
+  }
+
+  return (
+      b_cross_c * a.offset
+      + jams::cross(c.normal, a.normal) * b.offset
+      + jams::cross(a.normal, b.normal) * c.offset) / denominator;
+}
+
+std::vector<int> sorted_face_vertices(
+    const std::vector<jams::Vec<double, 3>>& vertices,
+    const std::vector<int>& face_vertices,
+    const jams::Vec<double, 3>& face_normal) {
+  if (face_vertices.size() < 3) {
+    return {};
+  }
+
+  jams::Vec<double, 3> centroid{0.0, 0.0, 0.0};
+  for (const auto vertex_index : face_vertices) {
+    centroid += vertices[vertex_index];
+  }
+  centroid /= static_cast<double>(face_vertices.size());
+
+  const auto basis = plane_basis_from_normal(jams::unit_vector(face_normal));
+  auto sorted_vertices = face_vertices;
+  std::sort(
+      sorted_vertices.begin(),
+      sorted_vertices.end(),
+      [&](const int lhs, const int rhs) {
+        const auto lhs_delta = vertices[lhs] - centroid;
+        const auto rhs_delta = vertices[rhs] - centroid;
+        const auto lhs_angle = std::atan2(
+            jams::dot(lhs_delta, basis.v),
+            jams::dot(lhs_delta, basis.u));
+        const auto rhs_angle = std::atan2(
+            jams::dot(rhs_delta, basis.v),
+            jams::dot(rhs_delta, basis.u));
+        return lhs_angle < rhs_angle;
+      });
+
+  return sorted_vertices;
+}
+
+ClippedPolyhedron clip_polyhedron_from_halfspaces(
+    const std::vector<HalfSpace>& halfspaces,
+    const double tolerance) {
+  ClippedPolyhedron polyhedron;
+
+  for (std::size_t i = 0; i < halfspaces.size(); ++i) {
+    for (std::size_t j = i + 1; j < halfspaces.size(); ++j) {
+      for (std::size_t k = j + 1; k < halfspaces.size(); ++k) {
+        const auto point = intersect_three_planes(
+            halfspaces[i],
+            halfspaces[j],
+            halfspaces[k],
+            tolerance);
+        if (!point.has_value()) {
+          continue;
+        }
+
+        bool inside = true;
+        for (const auto& halfspace : halfspaces) {
+          if (!halfspace_contains(halfspace, *point, tolerance)) {
+            inside = false;
+            break;
+          }
+        }
+        if (inside) {
+          add_unique_point(polyhedron.vertices, *point, tolerance);
+        }
+      }
+    }
+  }
+
+  for (const auto& halfspace : halfspaces) {
+    std::vector<int> face_vertices;
+    for (std::size_t vertex = 0; vertex < polyhedron.vertices.size(); ++vertex) {
+      if (std::abs(jams::dot(halfspace.normal, polyhedron.vertices[vertex]) - halfspace.offset)
+          <= tolerance) {
+        face_vertices.push_back(static_cast<int>(vertex));
+      }
+    }
+
+    auto sorted_vertices = sorted_face_vertices(
+        polyhedron.vertices,
+        face_vertices,
+        halfspace.normal);
+    if (sorted_vertices.size() >= 3) {
+      polyhedron.faces.push_back(std::move(sorted_vertices));
+    }
+  }
+
+  return polyhedron;
+}
+
+jams::Vec<double, 3> average_point(
+    const std::vector<jams::Vec<double, 3>>& points,
+    const std::vector<int>& point_indices) {
+  jams::Vec<double, 3> centroid{0.0, 0.0, 0.0};
+  for (const auto point_index : point_indices) {
+    centroid += points[point_index];
+  }
+  centroid /= static_cast<double>(point_indices.size());
+  return centroid;
+}
+
+double tetrahedron_volume(
+    const jams::Vec<double, 3>& a,
+    const jams::Vec<double, 3>& b,
+    const jams::Vec<double, 3>& c,
+    const jams::Vec<double, 3>& d) {
+  return std::abs(jams::dot(b - a, jams::cross(c - a, d - a))) / 6.0;
+}
+
+jams::Vec<double, 3> tetrahedron_centroid(
+    const jams::Vec<double, 3>& a,
+    const jams::Vec<double, 3>& b,
+    const jams::Vec<double, 3>& c,
+    const jams::Vec<double, 3>& d) {
+  return (a + b + c + d) / 4.0;
+}
+
+std::optional<jams::Vec<double, 3>> add_volume_layer_geometry(
+    LayerGeometry& geometry,
+    const ClippedPolyhedron& polyhedron,
+    const int layer_index) {
+  if (polyhedron.vertices.size() < 4 || polyhedron.faces.empty()) {
+    return std::nullopt;
+  }
+
+  std::vector<int> local_to_global(polyhedron.vertices.size());
+  for (std::size_t vertex = 0; vertex < polyhedron.vertices.size(); ++vertex) {
+    local_to_global[vertex] = checked_int_count_runtime(
+        geometry.volume_points.size(),
+        "number of magnetisation layer volume points");
+    geometry.volume_points.push_back(polyhedron.vertices[vertex]);
+  }
+
+  std::vector<int> all_vertices(polyhedron.vertices.size());
+  for (std::size_t vertex = 0; vertex < all_vertices.size(); ++vertex) {
+    all_vertices[vertex] = static_cast<int>(vertex);
+  }
+  const auto interior_point = average_point(polyhedron.vertices, all_vertices);
+  const auto interior_point_index = checked_int_count_runtime(
+      geometry.volume_points.size(),
+      "number of magnetisation layer volume points");
+  geometry.volume_points.push_back(interior_point);
+
+  jams::Vec<double, 3> weighted_centroid{0.0, 0.0, 0.0};
+  double total_volume = 0.0;
+  for (const auto& face : polyhedron.faces) {
+    for (std::size_t i = 1; i + 1 < face.size(); ++i) {
+      const std::array<int, 4> tetrahedron{
+          interior_point_index,
+          local_to_global[face[0]],
+          local_to_global[face[i]],
+          local_to_global[face[i + 1]],
+      };
+      geometry.volume_tetrahedra.push_back(tetrahedron);
+      geometry.volume_tetra_layer_indices.push_back(layer_index);
+
+      const auto& a = geometry.volume_points[tetrahedron[0]];
+      const auto& b = geometry.volume_points[tetrahedron[1]];
+      const auto& c = geometry.volume_points[tetrahedron[2]];
+      const auto& d = geometry.volume_points[tetrahedron[3]];
+      const auto volume = tetrahedron_volume(a, b, c, d);
+      weighted_centroid += tetrahedron_centroid(a, b, c, d) * volume;
+      total_volume += volume;
+    }
+  }
+
+  if (total_volume <= std::numeric_limits<double>::epsilon()) {
+    return interior_point;
+  }
+  return weighted_centroid / total_volume;
+}
+
+std::vector<jams::Vec<double, 3>> slice_polygon_points(
+    const std::array<HalfSpace, 6>& supercell_halfspaces,
+    const jams::Vec<double, 3>& layer_normal_unit,
+    const double layer_position,
+    const double tolerance) {
+  std::vector<jams::Vec<double, 3>> points;
+  const HalfSpace slice_plane{layer_normal_unit, layer_position};
+
+  for (std::size_t i = 0; i < supercell_halfspaces.size(); ++i) {
+    for (std::size_t j = i + 1; j < supercell_halfspaces.size(); ++j) {
+      const auto point = intersect_three_planes(
+          slice_plane,
+          supercell_halfspaces[i],
+          supercell_halfspaces[j],
+          tolerance);
+      if (!point.has_value()) {
+        continue;
+      }
+
+      bool inside = true;
+      for (const auto& halfspace : supercell_halfspaces) {
+        if (!halfspace_contains(halfspace, *point, tolerance)) {
+          inside = false;
+          break;
+        }
+      }
+      if (inside) {
+        add_unique_point(points, *point, tolerance);
+      }
+    }
+  }
+
+  std::vector<int> point_indices(points.size());
+  for (std::size_t index = 0; index < point_indices.size(); ++index) {
+    point_indices[index] = static_cast<int>(index);
+  }
+  const auto sorted_indices = sorted_face_vertices(
+      points,
+      point_indices,
+      layer_normal_unit);
+
+  std::vector<jams::Vec<double, 3>> sorted_points;
+  sorted_points.reserve(sorted_indices.size());
+  for (const auto point_index : sorted_indices) {
+    sorted_points.push_back(points[point_index]);
+  }
+  return sorted_points;
+}
+
+std::optional<jams::Vec<double, 3>> add_slice_layer_geometry(
+    LayerGeometry& geometry,
+    const std::vector<jams::Vec<double, 3>>& polygon_points,
+    const int layer_index) {
+  if (polygon_points.size() < 3) {
+    return std::nullopt;
+  }
+
+  jams::Vec<double, 3> centroid{0.0, 0.0, 0.0};
+  for (const auto& point : polygon_points) {
+    centroid += point;
+  }
+  centroid /= static_cast<double>(polygon_points.size());
+
+  const auto centroid_index = checked_int_count_runtime(
+      geometry.slice_points.size(),
+      "number of magnetisation layer slice points");
+  geometry.slice_points.push_back(centroid);
+
+  std::vector<int> polygon_indices;
+  polygon_indices.reserve(polygon_points.size());
+  for (const auto& point : polygon_points) {
+    polygon_indices.push_back(checked_int_count_runtime(
+        geometry.slice_points.size(),
+        "number of magnetisation layer slice points"));
+    geometry.slice_points.push_back(point);
+  }
+
+  for (std::size_t point = 0; point < polygon_indices.size(); ++point) {
+    geometry.slice_triangles.push_back({
+        centroid_index,
+        polygon_indices[point],
+        polygon_indices[(point + 1) % polygon_indices.size()],
+    });
+    geometry.slice_triangle_layer_indices.push_back(layer_index);
+  }
+
+  return centroid;
+}
+
+LayerGeometry build_exact_layer_geometry(
     const jams::MultiArray<double, 1>& layer_positions,
     const jams::Vec<double, 3>& layer_normal_unit,
     const double layer_thickness) {
+  LayerGeometry geometry;
   const auto num_layers = layer_positions.size();
-  jams::MultiArray<double, 2> volume_points(num_layers * 8, 3);
-  jams::MultiArray<int, 2> volume_cells(num_layers, 8);
-  jams::MultiArray<double, 2> glyph_points(num_layers, 3);
+  geometry.glyph_points.resize(num_layers);
 
-  const auto basis = plane_basis_from_normal(layer_normal_unit);
   const auto corners = supercell_corners_nm();
+  const auto halfspaces = supercell_halfspaces_nm();
+  const auto tolerance = geometry_tolerance_nm(corners);
   const auto sample_thickness = projected_sample_thickness_nm(corners, layer_normal_unit);
   const auto single_layer_fallback_thickness = definately_greater_than(
       sample_thickness,
@@ -258,51 +638,108 @@ void write_xdmf_volume_and_glyph_geometry(
       layer_positions,
       layer_thickness,
       single_layer_fallback_thickness);
-
-  double u_min = std::numeric_limits<double>::max();
-  double u_max = std::numeric_limits<double>::lowest();
-  double v_min = std::numeric_limits<double>::max();
-  double v_max = std::numeric_limits<double>::lowest();
-  for (const auto& corner : corners) {
-    const auto u_projection = jams::dot(corner, basis.u);
-    const auto v_projection = jams::dot(corner, basis.v);
-    u_min = std::min(u_min, u_projection);
-    u_max = std::max(u_max, u_projection);
-    v_min = std::min(v_min, v_projection);
-    v_max = std::max(v_max, v_projection);
+  auto effective_layer_bounds = layer_bounds;
+  if (layer_thickness == 0.0 && num_layers == 1) {
+    effective_layer_bounds[0] = projected_sample_bounds_nm(corners, layer_normal_unit);
   }
 
-  auto volume_point_values = volume_points.mutable_host_view();
-  auto volume_cell_values = volume_cells.mutable_host_view();
-  auto glyph_point_values = glyph_points.mutable_host_view();
   const auto layer_position_values = layer_positions.host_view();
   for (std::size_t layer = 0; layer < num_layers; ++layer) {
-    const auto lower_center = layer_normal_unit * layer_bounds[layer].lower_nm;
-    const auto upper_center = layer_normal_unit * layer_bounds[layer].upper_nm;
-    const auto glyph_center = layer_normal_unit * layer_position_values(layer);
-    const std::array<jams::Vec<double, 3>, 8> layer_points{
-        lower_center + basis.u * u_min + basis.v * v_min,
-        lower_center + basis.u * u_max + basis.v * v_min,
-        lower_center + basis.u * u_max + basis.v * v_max,
-        lower_center + basis.u * u_min + basis.v * v_max,
-        upper_center + basis.u * u_min + basis.v * v_min,
-        upper_center + basis.u * u_max + basis.v * v_min,
-        upper_center + basis.u * u_max + basis.v * v_max,
-        upper_center + basis.u * u_min + basis.v * v_max,
-    };
-
-    for (auto component = 0; component < 3; ++component) {
-      glyph_point_values(layer, component) = glyph_center[component];
+    std::vector<HalfSpace> volume_halfspaces;
+    volume_halfspaces.reserve(halfspaces.size() + 2);
+    for (const auto& halfspace : halfspaces) {
+      add_unique_halfspace(volume_halfspaces, halfspace, tolerance);
     }
+    add_unique_halfspace(volume_halfspaces, {layer_normal_unit, effective_layer_bounds[layer].upper_nm}, tolerance);
+    add_unique_halfspace(volume_halfspaces, {-layer_normal_unit, -effective_layer_bounds[layer].lower_nm}, tolerance);
 
-    for (auto corner = 0; corner < 8; ++corner) {
-      const auto point_index = layer * 8 + corner;
-      for (auto component = 0; component < 3; ++component) {
-        volume_point_values(point_index, component) = layer_points[corner][component];
-      }
-      volume_cell_values(layer, corner) = static_cast<int>(point_index);
+    const auto polyhedron = clip_polyhedron_from_halfspaces(
+        volume_halfspaces,
+        tolerance);
+    const auto volume_centroid = add_volume_layer_geometry(
+        geometry,
+        polyhedron,
+        checked_int_count_runtime(layer, "magnetisation layer index"));
+
+    const auto slice_points = slice_polygon_points(
+        halfspaces,
+        layer_normal_unit,
+        layer_position_values(layer),
+        tolerance);
+    const auto slice_centroid = add_slice_layer_geometry(
+        geometry,
+        slice_points,
+        checked_int_count_runtime(layer, "magnetisation layer index"));
+
+    geometry.glyph_points[layer] = volume_centroid.value_or(
+        slice_centroid.value_or(layer_normal_unit * layer_position_values(layer)));
+  }
+
+  return geometry;
+}
+
+template <std::size_t Columns>
+jams::MultiArray<int, 2> connectivity_to_multiarray(
+    const std::vector<std::array<int, Columns>>& connectivity) {
+  jams::MultiArray<int, 2> array(connectivity.size(), Columns);
+  auto values = array.mutable_host_view();
+  for (std::size_t row = 0; row < connectivity.size(); ++row) {
+    for (std::size_t column = 0; column < Columns; ++column) {
+      values(row, column) = connectivity[row][column];
     }
   }
+  return array;
+}
+
+jams::MultiArray<double, 2> points_to_multiarray(
+    const std::vector<jams::Vec<double, 3>>& points) {
+  jams::MultiArray<double, 2> array(points.size(), 3);
+  auto values = array.mutable_host_view();
+  for (std::size_t point = 0; point < points.size(); ++point) {
+    for (auto component = 0; component < 3; ++component) {
+      values(point, component) = points[point][component];
+    }
+  }
+  return array;
+}
+
+jams::MultiArray<int, 1> int_vector_to_multiarray(
+    const std::vector<int>& values) {
+  jams::MultiArray<int, 1> array(values.size());
+  auto array_values = array.mutable_host_span();
+  std::copy(values.begin(), values.end(), array_values.begin());
+  return array;
+}
+
+void write_xdmf_exact_geometry(
+    HighFive::Group& h5_group,
+    const jams::MultiArray<double, 1>& layer_positions,
+    const jams::Vec<double, 3>& layer_normal_unit,
+    const double layer_thickness,
+    std::vector<int>& volume_tetra_layer_indices,
+    std::vector<int>& slice_triangle_layer_indices,
+    int& volume_point_count,
+    int& slice_point_count) {
+  const auto geometry = build_exact_layer_geometry(
+      layer_positions,
+      layer_normal_unit,
+      layer_thickness);
+  volume_tetra_layer_indices = geometry.volume_tetra_layer_indices;
+  slice_triangle_layer_indices = geometry.slice_triangle_layer_indices;
+  volume_point_count = checked_int_count_runtime(
+      geometry.volume_points.size(),
+      "number of magnetisation layer volume points");
+  slice_point_count = checked_int_count_runtime(
+      geometry.slice_points.size(),
+      "number of magnetisation layer slice points");
+
+  auto volume_points = points_to_multiarray(geometry.volume_points);
+  auto volume_tetrahedra = connectivity_to_multiarray(geometry.volume_tetrahedra);
+  auto volume_tetra_layers = int_vector_to_multiarray(geometry.volume_tetra_layer_indices);
+  auto slice_points = points_to_multiarray(geometry.slice_points);
+  auto slice_triangles = connectivity_to_multiarray(geometry.slice_triangles);
+  auto slice_triangle_layers = int_vector_to_multiarray(geometry.slice_triangle_layer_indices);
+  auto glyph_points = points_to_multiarray(geometry.glyph_points);
 
   auto xdmf_group = h5_group.createGroup("xdmf");
   auto volume_points_dataset = xdmf_group.createDataSet<double>(
@@ -312,11 +749,36 @@ void write_xdmf_volume_and_glyph_geometry(
   volume_points_dataset.createAttribute<std::string>("axis0", "point_index");
   volume_points_dataset.createAttribute<std::string>("axis1", "xyz");
 
-  auto volume_cells_dataset = xdmf_group.createDataSet<int>(
-      "volume_cells", HighFive::DataSpace::From(volume_cells));
-  volume_cells_dataset.write(volume_cells);
-  volume_cells_dataset.createAttribute<std::string>("axis0", "layer_index");
-  volume_cells_dataset.createAttribute<std::string>("axis1", "hexahedron_corner_index");
+  auto volume_tetrahedra_dataset = xdmf_group.createDataSet<int>(
+      "volume_tetrahedra", HighFive::DataSpace::From(volume_tetrahedra));
+  volume_tetrahedra_dataset.write(volume_tetrahedra);
+  volume_tetrahedra_dataset.createAttribute<std::string>("axis0", "tetrahedron_index");
+  volume_tetrahedra_dataset.createAttribute<std::string>("axis1", "tetrahedron_corner_index");
+
+  auto volume_tetra_layers_dataset = xdmf_group.createDataSet<int>(
+      "volume_tetra_layer_index", HighFive::DataSpace::From(volume_tetra_layers));
+  volume_tetra_layers_dataset.write(volume_tetra_layers);
+  volume_tetra_layers_dataset.createAttribute<std::string>("axis0", "tetrahedron_index");
+  volume_tetra_layers_dataset.createAttribute<std::string>("axis1", "layer_index");
+
+  auto slice_points_dataset = xdmf_group.createDataSet<double>(
+      "slice_points", HighFive::DataSpace::From(slice_points));
+  slice_points_dataset.write(slice_points);
+  slice_points_dataset.createAttribute<std::string>("units", "nm");
+  slice_points_dataset.createAttribute<std::string>("axis0", "point_index");
+  slice_points_dataset.createAttribute<std::string>("axis1", "xyz");
+
+  auto slice_triangles_dataset = xdmf_group.createDataSet<int>(
+      "slice_triangles", HighFive::DataSpace::From(slice_triangles));
+  slice_triangles_dataset.write(slice_triangles);
+  slice_triangles_dataset.createAttribute<std::string>("axis0", "triangle_index");
+  slice_triangles_dataset.createAttribute<std::string>("axis1", "triangle_corner_index");
+
+  auto slice_triangle_layers_dataset = xdmf_group.createDataSet<int>(
+      "slice_triangle_layer_index", HighFive::DataSpace::From(slice_triangle_layers));
+  slice_triangle_layers_dataset.write(slice_triangle_layers);
+  slice_triangle_layers_dataset.createAttribute<std::string>("axis0", "triangle_index");
+  slice_triangle_layers_dataset.createAttribute<std::string>("axis1", "layer_index");
 
   auto glyph_points_dataset = xdmf_group.createDataSet<double>(
       "glyph_points", HighFive::DataSpace::From(glyph_points));
@@ -444,6 +906,86 @@ std::vector<LayerBuildData> build_finite_thickness_layers(
     ordered_layers.push_back(std::move(layer));
   }
   return ordered_layers;
+}
+
+jams::MultiArray<double, 2> expand_layer_vectors_by_cell(
+    const jams::MultiArray<double, 2>& layer_vectors,
+    const std::vector<int>& cell_layer_indices) {
+  jams::MultiArray<double, 2> expanded(cell_layer_indices.size(), 3);
+  const auto source = layer_vectors.host_view();
+  auto target = expanded.mutable_host_view();
+  for (std::size_t cell = 0; cell < cell_layer_indices.size(); ++cell) {
+    const auto layer = cell_layer_indices[cell];
+    for (auto component = 0; component < 3; ++component) {
+      target(cell, component) = source(layer, component);
+    }
+  }
+  return expanded;
+}
+
+jams::MultiArray<double, 1> expand_layer_scalars_by_cell(
+    const std::vector<double>& layer_scalars,
+    const std::vector<int>& cell_layer_indices) {
+  jams::MultiArray<double, 1> expanded(cell_layer_indices.size());
+  auto target = expanded.mutable_host_span();
+  for (std::size_t cell = 0; cell < cell_layer_indices.size(); ++cell) {
+    target[cell] = layer_scalars[cell_layer_indices[cell]];
+  }
+  return expanded;
+}
+
+jams::MultiArray<int, 1> expand_layer_ints_by_cell(
+    const std::vector<int>& layer_values,
+    const std::vector<int>& cell_layer_indices) {
+  jams::MultiArray<int, 1> expanded(cell_layer_indices.size());
+  auto target = expanded.mutable_host_span();
+  for (std::size_t cell = 0; cell < cell_layer_indices.size(); ++cell) {
+    target[cell] = layer_values[cell_layer_indices[cell]];
+  }
+  return expanded;
+}
+
+void write_expanded_xdmf_cell_fields(
+    HighFive::Group& h5_group,
+    const std::string& prefix,
+    const std::vector<int>& cell_layer_indices,
+    const jams::MultiArray<double, 2>& layer_magnetisation,
+    const std::vector<double>& layer_positions,
+    const std::vector<double>& layer_saturation_moment,
+    const std::vector<int>& layer_spin_count) {
+  auto magnetisation = expand_layer_vectors_by_cell(layer_magnetisation, cell_layer_indices);
+  auto positions = expand_layer_scalars_by_cell(layer_positions, cell_layer_indices);
+  auto saturation_moment = expand_layer_scalars_by_cell(layer_saturation_moment, cell_layer_indices);
+  auto spin_count = expand_layer_ints_by_cell(layer_spin_count, cell_layer_indices);
+
+  {
+    auto dataset = h5_group.createDataSet<double>(
+        prefix + "_magnetisation", HighFive::DataSpace::From(magnetisation));
+    dataset.write(magnetisation);
+    dataset.createAttribute<std::string>("axis0", prefix + "_cell_index");
+    dataset.createAttribute<std::string>("axis1", "magnetisation_xyz");
+    dataset.createAttribute<std::string>("units", "bohr_magneton");
+  }
+  {
+    auto dataset = h5_group.createDataSet<double>(
+        prefix + "_layer_position", HighFive::DataSpace::From(positions));
+    dataset.write(positions);
+    dataset.createAttribute<std::string>("axis0", prefix + "_cell_index");
+    dataset.createAttribute<std::string>("units", "nm");
+  }
+  {
+    auto dataset = h5_group.createDataSet<double>(
+        prefix + "_saturation_moment", HighFive::DataSpace::From(saturation_moment));
+    dataset.write(saturation_moment);
+    dataset.createAttribute<std::string>("axis0", prefix + "_cell_index");
+    dataset.createAttribute<std::string>("units", "bohr_magneton");
+  }
+  {
+    auto dataset = h5_group.createDataSet<int>(
+        prefix + "_spin_count", HighFive::DataSpace::From(spin_count));
+    dataset.write(spin_count);
+    dataset.createAttribute<std::string>("axis0", prefix + "_cell_index");
+  }
 }
 }
 
@@ -588,6 +1130,13 @@ MagnetisationLayersMonitor::MagnetisationLayersMonitor(
   group_num_layers_.resize(num_groups);
   group_spin_layer_indices_.resize(num_groups);
   group_layer_magnetisation_.resize(num_groups);
+  group_layer_positions_.resize(num_groups);
+  group_layer_saturation_moment_.resize(num_groups);
+  group_layer_spin_count_.resize(num_groups);
+  group_volume_tetra_layer_indices_.resize(num_groups);
+  group_slice_triangle_layer_indices_.resize(num_groups);
+  group_volume_point_counts_.resize(num_groups);
+  group_slice_point_counts_.resize(num_groups);
 
 #if HAS_CUDA
   if (globals::solver != nullptr && globals::solver->is_cuda_solver()) {
@@ -654,6 +1203,15 @@ MagnetisationLayersMonitor::MagnetisationLayersMonitor(
       ++counter;
     }
 
+    group_layer_positions_[group_idx].resize(num_layers);
+    group_layer_saturation_moment_[group_idx].resize(num_layers);
+    group_layer_spin_count_[group_idx].resize(num_layers);
+    for (std::size_t layer = 0; layer < num_layers; ++layer) {
+      group_layer_positions_[group_idx][layer] = layer_positions(layer);
+      group_layer_saturation_moment_[group_idx][layer] = layer_saturation_moment(layer);
+      group_layer_spin_count_[group_idx][layer] = layer_spin_count(layer);
+    }
+
 #if HAS_CUDA
     if (use_cuda_backend) {
       cuda_backend_->build_group_work_from_layers(group_idx, settings, spin_group, layers);
@@ -703,11 +1261,15 @@ MagnetisationLayersMonitor::MagnetisationLayersMonitor(
       dataset.createAttribute<std::string>("axis0", "layer_index");
       dataset.createAttribute<std::string>("axis1", "number_of_spins");
     }
-    write_xdmf_volume_and_glyph_geometry(
+    write_xdmf_exact_geometry(
         h5_group,
         layer_positions,
         layer_normal_unit,
-        layer_thickness);
+        layer_thickness,
+        group_volume_tetra_layer_indices_[group_idx],
+        group_slice_triangle_layer_indices_[group_idx],
+        group_volume_point_counts_[group_idx],
+        group_slice_point_counts_[group_idx]);
   }
 
   write_xdmf_file();
@@ -734,7 +1296,10 @@ void MagnetisationLayersMonitor::write_xdmf_file() const {
     const auto& group = spin_groups_[group_idx];
     const auto group_name_xml = xml_escape(group.name);
     const auto num_layers = group_num_layers_[group_idx];
-    const auto num_volume_points = num_layers * 8;
+    const auto num_volume_points = group_volume_point_counts_[group_idx];
+    const auto num_volume_tetrahedra = group_volume_tetra_layer_indices_[group_idx].size();
+    const auto num_slice_points = group_slice_point_counts_[group_idx];
+    const auto num_slice_triangles = group_slice_triangle_layer_indices_[group_idx].size();
     const auto group_path = h5_group_root_name_ + "groups/" + group.name;
 
     xdmf << "    <Grid Name=\"" << group_name_xml
@@ -746,11 +1311,11 @@ void MagnetisationLayersMonitor::write_xdmf_file() const {
       xdmf << "      <Grid Name=\"" << group_name_xml << "_volumes_" << iteration
            << "\" GridType=\"Uniform\">\n";
       xdmf << "        <Time Value=\"" << std::setprecision(17) << step.time << "\" />\n";
-      xdmf << "        <Topology TopologyType=\"Hexahedron\" Dimensions=\""
-           << num_layers << "\">\n";
-      xdmf << "          <DataItem Dimensions=\"" << num_layers
-           << " 8\" NumberType=\"Int\" Precision=\"4\" Format=\"HDF\">\n";
-      xdmf << "            " << h5_basename << ":" << group_path << "/xdmf/volume_cells\n";
+      xdmf << "        <Topology TopologyType=\"Tetrahedron\" Dimensions=\""
+           << num_volume_tetrahedra << "\">\n";
+      xdmf << "          <DataItem Dimensions=\"" << num_volume_tetrahedra
+           << " 4\" NumberType=\"Int\" Precision=\"4\" Format=\"HDF\">\n";
+      xdmf << "            " << h5_basename << ":" << group_path << "/xdmf/volume_tetrahedra\n";
       xdmf << "          </DataItem>\n";
       xdmf << "        </Topology>\n";
       xdmf << "        <Geometry GeometryType=\"XYZ\">\n";
@@ -760,27 +1325,77 @@ void MagnetisationLayersMonitor::write_xdmf_file() const {
       xdmf << "          </DataItem>\n";
       xdmf << "        </Geometry>\n";
       xdmf << "        <Attribute Name=\"Magnetisation\" AttributeType=\"Vector\" Center=\"Cell\">\n";
-      xdmf << "          <DataItem Dimensions=\"" << num_layers
+      xdmf << "          <DataItem Dimensions=\"" << num_volume_tetrahedra
            << " 3\" NumberType=\"Float\" Precision=\"8\" Format=\"HDF\">\n";
-      xdmf << "            " << h5_basename << ":" << time_path << "/magnetisation\n";
+      xdmf << "            " << h5_basename << ":" << time_path << "/volume_magnetisation\n";
       xdmf << "          </DataItem>\n";
       xdmf << "        </Attribute>\n";
       xdmf << "        <Attribute Name=\"LayerPosition\" AttributeType=\"Scalar\" Center=\"Cell\">\n";
-      xdmf << "          <DataItem Dimensions=\"" << num_layers
+      xdmf << "          <DataItem Dimensions=\"" << num_volume_tetrahedra
            << "\" NumberType=\"Float\" Precision=\"8\" Format=\"HDF\">\n";
-      xdmf << "            " << h5_basename << ":" << group_path << "/layer_positions\n";
+      xdmf << "            " << h5_basename << ":" << time_path << "/volume_layer_position\n";
       xdmf << "          </DataItem>\n";
       xdmf << "        </Attribute>\n";
       xdmf << "        <Attribute Name=\"SaturationMoment\" AttributeType=\"Scalar\" Center=\"Cell\">\n";
-      xdmf << "          <DataItem Dimensions=\"" << num_layers
+      xdmf << "          <DataItem Dimensions=\"" << num_volume_tetrahedra
            << "\" NumberType=\"Float\" Precision=\"8\" Format=\"HDF\">\n";
-      xdmf << "            " << h5_basename << ":" << group_path << "/layer_saturation_moment\n";
+      xdmf << "            " << h5_basename << ":" << time_path << "/volume_saturation_moment\n";
       xdmf << "          </DataItem>\n";
       xdmf << "        </Attribute>\n";
       xdmf << "        <Attribute Name=\"SpinCount\" AttributeType=\"Scalar\" Center=\"Cell\">\n";
-      xdmf << "          <DataItem Dimensions=\"" << num_layers
+      xdmf << "          <DataItem Dimensions=\"" << num_volume_tetrahedra
            << "\" NumberType=\"Int\" Precision=\"4\" Format=\"HDF\">\n";
-      xdmf << "            " << h5_basename << ":" << group_path << "/layer_spin_count\n";
+      xdmf << "            " << h5_basename << ":" << time_path << "/volume_spin_count\n";
+      xdmf << "          </DataItem>\n";
+      xdmf << "        </Attribute>\n";
+      xdmf << "      </Grid>\n";
+    }
+    xdmf << "    </Grid>\n";
+
+    xdmf << "    <Grid Name=\"" << group_name_xml
+         << "_slices\" GridType=\"Collection\" CollectionType=\"Temporal\">\n";
+    for (const auto& step : xdmf_time_steps_) {
+      const auto iteration = zero_pad_number(step.iteration, 9);
+      const auto time_path = h5_group_root_name_ + "timeseries/" + iteration + "/" + group.name;
+
+      xdmf << "      <Grid Name=\"" << group_name_xml << "_slices_" << iteration
+           << "\" GridType=\"Uniform\">\n";
+      xdmf << "        <Time Value=\"" << std::setprecision(17) << step.time << "\" />\n";
+      xdmf << "        <Topology TopologyType=\"Triangle\" Dimensions=\""
+           << num_slice_triangles << "\">\n";
+      xdmf << "          <DataItem Dimensions=\"" << num_slice_triangles
+           << " 3\" NumberType=\"Int\" Precision=\"4\" Format=\"HDF\">\n";
+      xdmf << "            " << h5_basename << ":" << group_path << "/xdmf/slice_triangles\n";
+      xdmf << "          </DataItem>\n";
+      xdmf << "        </Topology>\n";
+      xdmf << "        <Geometry GeometryType=\"XYZ\">\n";
+      xdmf << "          <DataItem Dimensions=\"" << num_slice_points
+           << " 3\" NumberType=\"Float\" Precision=\"8\" Format=\"HDF\">\n";
+      xdmf << "            " << h5_basename << ":" << group_path << "/xdmf/slice_points\n";
+      xdmf << "          </DataItem>\n";
+      xdmf << "        </Geometry>\n";
+      xdmf << "        <Attribute Name=\"Magnetisation\" AttributeType=\"Vector\" Center=\"Cell\">\n";
+      xdmf << "          <DataItem Dimensions=\"" << num_slice_triangles
+           << " 3\" NumberType=\"Float\" Precision=\"8\" Format=\"HDF\">\n";
+      xdmf << "            " << h5_basename << ":" << time_path << "/slice_magnetisation\n";
+      xdmf << "          </DataItem>\n";
+      xdmf << "        </Attribute>\n";
+      xdmf << "        <Attribute Name=\"LayerPosition\" AttributeType=\"Scalar\" Center=\"Cell\">\n";
+      xdmf << "          <DataItem Dimensions=\"" << num_slice_triangles
+           << "\" NumberType=\"Float\" Precision=\"8\" Format=\"HDF\">\n";
+      xdmf << "            " << h5_basename << ":" << time_path << "/slice_layer_position\n";
+      xdmf << "          </DataItem>\n";
+      xdmf << "        </Attribute>\n";
+      xdmf << "        <Attribute Name=\"SaturationMoment\" AttributeType=\"Scalar\" Center=\"Cell\">\n";
+      xdmf << "          <DataItem Dimensions=\"" << num_slice_triangles
+           << "\" NumberType=\"Float\" Precision=\"8\" Format=\"HDF\">\n";
+      xdmf << "            " << h5_basename << ":" << time_path << "/slice_saturation_moment\n";
+      xdmf << "          </DataItem>\n";
+      xdmf << "        </Attribute>\n";
+      xdmf << "        <Attribute Name=\"SpinCount\" AttributeType=\"Scalar\" Center=\"Cell\">\n";
+      xdmf << "          <DataItem Dimensions=\"" << num_slice_triangles
+           << "\" NumberType=\"Int\" Precision=\"4\" Format=\"HDF\">\n";
+      xdmf << "            " << h5_basename << ":" << time_path << "/slice_spin_count\n";
       xdmf << "          </DataItem>\n";
       xdmf << "        </Attribute>\n";
       xdmf << "      </Grid>\n";
@@ -945,6 +1560,22 @@ void MagnetisationLayersMonitor::update(Solver& solver) {
     dataset.createAttribute<std::string>("units", "bohr_magneton");
 
     dataset.write(group_layer_magnetisation_[group_idx]);
+    write_expanded_xdmf_cell_fields(
+        spin_group,
+        "volume",
+        group_volume_tetra_layer_indices_[group_idx],
+        group_layer_magnetisation_[group_idx],
+        group_layer_positions_[group_idx],
+        group_layer_saturation_moment_[group_idx],
+        group_layer_spin_count_[group_idx]);
+    write_expanded_xdmf_cell_fields(
+        spin_group,
+        "slice",
+        group_slice_triangle_layer_indices_[group_idx],
+        group_layer_magnetisation_[group_idx],
+        group_layer_positions_[group_idx],
+        group_layer_saturation_moment_[group_idx],
+        group_layer_spin_count_[group_idx]);
 #if HAS_CUDA
     if (using_cuda_backend) {
       group_layer_magnetisation_[group_idx].release_stale_host();
