@@ -42,6 +42,15 @@
 /// - layer_spin_count: Number of spins in each layer
 ///                     (shape = [num_layers], type = int)
 ///
+/// For ParaView visualisation, a sidecar XDMF file is written alongside the H5
+/// file. Static quad geometry for each layer is stored under
+/// "/jams/monitors/<monitor-name>/groups/<group-name>/xdmf":
+///
+/// - points:           Four XYZ vertices per layer plane, in nm
+///                     (shape = [num_layers * 4, 3], type = double)
+/// - cells:            Quad connectivity for each layer plane
+///                     (shape = [num_layers, 4], type = int)
+///
 /// For each output a new group is made in
 /// "/jams/monitors/<monitor-name>/timeseries/<iteration>", with the solver
 /// iteration zero padded to length 9. For example,
@@ -108,7 +117,14 @@ public:
     inline void post_process() override {};
 
 private:
+    struct XdmfTimeStep {
+        int iteration = 0;
+        double time = 0.0;
+    };
+
     void accumulate_layer_magnetisation_cpu();
+    void write_xdmf_file() const;
+    void append_xdmf_time_step(const Solver& solver);
 
 #if HAS_CUDA
     struct CudaBackend;
@@ -120,9 +136,12 @@ private:
     jams::monitors::SpinGrouping grouping_ = jams::monitors::SpinGrouping::NONE;
 
     std::string h5_group_root_name_;
+    std::string h5_file_name_;
+    std::string xdmf_file_name_;
 
     std::vector<jams::monitors::SpinGroup> spin_groups_;
     std::vector<int> group_num_layers_;
+    std::vector<XdmfTimeStep> xdmf_time_steps_;
     std::vector<jams::MultiArray<double,2>>           group_layer_magnetisation_;
     std::vector<jams::MultiArray<int,1>>              group_spin_layer_indices_;
 

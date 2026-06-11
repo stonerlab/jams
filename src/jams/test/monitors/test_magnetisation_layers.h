@@ -7,6 +7,7 @@
 #include <cctype>
 #include <cmath>
 #include <filesystem>
+#include <fstream>
 #include <memory>
 #include <string>
 
@@ -32,6 +33,11 @@ public:
   void initialize(const libconfig::Setting&) override {}
   void run() override {}
   std::string name() const override { return "magnetisation-layers-stub"; }
+
+  void set_monitor_state(const int iteration, const jams::Real time) {
+    iteration_ = iteration;
+    time_ = time;
+  }
 };
 
 #if HAS_CUDA
@@ -142,6 +148,33 @@ protected:
       values.insert(values.end(), row.begin(), row.end());
     }
     return values;
+  }
+
+  static std::vector<size_t> read_dataset_dimensions(const std::string& path) {
+    HighFive::File file(
+        jams::output::monitor_filename("magnetisation-layers", "h5"),
+        HighFive::File::ReadOnly);
+    return file.getDataSet(path).getDimensions();
+  }
+
+  static std::vector<double> read_plane_points() {
+    HighFive::File file(
+        jams::output::monitor_filename("magnetisation-layers", "h5"),
+        HighFive::File::ReadOnly);
+    std::vector<std::vector<double>> rows;
+    file.getDataSet("/jams/monitors/magnetisation-layers/groups/A/xdmf/points").read(rows);
+
+    std::vector<double> values;
+    for (const auto& row : rows) {
+      values.insert(values.end(), row.begin(), row.end());
+    }
+    return values;
+  }
+
+  static std::string read_xdmf() {
+    std::ifstream file(jams::output::monitor_filename("magnetisation-layers", "xdmf"));
+    return std::string(std::istreambuf_iterator<char>(file),
+                       std::istreambuf_iterator<char>());
   }
 
   static double magnetisation_tolerance(const double expected) {
@@ -485,6 +518,143 @@ TEST_F(MagnetisationLayersMonitorTest, UpdateAccumulatesLayerMagnetisationInOneP
   EXPECT_NEAR(magnetisation[3], 1.0, magnetisation_tolerance(1.0));
   EXPECT_NEAR(magnetisation[4], 0.0, magnetisation_tolerance(0.0));
   EXPECT_NEAR(magnetisation[5], 0.0, magnetisation_tolerance(0.0));
+}
+
+TEST_F(MagnetisationLayersMonitorTest, WritesXdmfPlaneGeometryAndReferencesLayerData) {
+  initialise_lattice_from_config(R"(
+    solver : {
+      module = "llg-heun-cpu";
+      t_step = 1.0e-16;
+      t_min  = 1.0e-16;
+      t_max  = 1.0e-16;
+    };
+
+    materials = (
+      { name = "A"; moment = 1.0; spin = [1.0, 0.0, 0.0]; }
+    );
+
+    unitcell : {
+      symops = false;
+      parameter = 1.0e-9;
+      basis = (
+        [1.0, 0.0, 0.0],
+        [0.0, 1.0, 0.0],
+        [0.0, 0.0, 1.0]);
+      positions = (
+        ("A", [0.0, 0.0, 0.0])
+      );
+    };
+
+    lattice : {
+      size = [1, 1, 2];
+      periodic = [true, true, true];
+      normalise_spins = false;
+    };
+
+    monitors = (
+      {
+        module = "magnetisation-layers";
+        output_steps = 1;
+        layer_normal = [0.0, 0.0, 1.0];
+        layer_thickness = 1.0;
+      }
+    );
+  )");
+
+  MagnetisationLayersMonitor monitor(first_monitor_settings());
+
+  EXPECT_TRUE(std::filesystem::exists(
+      jams::output::monitor_filename("magnetisation-layers", "xdmf")));
+  EXPECT_EQ(
+      read_dataset_dimensions("/jams/monitors/magnetisation-layers/groups/A/xdmf/points"),
+      (std::vector<size_t>{8, 3}));
+  EXPECT_EQ(
+      read_dataset_dimensions("/jams/monitors/magnetisation-layers/groups/A/xdmf/cells"),
+      (std::vector<size_t>{2, 4}));
+
+  const auto points = read_plane_points();
+  ASSERT_EQ(points.size(), 24u);
+  for (auto point = 0; point < 4; ++point) {
+    EXPECT_NEAR(points[3 * point + 2], 0.5, 1.0e-12);
+  }
+  for (auto point = 4; point < 8; ++point) {
+    EXPECT_NEAR(points[3 * point + 2], 1.5, 1.0e-12);
+  }
+
+  MagnetisationLayersStubSolver solver;
+  monitor.update(solver);
+
+  const auto xdmf = read_xdmf();
+  EXPECT_NE(xdmf.find("Grid Name=\"A\" GridType=\"Collection\" CollectionType=\"Temporal\""), std::string::npos);
+  EXPECT_NE(xdmf.find("Topology TopologyType=\"Quadrilateral\" Dimensions=\"2\""), std::string::npos);
+  EXPECT_NE(xdmf.find("Geometry GeometryType=\"XYZ\""), std::string::npos);
+  EXPECT_NE(xdmf.find("monitor_magnetisation-layers.h5:/jams/monitors/magnetisation-layers/groups/A/xdmf/points"), std::string::npos);
+  EXPECT_NE(xdmf.find("monitor_magnetisation-layers.h5:/jams/monitors/magnetisation-layers/groups/A/xdmf/cells"), std::string::npos);
+  EXPECT_NE(xdmf.find("Attribute Name=\"Magnetisation\" AttributeType=\"Vector\" Center=\"Cell\""), std::string::npos);
+  EXPECT_NE(xdmf.find("monitor_magnetisation-layers.h5:/jams/monitors/magnetisation-layers/timeseries/000000000/A/magnetisation"), std::string::npos);
+  EXPECT_NE(xdmf.find("Attribute Name=\"LayerPosition\" AttributeType=\"Scalar\" Center=\"Cell\""), std::string::npos);
+  EXPECT_NE(xdmf.find("monitor_magnetisation-layers.h5:/jams/monitors/magnetisation-layers/groups/A/layer_positions"), std::string::npos);
+  EXPECT_NE(xdmf.find("Attribute Name=\"SaturationMoment\" AttributeType=\"Scalar\" Center=\"Cell\""), std::string::npos);
+  EXPECT_NE(xdmf.find("monitor_magnetisation-layers.h5:/jams/monitors/magnetisation-layers/groups/A/layer_saturation_moment"), std::string::npos);
+  EXPECT_NE(xdmf.find("Attribute Name=\"SpinCount\" AttributeType=\"Scalar\" Center=\"Cell\""), std::string::npos);
+  EXPECT_NE(xdmf.find("monitor_magnetisation-layers.h5:/jams/monitors/magnetisation-layers/groups/A/layer_spin_count"), std::string::npos);
+}
+
+TEST_F(MagnetisationLayersMonitorTest, XdmfContainsMultipleTimeSteps) {
+  initialise_lattice_from_config(R"(
+    solver : {
+      module = "llg-heun-cpu";
+      t_step = 1.0e-16;
+      t_min  = 1.0e-16;
+      t_max  = 1.0e-16;
+    };
+
+    materials = (
+      { name = "A"; moment = 1.0; spin = [1.0, 0.0, 0.0]; }
+    );
+
+    unitcell : {
+      symops = false;
+      parameter = 1.0e-9;
+      basis = (
+        [1.0, 0.0, 0.0],
+        [0.0, 1.0, 0.0],
+        [0.0, 0.0, 1.0]);
+      positions = (
+        ("A", [0.0, 0.0, 0.0])
+      );
+    };
+
+    lattice : {
+      size = [1, 1, 1];
+      periodic = [true, true, true];
+      normalise_spins = false;
+    };
+
+    monitors = (
+      {
+        module = "magnetisation-layers";
+        output_steps = 1;
+        layer_normal = [0.0, 0.0, 1.0];
+      }
+    );
+  )");
+
+  MagnetisationLayersMonitor monitor(first_monitor_settings());
+  MagnetisationLayersStubSolver solver;
+
+  solver.set_monitor_state(0, 0.0);
+  monitor.update(solver);
+  solver.set_monitor_state(10, 0.25);
+  monitor.update(solver);
+
+  const auto xdmf = read_xdmf();
+  EXPECT_NE(xdmf.find("A_000000000"), std::string::npos);
+  EXPECT_NE(xdmf.find("A_000000010"), std::string::npos);
+  EXPECT_NE(xdmf.find("timeseries/000000000/A/magnetisation"), std::string::npos);
+  EXPECT_NE(xdmf.find("timeseries/000000010/A/magnetisation"), std::string::npos);
+  EXPECT_NE(xdmf.find("<Time Value=\"0\" />"), std::string::npos);
+  EXPECT_NE(xdmf.find("<Time Value=\"0.25\" />"), std::string::npos);
 }
 
 #if HAS_CUDA

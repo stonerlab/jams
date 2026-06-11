@@ -7,6 +7,7 @@
 #include <jams/helpers/maths.h>
 #include <jams/helpers/exception.h>
 #include <jams/helpers/output.h>
+#include <jams/helpers/utils.h>
 #include <jams/interface/highfive.h>
 
 #if HAS_CUDA
@@ -15,8 +16,11 @@
 #endif
 
 #include <algorithm>
+#include <array>
 #include <cmath>
 #include <cstdint>
+#include <fstream>
+#include <iomanip>
 #include <limits>
 #include <map>
 #include <span>
@@ -28,6 +32,11 @@ namespace {
 struct LayerBuildData {
   double position_nm = 0.0;
   std::vector<int> local_spin_offsets;
+};
+
+struct PlaneBasis {
+  jams::Vec<double, 3> u{1.0, 0.0, 0.0};
+  jams::Vec<double, 3> v{0.0, 1.0, 0.0};
 };
 
 #if HAS_CUDA
@@ -109,6 +118,122 @@ double default_distance_tolerance_nm() {
   return jams::defaults::lattice_tolerance
       * globals::lattice->parameter()
       * kMeterToNanometer;
+}
+
+std::string xml_escape(const std::string& text) {
+  std::string escaped;
+  escaped.reserve(text.size());
+  for (const char ch : text) {
+    switch (ch) {
+      case '&':
+        escaped += "&amp;";
+        break;
+      case '<':
+        escaped += "&lt;";
+        break;
+      case '>':
+        escaped += "&gt;";
+        break;
+      case '"':
+        escaped += "&quot;";
+        break;
+      case '\'':
+        escaped += "&apos;";
+        break;
+      default:
+        escaped += ch;
+        break;
+    }
+  }
+  return escaped;
+}
+
+PlaneBasis plane_basis_from_normal(const jams::Vec<double, 3>& normal) {
+  const auto reference = std::abs(normal[0]) < 0.9
+      ? jams::Vec<double, 3>{1.0, 0.0, 0.0}
+      : jams::Vec<double, 3>{0.0, 1.0, 0.0};
+  const auto u = jams::unit_vector(jams::cross(normal, reference));
+  const auto v = jams::unit_vector(jams::cross(normal, u));
+  return {u, v};
+}
+
+std::array<jams::Vec<double, 3>, 8> supercell_corners_nm() {
+  const auto& supercell = globals::lattice->get_supercell();
+  const double scale = globals::lattice->parameter() * kMeterToNanometer;
+  const auto a1 = supercell.a1() * scale;
+  const auto a2 = supercell.a2() * scale;
+  const auto a3 = supercell.a3() * scale;
+
+  return {
+      jams::Vec<double, 3>{0.0, 0.0, 0.0},
+      a1,
+      a2,
+      a3,
+      a1 + a2,
+      a1 + a3,
+      a2 + a3,
+      a1 + a2 + a3,
+  };
+}
+
+void write_xdmf_plane_geometry(
+    HighFive::Group& h5_group,
+    const jams::MultiArray<double, 1>& layer_positions,
+    const jams::Vec<double, 3>& layer_normal_unit) {
+  const auto num_layers = layer_positions.size();
+  jams::MultiArray<double, 2> points(num_layers * 4, 3);
+  jams::MultiArray<int, 2> cells(num_layers, 4);
+
+  const auto basis = plane_basis_from_normal(layer_normal_unit);
+  const auto corners = supercell_corners_nm();
+
+  double u_min = std::numeric_limits<double>::max();
+  double u_max = std::numeric_limits<double>::lowest();
+  double v_min = std::numeric_limits<double>::max();
+  double v_max = std::numeric_limits<double>::lowest();
+  for (const auto& corner : corners) {
+    const auto u_projection = jams::dot(corner, basis.u);
+    const auto v_projection = jams::dot(corner, basis.v);
+    u_min = std::min(u_min, u_projection);
+    u_max = std::max(u_max, u_projection);
+    v_min = std::min(v_min, v_projection);
+    v_max = std::max(v_max, v_projection);
+  }
+
+  auto point_values = points.mutable_host_view();
+  auto cell_values = cells.mutable_host_view();
+  const auto layer_position_values = layer_positions.host_view();
+  for (std::size_t layer = 0; layer < num_layers; ++layer) {
+    const auto center = layer_normal_unit * layer_position_values(layer);
+    const std::array<jams::Vec<double, 3>, 4> layer_points{
+        center + basis.u * u_min + basis.v * v_min,
+        center + basis.u * u_max + basis.v * v_min,
+        center + basis.u * u_max + basis.v * v_max,
+        center + basis.u * u_min + basis.v * v_max,
+    };
+
+    for (auto corner = 0; corner < 4; ++corner) {
+      const auto point_index = layer * 4 + corner;
+      for (auto component = 0; component < 3; ++component) {
+        point_values(point_index, component) = layer_points[corner][component];
+      }
+      cell_values(layer, corner) = static_cast<int>(point_index);
+    }
+  }
+
+  auto xdmf_group = h5_group.createGroup("xdmf");
+  auto points_dataset = xdmf_group.createDataSet<double>(
+      "points", HighFive::DataSpace::From(points));
+  points_dataset.write(points);
+  points_dataset.createAttribute<std::string>("units", "nm");
+  points_dataset.createAttribute<std::string>("axis0", "point_index");
+  points_dataset.createAttribute<std::string>("axis1", "xyz");
+
+  auto cells_dataset = xdmf_group.createDataSet<int>(
+      "cells", HighFive::DataSpace::From(cells));
+  cells_dataset.write(cells);
+  cells_dataset.createAttribute<std::string>("axis0", "layer_index");
+  cells_dataset.createAttribute<std::string>("axis1", "quad_corner_index");
 }
 
 std::map<double, LayerBuildData>::iterator find_or_insert_tolerant_layer(
@@ -366,6 +491,8 @@ MagnetisationLayersMonitor::MagnetisationLayersMonitor(
   grouping_ = jams::monitors::parse_spin_grouping(settings, "materials", "magnetisation");
   spin_groups_ = jams::monitors::make_spin_groups(grouping_);
   h5_group_root_name_ = "/jams/monitors/" + name() + "/";
+  h5_file_name_ = jams::output::monitor_filename(name(), "h5");
+  xdmf_file_name_ = jams::output::monitor_filename(name(), "xdmf");
 
   auto num_groups = spin_groups_.size();
   group_num_layers_.resize(num_groups);
@@ -379,7 +506,7 @@ MagnetisationLayersMonitor::MagnetisationLayersMonitor(
 #endif
 
   // Create a new h5 file, truncating any old file if it exists.
-  HighFive::File file(jams::output::monitor_filename(name(), "h5"),
+  HighFive::File file(h5_file_name_,
                       HighFive::File::ReadWrite | HighFive::File::Create | HighFive::File::Truncate);
 
   for (std::size_t group_idx = 0; group_idx < spin_groups_.size(); ++group_idx) {
@@ -486,15 +613,95 @@ MagnetisationLayersMonitor::MagnetisationLayersMonitor(
       dataset.createAttribute<std::string>("axis0", "layer_index");
       dataset.createAttribute<std::string>("axis1", "number_of_spins");
     }
+    write_xdmf_plane_geometry(h5_group, layer_positions, layer_normal_unit);
   }
 
-
-
-
+  write_xdmf_file();
 }
 
 
 MagnetisationLayersMonitor::~MagnetisationLayersMonitor() = default;
+
+void MagnetisationLayersMonitor::write_xdmf_file() const {
+  std::ofstream xdmf(xdmf_file_name_, std::ios::out | std::ios::trunc);
+  if (!xdmf) {
+    throw std::runtime_error("failed to open magnetisation-layers XDMF file for writing");
+  }
+
+  const auto h5_basename = file_basename(h5_file_name_);
+  xdmf << "<?xml version=\"1.0\"?>\n";
+  xdmf << "<!DOCTYPE Xdmf SYSTEM \"https://gitlab.kitware.com/xdmf/xdmf/raw/master/Xdmf.dtd\"[]>\n";
+  xdmf << "<Xdmf Version=\"3.0\">\n";
+  xdmf << "  <Domain Name=\"JAMS\">\n";
+  xdmf << "    <Information Name=\"Configuration\" Value=\""
+       << xml_escape(globals::simulation_name) << "\" />\n";
+
+  for (std::size_t group_idx = 0; group_idx < spin_groups_.size(); ++group_idx) {
+    const auto& group = spin_groups_[group_idx];
+    const auto group_name_xml = xml_escape(group.name);
+    const auto num_layers = group_num_layers_[group_idx];
+    const auto num_points = num_layers * 4;
+    const auto group_path = h5_group_root_name_ + "groups/" + group.name;
+
+    xdmf << "    <Grid Name=\"" << group_name_xml
+         << "\" GridType=\"Collection\" CollectionType=\"Temporal\">\n";
+    for (const auto& step : xdmf_time_steps_) {
+      const auto iteration = zero_pad_number(step.iteration, 9);
+      const auto time_path = h5_group_root_name_ + "timeseries/" + iteration + "/" + group.name;
+
+      xdmf << "      <Grid Name=\"" << group_name_xml << "_" << iteration
+           << "\" GridType=\"Uniform\">\n";
+      xdmf << "        <Time Value=\"" << std::setprecision(17) << step.time << "\" />\n";
+      xdmf << "        <Topology TopologyType=\"Quadrilateral\" Dimensions=\""
+           << num_layers << "\">\n";
+      xdmf << "          <DataItem Dimensions=\"" << num_layers
+           << " 4\" NumberType=\"Int\" Precision=\"4\" Format=\"HDF\">\n";
+      xdmf << "            " << h5_basename << ":" << group_path << "/xdmf/cells\n";
+      xdmf << "          </DataItem>\n";
+      xdmf << "        </Topology>\n";
+      xdmf << "        <Geometry GeometryType=\"XYZ\">\n";
+      xdmf << "          <DataItem Dimensions=\"" << num_points
+           << " 3\" NumberType=\"Float\" Precision=\"8\" Format=\"HDF\">\n";
+      xdmf << "            " << h5_basename << ":" << group_path << "/xdmf/points\n";
+      xdmf << "          </DataItem>\n";
+      xdmf << "        </Geometry>\n";
+      xdmf << "        <Attribute Name=\"Magnetisation\" AttributeType=\"Vector\" Center=\"Cell\">\n";
+      xdmf << "          <DataItem Dimensions=\"" << num_layers
+           << " 3\" NumberType=\"Float\" Precision=\"8\" Format=\"HDF\">\n";
+      xdmf << "            " << h5_basename << ":" << time_path << "/magnetisation\n";
+      xdmf << "          </DataItem>\n";
+      xdmf << "        </Attribute>\n";
+      xdmf << "        <Attribute Name=\"LayerPosition\" AttributeType=\"Scalar\" Center=\"Cell\">\n";
+      xdmf << "          <DataItem Dimensions=\"" << num_layers
+           << "\" NumberType=\"Float\" Precision=\"8\" Format=\"HDF\">\n";
+      xdmf << "            " << h5_basename << ":" << group_path << "/layer_positions\n";
+      xdmf << "          </DataItem>\n";
+      xdmf << "        </Attribute>\n";
+      xdmf << "        <Attribute Name=\"SaturationMoment\" AttributeType=\"Scalar\" Center=\"Cell\">\n";
+      xdmf << "          <DataItem Dimensions=\"" << num_layers
+           << "\" NumberType=\"Float\" Precision=\"8\" Format=\"HDF\">\n";
+      xdmf << "            " << h5_basename << ":" << group_path << "/layer_saturation_moment\n";
+      xdmf << "          </DataItem>\n";
+      xdmf << "        </Attribute>\n";
+      xdmf << "        <Attribute Name=\"SpinCount\" AttributeType=\"Scalar\" Center=\"Cell\">\n";
+      xdmf << "          <DataItem Dimensions=\"" << num_layers
+           << "\" NumberType=\"Int\" Precision=\"4\" Format=\"HDF\">\n";
+      xdmf << "            " << h5_basename << ":" << group_path << "/layer_spin_count\n";
+      xdmf << "          </DataItem>\n";
+      xdmf << "        </Attribute>\n";
+      xdmf << "      </Grid>\n";
+    }
+    xdmf << "    </Grid>\n";
+  }
+
+  xdmf << "  </Domain>\n";
+  xdmf << "</Xdmf>\n";
+}
+
+void MagnetisationLayersMonitor::append_xdmf_time_step(const Solver& solver) {
+  xdmf_time_steps_.push_back({solver.iteration(), solver.time()});
+  write_xdmf_file();
+}
 
 void MagnetisationLayersMonitor::accumulate_layer_magnetisation_cpu() {
   const auto& spins = globals::s;
@@ -569,7 +776,7 @@ void MagnetisationLayersMonitor::accumulate_layer_magnetisation_cuda() {
 void MagnetisationLayersMonitor::update(Solver& solver) {
   // Open the h5 file to write new data
   HighFive::File file(
-      jams::output::monitor_filename(name(), "h5"), HighFive::File::ReadWrite);
+      h5_file_name_, HighFive::File::ReadWrite);
 
   HighFive::Group timeseries_group = file.createGroup(h5_group_root_name_ + "/timeseries/" +  zero_pad_number(solver.iteration(),9));
 
@@ -607,4 +814,6 @@ void MagnetisationLayersMonitor::update(Solver& solver) {
     (void)using_cuda_backend;
 #endif
   }
+
+  append_xdmf_time_step(solver);
 }
