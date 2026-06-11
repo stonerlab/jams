@@ -39,6 +39,11 @@ struct PlaneBasis {
   jams::Vec<double, 3> v{0.0, 1.0, 0.0};
 };
 
+struct LayerVolumeBounds {
+  double lower_nm = 0.0;
+  double upper_nm = 0.0;
+};
+
 #if HAS_CUDA
 constexpr std::size_t kCudaLayerChunkSize = 256;
 
@@ -176,16 +181,83 @@ std::array<jams::Vec<double, 3>, 8> supercell_corners_nm() {
   };
 }
 
-void write_xdmf_plane_geometry(
+double projected_sample_thickness_nm(
+    const std::array<jams::Vec<double, 3>, 8>& corners,
+    const jams::Vec<double, 3>& layer_normal_unit) {
+  double lower = std::numeric_limits<double>::max();
+  double upper = std::numeric_limits<double>::lowest();
+  for (const auto& corner : corners) {
+    const auto projection = jams::dot(corner, layer_normal_unit);
+    lower = std::min(lower, projection);
+    upper = std::max(upper, projection);
+  }
+  return upper - lower;
+}
+
+std::vector<LayerVolumeBounds> build_layer_volume_bounds(
+    const jams::MultiArray<double, 1>& layer_positions,
+    const double layer_thickness,
+    const double single_layer_fallback_thickness) {
+  const auto num_layers = layer_positions.size();
+  std::vector<LayerVolumeBounds> bounds(num_layers);
+  const auto layer_position_values = layer_positions.host_view();
+
+  if (layer_thickness > 0.0) {
+    const auto half_thickness = 0.5 * layer_thickness;
+    for (std::size_t layer = 0; layer < num_layers; ++layer) {
+      bounds[layer] = {
+          layer_position_values(layer) - half_thickness,
+          layer_position_values(layer) + half_thickness,
+      };
+    }
+    return bounds;
+  }
+
+  if (num_layers == 1) {
+    const auto half_thickness = 0.5 * single_layer_fallback_thickness;
+    bounds[0] = {
+        layer_position_values(0) - half_thickness,
+        layer_position_values(0) + half_thickness,
+    };
+    return bounds;
+  }
+
+  for (std::size_t layer = 0; layer < num_layers; ++layer) {
+    const auto lower = layer == 0
+        ? layer_position_values(0) - 0.5 * (layer_position_values(1) - layer_position_values(0))
+        : 0.5 * (layer_position_values(layer - 1) + layer_position_values(layer));
+    const auto upper = layer + 1 == num_layers
+        ? layer_position_values(layer) + 0.5 * (layer_position_values(layer) - layer_position_values(layer - 1))
+        : 0.5 * (layer_position_values(layer) + layer_position_values(layer + 1));
+    bounds[layer] = {lower, upper};
+  }
+
+  return bounds;
+}
+
+void write_xdmf_volume_and_glyph_geometry(
     HighFive::Group& h5_group,
     const jams::MultiArray<double, 1>& layer_positions,
-    const jams::Vec<double, 3>& layer_normal_unit) {
+    const jams::Vec<double, 3>& layer_normal_unit,
+    const double layer_thickness) {
   const auto num_layers = layer_positions.size();
-  jams::MultiArray<double, 2> points(num_layers * 4, 3);
-  jams::MultiArray<int, 2> cells(num_layers, 4);
+  jams::MultiArray<double, 2> volume_points(num_layers * 8, 3);
+  jams::MultiArray<int, 2> volume_cells(num_layers, 8);
+  jams::MultiArray<double, 2> glyph_points(num_layers, 3);
 
   const auto basis = plane_basis_from_normal(layer_normal_unit);
   const auto corners = supercell_corners_nm();
+  const auto sample_thickness = projected_sample_thickness_nm(corners, layer_normal_unit);
+  const auto single_layer_fallback_thickness = definately_greater_than(
+      sample_thickness,
+      0.0,
+      std::numeric_limits<double>::epsilon())
+      ? sample_thickness
+      : default_distance_tolerance_nm();
+  const auto layer_bounds = build_layer_volume_bounds(
+      layer_positions,
+      layer_thickness,
+      single_layer_fallback_thickness);
 
   double u_min = std::numeric_limits<double>::max();
   double u_max = std::numeric_limits<double>::lowest();
@@ -200,40 +272,58 @@ void write_xdmf_plane_geometry(
     v_max = std::max(v_max, v_projection);
   }
 
-  auto point_values = points.mutable_host_view();
-  auto cell_values = cells.mutable_host_view();
+  auto volume_point_values = volume_points.mutable_host_view();
+  auto volume_cell_values = volume_cells.mutable_host_view();
+  auto glyph_point_values = glyph_points.mutable_host_view();
   const auto layer_position_values = layer_positions.host_view();
   for (std::size_t layer = 0; layer < num_layers; ++layer) {
-    const auto center = layer_normal_unit * layer_position_values(layer);
-    const std::array<jams::Vec<double, 3>, 4> layer_points{
-        center + basis.u * u_min + basis.v * v_min,
-        center + basis.u * u_max + basis.v * v_min,
-        center + basis.u * u_max + basis.v * v_max,
-        center + basis.u * u_min + basis.v * v_max,
+    const auto lower_center = layer_normal_unit * layer_bounds[layer].lower_nm;
+    const auto upper_center = layer_normal_unit * layer_bounds[layer].upper_nm;
+    const auto glyph_center = layer_normal_unit * layer_position_values(layer);
+    const std::array<jams::Vec<double, 3>, 8> layer_points{
+        lower_center + basis.u * u_min + basis.v * v_min,
+        lower_center + basis.u * u_max + basis.v * v_min,
+        lower_center + basis.u * u_max + basis.v * v_max,
+        lower_center + basis.u * u_min + basis.v * v_max,
+        upper_center + basis.u * u_min + basis.v * v_min,
+        upper_center + basis.u * u_max + basis.v * v_min,
+        upper_center + basis.u * u_max + basis.v * v_max,
+        upper_center + basis.u * u_min + basis.v * v_max,
     };
 
-    for (auto corner = 0; corner < 4; ++corner) {
-      const auto point_index = layer * 4 + corner;
+    for (auto component = 0; component < 3; ++component) {
+      glyph_point_values(layer, component) = glyph_center[component];
+    }
+
+    for (auto corner = 0; corner < 8; ++corner) {
+      const auto point_index = layer * 8 + corner;
       for (auto component = 0; component < 3; ++component) {
-        point_values(point_index, component) = layer_points[corner][component];
+        volume_point_values(point_index, component) = layer_points[corner][component];
       }
-      cell_values(layer, corner) = static_cast<int>(point_index);
+      volume_cell_values(layer, corner) = static_cast<int>(point_index);
     }
   }
 
   auto xdmf_group = h5_group.createGroup("xdmf");
-  auto points_dataset = xdmf_group.createDataSet<double>(
-      "points", HighFive::DataSpace::From(points));
-  points_dataset.write(points);
-  points_dataset.createAttribute<std::string>("units", "nm");
-  points_dataset.createAttribute<std::string>("axis0", "point_index");
-  points_dataset.createAttribute<std::string>("axis1", "xyz");
+  auto volume_points_dataset = xdmf_group.createDataSet<double>(
+      "volume_points", HighFive::DataSpace::From(volume_points));
+  volume_points_dataset.write(volume_points);
+  volume_points_dataset.createAttribute<std::string>("units", "nm");
+  volume_points_dataset.createAttribute<std::string>("axis0", "point_index");
+  volume_points_dataset.createAttribute<std::string>("axis1", "xyz");
 
-  auto cells_dataset = xdmf_group.createDataSet<int>(
-      "cells", HighFive::DataSpace::From(cells));
-  cells_dataset.write(cells);
-  cells_dataset.createAttribute<std::string>("axis0", "layer_index");
-  cells_dataset.createAttribute<std::string>("axis1", "quad_corner_index");
+  auto volume_cells_dataset = xdmf_group.createDataSet<int>(
+      "volume_cells", HighFive::DataSpace::From(volume_cells));
+  volume_cells_dataset.write(volume_cells);
+  volume_cells_dataset.createAttribute<std::string>("axis0", "layer_index");
+  volume_cells_dataset.createAttribute<std::string>("axis1", "hexahedron_corner_index");
+
+  auto glyph_points_dataset = xdmf_group.createDataSet<double>(
+      "glyph_points", HighFive::DataSpace::From(glyph_points));
+  glyph_points_dataset.write(glyph_points);
+  glyph_points_dataset.createAttribute<std::string>("units", "nm");
+  glyph_points_dataset.createAttribute<std::string>("axis0", "layer_index");
+  glyph_points_dataset.createAttribute<std::string>("axis1", "xyz");
 }
 
 std::map<double, LayerBuildData>::iterator find_or_insert_tolerant_layer(
@@ -613,7 +703,11 @@ MagnetisationLayersMonitor::MagnetisationLayersMonitor(
       dataset.createAttribute<std::string>("axis0", "layer_index");
       dataset.createAttribute<std::string>("axis1", "number_of_spins");
     }
-    write_xdmf_plane_geometry(h5_group, layer_positions, layer_normal_unit);
+    write_xdmf_volume_and_glyph_geometry(
+        h5_group,
+        layer_positions,
+        layer_normal_unit,
+        layer_thickness);
   }
 
   write_xdmf_file();
@@ -640,29 +734,29 @@ void MagnetisationLayersMonitor::write_xdmf_file() const {
     const auto& group = spin_groups_[group_idx];
     const auto group_name_xml = xml_escape(group.name);
     const auto num_layers = group_num_layers_[group_idx];
-    const auto num_points = num_layers * 4;
+    const auto num_volume_points = num_layers * 8;
     const auto group_path = h5_group_root_name_ + "groups/" + group.name;
 
     xdmf << "    <Grid Name=\"" << group_name_xml
-         << "\" GridType=\"Collection\" CollectionType=\"Temporal\">\n";
+         << "_volumes\" GridType=\"Collection\" CollectionType=\"Temporal\">\n";
     for (const auto& step : xdmf_time_steps_) {
       const auto iteration = zero_pad_number(step.iteration, 9);
       const auto time_path = h5_group_root_name_ + "timeseries/" + iteration + "/" + group.name;
 
-      xdmf << "      <Grid Name=\"" << group_name_xml << "_" << iteration
+      xdmf << "      <Grid Name=\"" << group_name_xml << "_volumes_" << iteration
            << "\" GridType=\"Uniform\">\n";
       xdmf << "        <Time Value=\"" << std::setprecision(17) << step.time << "\" />\n";
-      xdmf << "        <Topology TopologyType=\"Quadrilateral\" Dimensions=\""
+      xdmf << "        <Topology TopologyType=\"Hexahedron\" Dimensions=\""
            << num_layers << "\">\n";
       xdmf << "          <DataItem Dimensions=\"" << num_layers
-           << " 4\" NumberType=\"Int\" Precision=\"4\" Format=\"HDF\">\n";
-      xdmf << "            " << h5_basename << ":" << group_path << "/xdmf/cells\n";
+           << " 8\" NumberType=\"Int\" Precision=\"4\" Format=\"HDF\">\n";
+      xdmf << "            " << h5_basename << ":" << group_path << "/xdmf/volume_cells\n";
       xdmf << "          </DataItem>\n";
       xdmf << "        </Topology>\n";
       xdmf << "        <Geometry GeometryType=\"XYZ\">\n";
-      xdmf << "          <DataItem Dimensions=\"" << num_points
+      xdmf << "          <DataItem Dimensions=\"" << num_volume_points
            << " 3\" NumberType=\"Float\" Precision=\"8\" Format=\"HDF\">\n";
-      xdmf << "            " << h5_basename << ":" << group_path << "/xdmf/points\n";
+      xdmf << "            " << h5_basename << ":" << group_path << "/xdmf/volume_points\n";
       xdmf << "          </DataItem>\n";
       xdmf << "        </Geometry>\n";
       xdmf << "        <Attribute Name=\"Magnetisation\" AttributeType=\"Vector\" Center=\"Cell\">\n";
@@ -684,6 +778,51 @@ void MagnetisationLayersMonitor::write_xdmf_file() const {
       xdmf << "          </DataItem>\n";
       xdmf << "        </Attribute>\n";
       xdmf << "        <Attribute Name=\"SpinCount\" AttributeType=\"Scalar\" Center=\"Cell\">\n";
+      xdmf << "          <DataItem Dimensions=\"" << num_layers
+           << "\" NumberType=\"Int\" Precision=\"4\" Format=\"HDF\">\n";
+      xdmf << "            " << h5_basename << ":" << group_path << "/layer_spin_count\n";
+      xdmf << "          </DataItem>\n";
+      xdmf << "        </Attribute>\n";
+      xdmf << "      </Grid>\n";
+    }
+    xdmf << "    </Grid>\n";
+
+    xdmf << "    <Grid Name=\"" << group_name_xml
+         << "_glyphs\" GridType=\"Collection\" CollectionType=\"Temporal\">\n";
+    for (const auto& step : xdmf_time_steps_) {
+      const auto iteration = zero_pad_number(step.iteration, 9);
+      const auto time_path = h5_group_root_name_ + "timeseries/" + iteration + "/" + group.name;
+
+      xdmf << "      <Grid Name=\"" << group_name_xml << "_glyphs_" << iteration
+           << "\" GridType=\"Uniform\">\n";
+      xdmf << "        <Time Value=\"" << std::setprecision(17) << step.time << "\" />\n";
+      xdmf << "        <Topology TopologyType=\"Polyvertex\" Dimensions=\""
+           << num_layers << "\" />\n";
+      xdmf << "        <Geometry GeometryType=\"XYZ\">\n";
+      xdmf << "          <DataItem Dimensions=\"" << num_layers
+           << " 3\" NumberType=\"Float\" Precision=\"8\" Format=\"HDF\">\n";
+      xdmf << "            " << h5_basename << ":" << group_path << "/xdmf/glyph_points\n";
+      xdmf << "          </DataItem>\n";
+      xdmf << "        </Geometry>\n";
+      xdmf << "        <Attribute Name=\"Magnetisation\" AttributeType=\"Vector\" Center=\"Node\">\n";
+      xdmf << "          <DataItem Dimensions=\"" << num_layers
+           << " 3\" NumberType=\"Float\" Precision=\"8\" Format=\"HDF\">\n";
+      xdmf << "            " << h5_basename << ":" << time_path << "/magnetisation\n";
+      xdmf << "          </DataItem>\n";
+      xdmf << "        </Attribute>\n";
+      xdmf << "        <Attribute Name=\"LayerPosition\" AttributeType=\"Scalar\" Center=\"Node\">\n";
+      xdmf << "          <DataItem Dimensions=\"" << num_layers
+           << "\" NumberType=\"Float\" Precision=\"8\" Format=\"HDF\">\n";
+      xdmf << "            " << h5_basename << ":" << group_path << "/layer_positions\n";
+      xdmf << "          </DataItem>\n";
+      xdmf << "        </Attribute>\n";
+      xdmf << "        <Attribute Name=\"SaturationMoment\" AttributeType=\"Scalar\" Center=\"Node\">\n";
+      xdmf << "          <DataItem Dimensions=\"" << num_layers
+           << "\" NumberType=\"Float\" Precision=\"8\" Format=\"HDF\">\n";
+      xdmf << "            " << h5_basename << ":" << group_path << "/layer_saturation_moment\n";
+      xdmf << "          </DataItem>\n";
+      xdmf << "        </Attribute>\n";
+      xdmf << "        <Attribute Name=\"SpinCount\" AttributeType=\"Scalar\" Center=\"Node\">\n";
       xdmf << "          <DataItem Dimensions=\"" << num_layers
            << "\" NumberType=\"Int\" Precision=\"4\" Format=\"HDF\">\n";
       xdmf << "            " << h5_basename << ":" << group_path << "/layer_spin_count\n";

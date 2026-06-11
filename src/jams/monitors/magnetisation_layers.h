@@ -43,13 +43,15 @@
 ///                     (shape = [num_layers], type = int)
 ///
 /// For ParaView visualisation, a sidecar XDMF file is written alongside the H5
-/// file. Static quad geometry for each layer is stored under
+/// file. Static slab and glyph-seed geometry for each layer is stored under
 /// "/jams/monitors/<monitor-name>/groups/<group-name>/xdmf":
 ///
-/// - points:           Four XYZ vertices per layer plane, in nm
-///                     (shape = [num_layers * 4, 3], type = double)
-/// - cells:            Quad connectivity for each layer plane
-///                     (shape = [num_layers, 4], type = int)
+/// - volume_points:    Eight XYZ vertices per layer slab, in nm
+///                     (shape = [num_layers * 8, 3], type = double)
+/// - volume_cells:     Hexahedron connectivity for each layer slab
+///                     (shape = [num_layers, 8], type = int)
+/// - glyph_points:     One XYZ point per layer for arrow glyph filters
+///                     (shape = [num_layers, 3], type = double)
 ///
 /// For each output a new group is made in
 /// "/jams/monitors/<monitor-name>/timeseries/<iteration>", with the solver

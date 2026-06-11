@@ -8,6 +8,7 @@
 #include <cmath>
 #include <filesystem>
 #include <fstream>
+#include <limits>
 #include <memory>
 #include <string>
 
@@ -157,12 +158,12 @@ protected:
     return file.getDataSet(path).getDimensions();
   }
 
-  static std::vector<double> read_plane_points() {
+  static std::vector<double> read_2d_double_dataset(const std::string& path) {
     HighFive::File file(
         jams::output::monitor_filename("magnetisation-layers", "h5"),
         HighFive::File::ReadOnly);
     std::vector<std::vector<double>> rows;
-    file.getDataSet("/jams/monitors/magnetisation-layers/groups/A/xdmf/points").read(rows);
+    file.getDataSet(path).read(rows);
 
     std::vector<double> values;
     for (const auto& row : rows) {
@@ -520,7 +521,7 @@ TEST_F(MagnetisationLayersMonitorTest, UpdateAccumulatesLayerMagnetisationInOneP
   EXPECT_NEAR(magnetisation[5], 0.0, magnetisation_tolerance(0.0));
 }
 
-TEST_F(MagnetisationLayersMonitorTest, WritesXdmfPlaneGeometryAndReferencesLayerData) {
+TEST_F(MagnetisationLayersMonitorTest, WritesXdmfVolumeAndGlyphGeometryAndReferencesLayerData) {
   initialise_lattice_from_config(R"(
     solver : {
       module = "llg-heun-cpu";
@@ -566,38 +567,182 @@ TEST_F(MagnetisationLayersMonitorTest, WritesXdmfPlaneGeometryAndReferencesLayer
   EXPECT_TRUE(std::filesystem::exists(
       jams::output::monitor_filename("magnetisation-layers", "xdmf")));
   EXPECT_EQ(
-      read_dataset_dimensions("/jams/monitors/magnetisation-layers/groups/A/xdmf/points"),
-      (std::vector<size_t>{8, 3}));
+      read_dataset_dimensions("/jams/monitors/magnetisation-layers/groups/A/xdmf/volume_points"),
+      (std::vector<size_t>{16, 3}));
   EXPECT_EQ(
-      read_dataset_dimensions("/jams/monitors/magnetisation-layers/groups/A/xdmf/cells"),
-      (std::vector<size_t>{2, 4}));
+      read_dataset_dimensions("/jams/monitors/magnetisation-layers/groups/A/xdmf/volume_cells"),
+      (std::vector<size_t>{2, 8}));
+  EXPECT_EQ(
+      read_dataset_dimensions("/jams/monitors/magnetisation-layers/groups/A/xdmf/glyph_points"),
+      (std::vector<size_t>{2, 3}));
 
-  const auto points = read_plane_points();
-  ASSERT_EQ(points.size(), 24u);
+  const auto volume_points = read_2d_double_dataset(
+      "/jams/monitors/magnetisation-layers/groups/A/xdmf/volume_points");
+  ASSERT_EQ(volume_points.size(), 48u);
   for (auto point = 0; point < 4; ++point) {
-    EXPECT_NEAR(points[3 * point + 2], 0.5, 1.0e-12);
+    EXPECT_NEAR(volume_points[3 * point + 2], 0.0, 1.0e-12);
   }
   for (auto point = 4; point < 8; ++point) {
-    EXPECT_NEAR(points[3 * point + 2], 1.5, 1.0e-12);
+    EXPECT_NEAR(volume_points[3 * point + 2], 1.0, 1.0e-12);
   }
+  for (auto point = 8; point < 12; ++point) {
+    EXPECT_NEAR(volume_points[3 * point + 2], 1.0, 1.0e-12);
+  }
+  for (auto point = 12; point < 16; ++point) {
+    EXPECT_NEAR(volume_points[3 * point + 2], 2.0, 1.0e-12);
+  }
+
+  const auto glyph_points = read_2d_double_dataset(
+      "/jams/monitors/magnetisation-layers/groups/A/xdmf/glyph_points");
+  ASSERT_EQ(glyph_points.size(), 6u);
+  EXPECT_NEAR(glyph_points[2], 0.5, 1.0e-12);
+  EXPECT_NEAR(glyph_points[5], 1.5, 1.0e-12);
 
   MagnetisationLayersStubSolver solver;
   monitor.update(solver);
 
   const auto xdmf = read_xdmf();
-  EXPECT_NE(xdmf.find("Grid Name=\"A\" GridType=\"Collection\" CollectionType=\"Temporal\""), std::string::npos);
-  EXPECT_NE(xdmf.find("Topology TopologyType=\"Quadrilateral\" Dimensions=\"2\""), std::string::npos);
+  EXPECT_NE(xdmf.find("Grid Name=\"A_volumes\" GridType=\"Collection\" CollectionType=\"Temporal\""), std::string::npos);
+  EXPECT_NE(xdmf.find("Grid Name=\"A_glyphs\" GridType=\"Collection\" CollectionType=\"Temporal\""), std::string::npos);
+  EXPECT_NE(xdmf.find("Topology TopologyType=\"Hexahedron\" Dimensions=\"2\""), std::string::npos);
+  EXPECT_NE(xdmf.find("Topology TopologyType=\"Polyvertex\" Dimensions=\"2\""), std::string::npos);
   EXPECT_NE(xdmf.find("Geometry GeometryType=\"XYZ\""), std::string::npos);
-  EXPECT_NE(xdmf.find("monitor_magnetisation-layers.h5:/jams/monitors/magnetisation-layers/groups/A/xdmf/points"), std::string::npos);
-  EXPECT_NE(xdmf.find("monitor_magnetisation-layers.h5:/jams/monitors/magnetisation-layers/groups/A/xdmf/cells"), std::string::npos);
+  EXPECT_NE(xdmf.find("monitor_magnetisation-layers.h5:/jams/monitors/magnetisation-layers/groups/A/xdmf/volume_points"), std::string::npos);
+  EXPECT_NE(xdmf.find("monitor_magnetisation-layers.h5:/jams/monitors/magnetisation-layers/groups/A/xdmf/volume_cells"), std::string::npos);
+  EXPECT_NE(xdmf.find("monitor_magnetisation-layers.h5:/jams/monitors/magnetisation-layers/groups/A/xdmf/glyph_points"), std::string::npos);
   EXPECT_NE(xdmf.find("Attribute Name=\"Magnetisation\" AttributeType=\"Vector\" Center=\"Cell\""), std::string::npos);
+  EXPECT_NE(xdmf.find("Attribute Name=\"Magnetisation\" AttributeType=\"Vector\" Center=\"Node\""), std::string::npos);
   EXPECT_NE(xdmf.find("monitor_magnetisation-layers.h5:/jams/monitors/magnetisation-layers/timeseries/000000000/A/magnetisation"), std::string::npos);
   EXPECT_NE(xdmf.find("Attribute Name=\"LayerPosition\" AttributeType=\"Scalar\" Center=\"Cell\""), std::string::npos);
+  EXPECT_NE(xdmf.find("Attribute Name=\"LayerPosition\" AttributeType=\"Scalar\" Center=\"Node\""), std::string::npos);
   EXPECT_NE(xdmf.find("monitor_magnetisation-layers.h5:/jams/monitors/magnetisation-layers/groups/A/layer_positions"), std::string::npos);
   EXPECT_NE(xdmf.find("Attribute Name=\"SaturationMoment\" AttributeType=\"Scalar\" Center=\"Cell\""), std::string::npos);
+  EXPECT_NE(xdmf.find("Attribute Name=\"SaturationMoment\" AttributeType=\"Scalar\" Center=\"Node\""), std::string::npos);
   EXPECT_NE(xdmf.find("monitor_magnetisation-layers.h5:/jams/monitors/magnetisation-layers/groups/A/layer_saturation_moment"), std::string::npos);
   EXPECT_NE(xdmf.find("Attribute Name=\"SpinCount\" AttributeType=\"Scalar\" Center=\"Cell\""), std::string::npos);
+  EXPECT_NE(xdmf.find("Attribute Name=\"SpinCount\" AttributeType=\"Scalar\" Center=\"Node\""), std::string::npos);
   EXPECT_NE(xdmf.find("monitor_magnetisation-layers.h5:/jams/monitors/magnetisation-layers/groups/A/layer_spin_count"), std::string::npos);
+}
+
+TEST_F(MagnetisationLayersMonitorTest, ZeroThicknessVolumesInferMidpointBoundaries) {
+  initialise_lattice_from_config(R"(
+    solver : {
+      module = "llg-heun-cpu";
+      t_step = 1.0e-16;
+      t_min  = 1.0e-16;
+      t_max  = 1.0e-16;
+    };
+
+    materials = (
+      { name = "A"; moment = 1.0; spin = [1.0, 0.0, 0.0]; }
+    );
+
+    unitcell : {
+      symops = false;
+      parameter = 1.0e-9;
+      basis = (
+        [1.0, 0.0, 0.0],
+        [0.0, 1.0, 0.0],
+        [0.0, 0.0, 1.0]);
+      positions = (
+        ("A", [0.0, 0.0, 0.0])
+      );
+    };
+
+    lattice : {
+      size = [1, 1, 3];
+      periodic = [true, true, true];
+      normalise_spins = false;
+    };
+
+    monitors = (
+      {
+        module = "magnetisation-layers";
+        output_steps = 1;
+        layer_normal = [0.0, 0.0, 1.0];
+      }
+    );
+  )");
+
+  MagnetisationLayersMonitor monitor(first_monitor_settings());
+
+  const auto volume_points = read_2d_double_dataset(
+      "/jams/monitors/magnetisation-layers/groups/A/xdmf/volume_points");
+  ASSERT_EQ(volume_points.size(), 72u);
+  for (auto point = 0; point < 4; ++point) {
+    EXPECT_NEAR(volume_points[3 * point + 2], -0.5, 1.0e-12);
+  }
+  for (auto point = 4; point < 8; ++point) {
+    EXPECT_NEAR(volume_points[3 * point + 2], 0.5, 1.0e-12);
+  }
+  for (auto point = 8; point < 12; ++point) {
+    EXPECT_NEAR(volume_points[3 * point + 2], 0.5, 1.0e-12);
+  }
+  for (auto point = 12; point < 16; ++point) {
+    EXPECT_NEAR(volume_points[3 * point + 2], 1.5, 1.0e-12);
+  }
+  for (auto point = 16; point < 20; ++point) {
+    EXPECT_NEAR(volume_points[3 * point + 2], 1.5, 1.0e-12);
+  }
+  for (auto point = 20; point < 24; ++point) {
+    EXPECT_NEAR(volume_points[3 * point + 2], 2.5, 1.0e-12);
+  }
+}
+
+TEST_F(MagnetisationLayersMonitorTest, SingleZeroThicknessLayerVolumeIsFinite) {
+  initialise_lattice_from_config(R"(
+    solver : {
+      module = "llg-heun-cpu";
+      t_step = 1.0e-16;
+      t_min  = 1.0e-16;
+      t_max  = 1.0e-16;
+    };
+
+    materials = (
+      { name = "A"; moment = 1.0; spin = [1.0, 0.0, 0.0]; }
+    );
+
+    unitcell : {
+      symops = false;
+      parameter = 1.0e-9;
+      basis = (
+        [1.0, 0.0, 0.0],
+        [0.0, 1.0, 0.0],
+        [0.0, 0.0, 1.0]);
+      positions = (
+        ("A", [0.0, 0.0, 0.0])
+      );
+    };
+
+    lattice : {
+      size = [1, 1, 1];
+      periodic = [true, true, true];
+      normalise_spins = false;
+    };
+
+    monitors = (
+      {
+        module = "magnetisation-layers";
+        output_steps = 1;
+        layer_normal = [0.0, 0.0, 1.0];
+      }
+    );
+  )");
+
+  MagnetisationLayersMonitor monitor(first_monitor_settings());
+
+  const auto volume_points = read_2d_double_dataset(
+      "/jams/monitors/magnetisation-layers/groups/A/xdmf/volume_points");
+  ASSERT_EQ(volume_points.size(), 24u);
+  double z_min = std::numeric_limits<double>::max();
+  double z_max = std::numeric_limits<double>::lowest();
+  for (auto point = 0; point < 8; ++point) {
+    z_min = std::min(z_min, volume_points[3 * point + 2]);
+    z_max = std::max(z_max, volume_points[3 * point + 2]);
+  }
+  EXPECT_LT(z_min, z_max);
+  EXPECT_NEAR(z_min, -0.5, 1.0e-12);
+  EXPECT_NEAR(z_max, 0.5, 1.0e-12);
 }
 
 TEST_F(MagnetisationLayersMonitorTest, XdmfContainsMultipleTimeSteps) {
@@ -649,8 +794,10 @@ TEST_F(MagnetisationLayersMonitorTest, XdmfContainsMultipleTimeSteps) {
   monitor.update(solver);
 
   const auto xdmf = read_xdmf();
-  EXPECT_NE(xdmf.find("A_000000000"), std::string::npos);
-  EXPECT_NE(xdmf.find("A_000000010"), std::string::npos);
+  EXPECT_NE(xdmf.find("A_volumes_000000000"), std::string::npos);
+  EXPECT_NE(xdmf.find("A_volumes_000000010"), std::string::npos);
+  EXPECT_NE(xdmf.find("A_glyphs_000000000"), std::string::npos);
+  EXPECT_NE(xdmf.find("A_glyphs_000000010"), std::string::npos);
   EXPECT_NE(xdmf.find("timeseries/000000000/A/magnetisation"), std::string::npos);
   EXPECT_NE(xdmf.find("timeseries/000000010/A/magnetisation"), std::string::npos);
   EXPECT_NE(xdmf.find("<Time Value=\"0\" />"), std::string::npos);
