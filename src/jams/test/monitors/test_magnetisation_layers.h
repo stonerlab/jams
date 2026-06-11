@@ -3,6 +3,9 @@
 
 #include "gtest/gtest.h"
 
+#include <algorithm>
+#include <cctype>
+#include <cmath>
 #include <filesystem>
 #include <memory>
 #include <string>
@@ -47,7 +50,7 @@ class MagnetisationLayersMonitorTest : public ::testing::Test {
 protected:
   void SetUp() override {
     globals::solver = nullptr;
-    output_dir_ = std::filesystem::temp_directory_path() / "jams_magnetisation_layers_monitor_test";
+    output_dir_ = test_output_directory();
     std::filesystem::remove_all(output_dir_);
     jams::Jams::set_output_dir(output_dir_.string());
 
@@ -141,7 +144,35 @@ protected:
     return values;
   }
 
+  static double magnetisation_tolerance(const double expected) {
+    return std::max(1.0, std::abs(expected)) * kMagnetisationTolerance;
+  }
+
 private:
+  static std::filesystem::path test_output_directory() {
+    const auto* test_info = ::testing::UnitTest::GetInstance()->current_test_info();
+    std::string test_name = "unknown";
+    if (test_info != nullptr) {
+      test_name = std::string(test_info->test_suite_name()) + "_" + test_info->name();
+    }
+
+    for (auto& ch : test_name) {
+      const auto uch = static_cast<unsigned char>(ch);
+      if (!std::isalnum(uch) && ch != '_' && ch != '-') {
+        ch = '_';
+      }
+    }
+
+    return std::filesystem::temp_directory_path()
+        / ("jams_magnetisation_layers_monitor_test_" + test_name);
+  }
+
+#if DO_MIXED_PRECISION
+  static constexpr double kMagnetisationTolerance = 1.0e-7;
+#else
+  static constexpr double kMagnetisationTolerance = 1.0e-12;
+#endif
+
   std::filesystem::path output_dir_;
 };
 
@@ -448,12 +479,12 @@ TEST_F(MagnetisationLayersMonitorTest, UpdateAccumulatesLayerMagnetisationInOneP
 
   const auto magnetisation = read_first_update_magnetisation();
   ASSERT_EQ(magnetisation.size(), 6u);
-  EXPECT_NEAR(magnetisation[0], 1.0, 1.0e-12);
-  EXPECT_NEAR(magnetisation[1], 0.0, 1.0e-12);
-  EXPECT_NEAR(magnetisation[2], 0.0, 1.0e-12);
-  EXPECT_NEAR(magnetisation[3], 1.0, 1.0e-12);
-  EXPECT_NEAR(magnetisation[4], 0.0, 1.0e-12);
-  EXPECT_NEAR(magnetisation[5], 0.0, 1.0e-12);
+  EXPECT_NEAR(magnetisation[0], 1.0, magnetisation_tolerance(1.0));
+  EXPECT_NEAR(magnetisation[1], 0.0, magnetisation_tolerance(0.0));
+  EXPECT_NEAR(magnetisation[2], 0.0, magnetisation_tolerance(0.0));
+  EXPECT_NEAR(magnetisation[3], 1.0, magnetisation_tolerance(1.0));
+  EXPECT_NEAR(magnetisation[4], 0.0, magnetisation_tolerance(0.0));
+  EXPECT_NEAR(magnetisation[5], 0.0, magnetisation_tolerance(0.0));
 }
 
 #if HAS_CUDA
@@ -510,12 +541,12 @@ TEST_F(MagnetisationLayersMonitorTest, CudaFiniteThicknessUpdateMatchesExpectedL
 
   const auto magnetisation = read_first_update_magnetisation();
   ASSERT_EQ(magnetisation.size(), 6u);
-  EXPECT_NEAR(magnetisation[0], 1.0, 1.0e-12);
-  EXPECT_NEAR(magnetisation[1], 0.0, 1.0e-12);
-  EXPECT_NEAR(magnetisation[2], 0.0, 1.0e-12);
-  EXPECT_NEAR(magnetisation[3], 1.0, 1.0e-12);
-  EXPECT_NEAR(magnetisation[4], 0.0, 1.0e-12);
-  EXPECT_NEAR(magnetisation[5], 0.0, 1.0e-12);
+  EXPECT_NEAR(magnetisation[0], 1.0, magnetisation_tolerance(1.0));
+  EXPECT_NEAR(magnetisation[1], 0.0, magnetisation_tolerance(0.0));
+  EXPECT_NEAR(magnetisation[2], 0.0, magnetisation_tolerance(0.0));
+  EXPECT_NEAR(magnetisation[3], 1.0, magnetisation_tolerance(1.0));
+  EXPECT_NEAR(magnetisation[4], 0.0, magnetisation_tolerance(0.0));
+  EXPECT_NEAR(magnetisation[5], 0.0, magnetisation_tolerance(0.0));
 }
 
 TEST_F(MagnetisationLayersMonitorTest, CudaZeroThicknessOutputUsesExpectedLayerGrouping) {
@@ -577,9 +608,9 @@ TEST_F(MagnetisationLayersMonitorTest, CudaZeroThicknessOutputUsesExpectedLayerG
 
   const auto magnetisation = read_first_update_magnetisation();
   ASSERT_EQ(magnetisation.size(), 3u);
-  EXPECT_NEAR(magnetisation[0], 2.0, 1.0e-12);
-  EXPECT_NEAR(magnetisation[1], 0.0, 1.0e-12);
-  EXPECT_NEAR(magnetisation[2], 0.0, 1.0e-12);
+  EXPECT_NEAR(magnetisation[0], 2.0, magnetisation_tolerance(2.0));
+  EXPECT_NEAR(magnetisation[1], 0.0, magnetisation_tolerance(0.0));
+  EXPECT_NEAR(magnetisation[2], 0.0, magnetisation_tolerance(0.0));
 }
 
 TEST_F(MagnetisationLayersMonitorTest, CudaChunkedReductionHandlesMoreThanOneChunkInLayer) {
@@ -638,9 +669,9 @@ TEST_F(MagnetisationLayersMonitorTest, CudaChunkedReductionHandlesMoreThanOneChu
 
   const auto magnetisation = read_first_update_magnetisation();
   ASSERT_EQ(magnetisation.size(), 3u);
-  EXPECT_NEAR(magnetisation[0], 257.0, 1.0e-12);
-  EXPECT_NEAR(magnetisation[1], 0.0, 1.0e-12);
-  EXPECT_NEAR(magnetisation[2], 0.0, 1.0e-12);
+  EXPECT_NEAR(magnetisation[0], 257.0, magnetisation_tolerance(257.0));
+  EXPECT_NEAR(magnetisation[1], 0.0, magnetisation_tolerance(0.0));
+  EXPECT_NEAR(magnetisation[2], 0.0, magnetisation_tolerance(0.0));
 }
 #endif
 

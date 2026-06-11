@@ -67,10 +67,17 @@ class CudaQuantumSpdeNoiseGenerator {
   CudaQuantumSpdeNoiseGenerator& operator=(const CudaQuantumSpdeNoiseGenerator&) = delete;
 
   void initialize(Initialization initialization, jams::Real temperature);
+  void initialize(Initialization initialization,
+                  const jams::MultiArray<jams::Real, 1>& temperature);
   void initialize_stationary(jams::Real temperature);
+  void initialize_stationary(const jams::MultiArray<jams::Real, 1>& temperature);
   void warmup(unsigned steps, jams::Real temperature, jams::Real* noise,
               const jams::Real* sigma);
+  void warmup(unsigned steps, const jams::MultiArray<jams::Real, 1>& temperature,
+              jams::Real* noise, const jams::Real* sigma);
   void update(jams::Real* noise, const jams::Real* sigma, jams::Real temperature);
+  void update(jams::Real* noise, const jams::Real* sigma,
+              const jams::MultiArray<jams::Real, 1>& temperature);
   void synchronize();
 
   [[nodiscard]] int process_count() const { return process_count_; }
@@ -85,6 +92,8 @@ class CudaQuantumSpdeNoiseGenerator {
  private:
   void generate_random_buffers();
   void prepare_fixed_temperature_coefficients(jams::Real temperature);
+  void prepare_temperature_profile_coefficients(
+      const jams::MultiArray<jams::Real, 1>& temperature);
   void zero_state();
 
   int process_count_ = 0;
@@ -96,6 +105,11 @@ class CudaQuantumSpdeNoiseGenerator {
   QuantumSpdeBoseUpdateCoefficients fast_factor5_;
   QuantumSpdeBoseUpdateCoefficients fast_factor6_;
   QuantumSpdeZeroPointUpdateCoefficients zero_point_coefficients_;
+  bool profile_has_positive_temperature_ = false;
+  jams::MultiArray<QuantumSpdeBoseUpdateCoefficients, 1> profile_factor5_;
+  jams::MultiArray<QuantumSpdeBoseUpdateCoefficients, 1> profile_factor6_;
+  jams::MultiArray<QuantumSpdeBoseCholesky, 1> profile_stationary_factor5_;
+  jams::MultiArray<QuantumSpdeBoseCholesky, 1> profile_stationary_factor6_;
 
   CudaStream& update_stream_;
   CudaStream curand_stream_{CudaStream::Priority::LOW};

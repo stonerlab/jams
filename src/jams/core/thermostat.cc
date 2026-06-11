@@ -5,6 +5,8 @@
 #include "jams/core/globals.h"
 #include "jams/helpers/utils.h"
 
+#include "jams/thermostats/thermostat_classical.h"
+
 #include "jams/thermostats/cuda_thermostat_classical.h"
 #include "jams/thermostats/thm_bose_einstein_cuda_srk4.h"
 #include "jams/thermostats/cuda_thermostat_general_fft.h"
@@ -14,6 +16,31 @@
 #include <stdexcept>
 #include <iostream>
 
+Thermostat::Thermostat(const jams::Real &temperature,
+                       const jams::Real &sigma,
+                       const jams::Real timestep,
+                       const int num_spins)
+    : temperature_(temperature),
+      temperature_profile_(jams::ThermostatTemperatureProfile::from_config(
+          *globals::config, num_spins, temperature)),
+      sigma_(num_spins, 3),
+      noise_(num_spins, 3) {
+  (void)sigma;
+  (void)timestep;
+  sigma_.zero();
+  noise_.zero();
+
+#if HAS_CUDA
+  cudaEventCreateWithFlags(&done_, cudaEventDisableTiming);
+  DEBUG_CHECK_CUDA_ASYNC_STATUS
+#endif
+}
+
+void Thermostat::set_temperature(const jams::Real T) {
+  temperature_profile_.set_uniform_temperature(T);
+  temperature_ = T;
+}
+
 Thermostat* Thermostat::create(const std::string &thermostat_name, const jams::Real timestep) {
   std::cout << thermostat_name << " thermostat\n";
 
@@ -21,6 +48,11 @@ Thermostat* Thermostat::create(const std::string &thermostat_name, const jams::R
       globals::config->lookup("physics"), "temperature");
 
   // create the selected thermostat
+  if (capitalize(thermostat_name) == "CLASSICAL-CPU"
+      || capitalize(thermostat_name) == "LANGEVIN-WHITE-CPU") {
+    return new ThermostatClassical(temperature, 0.0, timestep, globals::num_spins);
+  }
+
   #if HAS_CUDA
   if (capitalize(thermostat_name) == "CLASSICAL-GPU" || capitalize(thermostat_name) == "LANGEVIN-WHITE-GPU" || capitalize(thermostat_name) == "CUDA_LANGEVIN_WHITE") {
       return new CudaThermostatClassical(temperature, 0.0, timestep, globals::num_spins);

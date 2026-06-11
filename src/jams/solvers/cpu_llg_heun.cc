@@ -5,11 +5,9 @@
 #include <cmath>
 #include <jams/interface/config.h>
 #include <jams/helpers/maths.h>
-#include "jams/helpers/consts.h"
 
 #include "jams/core/globals.h"
 #include "jams/core/physics.h"
-#include "jams/helpers/random.h"
 
 void HeunLLGSolver::initialize(const libconfig::Setting& settings) {
   // convert input in seconds to picoseconds for internal units
@@ -25,50 +23,28 @@ void HeunLLGSolver::initialize(const libconfig::Setting& settings) {
   std::cout << "\nt_min (ps) " << t_min << " steps " << min_steps_ << "\n";
 
   s_old_.resize(globals::num_spins, 3);
-  sigma_.resize(globals::num_spins);
-  w_.resize(globals::num_spins, 3);
 
   initialize_gyro_eff(settings, gyro_eff_);
 
-  for(int i = 0; i < globals::num_spins; ++i) {
-    sigma_(i) = sqrt((2.0 * kBoltzmannIU * globals::alpha(i)) /
-                     (globals::mus(i) * globals::gyro(i) * this->time_step()));
-  }
+  const std::string thermostat_name = jams::config_optional<std::string>(
+      settings, "thermostat", "langevin-white-cpu");
+  register_thermostat(Thermostat::create(thermostat_name, this->time_step()));
+  std::cout << "  thermostat " << thermostat_name.c_str() << "\n";
 }
 
 void HeunLLGSolver::run() {
   double t0 = time_;
 
-  std::normal_distribution<> normal_distribution;
-
   // copy the spin configuration at the start of the step
   s_old_ = globals::s;
 
-  if (physics_module_->temperature() > 0.0) {
-
-    std::generate(w_.begin(), w_.end(), [&](){return normal_distribution(random_generator_);});
-
-    const auto sqrt_temperature = sqrt(physics_module_->temperature());
-    for (auto i = 0; i < globals::num_spins; ++i) {
-      for (auto j = 0; j < 3; ++j) {
-        w_(i, j) = w_(i, j) * sigma_(i) * sqrt_temperature;
-      }
-    }
-  }
+  update_thermostat();
 
   Solver::compute_fields();
 
-  if (physics_module_->temperature() > 0.0) {
-    for (auto i = 0; i < globals::num_spins; ++i) {
-      for (auto j = 0; j < 3; ++j) {
-        globals::h(i, j) = (w_(i, j) + globals::h(i, j) / globals::mus(i));
-      }
-    }
-  } else {
-    for (auto i = 0; i < globals::num_spins; ++i) {
-      for (auto j = 0; j < 3; ++j) {
-        globals::h(i, j) = globals::h(i, j) / globals::mus(i);
-      }
+  for (auto i = 0; i < globals::num_spins; ++i) {
+    for (auto j = 0; j < 3; ++j) {
+      globals::h(i, j) = thermostat_->field(i, j) + globals::h(i, j) / globals::mus(i);
     }
   }
 
@@ -95,17 +71,9 @@ void HeunLLGSolver::run() {
 
   Solver::compute_fields();
 
-  if (physics_module_->temperature() > 0.0) {
-    for (auto i = 0; i < globals::num_spins; ++i) {
-      for (auto j = 0; j < 3; ++j) {
-        globals::h(i, j) = (w_(i, j) + globals::h(i, j) / globals::mus(i));
-      }
-    }
-  } else {
-    for (auto i = 0; i < globals::num_spins; ++i) {
-      for (auto j = 0; j < 3; ++j) {
-        globals::h(i, j) = globals::h(i, j) / globals::mus(i);
-      }
+  for (auto i = 0; i < globals::num_spins; ++i) {
+    for (auto j = 0; j < 3; ++j) {
+      globals::h(i, j) = thermostat_->field(i, j) + globals::h(i, j) / globals::mus(i);
     }
   }
 

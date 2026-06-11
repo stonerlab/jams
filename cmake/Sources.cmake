@@ -13,6 +13,7 @@ set(JAMS_SOURCES_CXX
         core/physics.cc
         core/solver.cc
         core/thermostat.cc
+        core/thermostat_temperature_profile.cc
         hamiltonian/applied_field.cc
         hamiltonian/anisotropy_polynomial.cc
         hamiltonian/crystal_field.cc
@@ -99,6 +100,7 @@ set(JAMS_SOURCES_CXX
         solvers/cpu_monte_carlo_constrained.cc
         solvers/cpu_monte_carlo_metropolis.cc
         solvers/cpu_rotations.cc
+        thermostats/thermostat_classical.cc
         version.cc)
 
 set(JAMS_SOURCES_CUDA

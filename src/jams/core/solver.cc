@@ -157,7 +157,9 @@ void Solver::register_thermostat(Thermostat* thermostat) {
 
 
 void Solver::update_thermostat() {
-  thermostat_->set_temperature(physics_module_->temperature());
+  if (thermostat_->has_uniform_temperature()) {
+    thermostat_->set_temperature(physics_module_->temperature());
+  }
   thermostat_->update();
 }
 

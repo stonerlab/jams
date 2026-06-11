@@ -38,6 +38,11 @@ CudaThermostatGeneralFFT::CudaThermostatGeneralFFT(const jams::Real &temperature
 
   std::cout << "\n  initialising general-fft-gpu thermostat\n";
 
+  if (has_per_spin_temperature()) {
+    throw std::runtime_error(
+        "general-fft-gpu thermostat does not support per-spin temperature profiles");
+  }
+
   if (globals::lattice->num_materials() > 1) {
     throw std::runtime_error(
         "CudaLangevinArbitraryThermostat is only implemented for single material cells");

@@ -13,6 +13,7 @@
 #include <curand.h>
 
 #include <cmath>
+#include <stdexcept>
 #include <string>
 #include <iostream>
 
@@ -21,6 +22,11 @@ jams::BoseEinsteinCudaSRK4Thermostat::BoseEinsteinCudaSRK4Thermostat(const doubl
    std::cout << "\n  initialising CUDA Langevin semi-quantum noise thermostat\n";
 
    jams_warning("This thermostat is currently broken. Do not use for production work.");
+
+   if (has_per_spin_temperature()) {
+     throw std::runtime_error(
+         "bose-einstein-srk4-gpu thermostat does not support per-spin temperature profiles");
+   }
 
    double warmup_time = jams::config_optional<double>(
        globals::config->lookup("thermostat"), "warmup_time", 100.0e-12);

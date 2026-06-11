@@ -6,6 +6,7 @@
 #include "jams/test/containers/test_neartree.h"
 #include "jams/test/containers/test_cell.h"
 #include "jams/test/core/test_interactions.h"
+#include "jams/test/core/test_thermostat_temperature_profile.h"
 #include <jams/lattice/minimum_image.t.h>
 #include <jams/lattice/interaction_neartree.t.h>
 #include <jams/test/lattice/test_lattice_size.h>

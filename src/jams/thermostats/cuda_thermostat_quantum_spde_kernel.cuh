@@ -292,4 +292,88 @@ __global__ void cuda_thermostat_quantum_spde_no_zero_fast_kernel
   }
 }
 
+__global__ void cuda_thermostat_quantum_spde_stationary_no_zero_profile_kernel
+        (
+                double *__restrict__ zeta5,
+                double *__restrict__ zeta5p,
+                double *__restrict__ zeta6,
+                double *__restrict__ zeta6p,
+                const jams::Real *__restrict__ eta5,
+                const jams::Real *__restrict__ eta6,
+                const jams::QuantumSpdeBoseCholesky *__restrict__ factor5,
+                const jams::QuantumSpdeBoseCholesky *__restrict__ factor6,
+                const int N
+        ) {
+
+  const int x = blockIdx.x * blockDim.x + threadIdx.x;
+  if (x < N) {
+    const auto f5 = factor5[x];
+    const auto f6 = factor6[x];
+
+    if (f5.l00 == 0.0 && f6.l00 == 0.0) {
+      zeta5[x] = 0.0;
+      zeta5p[x] = 0.0;
+      zeta6[x] = 0.0;
+      zeta6p[x] = 0.0;
+      return;
+    }
+
+    const double g5_0 = static_cast<double>(eta5[x]);
+    const double g5_1 = static_cast<double>(eta5[N + x]);
+    zeta5[x] = f5.l00 * g5_0;
+    zeta5p[x] = f5.l10 * g5_0 + f5.l11 * g5_1;
+
+    const double g6_0 = static_cast<double>(eta6[x]);
+    const double g6_1 = static_cast<double>(eta6[N + x]);
+    zeta6[x] = f6.l00 * g6_0;
+    zeta6p[x] = f6.l10 * g6_0 + f6.l11 * g6_1;
+  }
+}
+
+__global__ void cuda_thermostat_quantum_spde_no_zero_profile_fast_kernel
+        (
+                jams::Real *__restrict__ noise,
+                double *__restrict__ zeta5,
+                double *__restrict__ zeta5p,
+                double *__restrict__ zeta6,
+                double *__restrict__ zeta6p,
+                const jams::Real *__restrict__ eta,
+                const jams::Real *__restrict__ sigma,
+                const jams::QuantumSpdeBoseUpdateCoefficients *__restrict__ factor5,
+                const jams::QuantumSpdeBoseUpdateCoefficients *__restrict__ factor6,
+                const jams::Real *__restrict__ temperature,
+                const int N
+        ) {
+  const int x = blockIdx.x * blockDim.x + threadIdx.x;
+  if (x < N) {
+    const jams::Real T = temperature[x];
+    if (T <= jams::Real{0.0}) {
+      noise[x] = jams::Real{0.0};
+      return;
+    }
+
+    const auto f5 = factor5[x];
+    const auto f6 = factor6[x];
+
+    const double force5 = static_cast<double>(eta[x] * f5.eta_scale) * f5.inv_omega2;
+    const double z5 = zeta5[x];
+    const double z5p = zeta5p[x];
+    const double z5_new = f5.m00 * z5 + f5.m01 * z5p + f5.force0 * force5;
+    const double z5p_new = f5.m10 * z5 + f5.m11 * z5p + f5.force1 * force5;
+    zeta5[x] = z5_new;
+    zeta5p[x] = z5p_new;
+
+    const double force6 = static_cast<double>(eta[N + x] * f6.eta_scale) * f6.inv_omega2;
+    const double z6 = zeta6[x];
+    const double z6p = zeta6p[x];
+    const double z6_new = f6.m00 * z6 + f6.m01 * z6p + f6.force0 * force6;
+    const double z6p_new = f6.m10 * z6 + f6.m11 * z6p + f6.force1 * force6;
+    zeta6[x] = z6_new;
+    zeta6p[x] = z6p_new;
+
+    const double s1 = 1.8315 * z5_new + 0.3429 * z6_new;
+    noise[x] = T * sigma[x] * static_cast<jams::Real>(s1);
+  }
+}
+
 #endif  // JAMS_CUDA_THERMOSTAT_LANGEVIN_BOSE_KERNEL_H

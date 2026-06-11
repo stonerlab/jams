@@ -8,6 +8,7 @@
 #include <string>
 
 #include "jams/helpers/mixed_precision.h"
+#include "jams/core/thermostat_temperature_profile.h"
 
 #if HAS_CUDA
 #include "jams/cuda/cuda_stream.h"
@@ -16,19 +17,7 @@
 
 class Thermostat {
  public:
-  Thermostat(const jams::Real &temperature, const jams::Real &sigma, const jams::Real timestep, const int num_spins)
-    : temperature_(temperature),
-      sigma_(num_spins, 3),
-      noise_(num_spins, 3)
-  {
-    sigma_.zero();
-    noise_.zero();
-
-#if HAS_CUDA
-    cudaEventCreateWithFlags(&done_, cudaEventDisableTiming);
-    DEBUG_CHECK_CUDA_ASYNC_STATUS
-#endif
-  }
+  Thermostat(const jams::Real &temperature, const jams::Real &sigma, const jams::Real timestep, const int num_spins);
 
   virtual ~Thermostat() = default;
   virtual void update() = 0;
@@ -38,7 +27,11 @@ class Thermostat {
 
   // accessors
   jams::Real temperature() const { return temperature_; }
-  void set_temperature(const jams::Real T) { temperature_ = T; }
+  void set_temperature(jams::Real T);
+
+  bool has_per_spin_temperature() const { return temperature_profile_.is_per_spin(); }
+  bool has_uniform_temperature() const { return temperature_profile_.is_uniform(); }
+  const jams::ThermostatTemperatureProfile& temperature_profile() const { return temperature_profile_; }
 
   virtual const jams::Real* device_data() { return noise_.device_data(); }
   virtual const jams::Real* data() { return noise_.data(); }
@@ -73,6 +66,7 @@ class Thermostat {
 #endif
  protected:
   jams::Real                  temperature_;
+  jams::ThermostatTemperatureProfile temperature_profile_;
   jams::MultiArray<jams::Real, 2> sigma_;
   jams::MultiArray<jams::Real, 2> noise_;
 

@@ -23,6 +23,7 @@ class CudaThermostatQuantumSpde : public Thermostat {
   const jams::Real* device_data() override { return noise_.device_data(); }
 
  private:
+  jams::MultiArray<jams::Real, 1> process_temperature_;
   std::unique_ptr<jams::CudaQuantumSpdeNoiseGenerator> noise_generator_;
 };
 

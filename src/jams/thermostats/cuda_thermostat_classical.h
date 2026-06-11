@@ -24,6 +24,8 @@ class CudaThermostatClassical : public Thermostat {
 
 
  private:
+    jams::MultiArray<jams::Real, 1> sigma_spin_;
+    jams::MultiArray<jams::Real, 1> sigma_sqrt_temperature_;
     cudaStream_t                dev_stream_ = nullptr;
 };
 

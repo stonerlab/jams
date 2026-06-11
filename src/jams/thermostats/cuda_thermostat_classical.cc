@@ -20,20 +20,31 @@
 #include "jams/monitors/magnetisation.h"
 
 CudaThermostatClassical::CudaThermostatClassical(const jams::Real &temperature, const jams::Real &sigma, const jams::Real timestep, const int num_spins)
-: Thermostat(temperature, sigma, timestep, num_spins) {
+: Thermostat(temperature, sigma, timestep, num_spins),
+  sigma_spin_(num_spins) {
   std::cout << "\n  initialising classical-gpu thermostat\n";
 
   for(int i = 0; i < num_spins; ++i) {
-    for (int j = 0; j < 3; ++j) {
-      sigma_(i, j) = static_cast<jams::Real>(sqrt((2.0 * kBoltzmannIU * globals::alpha(i)) /
+    sigma_spin_(i) = static_cast<jams::Real>(sqrt((2.0 * kBoltzmannIU * globals::alpha(i)) /
                           (globals::mus(i) * globals::gyro(i) * timestep)));
+    for (int j = 0; j < 3; ++j) {
+      sigma_(i, j) = sigma_spin_(i);
     }
   }
+
+  if (has_per_spin_temperature()) {
+    sigma_sqrt_temperature_.resize(num_spins);
+    const auto& sqrt_temperature = temperature_profile().sqrt_temperature();
+    for (int i = 0; i < num_spins; ++i) {
+      sigma_sqrt_temperature_(i) = sigma_spin_(i) * sqrt_temperature(i);
+    }
+  }
+
   std::cout << "  done\n\n";
 }
 
 void CudaThermostatClassical::update() {
-  if (this->temperature() == 0) {
+  if (has_uniform_temperature() && this->temperature() == 0) {
     CHECK_CUDA_STATUS(cudaMemsetAsync(noise_.mutable_device_data(), 0, noise_.bytes(),jams::instance().cuda_master_stream().get()));
     return;
   }
@@ -44,5 +55,10 @@ void CudaThermostatClassical::update() {
 #else
   CHECK_CURAND_STATUS(curandGenerateNormalDouble(jams::instance().curand_generator(), noise_.mutable_device_data(), (globals::num_spins3+(globals::num_spins3%2)), 0.0, 1.0));
 #endif
-  cuda_array_elementwise_scale(globals::num_spins, 3, sigma_.device_data(), sqrt(this->temperature()), noise_.mutable_device_data(), 1, noise_.mutable_device_data(), 1, jams::instance().cuda_master_stream().get());
+
+  if (has_per_spin_temperature()) {
+    cuda_array_elementwise_scale(globals::num_spins, 3, sigma_sqrt_temperature_.device_data(), 1.0, noise_.mutable_device_data(), 1, noise_.mutable_device_data(), 1, jams::instance().cuda_master_stream().get());
+  } else {
+    cuda_array_elementwise_scale(globals::num_spins, 3, sigma_spin_.device_data(), sqrt(this->temperature()), noise_.mutable_device_data(), 1, noise_.mutable_device_data(), 1, jams::instance().cuda_master_stream().get());
+  }
 }

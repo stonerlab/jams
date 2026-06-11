@@ -67,24 +67,57 @@ CudaThermostatQuantumSpde::CudaThermostatQuantumSpde(const jams::Real &temperatu
   noise_generator_ = std::make_unique<jams::CudaQuantumSpdeNoiseGenerator>(
       num_spins * 3, delta_tau, omega_max, do_zero_point, cuda_stream_);
 
+  if (has_per_spin_temperature()) {
+    process_temperature_.resize(num_spins * 3);
+    const auto& spin_temperature = temperature_profile().temperature();
+    for (int i = 0; i < num_spins; ++i) {
+      for (int j = 0; j < 3; ++j) {
+        process_temperature_(3 * i + j) = spin_temperature(i);
+      }
+    }
+  }
+
   if (initialization == "stationary") {
-    std::cout << "initialising thermostat from stationary distribution @ ";
-    std::cout << this->temperature() << "K" << std::endl;
-    noise_generator_->initialize_stationary(this->temperature());
+    if (has_per_spin_temperature()) {
+      std::cout << "initialising thermostat from per-spin stationary distribution" << std::endl;
+      noise_generator_->initialize_stationary(process_temperature_);
+    } else {
+      std::cout << "initialising thermostat from stationary distribution @ ";
+      std::cout << this->temperature() << "K" << std::endl;
+      noise_generator_->initialize_stationary(this->temperature());
+    }
   } else {
-    noise_generator_->initialize(jams::CudaQuantumSpdeNoiseGenerator::Initialization::Zero,
-                                 this->temperature());
+    if (has_per_spin_temperature()) {
+      noise_generator_->initialize(jams::CudaQuantumSpdeNoiseGenerator::Initialization::Zero,
+                                   process_temperature_);
+    } else {
+      noise_generator_->initialize(jams::CudaQuantumSpdeNoiseGenerator::Initialization::Zero,
+                                   this->temperature());
+    }
   }
 
   auto num_warm_up_steps = static_cast<unsigned>(t_warmup / dt_thermostat);
   if (do_warmup && num_warm_up_steps > 0) {
-    std::cout << "warming up thermostat " << num_warm_up_steps << " steps @ ";
-    std::cout << this->temperature() << "K" << std::endl;
-    noise_generator_->warmup(num_warm_up_steps, this->temperature(),
-                             noise_.mutable_device_data(), sigma_.device_data());
+    if (has_per_spin_temperature()) {
+      std::cout << "warming up thermostat " << num_warm_up_steps
+                << " steps with per-spin temperatures" << std::endl;
+      noise_generator_->warmup(num_warm_up_steps, process_temperature_,
+                               noise_.mutable_device_data(), sigma_.device_data());
+    } else {
+      std::cout << "warming up thermostat " << num_warm_up_steps << " steps @ ";
+      std::cout << this->temperature() << "K" << std::endl;
+      noise_generator_->warmup(num_warm_up_steps, this->temperature(),
+                               noise_.mutable_device_data(), sigma_.device_data());
+    }
   }
 }
 
 void CudaThermostatQuantumSpde::update() {
+  if (has_per_spin_temperature()) {
+    noise_generator_->update(noise_.mutable_device_data(), sigma_.device_data(),
+                             process_temperature_);
+    return;
+  }
+
   noise_generator_->update(noise_.mutable_device_data(), sigma_.device_data(), this->temperature());
 }
