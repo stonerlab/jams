@@ -12,6 +12,7 @@ set(JAMS_SOURCES_CXX
         core/monitor.cc
         core/physics.cc
         core/solver.cc
+        core/spatial_region.cc
         core/thermostat.cc
         core/thermostat_temperature_profile.cc
         hamiltonian/applied_field.cc
@@ -42,6 +43,7 @@ set(JAMS_SOURCES_CXX
         helpers/utils.cc
         initializer/init_dispatcher.cc
         initializer/init_bloch_domain_wall.cc
+        initializer/init_damping_regions.cc
         initializer/init_h5.cc
         initializer/init_skyrmion.cc
         initializer/init_triple_q.cc

@@ -1,6 +1,7 @@
 // initializer_factory.cc                                                          -*-C++-*-
 #include <jams/initializer/init_dispatcher.h>
 #include <jams/initializer/init_bloch_domain_wall.h>
+#include <jams/initializer/init_damping_regions.h>
 #include <jams/initializer/init_h5.h>
 #include <jams/initializer/init_skyrmion.h>
 #include <jams/initializer/init_triple_q.h>
@@ -19,6 +20,17 @@
 }
 
 void jams::InitializerDispatcher::execute(const libconfig::Setting &settings) {
+  if (settings.isList()) {
+    for (auto n = 0; n < settings.getLength(); ++n) {
+      execute(settings[n]);
+    }
+    return;
+  }
+
+  if (!settings.isGroup()) {
+    throw jams::ConfigException(settings, "initializer", " must be a group or list");
+  }
+
   // backwards compatibility for before we had named initializers the
   // "initializer" config section simply loaded data from a H5 file
   if (!settings.exists("module")) {
@@ -28,6 +40,7 @@ void jams::InitializerDispatcher::execute(const libconfig::Setting &settings) {
   }
 
   DEFINED_INITIALIZER("h5", InitH5, settings);
+  DEFINED_INITIALIZER("damping-regions", InitDampingRegions, settings);
   DEFINED_INITIALIZER("bloch_domain_wall", InitBlochDomainWall, settings);
   DEFINED_INITIALIZER("skyrmion", InitSkyrmion, settings);
   DEFINED_INITIALIZER("triple-q", InitTripleQ, settings);
