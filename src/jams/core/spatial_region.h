@@ -4,6 +4,7 @@
 #define JAMS_CORE_SPATIAL_REGION_H
 
 #include "jams/containers/vec3.h"
+#include "jams/core/types.h"
 
 namespace libconfig {
 class Setting;
@@ -30,13 +31,18 @@ class SpatialRegion {
  private:
   SpatialRegion(
       SpatialRegionType type,
+      CoordinateFormat coordinate_format,
       jams::Vec<double, 3> origin,
       jams::Vec<double, 3> size,
       jams::Vec<double, 3> direction,
       double projection_low,
       double projection_high);
 
+  [[nodiscard]] jams::Vec<double, 3> region_position(
+      const jams::Vec<double, 3>& cartesian_position) const;
+
   SpatialRegionType type_ = SpatialRegionType::Constant;
+  CoordinateFormat coordinate_format_ = CoordinateFormat::FRACTIONAL;
   jams::Vec<double, 3> origin_{0.0, 0.0, 0.0};
   jams::Vec<double, 3> size_{0.0, 0.0, 0.0};
   jams::Vec<double, 3> direction_{0.0, 0.0, 0.0};

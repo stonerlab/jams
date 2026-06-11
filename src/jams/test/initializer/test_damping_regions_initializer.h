@@ -49,8 +49,14 @@ class DampingRegionsInitializerTest : public ::testing::Test {
   }
 
   void read_config(const std::string& initializer_config) {
+    read_config_from_base(base_config(), initializer_config);
+  }
+
+  void read_config_from_base(
+      const std::string& lattice_config,
+      const std::string& initializer_config) {
     globals::config = std::make_unique<libconfig::Config>();
-    globals::config->readString(base_config() + initializer_config);
+    globals::config->readString(lattice_config + initializer_config);
     globals::lattice = new Lattice();
     globals::lattice->init_from_config(*globals::config);
   }
@@ -88,6 +94,33 @@ class DampingRegionsInitializerTest : public ::testing::Test {
 
       lattice = {
         size = [4, 1, 1];
+        periodic = [false, false, false];
+      };
+    )";
+  }
+
+  static std::string stretched_z_base_config() {
+    return R"(
+      materials = (
+        {
+          name = "A";
+          moment = 1.0;
+          alpha = 0.1;
+          spin = [0.0, 0.0, 1.0];
+        }
+      );
+
+      unitcell = {
+        symops = false;
+        parameter = 1.0;
+        basis = ([1.0, 0.0, 0.0],
+                 [0.0, 1.0, 0.0],
+                 [0.0, 0.0, 2.0]);
+        positions = (("A", [0.0, 0.0, 0.0]));
+      };
+
+      lattice = {
+        size = [1, 1, 2];
         periodic = [false, false, false];
       };
     )";
@@ -192,6 +225,49 @@ TEST_F(DampingRegionsInitializerTest, UnitCellPositionSelectorsUseOneBasedInputI
   EXPECT_NEAR(globals::alpha(1), 0.04, kAlphaTolerance);
   EXPECT_NEAR(globals::alpha(2), 0.03, kAlphaTolerance);
   EXPECT_NEAR(globals::alpha(3), 0.08, kAlphaTolerance);
+}
+
+TEST_F(DampingRegionsInitializerTest, RegionsDefaultToFractionalCoordinates) {
+  read_config_from_base(stretched_z_base_config(), R"(
+    initializer : {
+      module = "damping-regions";
+      regions = (
+        {
+          type = "constant";
+          origin = [0.0, 0.0, 1.0];
+          size = [1.0, 1.0, 1.0];
+          alpha = 0.05;
+        }
+      );
+    };
+  )");
+
+  execute_initializer();
+
+  EXPECT_NEAR(globals::alpha(0), 0.1, kAlphaTolerance);
+  EXPECT_NEAR(globals::alpha(1), 0.05, kAlphaTolerance);
+}
+
+TEST_F(DampingRegionsInitializerTest, CartesianRegionsRemainSupported) {
+  read_config_from_base(stretched_z_base_config(), R"(
+    initializer : {
+      module = "damping-regions";
+      regions = (
+        {
+          type = "constant";
+          coordinate_format = "cartesian";
+          origin = [0.0, 0.0, 2.0];
+          size = [1.0, 1.0, 2.0];
+          alpha = 0.05;
+        }
+      );
+    };
+  )");
+
+  execute_initializer();
+
+  EXPECT_NEAR(globals::alpha(0), 0.1, kAlphaTolerance);
+  EXPECT_NEAR(globals::alpha(1), 0.05, kAlphaTolerance);
 }
 
 TEST_F(DampingRegionsInitializerTest, RejectsDuplicateSpinAssignmentAcrossRegions) {

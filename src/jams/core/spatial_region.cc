@@ -8,6 +8,8 @@
 
 #include <libconfig.h++>
 
+#include "jams/core/globals.h"
+#include "jams/core/lattice.h"
 #include "jams/helpers/maths.h"
 #include "jams/helpers/utils.h"
 #include "jams/interface/config.h"
@@ -73,12 +75,14 @@ namespace jams {
 
 SpatialRegion::SpatialRegion(
     const SpatialRegionType type,
+    const CoordinateFormat coordinate_format,
     jams::Vec<double, 3> origin,
     jams::Vec<double, 3> size,
     jams::Vec<double, 3> direction,
     const double projection_low,
     const double projection_high)
     : type_(type),
+      coordinate_format_(coordinate_format),
       origin_(origin),
       size_(size),
       direction_(direction),
@@ -87,13 +91,21 @@ SpatialRegion::SpatialRegion(
 
 SpatialRegion SpatialRegion::from_config(const libconfig::Setting& setting) {
   const auto type_name = lowercase(jams::config_required<std::string>(setting, "type"));
+  const auto coordinate_format = jams::config_optional<CoordinateFormat>(
+      setting, "coordinate_format", CoordinateFormat::FRACTIONAL);
   const auto origin = jams::read_vec_setting<double, 3>(setting["origin"], "origin");
   const auto size = jams::read_vec_setting<double, 3>(setting["size"], "size");
   require_valid_extent(setting, size);
 
   if (type_name == "constant") {
     return SpatialRegion(
-        SpatialRegionType::Constant, origin, size, {0.0, 0.0, 0.0}, 0.0, 0.0);
+        SpatialRegionType::Constant,
+        coordinate_format,
+        origin,
+        size,
+        {0.0, 0.0, 0.0},
+        0.0,
+        0.0);
   }
 
   if (type_name != "linear") {
@@ -110,6 +122,7 @@ SpatialRegion SpatialRegion::from_config(const libconfig::Setting& setting) {
 
   return SpatialRegion(
       SpatialRegionType::Linear,
+      coordinate_format,
       origin,
       size,
       direction,
@@ -117,7 +130,22 @@ SpatialRegion SpatialRegion::from_config(const libconfig::Setting& setting) {
       projection_range.high);
 }
 
-bool SpatialRegion::contains(const jams::Vec<double, 3>& position) const {
+jams::Vec<double, 3> SpatialRegion::region_position(
+    const jams::Vec<double, 3>& cartesian_position) const {
+  if (coordinate_format_ == CoordinateFormat::CARTESIAN) {
+    return cartesian_position;
+  }
+
+  if (globals::lattice == nullptr) {
+    throw jams::SanityException(
+        "fractional spatial regions require an initialized lattice");
+  }
+
+  return globals::lattice->cartesian_to_fractional(cartesian_position);
+}
+
+bool SpatialRegion::contains(const jams::Vec<double, 3>& cartesian_position) const {
+  const auto position = region_position(cartesian_position);
   for (auto n = 0; n < 3; ++n) {
     const double upper = origin_[n] + size_[n];
     if (position[n] < origin_[n] - kRegionEpsilon ||
@@ -128,11 +156,13 @@ bool SpatialRegion::contains(const jams::Vec<double, 3>& position) const {
   return true;
 }
 
-double SpatialRegion::interpolation_fraction(const jams::Vec<double, 3>& position) const {
+double SpatialRegion::interpolation_fraction(
+    const jams::Vec<double, 3>& cartesian_position) const {
   if (!is_linear()) {
     return 0.0;
   }
 
+  const auto position = region_position(cartesian_position);
   return clamped_fraction(
       jams::dot(position, direction_),
       projection_low_,
