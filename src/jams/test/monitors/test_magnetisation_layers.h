@@ -159,6 +159,13 @@ protected:
     return file.getDataSet(path).getDimensions();
   }
 
+  static bool h5_path_exists(const std::string& path) {
+    HighFive::File file(
+        jams::output::monitor_filename("magnetisation-layers", "h5"),
+        HighFive::File::ReadOnly);
+    return file.exist(path);
+  }
+
   static std::vector<double> read_2d_double_dataset(const std::string& path) {
     HighFive::File file(
         jams::output::monitor_filename("magnetisation-layers", "h5"),
@@ -582,6 +589,7 @@ TEST_F(MagnetisationLayersMonitorTest, WritesXdmfExactVolumeSliceAndGlyphGeometr
         output_steps = 1;
         layer_normal = [0.0, 0.0, 1.0];
         layer_thickness = 1.0;
+        xdmf_outputs = ["volume", "slice", "glyph"];
       }
     );
   )");
@@ -669,9 +677,14 @@ TEST_F(MagnetisationLayersMonitorTest, WritesXdmfExactVolumeSliceAndGlyphGeometr
       (std::vector<size_t>{8}));
 
   const auto xdmf = read_xdmf();
-  EXPECT_NE(xdmf.find("Grid Name=\"A_volumes\" GridType=\"Collection\" CollectionType=\"Temporal\""), std::string::npos);
-  EXPECT_NE(xdmf.find("Grid Name=\"A_slices\" GridType=\"Collection\" CollectionType=\"Temporal\""), std::string::npos);
-  EXPECT_NE(xdmf.find("Grid Name=\"A_glyphs\" GridType=\"Collection\" CollectionType=\"Temporal\""), std::string::npos);
+  EXPECT_NE(xdmf.find("Grid Name=\"magnetisation_layers\" GridType=\"Collection\" CollectionType=\"Temporal\""), std::string::npos);
+  EXPECT_NE(xdmf.find("Grid Name=\"step_000000000\" GridType=\"Collection\" CollectionType=\"Spatial\""), std::string::npos);
+  EXPECT_NE(xdmf.find("Grid Name=\"A_volume_000000000\" GridType=\"Uniform\""), std::string::npos);
+  EXPECT_NE(xdmf.find("Grid Name=\"A_slice_000000000\" GridType=\"Uniform\""), std::string::npos);
+  EXPECT_NE(xdmf.find("Grid Name=\"A_glyph_000000000\" GridType=\"Uniform\""), std::string::npos);
+  EXPECT_EQ(xdmf.find("Grid Name=\"A_volumes\" GridType=\"Collection\" CollectionType=\"Temporal\""), std::string::npos);
+  EXPECT_EQ(xdmf.find("Grid Name=\"A_slices\" GridType=\"Collection\" CollectionType=\"Temporal\""), std::string::npos);
+  EXPECT_EQ(xdmf.find("Grid Name=\"A_glyphs\" GridType=\"Collection\" CollectionType=\"Temporal\""), std::string::npos);
   EXPECT_NE(xdmf.find("Topology TopologyType=\"Tetrahedron\" Dimensions=\"24\""), std::string::npos);
   EXPECT_NE(xdmf.find("Topology TopologyType=\"Triangle\" Dimensions=\"8\""), std::string::npos);
   EXPECT_NE(xdmf.find("Topology TopologyType=\"Polyvertex\" Dimensions=\"2\""), std::string::npos);
@@ -698,6 +711,163 @@ TEST_F(MagnetisationLayersMonitorTest, WritesXdmfExactVolumeSliceAndGlyphGeometr
   EXPECT_NE(xdmf.find("Attribute Name=\"SpinCount\" AttributeType=\"Scalar\" Center=\"Node\""), std::string::npos);
   EXPECT_NE(xdmf.find("monitor_magnetisation-layers.h5:/jams/monitors/magnetisation-layers/timeseries/000000000/A/volume_spin_count"), std::string::npos);
   EXPECT_NE(xdmf.find("monitor_magnetisation-layers.h5:/jams/monitors/magnetisation-layers/timeseries/000000000/A/slice_spin_count"), std::string::npos);
+}
+
+TEST_F(MagnetisationLayersMonitorTest, DefaultsToSliceOnlyXdmfOutput) {
+  initialise_lattice_from_config(R"(
+    solver : {
+      module = "llg-heun-cpu";
+      t_step = 1.0e-16;
+      t_min  = 1.0e-16;
+      t_max  = 1.0e-16;
+    };
+
+    materials = (
+      { name = "A"; moment = 1.0; spin = [1.0, 0.0, 0.0]; }
+    );
+
+    unitcell : {
+      symops = false;
+      parameter = 1.0e-9;
+      basis = (
+        [1.0, 0.0, 0.0],
+        [0.0, 1.0, 0.0],
+        [0.0, 0.0, 1.0]);
+      positions = (
+        ("A", [0.0, 0.0, 0.0])
+      );
+    };
+
+    lattice : {
+      size = [1, 1, 2];
+      periodic = [true, true, true];
+      normalise_spins = false;
+    };
+
+    monitors = (
+      {
+        module = "magnetisation-layers";
+        output_steps = 1;
+        layer_normal = [0.0, 0.0, 1.0];
+        layer_thickness = 1.0;
+      }
+    );
+  )");
+
+  MagnetisationLayersMonitor monitor(first_monitor_settings());
+
+  EXPECT_TRUE(h5_path_exists("/jams/monitors/magnetisation-layers/groups/A/xdmf/slice_points"));
+  EXPECT_TRUE(h5_path_exists("/jams/monitors/magnetisation-layers/groups/A/xdmf/slice_triangles"));
+  EXPECT_FALSE(h5_path_exists("/jams/monitors/magnetisation-layers/groups/A/xdmf/volume_points"));
+  EXPECT_FALSE(h5_path_exists("/jams/monitors/magnetisation-layers/groups/A/xdmf/volume_tetrahedra"));
+  EXPECT_FALSE(h5_path_exists("/jams/monitors/magnetisation-layers/groups/A/xdmf/glyph_points"));
+
+  MagnetisationLayersStubSolver solver;
+  monitor.update(solver);
+
+  EXPECT_TRUE(h5_path_exists("/jams/monitors/magnetisation-layers/timeseries/000000000/A/magnetisation"));
+  EXPECT_TRUE(h5_path_exists("/jams/monitors/magnetisation-layers/timeseries/000000000/A/slice_magnetisation"));
+  EXPECT_FALSE(h5_path_exists("/jams/monitors/magnetisation-layers/timeseries/000000000/A/volume_magnetisation"));
+
+  const auto xdmf = read_xdmf();
+  EXPECT_NE(xdmf.find("Grid Name=\"magnetisation_layers\" GridType=\"Collection\" CollectionType=\"Temporal\""), std::string::npos);
+  EXPECT_NE(xdmf.find("Grid Name=\"step_000000000\" GridType=\"Collection\" CollectionType=\"Spatial\""), std::string::npos);
+  EXPECT_NE(xdmf.find("Grid Name=\"A_slice_000000000\" GridType=\"Uniform\""), std::string::npos);
+  EXPECT_EQ(xdmf.find("A_volume_000000000"), std::string::npos);
+  EXPECT_EQ(xdmf.find("A_glyph_000000000"), std::string::npos);
+}
+
+TEST_F(MagnetisationLayersMonitorTest, GlyphOnlyXdmfOutputSkipsCellGeometryAndFields) {
+  initialise_lattice_with_monitor(R"(
+    monitors = (
+      {
+        module = "magnetisation-layers";
+        output_steps = 1;
+        layer_normal = [0.0, 0.0, 1.0];
+        xdmf_outputs = ["glyph"];
+      }
+    );
+  )");
+
+  MagnetisationLayersMonitor monitor(first_monitor_settings());
+
+  EXPECT_TRUE(h5_path_exists("/jams/monitors/magnetisation-layers/groups/A/xdmf/glyph_points"));
+  EXPECT_FALSE(h5_path_exists("/jams/monitors/magnetisation-layers/groups/A/xdmf/slice_points"));
+  EXPECT_FALSE(h5_path_exists("/jams/monitors/magnetisation-layers/groups/A/xdmf/volume_points"));
+
+  MagnetisationLayersStubSolver solver;
+  monitor.update(solver);
+
+  EXPECT_TRUE(h5_path_exists("/jams/monitors/magnetisation-layers/timeseries/000000000/A/magnetisation"));
+  EXPECT_FALSE(h5_path_exists("/jams/monitors/magnetisation-layers/timeseries/000000000/A/slice_magnetisation"));
+  EXPECT_FALSE(h5_path_exists("/jams/monitors/magnetisation-layers/timeseries/000000000/A/volume_magnetisation"));
+
+  const auto xdmf = read_xdmf();
+  EXPECT_NE(xdmf.find("Grid Name=\"A_glyph_000000000\" GridType=\"Uniform\""), std::string::npos);
+  EXPECT_EQ(xdmf.find("A_slice_000000000"), std::string::npos);
+  EXPECT_EQ(xdmf.find("A_volume_000000000"), std::string::npos);
+}
+
+TEST_F(MagnetisationLayersMonitorTest, EmptyXdmfOutputsDisablesParaViewGeometry) {
+  initialise_lattice_with_monitor(R"(
+    monitors = (
+      {
+        module = "magnetisation-layers";
+        output_steps = 1;
+        layer_normal = [0.0, 0.0, 1.0];
+        xdmf_outputs = [];
+      }
+    );
+  )");
+
+  MagnetisationLayersMonitor monitor(first_monitor_settings());
+
+  EXPECT_FALSE(h5_path_exists("/jams/monitors/magnetisation-layers/groups/A/xdmf"));
+
+  MagnetisationLayersStubSolver solver;
+  monitor.update(solver);
+
+  EXPECT_TRUE(h5_path_exists("/jams/monitors/magnetisation-layers/timeseries/000000000/A/magnetisation"));
+  EXPECT_FALSE(h5_path_exists("/jams/monitors/magnetisation-layers/timeseries/000000000/A/slice_magnetisation"));
+  EXPECT_FALSE(h5_path_exists("/jams/monitors/magnetisation-layers/timeseries/000000000/A/volume_magnetisation"));
+
+  const auto xdmf = read_xdmf();
+  EXPECT_EQ(xdmf.find("Grid Name=\"magnetisation_layers\""), std::string::npos);
+  EXPECT_EQ(xdmf.find("GridType=\"Uniform\""), std::string::npos);
+}
+
+TEST_F(MagnetisationLayersMonitorTest, RejectsInvalidXdmfOutputs) {
+  initialise_lattice_with_monitor(R"(
+    monitors = (
+      {
+        module = "magnetisation-layers";
+        output_steps = 1;
+        layer_normal = [0.0, 0.0, 1.0];
+        xdmf_outputs = ["slice", "slice"];
+      }
+    );
+  )");
+  EXPECT_THROW(
+      MagnetisationLayersMonitor monitor(first_monitor_settings()),
+      jams::ConfigException);
+
+  delete globals::lattice;
+  globals::lattice = new Lattice();
+  globals::config = std::make_unique<libconfig::Config>();
+
+  initialise_lattice_with_monitor(R"(
+    monitors = (
+      {
+        module = "magnetisation-layers";
+        output_steps = 1;
+        layer_normal = [0.0, 0.0, 1.0];
+        xdmf_outputs = ["planes"];
+      }
+    );
+  )");
+  EXPECT_THROW(
+      MagnetisationLayersMonitor monitor(first_monitor_settings()),
+      jams::ConfigException);
 }
 
 TEST_F(MagnetisationLayersMonitorTest, ZeroThicknessVolumesInferMidpointBoundaries) {
@@ -736,6 +906,7 @@ TEST_F(MagnetisationLayersMonitorTest, ZeroThicknessVolumesInferMidpointBoundari
         module = "magnetisation-layers";
         output_steps = 1;
         layer_normal = [0.0, 0.0, 1.0];
+        xdmf_outputs = ["volume", "slice"];
       }
     );
   )");
@@ -799,6 +970,7 @@ TEST_F(MagnetisationLayersMonitorTest, ExactGeometryStaysInsideObliqueSupercellA
         module = "magnetisation-layers";
         output_steps = 1;
         layer_normal = [0.0, 0.0, 1.0];
+        xdmf_outputs = ["volume", "slice"];
       }
     );
   )");
@@ -879,6 +1051,7 @@ TEST_F(MagnetisationLayersMonitorTest, ExactSliceGeometryKeepsYigHexagonalEndFac
         module = "magnetisation-layers";
         output_steps = 1;
         layer_normal = [0.0, 0.0, 1.0];
+        xdmf_outputs = ["volume", "slice"];
       }
     );
   )");
@@ -960,6 +1133,7 @@ TEST_F(MagnetisationLayersMonitorTest, SingleZeroThicknessLayerVolumeIsFinite) {
         module = "magnetisation-layers";
         output_steps = 1;
         layer_normal = [0.0, 0.0, 1.0];
+        xdmf_outputs = ["volume"];
       }
     );
   )");
@@ -1029,18 +1203,19 @@ TEST_F(MagnetisationLayersMonitorTest, XdmfContainsMultipleTimeSteps) {
   monitor.update(solver);
 
   const auto xdmf = read_xdmf();
-  EXPECT_NE(xdmf.find("A_volumes_000000000"), std::string::npos);
-  EXPECT_NE(xdmf.find("A_volumes_000000010"), std::string::npos);
-  EXPECT_NE(xdmf.find("A_slices_000000000"), std::string::npos);
-  EXPECT_NE(xdmf.find("A_slices_000000010"), std::string::npos);
-  EXPECT_NE(xdmf.find("A_glyphs_000000000"), std::string::npos);
-  EXPECT_NE(xdmf.find("A_glyphs_000000010"), std::string::npos);
-  EXPECT_NE(xdmf.find("timeseries/000000000/A/volume_magnetisation"), std::string::npos);
-  EXPECT_NE(xdmf.find("timeseries/000000010/A/volume_magnetisation"), std::string::npos);
+  EXPECT_NE(xdmf.find("Grid Name=\"magnetisation_layers\" GridType=\"Collection\" CollectionType=\"Temporal\""), std::string::npos);
+  EXPECT_NE(xdmf.find("Grid Name=\"step_000000000\" GridType=\"Collection\" CollectionType=\"Spatial\""), std::string::npos);
+  EXPECT_NE(xdmf.find("Grid Name=\"step_000000010\" GridType=\"Collection\" CollectionType=\"Spatial\""), std::string::npos);
+  EXPECT_NE(xdmf.find("A_slice_000000000"), std::string::npos);
+  EXPECT_NE(xdmf.find("A_slice_000000010"), std::string::npos);
+  EXPECT_EQ(xdmf.find("A_volume_000000000"), std::string::npos);
+  EXPECT_EQ(xdmf.find("A_volume_000000010"), std::string::npos);
+  EXPECT_EQ(xdmf.find("A_glyph_000000000"), std::string::npos);
+  EXPECT_EQ(xdmf.find("A_glyph_000000010"), std::string::npos);
   EXPECT_NE(xdmf.find("timeseries/000000000/A/slice_magnetisation"), std::string::npos);
   EXPECT_NE(xdmf.find("timeseries/000000010/A/slice_magnetisation"), std::string::npos);
-  EXPECT_NE(xdmf.find("timeseries/000000000/A/magnetisation"), std::string::npos);
-  EXPECT_NE(xdmf.find("timeseries/000000010/A/magnetisation"), std::string::npos);
+  EXPECT_TRUE(h5_path_exists("/jams/monitors/magnetisation-layers/timeseries/000000000/A/magnetisation"));
+  EXPECT_TRUE(h5_path_exists("/jams/monitors/magnetisation-layers/timeseries/000000010/A/magnetisation"));
   EXPECT_NE(xdmf.find("<Time Value=\"0\" />"), std::string::npos);
   EXPECT_NE(xdmf.find("<Time Value=\"0.25\" />"), std::string::npos);
 }

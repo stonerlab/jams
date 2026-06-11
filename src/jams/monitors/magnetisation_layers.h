@@ -43,9 +43,11 @@
 ///                     (shape = [num_layers], type = int)
 ///
 /// For ParaView visualisation, a sidecar XDMF file is written alongside the H5
-/// file. Static clipped supercell geometry and glyph-seed geometry for each
-/// layer is stored under
-/// "/jams/monitors/<monitor-name>/groups/<group-name>/xdmf":
+/// file. By default it contains exact layer-centre slice faces only. The
+/// optional `xdmf_outputs` setting selects any combination of "slice", "glyph",
+/// and "volume"; an empty list disables ParaView geometry while keeping the
+/// core HDF5 layer data. Static geometry for the selected outputs is stored
+/// under "/jams/monitors/<monitor-name>/groups/<group-name>/xdmf":
 ///
 /// - volume_points:    XYZ vertices for clipped layer volumes, in nm
 ///                     (shape = [num_volume_points, 3], type = double)
@@ -96,6 +98,9 @@
 ///           layer grouping and finite-thickness boundary snapping. The default
 ///           is jams::defaults::lattice_tolerance converted from lattice
 ///           parameter units to nm.
+/// @setting `xdmf_outputs` (optional) array/list containing "slice", "glyph",
+///           and/or "volume". The default is ["slice"]. An empty list disables
+///           ParaView geometry and XDMF grids.
 ///
 /// @example
 /// @code
@@ -136,6 +141,14 @@ private:
         double time = 0.0;
     };
 
+    struct XdmfOutputSelection {
+        bool volume = false;
+        bool slice = true;
+        bool glyph = false;
+
+        bool any() const { return volume || slice || glyph; }
+    };
+
     void accumulate_layer_magnetisation_cpu();
     void write_xdmf_file() const;
     void append_xdmf_time_step(const Solver& solver);
@@ -152,6 +165,7 @@ private:
     std::string h5_group_root_name_;
     std::string h5_file_name_;
     std::string xdmf_file_name_;
+    XdmfOutputSelection xdmf_outputs_;
 
     std::vector<jams::monitors::SpinGroup> spin_groups_;
     std::vector<int> group_num_layers_;
