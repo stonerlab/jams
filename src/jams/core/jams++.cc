@@ -820,6 +820,10 @@ std::string choose_simulation_name(const jams::ProgramArgs &program_args) {
 
         globals::lattice->init_from_config(*::globals::config);
 
+        if (::globals::config->exists("initializer")) {
+          jams::InitializerDispatcher::execute(::globals::config->lookup("initializer"));
+        }
+
         std::cout << jams::section("init solver") << std::endl;
 
         globals::solver = Solver::create(globals::config->lookup("solver"));
@@ -848,10 +852,6 @@ std::string choose_simulation_name(const jams::ProgramArgs &program_args) {
           for (auto i = 0; i < monitor_settings.getLength(); ++i) {
             globals::solver->register_monitor(Monitor::create(monitor_settings[i]));
           }
-        }
-
-        if (::globals::config->exists("initializer")) {
-          jams::InitializerDispatcher::execute(::globals::config->lookup("initializer"));
         }
       }
       catch (const libconfig::SettingTypeException &stex) {
