@@ -22,6 +22,57 @@
 namespace {
     const int h5_compression_chunk_size = 4095;
     const int h5_compression_factor = 6;
+
+    template <typename T>
+    constexpr unsigned xdmf_precision() {
+      return static_cast<unsigned>(sizeof(T));
+    }
+
+    HighFive::DataSetCreateProps dataset_create_props(
+        const bool compression_enabled,
+        std::initializer_list<unsigned long long> chunk_dims) {
+      HighFive::DataSetCreateProps props;
+
+      if (compression_enabled) {
+        props.add(HighFive::Chunking(chunk_dims));
+        props.add(HighFive::Shuffle());
+        props.add(HighFive::Deflate(h5_compression_factor));
+      }
+
+      return props;
+    }
+
+    template <typename T>
+    void write_vector_field(
+        const jams::MultiArray<T, 2>& field,
+        const std::string& data_path,
+        HighFive::File& file,
+        const bool compression_enabled) {
+      const auto chunk_rows = static_cast<unsigned long long>(
+          std::min(h5_compression_chunk_size, int(field.extent(0))));
+      auto props = dataset_create_props(compression_enabled, {chunk_rows, 1});
+      auto dataset = file.createDataSet<T>(
+          data_path,
+          HighFive::DataSpace({size_t(field.extent(0)), size_t(field.extent(1))}),
+          props);
+      dataset.write(field);
+    }
+
+    template <typename T>
+    void write_scalar_field(
+        const jams::MultiArray<T, 1>& field,
+        const std::string& data_path,
+        HighFive::File& file,
+        const bool compression_enabled) {
+      const auto chunk_size = static_cast<unsigned long long>(
+          std::min(h5_compression_chunk_size, int(field.size())));
+      auto props = dataset_create_props(compression_enabled, {chunk_size});
+      auto dataset = file.createDataSet<T>(
+          data_path,
+          HighFive::DataSpace({size_t(field.size())}),
+          props);
+      dataset.write(field);
+    }
 }
 
 Hdf5Monitor::Hdf5Monitor(const libconfig::Setting &settings)
@@ -77,12 +128,42 @@ void Hdf5Monitor::write_spin_h5_file(const std::string &h5_file_name) {
 
   File file(h5_file_name, File::ReadWrite | File::Create | File::Truncate);
 
-  const auto& spins = globals::s;
-  write_vector_field(spins, "/spins", file);
+  if (slice_.num_points() != 0) {
+    const auto point_count = output_point_count();
+    jams::MultiArray<double, 2> spins(point_count, 3);
+    const auto spin_view = globals::s.host_view();
+    auto output_view = spins.mutable_host_view();
+
+    for (auto output_index = 0; output_index < point_count; ++output_index) {
+      const auto spin = source_spin_index(output_index);
+      for (auto component = 0; component < 3; ++component) {
+        output_view(output_index, component) = spin_view(spin, component);
+      }
+    }
+
+    write_vector_field(spins, "/spins", file, compression_enabled_);
+  } else {
+    write_vector_field(globals::s, "/spins", file, compression_enabled_);
+  }
 
   if (write_ds_dt_) {
-    const auto& ds_dt = globals::ds_dt;
-    write_vector_field(ds_dt, "/ds_dt", file);
+    if (slice_.num_points() != 0) {
+      const auto point_count = output_point_count();
+      jams::MultiArray<double, 2> ds_dt(point_count, 3);
+      const auto ds_dt_view = globals::ds_dt.host_view();
+      auto output_view = ds_dt.mutable_host_view();
+
+      for (auto output_index = 0; output_index < point_count; ++output_index) {
+        const auto spin = source_spin_index(output_index);
+        for (auto component = 0; component < 3; ++component) {
+          output_view(output_index, component) = ds_dt_view(spin, component);
+        }
+      }
+
+      write_vector_field(ds_dt, "/ds_dt", file, compression_enabled_);
+    } else {
+      write_vector_field(globals::ds_dt, "/ds_dt", file, compression_enabled_);
+    }
   }
 }
 
@@ -93,57 +174,65 @@ void Hdf5Monitor::write_lattice_h5_file(const std::string &h5_file_name) {
 
   File file(h5_file_name, File::ReadWrite | File::Create | File::Truncate);
 
-  jams::MultiArray<int, 1>    types;
-  jams::MultiArray<double, 1> moments;
-  jams::MultiArray<double, 2> positions;
+  const auto point_count = output_point_count();
+  jams::MultiArray<int, 1> types(point_count);
+  jams::MultiArray<jams::Real, 1> moments(point_count);
+  jams::MultiArray<jams::Real, 1> alpha(point_count);
+  jams::MultiArray<jams::Real, 1> temperature(point_count);
+  jams::MultiArray<double, 2> positions(point_count, 3);
 
+  const auto moments_view = globals::mus.host_view();
+  const auto alpha_view = globals::alpha.host_view();
 
-  if (slice_.num_points() != 0) {
-    const auto moments_view = globals::mus.host_view();
-    for (auto i = 0; i < slice_.num_points(); ++i) {
-      types(i) = slice_.type(i);
-    }
+  const auto* thermostat = globals::solver != nullptr ? globals::solver->thermostat() : nullptr;
+  const auto* physics = globals::solver != nullptr ? globals::solver->physics() : nullptr;
+  const auto* temperature_profile = thermostat != nullptr ? &thermostat->temperature_profile() : nullptr;
+  const bool has_per_spin_temperature =
+      temperature_profile != nullptr && temperature_profile->is_per_spin();
+  const auto temperature_view = has_per_spin_temperature
+      ? temperature_profile->temperature().host_view()
+      : jams::MultiArray<jams::Real, 1>::const_host_view_type{};
 
-    moments.resize(slice_.num_points());
-    for (auto i = 0; i < slice_.num_points(); ++i) {
-      moments(i) = moments_view(slice_.index(i));
-    }
+  auto types_output = types.mutable_host_view();
+  auto moments_output = moments.mutable_host_view();
+  auto alpha_output = alpha.mutable_host_view();
+  auto temperature_output = temperature.mutable_host_view();
+  auto positions_output = positions.mutable_host_view();
 
-    positions.resize(slice_.num_points(), 3);
-    for (auto i = 0; i < slice_.num_points(); ++i) {
-      for (auto j = 0; j < 3; ++j) {
-        positions(i, j) = slice_.position(i, j);
-      }
-    }
-  } else {
-    const auto moments_view = globals::mus.host_view();
-    types.resize(globals::num_spins);
+  jams::Real uniform_temperature = 0.0;
+  if (temperature_profile != nullptr && temperature_profile->is_uniform()) {
+    uniform_temperature = temperature_profile->uniform_temperature();
+  } else if (physics != nullptr) {
+    uniform_temperature = static_cast<jams::Real>(physics->temperature());
+  } else if (globals::config != nullptr && globals::config->exists("physics.temperature")) {
+    uniform_temperature = static_cast<jams::Real>(
+        jams::config_required<double>(globals::config->lookup("physics"), "temperature"));
+  }
 
-    for (auto i = 0; i < globals::num_spins; ++i) {
-      types(i) = globals::lattice->lattice_site_material_id(i);
-    }
+  for (auto output_index = 0; output_index < point_count; ++output_index) {
+    const auto spin = source_spin_index(output_index);
+    types_output(output_index) = globals::lattice->lattice_site_material_id(spin);
+    moments_output(output_index) = moments_view(spin);
+    alpha_output(output_index) = alpha_view(spin);
+    temperature_output(output_index) = has_per_spin_temperature
+        ? temperature_view(spin)
+        : uniform_temperature;
 
-    moments.resize(globals::num_spins);
-    for (auto i = 0; i < globals::num_spins; ++i) {
-      moments(i) = moments_view(i);
-    }
-
-    positions.resize(globals::num_spins, 3);
-
-    for (auto i = 0; i < globals::num_spins; ++i) {
-      for (auto j = 0; j < 3; ++j) {
-        positions(i, j) = globals::lattice->parameter() * globals::lattice->lattice_site_position_cart(i)[j] / 1e-9;
-      }
+    const auto position = globals::lattice->lattice_site_position_cart(spin);
+    for (auto component = 0; component < 3; ++component) {
+      positions_output(output_index, component) =
+          globals::lattice->parameter() * position[component] / 1e-9;
     }
   }
 
-  auto type_dataset = file.createDataSet<int>("/types",  DataSpace(globals::num_spins));
+  auto type_dataset = file.createDataSet<int>("/types",  DataSpace({size_t(point_count)}));
   type_dataset.write(types);
-  auto moment_dataset = file.createDataSet<double>("/moments",  DataSpace(globals::num_spins));
-  moment_dataset.write(moments);
-  auto pos_dataset = file.createDataSet<double>("/positions",  DataSpace({size_t(globals::num_spins),3}));
-    pos_dataset.createAttribute<std::string>("units", DataSpace::From("nm"));
-    pos_dataset.write(positions);
+  write_scalar_field(moments, "/moments", file, compression_enabled_);
+  write_scalar_field(alpha, "/alpha", file, compression_enabled_);
+  write_scalar_field(temperature, "/temperature", file, compression_enabled_);
+  auto pos_dataset = file.createDataSet<double>("/positions",  DataSpace({size_t(point_count), 3}));
+  pos_dataset.createAttribute<std::string>("units", DataSpace::From("nm"));
+  pos_dataset.write(positions);
 
 }
 
@@ -168,15 +257,73 @@ void Hdf5Monitor::open_new_xdmf_file(const std::string &xdmf_file_name) {
 
 //---------------------------------------------------------------------
 
-void Hdf5Monitor::update_xdmf_file(const std::string &h5_file_name, const double time) {
-  unsigned      data_dimension  = 0;
-  unsigned int float_precision = 8;
-
+int Hdf5Monitor::output_point_count() {
   if (slice_.num_points() != 0) {
-      data_dimension = static_cast<unsigned>(slice_.num_points());
-  } else {
-      data_dimension = static_cast<unsigned>(globals::num_spins);
+    return slice_.num_points();
   }
+
+  return globals::num_spins;
+}
+
+int Hdf5Monitor::source_spin_index(const int output_index) {
+  if (slice_.num_points() != 0) {
+    return slice_.index(output_index);
+  }
+
+  return output_index;
+}
+
+//---------------------------------------------------------------------
+
+void Hdf5Monitor::write_xdmf_scalar_attribute(
+    const std::string& name,
+    const std::string& h5_file_name,
+    const std::string& data_path,
+    const unsigned data_dimension,
+    const unsigned precision,
+    const std::string& number_type) {
+  fprintf(xdmf_file_,
+          "       <Attribute Name=\"%s\" AttributeType=\"Scalar\" Center=\"Node\">\n",
+          name.c_str());
+  fprintf(xdmf_file_,
+          "         <DataItem Dimensions=\"%u\" NumberType=\"%s\" Precision=\"%u\" Format=\"HDF\">\n",
+          data_dimension,
+          number_type.c_str(),
+          precision);
+  fprintf(xdmf_file_,
+          "           %s:%s\n",
+          file_basename(h5_file_name).c_str(),
+          data_path.c_str());
+  fputs("         </DataItem>\n", xdmf_file_);
+  fputs("       </Attribute>\n", xdmf_file_);
+}
+
+void Hdf5Monitor::write_xdmf_vector_attribute(
+    const std::string& name,
+    const std::string& h5_file_name,
+    const std::string& data_path,
+    const unsigned data_dimension,
+    const unsigned precision) {
+  fprintf(xdmf_file_,
+          "       <Attribute Name=\"%s\" AttributeType=\"Vector\" Center=\"Node\">\n",
+          name.c_str());
+  fprintf(xdmf_file_,
+          "         <DataItem Dimensions=\"%u 3\" NumberType=\"Float\" Precision=\"%u\" Format=\"HDF\">\n",
+          data_dimension,
+          precision);
+  fprintf(xdmf_file_,
+          "           %s:%s\n",
+          file_basename(h5_file_name).c_str(),
+          data_path.c_str());
+  fputs("         </DataItem>\n", xdmf_file_);
+  fputs("       </Attribute>\n", xdmf_file_);
+}
+
+//---------------------------------------------------------------------
+
+void Hdf5Monitor::update_xdmf_file(const std::string &h5_file_name, const double time) {
+  const auto data_dimension = static_cast<unsigned>(output_point_count());
+  const auto lattice_h5_file = jams::output::monitor_filename(name() + "_lattice", "h5");
 
                // rewind the closing tags of the XML  (Grid, Domain, Xdmf)
                fseek(xdmf_file_, -31, SEEK_CUR);
@@ -185,73 +332,23 @@ void Hdf5Monitor::update_xdmf_file(const std::string &h5_file_name, const double
   fprintf(xdmf_file_, "        <Time Value=\"%f\" />\n", time);
   fprintf(xdmf_file_, "        <Topology TopologyType=\"Polyvertex\" Dimensions=\"%u\" />\n", data_dimension);
                fputs("       <Geometry GeometryType=\"XYZ\">\n", xdmf_file_);
-  fprintf(xdmf_file_, "         <DataItem Dimensions=\"%u 3\" NumberType=\"Float\" Precision=\"%u\" Format=\"HDF\">\n", data_dimension, float_precision);
+  fprintf(xdmf_file_, "         <DataItem Dimensions=\"%u 3\" NumberType=\"Float\" Precision=\"%u\" Format=\"HDF\">\n", data_dimension, xdmf_precision<double>());
   fprintf(xdmf_file_, "           %s:/positions\n",
-          file_basename(jams::output::monitor_filename(name() + "_lattice", "h5")).c_str());
+          file_basename(lattice_h5_file).c_str());
                fputs("         </DataItem>\n", xdmf_file_);
                fputs("       </Geometry>\n", xdmf_file_);
-               fputs("       <Attribute Name=\"Type\" AttributeType=\"Scalar\" Center=\"Node\">\n", xdmf_file_);
-  fprintf(xdmf_file_, "         <DataItem Dimensions=\"%u\" NumberType=\"Int\" Precision=\"4\" Format=\"HDF\">\n", data_dimension);
-  fprintf(xdmf_file_, "           %s:/types\n",
-          file_basename(jams::output::monitor_filename(name() + "_lattice", "h5")).c_str());
-                fputs("         </DataItem>\n", xdmf_file_);
-                fputs("       </Attribute>\n", xdmf_file_);
-                fputs("       <Attribute Name=\"Moment\" AttributeType=\"Scalar\" Center=\"Node\">\n", xdmf_file_);
-  fprintf(xdmf_file_, "         <DataItem Dimensions=\"%u\" NumberType=\"Float\" Precision=\"%u\" Format=\"HDF\">\n", data_dimension, float_precision);
-  fprintf(xdmf_file_, "           %s:/moments\n",
-          file_basename(jams::output::monitor_filename(name() + "_lattice", "h5")).c_str());
-               fputs("         </DataItem>\n", xdmf_file_);
-               fputs("       </Attribute>\n", xdmf_file_);
-               fputs("       <Attribute Name=\"spin\" AttributeType=\"Vector\" Center=\"Node\">\n", xdmf_file_);
-  fprintf(xdmf_file_, "         <DataItem Dimensions=\"%u 3\" NumberType=\"Float\" Precision=\"%u\" Format=\"HDF\">\n", data_dimension, float_precision);
-  fprintf(xdmf_file_, "           %s:/spins\n", file_basename(h5_file_name).c_str());
-               fputs("         </DataItem>\n", xdmf_file_);
-               fputs("       </Attribute>\n", xdmf_file_);
-               if (write_ds_dt_) {
-                 fputs("       <Attribute Name=\"ds_dt\" AttributeType=\"Vector\" Center=\"Node\">\n", xdmf_file_);
-                 fprintf(xdmf_file_,"         <DataItem Dimensions=\"%u 3\" NumberType=\"Float\" Precision=\"%u\" Format=\"HDF\">\n", data_dimension, float_precision);
-                 fprintf(xdmf_file_, "           %s:/ds_dt\n", file_basename(h5_file_name).c_str());
-                 fputs("         </DataItem>\n", xdmf_file_);
-                 fputs("       </Attribute>\n", xdmf_file_);
-               }
+  write_xdmf_scalar_attribute("Type", lattice_h5_file, "/types", data_dimension, 4, "Int");
+  write_xdmf_scalar_attribute("Moment", lattice_h5_file, "/moments", data_dimension, xdmf_precision<jams::Real>(), "Float");
+  write_xdmf_scalar_attribute("Alpha", lattice_h5_file, "/alpha", data_dimension, xdmf_precision<jams::Real>(), "Float");
+  write_xdmf_scalar_attribute("Temperature", lattice_h5_file, "/temperature", data_dimension, xdmf_precision<jams::Real>(), "Float");
+  write_xdmf_vector_attribute("spin", h5_file_name, "/spins", data_dimension, xdmf_precision<double>());
+  if (write_ds_dt_) {
+    write_xdmf_vector_attribute("ds_dt", h5_file_name, "/ds_dt", data_dimension, xdmf_precision<double>());
+  }
                fputs("      </Grid>\n", xdmf_file_);
                // reprint the closing tags of the XML
                fputs("    </Grid>\n", xdmf_file_);
                fputs("  </Domain>\n", xdmf_file_);
                fputs("</Xdmf>", xdmf_file_);
   fflush(xdmf_file_);
-}
-
-void Hdf5Monitor::write_vector_field(const jams::MultiArray<double, 2> &field,
-                                     const std::string &data_path,
-                                     HighFive::File &file) const {
-  using namespace HighFive;
-
-  DataSetCreateProps props;
-
-  if (compression_enabled_) {
-    props.add(Chunking({static_cast<unsigned long long>(std::min(h5_compression_chunk_size, int(field.extent(0)))), 1}));
-    props.add(Shuffle());
-    props.add(Deflate(h5_compression_factor));
-  }
-
-  auto dataset = file.createDataSet<double>(data_path,  DataSpace({size_t(field.extent(0)), size_t(field.extent(1))}), props);
-  dataset.write(field);
-}
-
-void Hdf5Monitor::write_scalar_field(const jams::MultiArray<double, 1> &field,
-                                     const std::string &data_path,
-                                     HighFive::File &file) const {
-  using namespace HighFive;
-
-  DataSetCreateProps props;
-
-  if (compression_enabled_) {
-    props.add(Chunking({static_cast<unsigned long long>(std::min(h5_compression_chunk_size, int(field.size())))}));
-    props.add(Shuffle());
-    props.add(Deflate(h5_compression_factor));
-  }
-
-  auto dataset = file.createDataSet<double>(data_path,  DataSpace({size_t(field.size())}), props);
-  dataset.write(field);
 }

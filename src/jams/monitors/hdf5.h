@@ -21,12 +21,25 @@ class Hdf5Monitor : public Monitor {
     void post_process() override {};
 
  private:
-    void write_vector_field(const jams::MultiArray<double, 2>& field, const std::string& data_path, HighFive::File &file) const;
-    void write_scalar_field(const jams::MultiArray<double, 1>& field, const std::string& data_path, HighFive::File &file) const;
     void open_new_xdmf_file(const std::string &xdmf_file_name);
     void update_xdmf_file(const std::string &h5_file_name, const double time);
     void write_lattice_h5_file(const std::string &h5_file_name);
     void write_spin_h5_file(const std::string &h5_file_name);
+    [[nodiscard]] int output_point_count();
+    [[nodiscard]] int source_spin_index(int output_index);
+    void write_xdmf_scalar_attribute(
+        const std::string& name,
+        const std::string& h5_file_name,
+        const std::string& data_path,
+        unsigned data_dimension,
+        unsigned precision,
+        const std::string& number_type);
+    void write_xdmf_vector_attribute(
+        const std::string& name,
+        const std::string& h5_file_name,
+        const std::string& data_path,
+        unsigned data_dimension,
+        unsigned precision);
 
   bool         write_ds_dt_ = false;
   bool         compression_enabled_ = true;
@@ -35,4 +48,3 @@ class Hdf5Monitor : public Monitor {
 };
 
 #endif  // JAMS_MONITOR_HDF5_H
-
