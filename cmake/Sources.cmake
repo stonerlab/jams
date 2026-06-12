@@ -104,7 +104,9 @@ set(JAMS_SOURCES_CXX
         solvers/cpu_monte_carlo_constrained.cc
         solvers/cpu_monte_carlo_metropolis.cc
         solvers/cpu_rotations.cc
+        thermostats/quantum_spde_noise.cc
         thermostats/thermostat_classical.cc
+        thermostats/thermostat_quantum_spde.cc
         version.cc)
 
 set(JAMS_SOURCES_CUDA

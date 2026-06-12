@@ -20,6 +20,7 @@
 #include "jams/test/hamiltonian/test_dipole.h"
 #include "jams/test/hamiltonian/test_exchange_stencil.h"
 #include "jams/test/solvers/test_cpu_rotations.h"
+#include "jams/test/thermostats/test_quantum_spde_noise.h"
 
 #ifdef HAS_CUDA
 #include <jams/cuda/cuda_array_reduction.t.h>

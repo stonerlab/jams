@@ -6,6 +6,7 @@
 #include "jams/helpers/utils.h"
 
 #include "jams/thermostats/thermostat_classical.h"
+#include "jams/thermostats/thermostat_quantum_spde.h"
 
 #include "jams/thermostats/cuda_thermostat_classical.h"
 #include "jams/thermostats/thm_bose_einstein_cuda_srk4.h"
@@ -51,6 +52,11 @@ Thermostat* Thermostat::create(const std::string &thermostat_name, const jams::R
   if (capitalize(thermostat_name) == "CLASSICAL-CPU"
       || capitalize(thermostat_name) == "LANGEVIN-WHITE-CPU") {
     return new ThermostatClassical(temperature, 0.0, timestep, globals::num_spins);
+  }
+  if (capitalize(thermostat_name) == "QUANTUM-SPDE-CPU"
+      || capitalize(thermostat_name) == "LANGEVIN-BOSE-CPU"
+      || capitalize(thermostat_name) == "CPU_LANGEVIN_COTH") {
+    return new ThermostatQuantumSpde(temperature, 0.0, timestep, globals::num_spins);
   }
 
   #if HAS_CUDA

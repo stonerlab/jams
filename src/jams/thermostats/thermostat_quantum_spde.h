@@ -1,33 +1,31 @@
 // Copyright 2014 Joseph Barker. All rights reserved.
 
-#ifndef JAMS_CUDA_QUANTUM_SPDE_NOISE_H
-#define JAMS_CUDA_QUANTUM_SPDE_NOISE_H
+#ifndef JAMS_THERMOSTAT_QUANTUM_SPDE_H
+#define JAMS_THERMOSTAT_QUANTUM_SPDE_H
 
+#include <memory>
+#include <random>
+#include <vector>
+
+#include <pcg_random.hpp>
+
+#include "jams/core/thermostat.h"
 #include "jams/thermostats/quantum_spde_noise.h"
-
-#if HAS_CUDA
-
-#include <curand.h>
-
-#include "jams/containers/multiarray.h"
-#include "jams/cuda/cuda_stream.h"
 
 namespace jams {
 
-class CudaQuantumSpdeNoiseGenerator {
+class QuantumSpdeNoiseGenerator {
  public:
   enum class Initialization {
     Zero,
     Stationary,
   };
 
-  CudaQuantumSpdeNoiseGenerator(int process_count, double delta_tau,
-                                double omega_max, bool zero_point,
-                                CudaStream& update_stream);
-  ~CudaQuantumSpdeNoiseGenerator();
+  QuantumSpdeNoiseGenerator(int process_count, double delta_tau,
+                            double omega_max, bool zero_point);
 
-  CudaQuantumSpdeNoiseGenerator(const CudaQuantumSpdeNoiseGenerator&) = delete;
-  CudaQuantumSpdeNoiseGenerator& operator=(const CudaQuantumSpdeNoiseGenerator&) = delete;
+  QuantumSpdeNoiseGenerator(const QuantumSpdeNoiseGenerator&) = delete;
+  QuantumSpdeNoiseGenerator& operator=(const QuantumSpdeNoiseGenerator&) = delete;
 
   void initialize(Initialization initialization, jams::Real temperature);
   void initialize(Initialization initialization,
@@ -41,7 +39,6 @@ class CudaQuantumSpdeNoiseGenerator {
   void update(jams::Real* noise, const jams::Real* sigma, jams::Real temperature);
   void update(jams::Real* noise, const jams::Real* sigma,
               const jams::MultiArray<jams::Real, 1>& temperature);
-  void synchronize();
 
   [[nodiscard]] int process_count() const { return process_count_; }
   [[nodiscard]] bool zero_point_enabled() const { return zero_point_; }
@@ -53,10 +50,13 @@ class CudaQuantumSpdeNoiseGenerator {
   [[nodiscard]] const jams::MultiArray<double, 1>& zeta6p() const { return zeta6p_; }
 
  private:
-  void generate_random_buffers();
+  void ensure_random_generators(int count);
+  void fill_standard_normal(jams::MultiArray<jams::Real, 1>& values);
   void prepare_fixed_temperature_coefficients(jams::Real temperature);
   void prepare_temperature_profile_coefficients(
       const jams::MultiArray<jams::Real, 1>& temperature);
+  void update_zero_point(jams::Real* noise, const jams::Real* sigma);
+  void zero_noise(jams::Real* noise) const;
   void zero_state();
 
   int process_count_ = 0;
@@ -74,27 +74,33 @@ class CudaQuantumSpdeNoiseGenerator {
   jams::MultiArray<QuantumSpdeBoseCholesky, 1> profile_stationary_factor5_;
   jams::MultiArray<QuantumSpdeBoseCholesky, 1> profile_stationary_factor6_;
 
-  CudaStream& update_stream_;
-  CudaStream curand_stream_{CudaStream::Priority::LOW};
-  curandGenerator_t curand_generator_ = nullptr;
-  cudaEvent_t curand_done_{};
-  cudaEvent_t eta1a_reusable_{};
-  cudaEvent_t eta1b_reusable_{};
-  cudaEvent_t eta0a_reusable_{};
-  cudaEvent_t eta0b_reusable_{};
+  pcg32_k1024 random_generator_;
+  std::vector<pcg32_k1024> random_generators_;
 
   jams::MultiArray<double, 1> zeta0_;
   jams::MultiArray<double, 1> zeta5_;
   jams::MultiArray<double, 1> zeta5p_;
   jams::MultiArray<double, 1> zeta6_;
   jams::MultiArray<double, 1> zeta6p_;
-  jams::MultiArray<jams::Real, 1> eta0a_;
-  jams::MultiArray<jams::Real, 1> eta0b_;
-  jams::MultiArray<jams::Real, 1> eta1a_;
-  jams::MultiArray<jams::Real, 1> eta1b_;
+  jams::MultiArray<jams::Real, 1> eta0_;
+  jams::MultiArray<jams::Real, 1> eta1_;
+  jams::MultiArray<jams::Real, 1> eta_stationary_;
 };
 
 }  // namespace jams
 
-#endif  // HAS_CUDA
-#endif  // JAMS_CUDA_QUANTUM_SPDE_NOISE_H
+class ThermostatQuantumSpde : public Thermostat {
+ public:
+  ThermostatQuantumSpde(const jams::Real& temperature,
+                        const jams::Real& sigma,
+                        jams::Real timestep,
+                        int num_spins);
+
+  void update() override;
+
+ private:
+  std::unique_ptr<jams::QuantumSpdeNoiseGenerator> noise_generator_;
+  jams::MultiArray<jams::Real, 1> process_temperature_;
+};
+
+#endif  // JAMS_THERMOSTAT_QUANTUM_SPDE_H
