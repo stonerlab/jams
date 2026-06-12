@@ -3,11 +3,13 @@
 #ifndef JAMS_HAMILTONIAN_EXCHANGE_STENCIL_H
 #define JAMS_HAMILTONIAN_EXCHANGE_STENCIL_H
 
+#include <array>
 #include <memory>
 #include <optional>
 #include <string>
 #include <vector>
 
+#include <jams/containers/block_sparse_interaction_matrix.h>
 #include <jams/core/hamiltonian.h>
 #include <jams/core/interactions.h>
 
@@ -78,10 +80,16 @@ private:
     bool operator<(const TemplateKey& other) const;
   };
 
+  struct RuntimeEntry {
+    int basis_site_j = -1;
+    std::array<jams::Real, 9> values{};
+  };
+
   void enable_sparse_fallback(const libconfig::Setting& settings, unsigned int size, const std::string& reason);
   [[nodiscard]] bool direct_lattice_layout_is_supported() const;
   void parse_settings(const libconfig::Setting& settings);
   void build_stencil_entries(const std::vector<InteractionData>& interactions);
+  void build_runtime_entries();
   [[nodiscard]] bool stencil_entries_match_dense_materials() const;
   void validate_stencil_symmetry() const;
   void validate_no_duplicate_physical_targets() const;
@@ -91,13 +99,32 @@ private:
       const StencilEntry& entry) const;
   [[nodiscard]] int dense_site_index(int cell_x, int cell_y, int cell_z, int basis_site) const;
   [[nodiscard]] std::size_t num_stencil_entries() const;
+  template <jams::InteractionTensorStorage Storage, bool FullyPeriodic>
+  void calculate_fields_storage(const SpinHostView& spins);
+  template <jams::InteractionTensorStorage Storage, bool FullyPeriodic>
+  [[nodiscard]] jams::Vec<jams::Real, 3> calculate_stencil_field_for_site_storage(
+      int site,
+      const SpinHostView& spins) const;
 
   std::unique_ptr<ExchangeHamiltonian> sparse_fallback_;
   std::vector<std::vector<StencilEntry>> stencil_entries_by_basis_;
+  std::vector<int> target_cell_by_translation_;
+  std::vector<int> runtime_group_offsets_;
+  std::vector<int> runtime_group_entry_offsets_;
+  std::vector<int> runtime_group_translation_ids_;
+  std::vector<int> runtime_group_target_cell_offsets_;
+  std::vector<int> runtime_target_basis_;
+  std::vector<int> runtime_target_spin_offsets_;
+  std::vector<jams::Real> runtime_values_;
 
   jams::Vec<int, 3> lattice_size_ = {0, 0, 0};
   jams::Vec<bool, 3> periodic_boundaries_ = {false, false, false};
   int num_basis_sites_ = 0;
+  int num_cells_ = 0;
+  int num_cell_translations_ = 0;
+  int components_per_entry_ = 1;
+  bool fully_periodic_ = false;
+  jams::InteractionTensorStorage tensor_storage_ = jams::InteractionTensorStorage::Isotropic;
 
   jams::RealHi interaction_prefactor_ = 1.0;
   jams::RealHi energy_cutoff_ = 0.0;

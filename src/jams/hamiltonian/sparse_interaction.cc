@@ -63,11 +63,19 @@ void SparseInteractionHamiltonian::calculate_energies(jams::Real time, const jam
   }
   #endif
   const auto spin_view = spins.host_view();
+  auto energy_view = energy_.mutable_host_view();
+  const auto* spin_values = spin_view.data();
+  auto* energy_values = energy_view.data();
+  #if HAS_OMP
   #pragma omp parallel for
+  #endif
   for (int i = 0; i < globals::num_spins; ++i) {
     const auto field = interaction_matrix_.multiply_row(i, spins);
-    const jams::Vec<jams::Real, 3> s_i = {spin_view(i, 0), spin_view(i, 1), spin_view(i, 2)};
-    energy_(i) = -0.5 * jams::dot(s_i, field);
+    const auto offset = 3 * i;
+    energy_values[i] = static_cast<jams::Real>(-0.5)
+        * (spin_values[offset] * field[0]
+           + spin_values[offset + 1] * field[1]
+           + spin_values[offset + 2] * field[2]);
   }
 }
 
@@ -102,13 +110,18 @@ jams::Real SparseInteractionHamiltonian::calculate_total_energy(jams::Real time,
   jams::Real total_energy = 0.0;
   interaction_matrix_.multiply(spins, field_);
   const auto spin_view = spins.host_view();
+  const auto field_view = field_.host_view();
+  const auto* spin_values = spin_view.data();
+  const auto* field_values = field_view.data();
   #if HAS_OMP
-  #pragma omp parallel for default(none) shared(globals::num_spins, spin_view, field_) reduction(+:total_energy)
+  #pragma omp parallel for reduction(+:total_energy)
   #endif
   for (auto i = 0; i < globals::num_spins; ++i) {
-    jams::Vec<jams::Real, 3> s_i = {spin_view(i, 0), spin_view(i, 1), spin_view(i, 2)};
-    jams::Vec<jams::Real, 3> h_i = {field_(i, 0), field_(i, 1), field_(i, 2)};
-    total_energy += -0.5 * jams::dot(s_i, h_i);
+    const auto offset = 3 * i;
+    total_energy += static_cast<jams::Real>(-0.5)
+        * (spin_values[offset] * field_values[offset]
+           + spin_values[offset + 1] * field_values[offset + 1]
+           + spin_values[offset + 2] * field_values[offset + 2]);
   }
   return total_energy;
 }
