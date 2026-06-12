@@ -6,6 +6,7 @@
 #define JAMS_CUDA_SOLVER_FUNCTIONS_CUH
 
 #include "jams/cuda/cuda_device_vector_ops.h"
+#include "jams/solvers/llg_rkmk_functions.h"
 #include <cuda_runtime.h>
 
 __device__ __forceinline__
@@ -13,10 +14,7 @@ void omega_llg(const double s[3], const jams::Real h[3],
                const jams::Real gyro, const jams::Real alpha,
                double result[3])
 {
-
-  result[0] = gyro * (h[0] + alpha * (s[1] * h[2] - s[2] * h[1]));
-  result[1] = gyro * (h[1] + alpha * (s[2] * h[0] - s[0] * h[2]));
-  result[2] = gyro * (h[2] + alpha * (s[0] * h[1] - s[1] * h[0]));
+  jams::solvers::rkmk::omega_llg(s, h, gyro, alpha, result);
 }
 
 
@@ -78,97 +76,13 @@ void cayley_rotate(const double A[3], const double S[3], double result[3])
 
 __device__ inline void rodrigues_rotate(const double phi[3], const double S[3], double result[3])
 {
-  // Numerically stable Rodrigues action using
-  //   exp([phi])S = S + a (phi×S) + b (phi×(phi×S))
-  // with a = sin(th)/th, b = (1-cos(th))/th^2.
-  // Uses series for small th to avoid catastrophic cancellation.
-  const double th2 = norm_squared(phi);
-
-  // For double precision, cancellation in (1-cos(th))/th^2 becomes noticeable
-  // well before th2 ~ 1e-24. Use a larger threshold and a series expansion.
-  if (th2 < 1e-8)
-  {
-    // a = 1 - th^2/6 + th^4/120 + O(th^6)
-    // b = 1/2 - th^2/24 + th^4/720 + O(th^6)
-    const double th4 = th2 * th2;
-    const double a = 1.0 - th2 * (1.0 / 6.0) + th4 * (1.0 / 120.0);
-    const double b = 0.5 - th2 * (1.0 / 24.0) + th4 * (1.0 / 720.0);
-
-    double c1[3];
-    cross_product(phi, S, c1);
-    double c2[3];
-    cross_product(phi, c1, c2);
-
-    for (int n = 0; n < 3; ++n)
-    {
-      result[n] = S[n] + a * c1[n] + b * c2[n];
-    }
-    return;
-  }
-
-  const double th = sqrt(th2);
-
-  double s, c;
-  sincos(th, &s, &c);
-
-  const double a = s / th;
-  const double b = (1.0 - c) / th2;
-
-  double c1[3];
-  cross_product(phi, S, c1);
-  double c2[3];
-  cross_product(phi, c1, c2);
-
-  for (int n = 0; n < 3; ++n)
-  {
-    result[n] = S[n] + a * c1[n] + b * c2[n];
-  }
+  jams::solvers::rkmk::rodrigues_rotate(phi, S, result);
 }
 
 
 __device__ inline void dexp_inv_so3(const double phi[3], const double v[3], double result[3])
 {
-  // dexp^{-1}_phi(v) for so(3) in vector form.
-  // Uses: v - 1/2 phi×v + beta(th) phi×(phi×v)
-  // beta(th) = (1/th^2) * (1 - (th/2) cot(th/2))
-  // For small th, beta(th) = 1/12 + th^2/720 + th^4/30240 + O(th^6)
-
-  const double th2 = norm_squared(phi);
-
-  double c1[3];
-  cross_product(phi, v, c1);
-  double c2[3];
-  cross_product(phi, c1, c2);
-
-  // Use a larger threshold than 1e-24 to avoid loss of significance in
-  // 1 - (th/2)cot(th/2) and to keep beta accurate.
-  if (th2 < 1e-8)
-  {
-    const double th4 = th2 * th2;
-    const double beta = (1.0 / 12.0) + th2 * (1.0 / 720.0) + th4 * (1.0 / 30240.0);
-
-    for (int n = 0; n < 3; ++n)
-    {
-      result[n] = v[n] - 0.5 * c1[n] + beta * c2[n];
-    }
-    return;
-  }
-
-  const double th = sqrt(th2);
-  const double half = 0.5 * th;
-
-  double s, c;
-  sincos(half, &s, &c);
-
-  // beta = (1/th^2) * (1 - half * cot(half))
-  // Use cot = cos/sin; safe here because we handled small angles above.
-  const double cot_half = c / s;
-  const double beta = (1.0 / th2) * (1.0 - half * cot_half);
-
-  for (int n = 0; n < 3; ++n)
-  {
-    result[n] = v[n] - 0.5 * c1[n] + beta * c2[n];
-  }
+  jams::solvers::rkmk::dexp_inv_so3(phi, v, result);
 }
 
 __device__ __forceinline__ void rkmk_store_spin_and_cache

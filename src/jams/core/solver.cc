@@ -31,6 +31,7 @@
 #include "jams/solvers/cuda_rk4_llg_sot.h"
 #include "jams/solvers/cuda_llg_semi_implicit.h"
 #include "jams/solvers/cpu_llg_heun.h"
+#include "jams/solvers/cpu_llg_rkmk.h"
 #include "jams/solvers/cpu_rotations.h"
 #include "jams/solvers/cpu_monte_carlo_metropolis.h"
 #include "jams/solvers/cpu_monte_carlo_constrained.h"
@@ -122,6 +123,8 @@ Solver* Solver::create(const libconfig::Setting &settings) {
   DEFINED_SOLVER("null", NullSolver, settings);
   DEFINED_SOLVER("rotations-cpu", RotationSolver, settings);
   DEFINED_SOLVER("llg-heun-cpu", HeunLLGSolver, settings);
+  DEFINED_SOLVER("llg-rkmk2-cpu", RKMK2LLGSolver, settings);
+  DEFINED_SOLVER("llg-rkmk4-cpu", RKMK4LLGSolver, settings);
   DEFINED_SOLVER("monte-carlo-metropolis-cpu", MetropolisMCSolver, settings);
   DEFINED_SOLVER("monte-carlo-constrained-cpu", ConstrainedMCSolver, settings);
   DEFINED_SOLVER("monte-carlo-metadynamics-cpu", MetadynamicsMetropolisSolver, settings);
