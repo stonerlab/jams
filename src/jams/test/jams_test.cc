@@ -18,6 +18,7 @@
 
 #include "jams/test/hamiltonian/test_crystal_field.h"
 #include "jams/test/hamiltonian/test_dipole.h"
+#include "jams/test/hamiltonian/test_exchange_stencil.h"
 #include "jams/test/solvers/test_cpu_rotations.h"
 
 #ifdef HAS_CUDA

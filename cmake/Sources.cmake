@@ -25,6 +25,7 @@ set(JAMS_SOURCES_CXX
         hamiltonian/dipole_neighbour_list.cc
         hamiltonian/dipole_tensor.cc
         hamiltonian/exchange.cc
+        hamiltonian/exchange_stencil.cc
         hamiltonian/exchange_functional.cc
         hamiltonian/exchange_neartree.cc
         hamiltonian/field_pulse.cc
@@ -119,6 +120,7 @@ set(JAMS_SOURCES_CUDA
         hamiltonian/cuda_crystal_field.cu
         hamiltonian/cuda_dipole_bruteforce.cu
         hamiltonian/cuda_dipole_fft.cu
+        hamiltonian/cuda_exchange_stencil.cu
         hamiltonian/cuda_field_pulse.cu
         hamiltonian/cuda_landau.cu
         hamiltonian/cuda_random_anisotropy.cu

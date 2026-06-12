@@ -4,6 +4,7 @@
 #include <iostream>
 
 #include "jams/containers/sparse_matrix.h"
+#include "jams/helpers/utils.h"
 
 namespace jams {
 
