@@ -4,6 +4,7 @@
 #define JAMS_THERMOSTAT_CLASSICAL_H
 
 #include <random>
+#include <vector>
 
 #include <pcg_random.hpp>
 
@@ -19,8 +20,11 @@ class ThermostatClassical : public Thermostat {
   void update() override;
 
  private:
+  void ensure_random_generators(int count);
+
   jams::MultiArray<jams::Real, 1> sigma_spin_;
   pcg32_k1024 random_generator_;
+  std::vector<pcg32_k1024> random_generators_;
 };
 
 #endif  // JAMS_THERMOSTAT_CLASSICAL_H
