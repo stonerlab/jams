@@ -733,6 +733,64 @@ void ExchangeStencilHamiltonian::calculate_fields_storage(const SpinHostView& sp
   }
 }
 
+template <jams::InteractionTensorStorage Storage, bool FullyPeriodic>
+void ExchangeStencilHamiltonian::calculate_fields_storage_in_parallel(const SpinHostView& spins) {
+  const int num_basis = num_basis_sites_;
+  const jams::Real* spin_values = nullptr;
+  jams::Real* field_values = nullptr;
+#if HAS_OMP
+#pragma omp single copyprivate(spin_values, field_values)
+  {
+    spin_values = spins.data();
+    field_values = field_.data();
+  }
+#else
+  spin_values = spins.data();
+  field_values = field_.data();
+#endif
+  const auto* tensor_values = runtime_values_.data();
+  constexpr int kComponents = storage_component_count<Storage>();
+
+#if HAS_OMP
+#pragma omp for schedule(static)
+#endif
+  for (int source_cell = 0; source_cell < num_cells_; ++source_cell) {
+    const int site_base = source_cell * num_basis;
+    int field_offset = 3 * site_base;
+    for (int basis = 0; basis < num_basis; ++basis, field_offset += 3) {
+      jams::Real hx = 0;
+      jams::Real hy = 0;
+      jams::Real hz = 0;
+
+      for (auto group = runtime_group_offsets_[basis]; group < runtime_group_offsets_[basis + 1]; ++group) {
+        const int target_cell = target_cell_by_translation_[runtime_group_target_cell_offsets_[group] + source_cell];
+        if constexpr (!FullyPeriodic) {
+          if (target_cell < 0) {
+            continue;
+          }
+        }
+
+        const int target_spin_base = 3 * target_cell * num_basis;
+        for (auto entry = runtime_group_entry_offsets_[group]; entry < runtime_group_entry_offsets_[group + 1]; ++entry) {
+          const int target_offset = target_spin_base + runtime_target_spin_offsets_[entry];
+          accumulate_tensor_field<Storage>(
+              tensor_values + kComponents * entry,
+              spin_values[target_offset],
+              spin_values[target_offset + 1],
+              spin_values[target_offset + 2],
+              hx,
+              hy,
+              hz);
+        }
+      }
+
+      field_values[field_offset] = hx;
+      field_values[field_offset + 1] = hy;
+      field_values[field_offset + 2] = hz;
+    }
+  }
+}
+
 void ExchangeStencilHamiltonian::calculate_fields(jams::Real time, const SpinArray& spins) {
   if (sparse_fallback_) {
     sparse_fallback_->calculate_fields(time, spins);
@@ -783,6 +841,79 @@ void ExchangeStencilHamiltonian::calculate_fields(jams::Real time, const SpinArr
       return;
     case jams::InteractionTensorStorage::General:
       calculate_fields_storage<jams::InteractionTensorStorage::General, false>(spin_view);
+      return;
+    case jams::InteractionTensorStorage::Auto:
+      throw std::runtime_error("cannot calculate exchange-stencil fields with auto tensor storage");
+  }
+}
+
+bool ExchangeStencilHamiltonian::supports_calculate_fields_in_parallel() const {
+  return !sparse_fallback_ || sparse_fallback_->supports_calculate_fields_in_parallel();
+}
+
+void ExchangeStencilHamiltonian::calculate_fields_in_parallel(jams::Real time, const SpinArray& spins) {
+  if (sparse_fallback_) {
+    sparse_fallback_->calculate_fields_in_parallel(time, spins);
+    jams::Real* fallback_field = nullptr;
+    jams::Real* field_values = nullptr;
+#if HAS_OMP
+#pragma omp single copyprivate(fallback_field, field_values)
+    {
+      fallback_field = sparse_fallback_->ptr_field();
+      field_values = field_.data();
+    }
+#else
+    fallback_field = sparse_fallback_->ptr_field();
+    field_values = field_.data();
+#endif
+#if HAS_OMP
+#pragma omp for schedule(static)
+#endif
+    for (auto i = 0; i < globals::num_spins3; ++i) {
+      field_values[i] = fallback_field[i];
+    }
+    return;
+  }
+
+  const auto spin_view = spins.host_view();
+
+  if (fully_periodic_) {
+    switch (tensor_storage_) {
+      case jams::InteractionTensorStorage::Isotropic:
+        calculate_fields_storage_in_parallel<jams::InteractionTensorStorage::Isotropic, true>(spin_view);
+        return;
+      case jams::InteractionTensorStorage::Anisotropic:
+        calculate_fields_storage_in_parallel<jams::InteractionTensorStorage::Anisotropic, true>(spin_view);
+        return;
+      case jams::InteractionTensorStorage::Symmetric:
+        calculate_fields_storage_in_parallel<jams::InteractionTensorStorage::Symmetric, true>(spin_view);
+        return;
+      case jams::InteractionTensorStorage::Antisymmetric:
+        calculate_fields_storage_in_parallel<jams::InteractionTensorStorage::Antisymmetric, true>(spin_view);
+        return;
+      case jams::InteractionTensorStorage::General:
+        calculate_fields_storage_in_parallel<jams::InteractionTensorStorage::General, true>(spin_view);
+        return;
+      case jams::InteractionTensorStorage::Auto:
+        throw std::runtime_error("cannot calculate exchange-stencil fields with auto tensor storage");
+    }
+  }
+
+  switch (tensor_storage_) {
+    case jams::InteractionTensorStorage::Isotropic:
+      calculate_fields_storage_in_parallel<jams::InteractionTensorStorage::Isotropic, false>(spin_view);
+      return;
+    case jams::InteractionTensorStorage::Anisotropic:
+      calculate_fields_storage_in_parallel<jams::InteractionTensorStorage::Anisotropic, false>(spin_view);
+      return;
+    case jams::InteractionTensorStorage::Symmetric:
+      calculate_fields_storage_in_parallel<jams::InteractionTensorStorage::Symmetric, false>(spin_view);
+      return;
+    case jams::InteractionTensorStorage::Antisymmetric:
+      calculate_fields_storage_in_parallel<jams::InteractionTensorStorage::Antisymmetric, false>(spin_view);
+      return;
+    case jams::InteractionTensorStorage::General:
+      calculate_fields_storage_in_parallel<jams::InteractionTensorStorage::General, false>(spin_view);
       return;
     case jams::InteractionTensorStorage::Auto:
       throw std::runtime_error("cannot calculate exchange-stencil fields with auto tensor storage");

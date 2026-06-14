@@ -75,7 +75,14 @@ void Solver::compute_fields() {
     hh->calculate_fields(this->time(), spins);
   }
 
-  std::copy(hamiltonians_[0]->ptr_field(), hamiltonians_[0]->ptr_field()+globals::num_spins3, globals::h.data());
+  const auto* first_field = hamiltonians_[0]->ptr_field();
+  auto* total_field = globals::h.data();
+#if HAS_OMP
+#pragma omp parallel for schedule(static)
+#endif
+  for (auto i = 0; i < globals::num_spins3; ++i) {
+    total_field[i] = first_field[i];
+  }
 
   if (hamiltonians_.size() == 1) return;
 
@@ -95,6 +102,79 @@ void Solver::compute_fields() {
         }
       }
 
+}
+
+bool Solver::supports_compute_fields_in_parallel() const {
+#if HAS_OMP
+  return std::all_of(
+      hamiltonians_.begin(),
+      hamiltonians_.end(),
+      [](const auto& hamiltonian) {
+        return hamiltonian->supports_calculate_fields_in_parallel();
+      });
+#else
+  return false;
+#endif
+}
+
+void Solver::compute_fields_in_parallel() {
+#if HAS_OMP
+  if (hamiltonians_.empty()) return;
+
+#if DO_MIXED_PRECISION
+  const double* global_spin_values = nullptr;
+  jams::Real* field_spin_values = nullptr;
+  int spin_element_count = 0;
+#pragma omp single copyprivate(global_spin_values, field_spin_values, spin_element_count)
+  {
+    if (field_spin_array_.elements() != globals::s.elements()) {
+      field_spin_array_.resize(globals::s.extent(0), globals::s.extent(1));
+    }
+    global_spin_values = std::as_const(globals::s).data();
+    field_spin_values = field_spin_array_.data();
+    spin_element_count = globals::s.elements();
+  }
+#pragma omp for schedule(static)
+  for (auto i = 0; i < spin_element_count; ++i) {
+    field_spin_values[i] = static_cast<jams::Real>(global_spin_values[i]);
+  }
+  const auto& spins = field_spin_array_;
+#else
+  const auto& spins = globals::s;
+#endif
+
+  for (auto& hh : hamiltonians_) {
+    hh->calculate_fields_in_parallel(this->time(), spins);
+  }
+
+  const jams::Real* first_field = nullptr;
+  jams::Real* total_field = nullptr;
+  int field_element_count = 0;
+#pragma omp single copyprivate(first_field, total_field, field_element_count)
+  {
+    first_field = hamiltonians_[0]->ptr_field();
+    total_field = globals::h.data();
+    field_element_count = globals::num_spins3;
+  }
+#pragma omp for schedule(static)
+  for (auto i = 0; i < field_element_count; ++i) {
+    total_field[i] = first_field[i];
+  }
+
+  for (auto h = std::size_t{1}; h < hamiltonians_.size(); ++h) {
+    const jams::Real* field = nullptr;
+#pragma omp single copyprivate(field)
+    {
+      field = hamiltonians_[h]->ptr_field();
+    }
+#pragma omp for schedule(static)
+    for (auto i = 0; i < field_element_count; ++i) {
+      total_field[i] += field[i];
+    }
+  }
+#else
+  compute_fields();
+#endif
 }
 
 const jams::MultiArray<jams::Real, 2>& Solver::spin_array_for_fields() {

@@ -26,6 +26,9 @@ public:
 
     void calculate_fields(jams::Real time, const jams::MultiArray<jams::Real, 2>& spins) override;
 
+    bool supports_calculate_fields_in_parallel() const override;
+    void calculate_fields_in_parallel(jams::Real time, const jams::MultiArray<jams::Real, 2>& spins) override;
+
     jams::Vec<jams::Real, 3> calculate_field(int i, jams::Real time) override;
 
     jams::Real calculate_energy(int i, jams::Real time) override;

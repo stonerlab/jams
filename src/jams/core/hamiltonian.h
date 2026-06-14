@@ -49,6 +49,12 @@ public:
     // calculate the field at each spin and store in field_
     virtual void calculate_fields(jams::Real time, const SpinArray& spins);
 
+    // Opt-in variant for callers that are already inside an OpenMP parallel
+    // region. Implementations must use omp for-style work sharing and must be
+    // called by every thread in the team.
+    virtual bool supports_calculate_fields_in_parallel() const;
+    virtual void calculate_fields_in_parallel(jams::Real time, const SpinArray& spins);
+
     // calculate the energy of each spin and store in energy_
     virtual void calculate_energies(jams::Real time, const SpinArray& spins);
 

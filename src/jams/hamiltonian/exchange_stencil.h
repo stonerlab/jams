@@ -23,6 +23,8 @@ public:
   jams::Real calculate_total_energy(jams::Real time, const SpinArray& spins) override;
   void calculate_energies(jams::Real time, const SpinArray& spins) override;
   void calculate_fields(jams::Real time, const SpinArray& spins) override;
+  bool supports_calculate_fields_in_parallel() const override;
+  void calculate_fields_in_parallel(jams::Real time, const SpinArray& spins) override;
   jams::Vec<jams::Real, 3> calculate_field(int i, jams::Real time) override;
   jams::Real calculate_energy(int i, jams::Real time) override;
   jams::Real calculate_energy_difference(
@@ -101,6 +103,8 @@ private:
   [[nodiscard]] std::size_t num_stencil_entries() const;
   template <jams::InteractionTensorStorage Storage, bool FullyPeriodic>
   void calculate_fields_storage(const SpinHostView& spins);
+  template <jams::InteractionTensorStorage Storage, bool FullyPeriodic>
+  void calculate_fields_storage_in_parallel(const SpinHostView& spins);
   template <jams::InteractionTensorStorage Storage, bool FullyPeriodic>
   [[nodiscard]] jams::Vec<jams::Real, 3> calculate_stencil_field_for_site_storage(
       int site,

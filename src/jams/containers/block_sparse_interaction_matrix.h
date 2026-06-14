@@ -138,6 +138,9 @@ public:
   template<class X, class Y, size_t N>
   void multiply(const MultiArray<X, N>& spins, MultiArray<Y, N>& field) const;
 
+  template<class X, class Y, size_t N>
+  void multiply_in_parallel(const MultiArray<X, N>& spins, MultiArray<Y, N>& field) const;
+
   template<class X, size_t N>
   Vec<value_type, 3> multiply_row(index_type i, const MultiArray<X, N>& spins) const;
 
@@ -155,6 +158,9 @@ private:
 
   template<InteractionTensorStorage Storage, class X, class Y>
   void multiply_data_storage(const X* spins, Y* field) const;
+
+  template<InteractionTensorStorage Storage, class X, class Y>
+  void multiply_data_storage_in_parallel(const X* spins, Y* field) const;
 
   index_type num_rows_ = 0;
   index_type num_blocks_ = 0;
@@ -907,10 +913,62 @@ void BlockSparseInteractionMatrix<T>::multiply(const MultiArray<X, N>& spins, Mu
 }
 
 template<typename T>
+template<class X, class Y, size_t N>
+void BlockSparseInteractionMatrix<T>::multiply_in_parallel(const MultiArray<X, N>& spins, MultiArray<Y, N>& field) const {
+  const X* spin_data = nullptr;
+  Y* field_data = nullptr;
+#if HAS_OMP
+#pragma omp single copyprivate(spin_data, field_data)
+  {
+    spin_data = spins.data();
+    field_data = field.data();
+  }
+#else
+  spin_data = spins.data();
+  field_data = field.data();
+#endif
+  switch (storage_) {
+    case InteractionTensorStorage::Isotropic:
+      multiply_data_storage_in_parallel<InteractionTensorStorage::Isotropic>(spin_data, field_data);
+      return;
+    case InteractionTensorStorage::Anisotropic:
+      multiply_data_storage_in_parallel<InteractionTensorStorage::Anisotropic>(spin_data, field_data);
+      return;
+    case InteractionTensorStorage::Symmetric:
+      multiply_data_storage_in_parallel<InteractionTensorStorage::Symmetric>(spin_data, field_data);
+      return;
+    case InteractionTensorStorage::Antisymmetric:
+      multiply_data_storage_in_parallel<InteractionTensorStorage::Antisymmetric>(spin_data, field_data);
+      return;
+    case InteractionTensorStorage::General:
+      multiply_data_storage_in_parallel<InteractionTensorStorage::General>(spin_data, field_data);
+      return;
+    case InteractionTensorStorage::Auto:
+      throw std::runtime_error("cannot multiply auto tensor storage");
+  }
+  throw std::runtime_error("unknown interaction tensor storage");
+}
+
+template<typename T>
 template<InteractionTensorStorage Storage, class X, class Y>
 void BlockSparseInteractionMatrix<T>::multiply_data_storage(const X* spins, Y* field) const {
 #if HAS_OMP
 #pragma omp parallel for
+#endif
+  for (index_type i = 0; i < num_rows_; ++i) {
+    const auto h = multiply_row_data_storage<Storage>(i, spins);
+    const auto base = 3 * i;
+    field[base + 0] = static_cast<Y>(h[0]);
+    field[base + 1] = static_cast<Y>(h[1]);
+    field[base + 2] = static_cast<Y>(h[2]);
+  }
+}
+
+template<typename T>
+template<InteractionTensorStorage Storage, class X, class Y>
+void BlockSparseInteractionMatrix<T>::multiply_data_storage_in_parallel(const X* spins, Y* field) const {
+#if HAS_OMP
+#pragma omp for schedule(static)
 #endif
   for (index_type i = 0; i < num_rows_; ++i) {
     const auto h = multiply_row_data_storage<Storage>(i, spins);

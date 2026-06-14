@@ -135,6 +135,16 @@ void Hamiltonian::calculate_fields(jams::Real time, const SpinArray& spins)
   }
 }
 
+bool Hamiltonian::supports_calculate_fields_in_parallel() const
+{
+  return false;
+}
+
+void Hamiltonian::calculate_fields_in_parallel(jams::Real, const SpinArray&)
+{
+  throw jams::unimplemented_error("Hamiltonian::calculate_fields_in_parallel");
+}
+
 void Hamiltonian::calculate_energies(jams::Real time, const SpinArray& spins)
 {
   const auto spin_view = spins.host_view();

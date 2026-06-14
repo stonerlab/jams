@@ -23,6 +23,9 @@ class RKMK2LLGSolver : public Solver {
   std::string name() const override { return "llg-rkmk2-cpu"; }
 
  private:
+  bool supports_persistent_parallel_step() const;
+  void run_persistent_parallel_step();
+
   jams::MultiArray<jams::Real, 1> gyro_eff_;
   jams::MultiArray<double, 2> s_init_;
   jams::MultiArray<double, 2> phi_;

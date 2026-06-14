@@ -68,6 +68,8 @@ class Solver {
   virtual void notify_monitors();
 
   virtual void compute_fields();
+  bool supports_compute_fields_in_parallel() const;
+  void compute_fields_in_parallel();
 
   virtual const jams::MultiArray<jams::Real, 2>& spin_array_for_fields();
 

@@ -39,6 +39,9 @@ class QuantumSpdeNoiseGenerator {
   void update(jams::Real* noise, const jams::Real* sigma, jams::Real temperature);
   void update(jams::Real* noise, const jams::Real* sigma,
               const jams::MultiArray<jams::Real, 1>& temperature);
+  void update_in_parallel(jams::Real* noise, const jams::Real* sigma, jams::Real temperature);
+  void update_in_parallel(jams::Real* noise, const jams::Real* sigma,
+                          const jams::MultiArray<jams::Real, 1>& temperature);
 
   [[nodiscard]] int process_count() const { return process_count_; }
   [[nodiscard]] bool zero_point_enabled() const { return zero_point_; }
@@ -51,15 +54,18 @@ class QuantumSpdeNoiseGenerator {
 
  private:
   void ensure_random_generators(int count);
-  void fill_standard_normal(jams::MultiArray<jams::Real, 1>& values);
   void prepare_fixed_temperature_coefficients(jams::Real temperature);
   void prepare_temperature_profile_coefficients(
       const jams::MultiArray<jams::Real, 1>& temperature);
   void update_zero_point(jams::Real* noise, const jams::Real* sigma);
+  void update_zero_point_in_parallel(jams::Real* noise, const jams::Real* sigma);
+  [[nodiscard]] bool has_spin_groups() const { return spin_count_ * 3 == process_count_; }
   void zero_noise(jams::Real* noise) const;
+  void zero_noise_in_parallel(jams::Real* noise) const;
   void zero_state();
 
   int process_count_ = 0;
+  int spin_count_ = 0;
   double delta_tau_ = 0.0;
   double omega_max_ = 0.0;
   bool zero_point_ = false;
@@ -69,6 +75,7 @@ class QuantumSpdeNoiseGenerator {
   QuantumSpdeBoseUpdateCoefficients fast_factor6_;
   QuantumSpdeZeroPointUpdateCoefficients zero_point_coefficients_;
   bool profile_has_positive_temperature_ = false;
+  bool profile_temperatures_are_per_spin_ = false;
   jams::MultiArray<QuantumSpdeBoseUpdateCoefficients, 1> profile_factor5_;
   jams::MultiArray<QuantumSpdeBoseUpdateCoefficients, 1> profile_factor6_;
   jams::MultiArray<QuantumSpdeBoseCholesky, 1> profile_stationary_factor5_;
@@ -82,9 +89,6 @@ class QuantumSpdeNoiseGenerator {
   jams::MultiArray<double, 1> zeta5p_;
   jams::MultiArray<double, 1> zeta6_;
   jams::MultiArray<double, 1> zeta6p_;
-  jams::MultiArray<jams::Real, 1> eta0_;
-  jams::MultiArray<jams::Real, 1> eta1_;
-  jams::MultiArray<jams::Real, 1> eta_stationary_;
 };
 
 }  // namespace jams
@@ -97,6 +101,8 @@ class ThermostatQuantumSpde : public Thermostat {
                         int num_spins);
 
   void update() override;
+  bool supports_update_in_parallel() const override { return true; }
+  void update_in_parallel() override;
 
  private:
   std::unique_ptr<jams::QuantumSpdeNoiseGenerator> noise_generator_;

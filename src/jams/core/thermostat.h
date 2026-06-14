@@ -21,6 +21,8 @@ class Thermostat {
 
   virtual ~Thermostat() = default;
   virtual void update() = 0;
+  virtual bool supports_update_in_parallel() const { return false; }
+  virtual void update_in_parallel();
 
   // factory
   static Thermostat* create(const std::string &thermostat_name, const jams::Real timestep);

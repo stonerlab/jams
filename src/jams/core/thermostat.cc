@@ -3,6 +3,7 @@
 
 #include "jams/interface/config.h"
 #include "jams/core/globals.h"
+#include "jams/helpers/error.h"
 #include "jams/helpers/utils.h"
 
 #include "jams/thermostats/thermostat_classical.h"
@@ -40,6 +41,10 @@ Thermostat::Thermostat(const jams::Real &temperature,
 void Thermostat::set_temperature(const jams::Real T) {
   temperature_profile_.set_uniform_temperature(T);
   temperature_ = T;
+}
+
+void Thermostat::update_in_parallel() {
+  throw jams::unimplemented_error("Thermostat::update_in_parallel");
 }
 
 Thermostat* Thermostat::create(const std::string &thermostat_name, const jams::Real timestep) {

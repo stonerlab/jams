@@ -45,6 +45,17 @@ void SparseInteractionHamiltonian::calculate_fields(jams::Real time, const jams:
   interaction_matrix_.multiply(spins, field_);
 }
 
+bool SparseInteractionHamiltonian::supports_calculate_fields_in_parallel() const {
+  return is_finalized_;
+}
+
+void SparseInteractionHamiltonian::calculate_fields_in_parallel(
+    jams::Real,
+    const jams::MultiArray<jams::Real, 2>& spins) {
+  assert(is_finalized_);
+  interaction_matrix_.multiply_in_parallel(spins, field_);
+}
+
 jams::Vec<jams::Real, 3> SparseInteractionHamiltonian::calculate_field(const int i, jams::Real time) {
   assert(is_finalized_);
   jams::Vec<jams::Real, 3> field;
