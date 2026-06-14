@@ -30,7 +30,7 @@ namespace {
 
     HighFive::DataSetCreateProps dataset_create_props(
         const bool compression_enabled,
-        std::initializer_list<unsigned long long> chunk_dims) {
+        std::initializer_list<hsize_t> chunk_dims) {
       HighFive::DataSetCreateProps props;
 
       if (compression_enabled) {
@@ -48,7 +48,7 @@ namespace {
         const std::string& data_path,
         HighFive::File& file,
         const bool compression_enabled) {
-      const auto chunk_rows = static_cast<unsigned long long>(
+      const auto chunk_rows = static_cast<hsize_t>(
           std::min(h5_compression_chunk_size, int(field.extent(0))));
       auto props = dataset_create_props(compression_enabled, {chunk_rows, 1});
       auto dataset = file.createDataSet<T>(
@@ -64,7 +64,7 @@ namespace {
         const std::string& data_path,
         HighFive::File& file,
         const bool compression_enabled) {
-      const auto chunk_size = static_cast<unsigned long long>(
+      const auto chunk_size = static_cast<hsize_t>(
           std::min(h5_compression_chunk_size, int(field.size())));
       auto props = dataset_create_props(compression_enabled, {chunk_size});
       auto dataset = file.createDataSet<T>(
