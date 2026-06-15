@@ -201,6 +201,11 @@ void MagnonSpectrumMonitor::output_site_resolved_magnon_spectrum()
 
 void MagnonSpectrumMonitor::accumulate_magnon_spectrum()
 {
+    if (accumulate_magnon_spectrum_cuda(cumulative_magnon_spectrum_))
+    {
+        return;
+    }
+
     /// @brief Transverse dynamical structure factor @f$S^{+-}(\mathbf q,\omega)@f$.
     ///
     /// @details

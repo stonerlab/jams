@@ -13,6 +13,7 @@
 #include <jams/lattice/interaction_neartree.t.h>
 #include <jams/test/lattice/test_lattice_size.h>
 #include <jams/test/monitors/test_magnetisation.h>
+#include <jams/test/monitors/test_magnon_spectrum_cuda.h>
 #include <jams/test/monitors/test_hdf5.h>
 #include <jams/test/monitors/test_magnetisation_layers.h>
 
@@ -25,6 +26,7 @@
 #ifdef HAS_CUDA
 #include <jams/cuda/cuda_array_reduction.t.h>
 #include "jams/test/hamiltonian/test_anisotropy_polynomial.h"
+#include "jams/test/monitors/test_cuda_grouped_spin_reduction.h"
 #include "jams/test/monitors/test_cuda_thermal_current.h"
 #include "jams/test/thermostats/test_cuda_quantum_spde_noise.h"
 #endif

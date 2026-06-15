@@ -38,6 +38,53 @@ int default_fftw_thread_count()
 #endif
 }
 
+SpectrumBaseMonitor::FftBackendPolicy parse_fft_backend_policy(
+    const libconfig::Setting& settings,
+    const char* key,
+    const SpectrumBaseMonitor::FftBackendPolicy default_policy)
+{
+  std::string value;
+  switch (default_policy)
+  {
+    case SpectrumBaseMonitor::FftBackendPolicy::Auto:
+      value = "auto";
+      break;
+    case SpectrumBaseMonitor::FftBackendPolicy::Cpu:
+      value = "cpu";
+      break;
+    case SpectrumBaseMonitor::FftBackendPolicy::Cuda:
+      value = "cuda";
+      break;
+  }
+
+  value = lowercase(jams::config_optional<std::string>(settings, key, value));
+  if (value == "auto")
+  {
+    return SpectrumBaseMonitor::FftBackendPolicy::Auto;
+  }
+  if (value == "cpu")
+  {
+    return SpectrumBaseMonitor::FftBackendPolicy::Cpu;
+  }
+  if (value == "cuda" || value == "gpu")
+  {
+    return SpectrumBaseMonitor::FftBackendPolicy::Cuda;
+  }
+  throw std::runtime_error(std::string(key) + " must be one of: auto, cpu, cuda");
+}
+
+const char* backend_name(const SpectrumBaseMonitor::ActiveFftBackend backend)
+{
+  switch (backend)
+  {
+    case SpectrumBaseMonitor::ActiveFftBackend::Cpu:
+      return "cpu";
+    case SpectrumBaseMonitor::ActiveFftBackend::Cuda:
+      return "cuda";
+  }
+  return "unknown";
+}
+
 #if JAMS_HAS_FFTW_THREADS
 std::mutex& fftw_threads_mutex()
 {
@@ -139,6 +186,52 @@ void SpectrumBaseMonitor::configure_storage_backend_policy_(const libconfig::Set
       "sk_time_series_backend must be one of: auto, memory, file");
 }
 
+void SpectrumBaseMonitor::configure_fft_backend_policy_(const libconfig::Setting& settings)
+{
+  spatial_fft_backend_policy_ = parse_fft_backend_policy(
+      settings, "spatial_fft_backend", spatial_fft_backend_policy_);
+  time_fft_backend_policy_ = parse_fft_backend_policy(
+      settings, "time_fft_backend", time_fft_backend_policy_);
+  cuda_time_fft_memory_limit_mib_ = jams::config_optional<int>(
+      settings, "cuda_time_fft_memory_limit_mib", cuda_time_fft_memory_limit_mib_);
+  if (cuda_time_fft_memory_limit_mib_ < 0)
+  {
+    throw std::runtime_error("cuda_time_fft_memory_limit_mib must be greater than or equal to zero");
+  }
+
+  const bool cuda_solver = globals::solver && globals::solver->is_cuda_solver();
+  switch (spatial_fft_backend_policy_)
+  {
+    case FftBackendPolicy::Cpu:
+      active_spatial_fft_backend_ = ActiveFftBackend::Cpu;
+      break;
+    case FftBackendPolicy::Auto:
+#if HAS_CUDA
+      active_spatial_fft_backend_ = cuda_solver ? ActiveFftBackend::Cuda : ActiveFftBackend::Cpu;
+#else
+      active_spatial_fft_backend_ = ActiveFftBackend::Cpu;
+#endif
+      break;
+    case FftBackendPolicy::Cuda:
+#if HAS_CUDA
+      if (!cuda_solver)
+      {
+        throw std::runtime_error("spatial_fft_backend = \"cuda\" requires a CUDA solver");
+      }
+      active_spatial_fft_backend_ = ActiveFftBackend::Cuda;
+#else
+      throw std::runtime_error("spatial_fft_backend = \"cuda\" requires a CUDA build");
+#endif
+      break;
+  }
+
+  if (time_fft_backend_policy_ == FftBackendPolicy::Cuda
+      && active_spatial_fft_backend_ != ActiveFftBackend::Cuda)
+  {
+    throw std::runtime_error("time_fft_backend = \"cuda\" requires spatial_fft_backend to select CUDA");
+  }
+}
+
 void SpectrumBaseMonitor::initialise_k_points_(
     const libconfig::Setting& settings,
     const KSamplingMode k_sampling_mode)
@@ -170,6 +263,25 @@ void SpectrumBaseMonitor::initialise_basis_phase_factors_()
   generate_phase_factors_(basis_phase_factors_, r_frac, k_points_);
 }
 
+void SpectrumBaseMonitor::initialise_cuda_backend_()
+{
+#if HAS_CUDA
+  if (active_spatial_fft_backend_ != ActiveFftBackend::Cuda || cuda_backend_)
+  {
+    return;
+  }
+  cuda_backend_ = make_cuda_backend_();
+  std::cout << "  cuda spatial FFT memory (MiB) "
+            << static_cast<double>(cuda_backend_->spatial_memory_bytes()) / (1024.0 * 1024.0)
+            << std::endl;
+#else
+  if (active_spatial_fft_backend_ == ActiveFftBackend::Cuda)
+  {
+    throw std::runtime_error("CUDA spatial FFT backend selected in a non-CUDA build");
+  }
+#endif
+}
+
 SpectrumBaseMonitor::SpectrumBaseMonitor(
     const libconfig::Setting& settings,
     const KSamplingMode k_sampling_mode)
@@ -184,6 +296,7 @@ SpectrumBaseMonitor::SpectrumBaseMonitor(
       "keep_negative_frequencies",
       keep_negative_frequencies_);
   configure_storage_backend_policy_(settings);
+  configure_fft_backend_policy_(settings);
 
   if (settings.exists("compute_periodogram"))
   {
@@ -193,11 +306,19 @@ SpectrumBaseMonitor::SpectrumBaseMonitor(
   configure_fftw_threads_(settings);
   initialise_k_points_(settings, k_sampling_mode);
   initialise_basis_phase_factors_();
+  initialise_cuda_backend_();
+  log_fft_backend_info_();
 
-  std::cout << "  allocating sk_grid buffer" << std::endl;
-
-  zero(sk_grid_.resize(
-      kspace_size[0], kspace_size[1], kspace_size[2] / 2 + 1, num_basis_atoms_));
+  if (!use_cuda_spatial_fft_())
+  {
+    std::cout << "  allocating sk_grid buffer" << std::endl;
+    zero(sk_grid_.resize(
+        kspace_size[0], kspace_size[1], kspace_size[2] / 2 + 1, num_basis_atoms_));
+  }
+  else
+  {
+    std::cout << "  deferring host sk_grid allocation because CUDA spatial FFT is active" << std::endl;
+  }
 
   std::cout << "  deferring sk_time_series buffer allocation" << std::endl;
 }
@@ -224,6 +345,14 @@ void SpectrumBaseMonitor::set_channel_map(const ChannelTransform& channel_map)
   }
 
   channel_transform_ = channel_map;
+
+#if HAS_CUDA
+  if (cuda_backend_)
+  {
+    cuda_backend_->reset_time_storage();
+  }
+#endif
+
   if (sk_time_series_storage_initialised_)
   {
     resize_channel_storage_();
@@ -257,6 +386,45 @@ bool SpectrumBaseMonitor::use_file_backed_sk_time_series_() const
   throw std::runtime_error("Invalid sk_time_series backend policy");
 }
 
+bool SpectrumBaseMonitor::use_cuda_spatial_fft_() const
+{
+  return active_spatial_fft_backend_ == ActiveFftBackend::Cuda;
+}
+
+bool SpectrumBaseMonitor::use_cuda_time_fft_() const
+{
+  return active_time_fft_backend_ == ActiveFftBackend::Cuda;
+}
+
+bool SpectrumBaseMonitor::cuda_time_fft_requested_() const
+{
+  return time_fft_backend_policy_ == FftBackendPolicy::Cuda;
+}
+
+bool SpectrumBaseMonitor::cuda_time_fft_auto_() const
+{
+  return time_fft_backend_policy_ == FftBackendPolicy::Auto;
+}
+
+void SpectrumBaseMonitor::log_fft_backend_info_() const
+{
+  std::cout << "  spatial FFT backend " << backend_name(active_spatial_fft_backend_) << std::endl;
+  std::cout << "  time FFT backend policy ";
+  switch (time_fft_backend_policy_)
+  {
+    case FftBackendPolicy::Auto:
+      std::cout << "auto";
+      break;
+    case FftBackendPolicy::Cpu:
+      std::cout << "cpu";
+      break;
+    case FftBackendPolicy::Cuda:
+      std::cout << "cuda";
+      break;
+  }
+  std::cout << std::endl;
+}
+
 void SpectrumBaseMonitor::ensure_channel_storage_initialised_()
 {
   if (!sk_time_series_storage_initialised_)
@@ -267,6 +435,12 @@ void SpectrumBaseMonitor::ensure_channel_storage_initialised_()
 
 void SpectrumBaseMonitor::log_channel_storage_info_() const
 {
+  if (use_cuda_time_fft_())
+  {
+    std::cout << "    sk_time_series backend cuda device ring buffer" << std::endl;
+    return;
+  }
+
   const double sk_time_series_size_mib =
       static_cast<double>(sk_time_series_.required_bytes()) / (1024.0 * 1024.0);
   std::cout << "    sk_time_series size (MiB) " << sk_time_series_size_mib << std::endl;
@@ -280,6 +454,84 @@ void SpectrumBaseMonitor::log_channel_storage_info_() const
   {
     std::cout << "    sk_time_series backend in-memory" << std::endl;
   }
+}
+
+void SpectrumBaseMonitor::configure_cuda_time_fft_storage_()
+{
+  active_time_fft_backend_ = ActiveFftBackend::Cpu;
+
+  if (!use_cuda_spatial_fft_() || time_fft_backend_policy_ == FftBackendPolicy::Cpu)
+  {
+    return;
+  }
+
+#if HAS_CUDA
+  initialise_cuda_backend_();
+  const int T = periodogram_props_.length;
+  const int K = static_cast<int>(k_points_.size());
+  const int A = num_basis_atoms_;
+  const int C = num_channels();
+  const int num_freq = num_frequencies();
+  const bool use_multitaper = temporal_estimator_ == TemporalEstimator::Multitaper;
+  const auto estimated_bytes = cuda_backend_->estimate_time_fft_memory_bytes(
+      T,
+      A,
+      K,
+      stored_channel_count_,
+      C,
+      num_freq,
+      multitaper_count_,
+      needs_local_frame_mapping_(),
+      use_multitaper);
+
+  bool use_cuda_time = false;
+  if (cuda_time_fft_requested_())
+  {
+    use_cuda_time = true;
+  }
+  else if (cuda_time_fft_auto_())
+  {
+    std::size_t allowed_bytes = 0;
+    if (cuda_time_fft_memory_limit_mib_ > 0)
+    {
+      allowed_bytes = static_cast<std::size_t>(cuda_time_fft_memory_limit_mib_) * 1024u * 1024u;
+    }
+    else
+    {
+      allowed_bytes = static_cast<std::size_t>(0.70 * static_cast<double>(cuda_backend_->free_device_memory_bytes()));
+    }
+    use_cuda_time = estimated_bytes <= allowed_bytes;
+    std::cout << "  cuda time FFT estimated memory (MiB) "
+              << static_cast<double>(estimated_bytes) / (1024.0 * 1024.0)
+              << " allowed (MiB) "
+              << static_cast<double>(allowed_bytes) / (1024.0 * 1024.0)
+              << std::endl;
+  }
+
+  if (!use_cuda_time)
+  {
+    std::cout << "  time FFT backend cpu" << std::endl;
+    std::cout << "  CUDA spatial FFT will copy compact k-path samples to CPU only" << std::endl;
+    return;
+  }
+
+  cuda_backend_->configure_time_storage(
+      T,
+      A,
+      K,
+      stored_channel_count_,
+      C,
+      num_freq,
+      keep_negative_frequencies_,
+      needs_local_frame_mapping_());
+  active_time_fft_backend_ = ActiveFftBackend::Cuda;
+  std::cout << "  time FFT backend cuda" << std::endl;
+#else
+  if (cuda_time_fft_requested_())
+  {
+    throw std::runtime_error("time_fft_backend = \"cuda\" requires a CUDA build");
+  }
+#endif
 }
 
 void SpectrumBaseMonitor::resize_channel_storage_()
@@ -297,16 +549,21 @@ void SpectrumBaseMonitor::resize_channel_storage_()
   {
     stored_channel_count_ = C;
   }
-  sk_time_series_.resize(
-      {static_cast<std::size_t>(T),
-       static_cast<std::size_t>(A),
-       static_cast<std::size_t>(K),
-       static_cast<std::size_t>(stored_channel_count_)},
-      use_file_backed_sk_time_series_());
+  configure_cuda_time_fft_storage_();
+
+  if (!use_cuda_time_fft_())
+  {
+    sk_time_series_.resize(
+        {static_cast<std::size_t>(T),
+         static_cast<std::size_t>(A),
+         static_cast<std::size_t>(K),
+         static_cast<std::size_t>(stored_channel_count_)},
+        use_file_backed_sk_time_series_());
+  }
   sk_time_series_storage_initialised_ = true;
   log_channel_storage_info_();
 
-  if (needs_local_frame_mapping_())
+  if (needs_local_frame_mapping_() && !use_cuda_time_fft_())
   {
     basis_mag_time_series_.resize(num_basis_atoms(), periodogram_length());
     basis_mag_time_series_.zero();
@@ -694,9 +951,68 @@ bool SpectrumBaseMonitor::periodogram_window_complete() const
   return periodogram_sample_index_ >= periodogram_props_.length && periodogram_props_.length > 0;
 }
 
+bool SpectrumBaseMonitor::accumulate_magnon_spectrum_cuda(
+    jams::MultiArray<jams::Vec<double, 3>, 2>& cumulative)
+{
+  if (!use_cuda_time_fft_())
+  {
+    return false;
+  }
+
+#if HAS_CUDA
+  assert(cuda_backend_);
+  if (periodogram_window_.size() != periodogram_length())
+  {
+    generate_normalised_window_(periodogram_window_, periodogram_length());
+  }
+  if (temporal_estimator_ == TemporalEstimator::Multitaper
+      && (multitaper_windows_.extent(0) != multitaper_count_
+          || multitaper_windows_.extent(1) != periodogram_length()
+          || multitaper_weights_.size() != static_cast<std::size_t>(multitaper_count_)))
+  {
+    generate_normalised_dpss_tapers_(
+        multitaper_windows_,
+        multitaper_weights_,
+        multitaper_count_,
+        periodogram_length(),
+        multitaper_bandwidth_);
+  }
+
+  cuda_backend_->configure_frequency_inputs(
+      periodogram_window_,
+      multitaper_windows_,
+      multitaper_weights_,
+      channel_transform_);
+  cuda_backend_->accumulate_magnon_spectrum(
+      periodogram_length(),
+      num_basis_atoms(),
+      num_k_points(),
+      num_channels(),
+      keep_negative_frequencies_,
+      needs_local_frame_mapping_(),
+      temporal_estimator_ == TemporalEstimator::Multitaper,
+      multitaper_count_);
+  cuda_backend_->copy_magnon_spectrum_to_host(cumulative);
+  return true;
+#else
+  return false;
+#endif
+}
+
 void SpectrumBaseMonitor::advance_periodogram_window()
 {
   const std::size_t overlap = static_cast<std::size_t>(periodogram_overlap());
+
+  if (use_cuda_time_fft_())
+  {
+#if HAS_CUDA
+    assert(cuda_backend_);
+    cuda_backend_->advance_ring_window(periodogram_overlap());
+#endif
+    periodogram_sample_index_ = periodogram_props_.overlap;
+    periodogram_window_count_++;
+    return;
+  }
 
   // Keep only the overlap tail of S(k,t) as the head of the next window.
   const std::size_t num_time = sk_time_series_.size(0);
@@ -717,9 +1033,12 @@ void SpectrumBaseMonitor::advance_periodogram_window()
 
       for (std::size_t sublattice = 0; sublattice < num_sublattices; ++sublattice)
       {
-        auto* dst = &basis_mag_time_series_(sublattice, 0);
-        const auto* src = &basis_mag_time_series_(sublattice, mag_source0);
-        std::copy_n(src, overlap, dst);
+        if (overlap > 0)
+        {
+          auto* dst = &basis_mag_time_series_(sublattice, 0);
+          const auto* src = &basis_mag_time_series_(sublattice, mag_source0);
+          std::copy_n(src, overlap, dst);
+        }
         std::fill_n(&basis_mag_time_series_(sublattice, overlap),
                     num_period_samples - overlap,
                     jams::Vec<double, 3>{0, 0, 0});
@@ -823,6 +1142,26 @@ void SpectrumBaseMonitor::append_sk_sample_for_k_list(const jams::MultiArray<jam
       });
 }
 
+void SpectrumBaseMonitor::append_compact_sk_sample_(const std::vector<CmplxStored>& sample)
+{
+  const auto time_index = static_cast<std::size_t>(periodogram_sample_index_);
+  const auto expected = static_cast<std::size_t>(num_basis_atoms_)
+      * static_cast<std::size_t>(k_points_.size())
+      * static_cast<std::size_t>(stored_channel_count_);
+  if (sample.size() != expected)
+  {
+    throw std::runtime_error("CUDA compact S(k) sample has unexpected size");
+  }
+
+  const std::array<std::size_t, 1> prefix{time_index};
+  sk_time_series_.for_each_tail_block<3>(
+      prefix,
+      [&](CmplxStored* destination, const std::size_t logical_offset, const std::size_t count)
+      {
+        std::copy_n(sample.data() + logical_offset, count, destination);
+      });
+}
+
 // ---------------------------------------------------------------------------
 // Local-frame mapping and accumulation
 // ---------------------------------------------------------------------------
@@ -839,6 +1178,25 @@ void SpectrumBaseMonitor::store_sublattice_magnetisation_(const jams::MultiArray
     jams::Vec<double, 3> spin = {spin_state(i, 0), spin_state(i, 1), spin_state(i, 2)};
     const auto m = globals::lattice->lattice_site_basis_index(i);
     basis_mag_time_series_(m, p) += spin;
+  }
+}
+
+void SpectrumBaseMonitor::append_sublattice_magnetisation_sample_(
+    const std::vector<jams::Vec<double, 3>>& basis_magnetisation)
+{
+  if (basis_magnetisation.size() != static_cast<std::size_t>(num_basis_atoms()))
+  {
+    throw std::runtime_error("CUDA sublattice magnetisation sample has unexpected size");
+  }
+  if (basis_mag_time_series_.empty())
+  {
+    basis_mag_time_series_.resize(num_basis_atoms(), periodogram_length());
+    basis_mag_time_series_.zero();
+  }
+  const auto p = periodogram_sample_index();
+  for (auto a = 0; a < num_basis_atoms(); ++a)
+  {
+    basis_mag_time_series_(a, p) = basis_magnetisation[static_cast<std::size_t>(a)];
   }
 }
 
@@ -1133,6 +1491,42 @@ void SpectrumBaseMonitor::generate_phase_factors_(
 void SpectrumBaseMonitor::store_sk_snapshot(const jams::MultiArray<double, 2> &data)
 {
   ensure_channel_storage_initialised_();
+
+  if (use_cuda_spatial_fft_())
+  {
+#if HAS_CUDA
+    initialise_cuda_backend_();
+    std::vector<CmplxStored> compact_sample;
+    std::vector<jams::Vec<double, 3>> basis_magnetisation;
+    const bool copy_sample_to_host = !use_cuda_time_fft_();
+    const bool copy_basis_magnetisation_to_host =
+        copy_sample_to_host && needs_local_frame_mapping_();
+
+    cuda_backend_->store_sample(
+        data,
+        periodogram_sample_index_,
+        stored_channel_count_,
+        needs_local_frame_mapping_(),
+        channel_transform_,
+        copy_sample_to_host,
+        compact_sample,
+        copy_basis_magnetisation_to_host,
+        basis_magnetisation);
+
+    if (copy_sample_to_host)
+    {
+      append_compact_sk_sample_(compact_sample);
+      if (copy_basis_magnetisation_to_host)
+      {
+        append_sublattice_magnetisation_sample_(basis_magnetisation);
+      }
+    }
+    periodogram_sample_index_++;
+    return;
+#else
+    throw std::runtime_error("CUDA spatial FFT backend selected in a non-CUDA build");
+#endif
+  }
 
   fft_lattice_vector_field_to_kspace(
       data,

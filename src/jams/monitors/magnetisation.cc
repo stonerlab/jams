@@ -4,9 +4,6 @@
 #include <string>
 #include <iomanip>
 #include <sstream>
-#include <algorithm>
-#include <limits>
-#include <stdexcept>
 #include <vector>
 
 #include "jams/core/physics.h"
@@ -23,85 +20,13 @@
 
 #if HAS_CUDA
 #include "jams/cuda/cuda_stream.h"
-#include "jams/monitors/cuda_magnetisation_kernel.h"
+#include "jams/monitors/cuda_grouped_spin_reduction.h"
 #endif
-
-namespace {
-#if HAS_CUDA
-constexpr std::size_t kCudaMagnetisationChunkSize = 256;
-
-int checked_int_count_runtime(
-    const std::size_t count,
-    const char* quantity) {
-  if (count > static_cast<std::size_t>(std::numeric_limits<int>::max())) {
-    throw std::runtime_error(std::string(quantity) + " exceeds int range");
-  }
-  return static_cast<int>(count);
-}
-
-void copy_int_vector_to_device_only(
-    jams::MultiArray<int, 1>& target,
-    const std::vector<int>& values) {
-  target.resize(values.size());
-  if (values.empty()) {
-    return;
-  }
-
-  auto target_values = target.mutable_host_span();
-  std::copy(values.begin(), values.end(), target_values.begin());
-  target.device_data();
-  target.release_stale_host();
-}
-#endif
-}  // namespace
 
 #if HAS_CUDA
 struct MagnetisationMonitor::CudaBackend {
-  jams::MultiArray<int, 1> spin_indices;
-  jams::MultiArray<int, 1> chunk_begin_offsets;
-  jams::MultiArray<int, 1> chunk_end_offsets;
-  jams::MultiArray<int, 1> chunk_group_indices;
+  jams::monitors::CudaSpinGroupChunks chunks;
   CudaStream stream;
-
-  void build_from_spin_groups(const std::vector<jams::monitors::SpinGroup>& spin_groups) {
-    std::vector<int> all_spin_indices;
-    std::vector<int> all_chunk_begin_offsets;
-    std::vector<int> all_chunk_end_offsets;
-    std::vector<int> all_chunk_group_indices;
-
-    std::size_t total_spins = 0;
-    for (const auto& group : spin_groups) {
-      total_spins += group.size();
-    }
-    all_spin_indices.reserve(total_spins);
-
-    for (std::size_t group_index = 0; group_index < spin_groups.size(); ++group_index) {
-      const auto group_begin = all_spin_indices.size();
-      const auto group_spin_indices = spin_groups[group_index].indices_span();
-      all_spin_indices.insert(
-          all_spin_indices.end(),
-          group_spin_indices.begin(),
-          group_spin_indices.end());
-      const auto group_end = all_spin_indices.size();
-
-      for (auto chunk_begin = group_begin;
-           chunk_begin < group_end;
-           chunk_begin += kCudaMagnetisationChunkSize) {
-        const auto chunk_end = std::min(chunk_begin + kCudaMagnetisationChunkSize, group_end);
-        all_chunk_begin_offsets.push_back(
-            checked_int_count_runtime(chunk_begin, "cuda magnetisation chunk begin"));
-        all_chunk_end_offsets.push_back(
-            checked_int_count_runtime(chunk_end, "cuda magnetisation chunk end"));
-        all_chunk_group_indices.push_back(
-            checked_int_count_runtime(group_index, "cuda magnetisation chunk group index"));
-      }
-    }
-
-    copy_int_vector_to_device_only(spin_indices, all_spin_indices);
-    copy_int_vector_to_device_only(chunk_begin_offsets, all_chunk_begin_offsets);
-    copy_int_vector_to_device_only(chunk_end_offsets, all_chunk_end_offsets);
-    copy_int_vector_to_device_only(chunk_group_indices, all_chunk_group_indices);
-  }
 };
 #endif
 
@@ -170,22 +95,21 @@ void MagnetisationMonitor::prepare_cuda_backend() {
   }
 
   cuda_backend_ = std::make_unique<CudaBackend>();
-  cuda_backend_->build_from_spin_groups(spin_groups_);
+  cuda_backend_->chunks = jams::monitors::make_cuda_spin_group_chunks(spin_groups_);
 }
 
 void MagnetisationMonitor::accumulate_magnetisation_cuda() {
   prepare_cuda_backend();
 
-  execute_cuda_magnetisation_kernel(
+  const auto& chunks = cuda_backend_->chunks;
+  jams::monitors::execute_cuda_grouped_spin_moment_reduction(
       cuda_backend_->stream,
-      checked_int_count_runtime(spin_groups_.size(), "number of magnetisation groups"),
-      checked_int_count_runtime(
-          cuda_backend_->chunk_group_indices.size(),
-          "number of cuda magnetisation chunks"),
-      cuda_backend_->chunk_begin_offsets.device_data(),
-      cuda_backend_->chunk_end_offsets.device_data(),
-      cuda_backend_->chunk_group_indices.device_data(),
-      cuda_backend_->spin_indices.device_data(),
+      chunks.num_groups,
+      chunks.num_chunks,
+      chunks.chunk_begin_offsets.device_data(),
+      chunks.chunk_end_offsets.device_data(),
+      chunks.chunk_group_indices.device_data(),
+      chunks.spin_indices.device_data(),
       globals::s.device_data(),
       globals::mus.device_data(),
       group_magnetisation_.mutable_device_data());

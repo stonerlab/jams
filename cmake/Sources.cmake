@@ -135,9 +135,10 @@ set(JAMS_SOURCES_CUDA
         monitors/cuda_spin_current_kernel.cu
         monitors/cuda_thermal_current.cc
         monitors/cuda_thermal_current_kernel.cu
-        monitors/cuda_magnetisation_kernel.cu
+        monitors/cuda_grouped_spin_reduction.cu
         monitors/cuda_magnetisation_layers_kernel.cu
         monitors/cuda_neutron_scattering_no_lattice.cu
+        monitors/spectrum_base_cuda.cu
         solvers/cuda_gse_rk4.cu
         solvers/cuda_llg_dm.cu
         solvers/cuda_llg_heun.cu

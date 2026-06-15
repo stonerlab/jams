@@ -15,7 +15,10 @@
 
 #include <array>
 #include <complex>
+#include <memory>
+#include <vector>
 
+class Lattice;
 class SpectrumBaseMonitor : public Monitor {
 public:
   /// @brief Defines how k-space is sampled for spectral calculations.
@@ -31,6 +34,19 @@ public:
     /// Ignore any path in the settings and instead generate a full k-space grid
     /// covering the entire Brillouin zone of the simulation supercell.
     FullGrid
+  };
+
+  enum class FftBackendPolicy
+  {
+    Auto,
+    Cpu,
+    Cuda
+  };
+
+  enum class ActiveFftBackend
+  {
+    Cpu,
+    Cuda
   };
 
   /// @brief Defines the mapping from Cartesian spin components to output spectral channels.
@@ -93,6 +109,69 @@ public:
   using CmplxStoredRingStorage = jams::RingStorage<CmplxStored, 4>;
   using CmplxMappedSpectrum = jams::MultiArray<jams::ComplexHi, 4>;  // (site, freq, k, channel)
   using CmplxMappedSlice = jams::MultiArray<jams::ComplexHi, 3>;     // (site, freq, channel)
+
+#if HAS_CUDA
+  class CudaBackend {
+  public:
+    virtual ~CudaBackend() = default;
+
+    virtual std::size_t spatial_memory_bytes() const = 0;
+    virtual std::size_t free_device_memory_bytes() const = 0;
+    virtual std::size_t estimate_time_fft_memory_bytes(
+        int periodogram_length,
+        int num_basis_atoms,
+        int num_k_points,
+        int stored_channels,
+        int output_channels,
+        int num_frequencies,
+        int multitaper_count,
+        bool needs_local_frame,
+        bool use_multitaper) const = 0;
+
+    virtual void reset_time_storage() = 0;
+    virtual void configure_time_storage(
+        int periodogram_length,
+        int num_basis_atoms,
+        int num_k_points,
+        int stored_channels,
+        int output_channels,
+        int num_frequencies,
+        bool keep_negative_frequencies,
+        bool needs_local_frame) = 0;
+
+    virtual void store_sample(
+        const jams::MultiArray<double, 2>& spins,
+        int time_index,
+        int stored_channels,
+        bool needs_local_frame,
+        const ChannelTransform& channel_transform,
+        bool copy_sample_to_host,
+        std::vector<CmplxStored>& host_sample,
+        bool copy_basis_magnetisation_to_host,
+        std::vector<jams::Vec<double, 3>>& host_basis_magnetisation) = 0;
+
+    virtual void configure_frequency_inputs(
+        const jams::MultiArray<double, 1>& periodogram_window,
+        const jams::MultiArray<double, 2>& multitaper_windows,
+        const jams::MultiArray<double, 1>& multitaper_weights,
+        const ChannelTransform& channel_transform) = 0;
+
+    virtual void accumulate_magnon_spectrum(
+        int periodogram_length,
+        int num_basis_atoms,
+        int num_k_points,
+        int output_channels,
+        bool keep_negative_frequencies,
+        bool needs_local_frame,
+        bool use_multitaper,
+        int multitaper_count) = 0;
+
+    virtual void copy_magnon_spectrum_to_host(
+        jams::MultiArray<jams::Vec<double, 3>, 2>& cumulative) = 0;
+
+    virtual void advance_ring_window(int overlap) = 0;
+  };
+#endif
 
   explicit SpectrumBaseMonitor(
       const libconfig::Setting& settings,
@@ -177,6 +256,13 @@ protected:
   /// current periodogram window.
   void store_sk_snapshot(const jams::MultiArray<double,2>& spin_state);
 
+  /// @brief Try to accumulate the magnon spectrum using the CUDA time FFT path.
+  ///
+  /// @return true if CUDA performed the accumulation and @p cumulative was
+  /// synchronized back to host for output; false if the caller should use the
+  /// CPU frequency path.
+  bool accumulate_magnon_spectrum_cuda(jams::MultiArray<jams::Vec<double, 3>, 2>& cumulative);
+
   const CmplxMappedSpectrum& finalise_periodogram_spectrum();
 
   /// @brief Compute the frequency-domain spectrum S(k,ω) for a single k-point.
@@ -236,12 +322,20 @@ private:
 
   // Initialisation helpers.
   void configure_storage_backend_policy_(const libconfig::Setting& settings);
+  void configure_fft_backend_policy_(const libconfig::Setting& settings);
   void initialise_k_points_(const libconfig::Setting& settings, KSamplingMode k_sampling_mode);
   void initialise_basis_phase_factors_();
+  void initialise_cuda_backend_();
+#if HAS_CUDA
+  std::unique_ptr<CudaBackend> make_cuda_backend_() const;
+#endif
   void log_channel_storage_info_() const;
+  void log_fft_backend_info_() const;
 
   // Time-series and mapping helpers.
   void store_sublattice_magnetisation_(const jams::MultiArray<double, 2>& spin_state);
+  void append_sublattice_magnetisation_sample_(
+      const std::vector<jams::Vec<double, 3>>& basis_magnetisation);
   jams::MultiArray<jams::Vec<double, 3>, 1> compute_mean_basis_mag_directions_();
 
   jams::ComplexHi map_spin_component_(int basis_index,
@@ -255,6 +349,12 @@ private:
   bool use_file_backed_sk_time_series_() const;
   void configure_temporal_estimator_(libconfig::Setting& settings);
   void configure_fftw_threads_(const libconfig::Setting& settings);
+  void append_compact_sk_sample_(const std::vector<CmplxStored>& sample);
+  bool use_cuda_spatial_fft_() const;
+  bool use_cuda_time_fft_() const;
+  bool cuda_time_fft_requested_() const;
+  bool cuda_time_fft_auto_() const;
+  void configure_cuda_time_fft_storage_();
 
   /// @brief Generate the window function for a width of num_time_samples.
   ///
@@ -276,6 +376,11 @@ private:
 
   bool keep_negative_frequencies_ = false;
   ChannelTransform channel_transform_ = cartesian_channel_map();
+  FftBackendPolicy spatial_fft_backend_policy_ = FftBackendPolicy::Auto;
+  FftBackendPolicy time_fft_backend_policy_ = FftBackendPolicy::Auto;
+  ActiveFftBackend active_spatial_fft_backend_ = ActiveFftBackend::Cpu;
+  ActiveFftBackend active_time_fft_backend_ = ActiveFftBackend::Cpu;
+  int cuda_time_fft_memory_limit_mib_ = 0;
 
   jams::PeriodogramProps periodogram_props_ {2000, 1000};
   int periodogram_sample_index_ = 0;
@@ -311,6 +416,10 @@ private:
   CmplxMappedSlice frequency_accum_;
   CmplxMappedSlice frequency_taper_sum_;
   jams::MultiArray<double, 3> frequency_taper_power_sum_;
+
+#if HAS_CUDA
+  std::unique_ptr<CudaBackend> cuda_backend_;
+#endif
 };
 
 #endif //JAMS_SPECTRUM_BASE_H
