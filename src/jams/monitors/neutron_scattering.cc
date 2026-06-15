@@ -81,11 +81,16 @@ void NeutronScatteringMonitor::accumulate_cross_sections_for_k(
     const int k_index,
     const CmplxMappedSlice& spectrum) {
   const auto num_sites = spectrum.extent(0);
-  const auto num_freqencies = spectrum.extent(1);
   if (spectrum.extent(2) < 3) {
     throw std::runtime_error("NeutronScatteringMonitor requires at least 3 channels");
   }
 
+  const auto time_points = periodogram_length();
+  if (spectrum.extent(1) < static_cast<std::size_t>(time_points)) {
+    throw std::runtime_error("NeutronScatteringMonitor spectrum slice has too few frequency bins");
+  }
+  const auto frequency_count = num_frequencies();
+  const auto freq_start = (time_points % 2 == 0) ? (time_points / 2 + 1) : ((time_points + 1) / 2);
   auto kpoint = k_points_[k_index];
   auto Q = jams::unit_vector(kpoint.xyz);
   auto q = kpoint.hkl;
@@ -97,7 +102,8 @@ void NeutronScatteringMonitor::accumulate_cross_sections_for_k(
       // structure factor: note that q and r are in fractional coordinates (hkl, abc)
       const auto sf = exp(-kImagTwoPi * jams::dot(q, r_ab));
 
-      for (auto f = 0; f < num_freqencies; ++f) {
+      for (auto freq = 0; freq < frequency_count; ++freq) {
+        const auto f = keep_negative_frequencies() ? (freq_start + freq) % time_points : freq;
         jams::Vec<std::complex<double>, 3> s_a = {
             conj(spectrum(a, f, 0)),
             conj(spectrum(a, f, 1)),
