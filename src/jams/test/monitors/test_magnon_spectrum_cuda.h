@@ -3,6 +3,7 @@
 
 #include "gtest/gtest.h"
 
+#include <algorithm>
 #include <cctype>
 #include <cmath>
 #include <filesystem>
@@ -21,6 +22,7 @@
 #include <jams/core/solver.h>
 #include <jams/helpers/output.h>
 #include <jams/monitors/magnon_spectrum.h>
+#include <jams/monitors/spectrum_base.h>
 
 #if HAS_CUDA
 #include <cuda_runtime.h>
@@ -35,6 +37,41 @@ public:
   void initialize(const libconfig::Setting&) override {}
   void run() override {}
   std::string name() const override { return "magnon-spectrum-stub"; }
+};
+
+class CartesianSpectrumProbeMonitor final : public SpectrumBaseMonitor {
+public:
+  using SpectrumRows = std::vector<std::vector<double>>;
+
+  explicit CartesianSpectrumProbeMonitor(const libconfig::Setting& settings)
+      : SpectrumBaseMonitor(settings) {}
+
+  void post_process() override {}
+
+  void update(Solver& solver) override {
+    store_sk_snapshot(globals::s);
+    if (!periodogram_window_complete()) {
+      return;
+    }
+
+    const auto& spectrum = finalise_periodogram_spectrum();
+    rows_.clear();
+    for (std::size_t a = 0; a < spectrum.extent(0); ++a) {
+      for (std::size_t f = 0; f < spectrum.extent(1); ++f) {
+        for (std::size_t k = 0; k < spectrum.extent(2); ++k) {
+          for (std::size_t c = 0; c < spectrum.extent(3); ++c) {
+            const auto value = spectrum(a, f, k, c);
+            rows_.push_back({value.real(), value.imag()});
+          }
+        }
+      }
+    }
+  }
+
+  const SpectrumRows& rows() const { return rows_; }
+
+private:
+  SpectrumRows rows_;
 };
 
 #if HAS_CUDA
@@ -96,6 +133,26 @@ protected:
     return read_spectrum_rows();
   }
 
+  SpectrumTable run_cartesian_probe(
+      Solver& solver,
+      const std::string& spatial_backend,
+      const std::string& time_backend) {
+    initialise_cartesian_lattice(spatial_backend, time_backend);
+
+    globals::solver = &solver;
+    SpectrumTable rows;
+    {
+      CartesianSpectrumProbeMonitor monitor(first_monitor_settings());
+      for (int t = 0; t < periodogram_length_; ++t) {
+        write_spin_state(t);
+        monitor.update(solver);
+      }
+      rows = monitor.rows();
+    }
+    globals::solver = nullptr;
+    return rows;
+  }
+
   void initialise_lattice(
       const std::string& estimator,
       const std::string& spatial_backend,
@@ -109,6 +166,16 @@ protected:
         spatial_backend,
         time_backend,
         cuda_memory_limit_mib));
+    globals::lattice->init_from_config(*globals::config);
+  }
+
+  void initialise_cartesian_lattice(
+      const std::string& spatial_backend,
+      const std::string& time_backend) {
+    delete globals::lattice;
+    globals::lattice = new Lattice();
+    globals::config = std::make_unique<libconfig::Config>();
+    globals::config->readString(cartesian_probe_config(spatial_backend, time_backend));
     globals::lattice->init_from_config(*globals::config);
   }
 
@@ -273,6 +340,64 @@ protected:
     )";
   }
 
+  static std::string cartesian_probe_config(
+      const std::string& spatial_backend,
+      const std::string& time_backend) {
+    return std::string(R"(
+      solver : {
+        module = "llg-heun-cpu";
+        t_step = 2.5e-13;
+        t_min  = 2.5e-13;
+        t_max  = 2.0e-12;
+      };
+
+      materials = (
+        { name = "A"; moment = 1.0; spin = [0.0, 0.0, 1.0]; },
+        { name = "B"; moment = 1.5; spin = [0.0, 0.0, 1.0]; }
+      );
+
+      unitcell : {
+        symops = false;
+        parameter = 1.0e-9;
+        basis = (
+          [1.0, 0.0, 0.0],
+          [0.0, 1.0, 0.0],
+          [0.0, 0.0, 1.0]);
+        positions = (
+          ("A", [0.00, 0.0, 0.0]),
+          ("B", [0.50, 0.0, 0.0])
+        );
+      };
+
+      lattice : {
+        size = [2, 1, 1];
+        periodic = [true, true, true];
+        normalise_spins = false;
+      };
+
+      monitors = (
+        {
+          module = "spectrum-probe";
+          output_steps = 1;
+          keep_negative_frequencies = false;
+          fftw_threads = 1;
+          sk_time_series_backend = "memory";
+          spatial_fft_backend = ")") + spatial_backend + R"(";
+          time_fft_backend = ")" + time_backend + R"(";
+          hkl_path = (
+            [0.0, 0.0, 0.0],
+            [0.5, 0.0, 0.0]
+          );
+          compute_periodogram : {
+            length = )" + std::to_string(periodogram_length_) + R"(;
+            overlap = 0;
+            estimator = "welch";
+          };
+        }
+      );
+    )";
+  }
+
   static constexpr int periodogram_length_ = 8;
   std::filesystem::path output_dir_;
 };
@@ -310,6 +435,20 @@ TEST_F(MagnonSpectrumCudaMonitorTest, CudaSpatialCpuTimeMatchesCpuWelchSpectrum)
 
   MagnonSpectrumCudaStubSolver cuda_solver;
   const auto cuda_rows = run_spectrum(cuda_solver, "cuda_spatial_cpu_time_welch", "welch", "cuda", "cpu");
+
+  expect_spectra_near(cuda_rows, cpu_rows);
+}
+
+TEST_F(MagnonSpectrumCudaMonitorTest, CudaSpatialCpuTimeMatchesCpuCartesianSpectrum) {
+  if (!magnon_spectrum_cuda_device_available()) {
+    GTEST_SKIP() << "CUDA runtime is enabled but no CUDA device is available";
+  }
+
+  MagnonSpectrumStubSolver cpu_solver;
+  const auto cpu_rows = run_cartesian_probe(cpu_solver, "cpu", "cpu");
+
+  MagnonSpectrumCudaStubSolver cuda_solver;
+  const auto cuda_rows = run_cartesian_probe(cuda_solver, "cuda", "cpu");
 
   expect_spectra_near(cuda_rows, cpu_rows);
 }

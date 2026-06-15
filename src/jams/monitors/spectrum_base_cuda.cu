@@ -551,6 +551,7 @@ public:
       const bool copy_basis_magnetisation_to_host,
       std::vector<jams::Vec<double, 3>>& host_basis_magnetisation) override
   {
+    ensure_channel_weights_uploaded(channel_transform);
     run_spatial_fft(spins);
 
     const int sample_size = num_basis_ * num_k_points_ * stored_channels;
@@ -673,7 +674,7 @@ public:
     {
       multitaper_weights_host_.clear();
     }
-    update_channel_weights(channel_transform);
+    ensure_channel_weights_uploaded(channel_transform);
   }
 
   void accumulate_magnon_spectrum(
@@ -909,7 +910,7 @@ private:
     CHECK_CUFFT_STATUS(cufftSetStream(spatial_plan_, stream_.get()));
   }
 
-  void update_channel_weights(const SpectrumBaseMonitor::ChannelTransform& channel_transform)
+  void ensure_channel_weights_uploaded(const SpectrumBaseMonitor::ChannelTransform& channel_transform)
   {
     std::vector<jams::ComplexHi> weights(9, jams::ComplexHi{0.0, 0.0});
     for (int row = 0; row < 3; ++row)
@@ -919,7 +920,12 @@ private:
         weights[static_cast<std::size_t>(3 * row + col)] = channel_transform.weights[row][col];
       }
     }
+    if (weights == channel_weights_host_)
+    {
+      return;
+    }
     copy_matrix_to_device_only(channel_weights_, weights, 3, 3);
+    channel_weights_host_ = std::move(weights);
   }
 
   void copy_window_if_needed(
@@ -1052,6 +1058,7 @@ private:
   jams::MultiArray<double, 1> periodogram_window_;
   jams::MultiArray<double, 2> multitaper_windows_;
   jams::MultiArray<double, 1> multitaper_weights_;
+  std::vector<jams::ComplexHi> channel_weights_host_;
   std::vector<double> multitaper_weights_host_;
 };
 
