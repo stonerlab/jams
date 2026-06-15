@@ -400,8 +400,7 @@ bool SpectrumBaseMonitor::use_file_backed_sk_time_series_(const std::size_t requ
   switch (sk_time_series_backend_policy_)
   {
     case SkTimeSeriesBackendPolicy::Auto:
-      return full_brillouin_zone_appended_
-          || required_bytes > kAutoFileBackedSkTimeSeriesThresholdBytes;
+      return required_bytes > kAutoFileBackedSkTimeSeriesThresholdBytes;
     case SkTimeSeriesBackendPolicy::Memory:
       return false;
     case SkTimeSeriesBackendPolicy::File:
