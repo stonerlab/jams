@@ -26,6 +26,7 @@ MagnonSpectrumMonitor::MagnonSpectrumMonitor(const libconfig::Setting& settings)
     do_magnon_spectrum_output_ = jams::config_optional<bool>(settings, "output_magnon_spectrum", do_magnon_spectrum_output_);
     do_site_resolved_output_ = jams::config_optional<bool>(settings, "site_resolved", do_site_resolved_output_);
 
+    enable_cuda_time_fft_backend_();
     set_channel_map(raise_lower_channel_map());
     if (num_channels() < 3)
     {

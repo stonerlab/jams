@@ -406,6 +406,11 @@ bool SpectrumBaseMonitor::cuda_time_fft_auto_() const
   return time_fft_backend_policy_ == FftBackendPolicy::Auto;
 }
 
+void SpectrumBaseMonitor::enable_cuda_time_fft_backend_()
+{
+  cuda_time_fft_supported_ = true;
+}
+
 void SpectrumBaseMonitor::log_fft_backend_info_() const
 {
   std::cout << "  spatial FFT backend " << backend_name(active_spatial_fft_backend_) << std::endl;
@@ -467,6 +472,20 @@ void SpectrumBaseMonitor::configure_cuda_time_fft_storage_()
 
 #if HAS_CUDA
   initialise_cuda_backend_();
+  if (!cuda_time_fft_supported_)
+  {
+    if (cuda_time_fft_requested_())
+    {
+      throw std::runtime_error("time_fft_backend = \"cuda\" is not supported by this monitor");
+    }
+    if (cuda_time_fft_auto_())
+    {
+      std::cout << "  time FFT backend cpu" << std::endl;
+      std::cout << "  CUDA time FFT is not supported by this monitor; using CPU time FFT" << std::endl;
+    }
+    return;
+  }
+
   const int T = periodogram_props_.length;
   const int K = static_cast<int>(k_points_.size());
   const int A = num_basis_atoms_;

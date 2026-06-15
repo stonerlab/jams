@@ -247,6 +247,7 @@ protected:
   void advance_periodogram_window();
 
   void configure_periodogram(libconfig::Setting& settings);
+  void enable_cuda_time_fft_backend_();
 
   bool periodogram_window_complete() const;
 
@@ -381,6 +382,7 @@ private:
   ActiveFftBackend active_spatial_fft_backend_ = ActiveFftBackend::Cpu;
   ActiveFftBackend active_time_fft_backend_ = ActiveFftBackend::Cpu;
   int cuda_time_fft_memory_limit_mib_ = 0;
+  bool cuda_time_fft_supported_ = false;
 
   jams::PeriodogramProps periodogram_props_ {2000, 1000};
   int periodogram_sample_index_ = 0;

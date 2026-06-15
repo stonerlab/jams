@@ -453,6 +453,35 @@ TEST_F(MagnonSpectrumCudaMonitorTest, CudaSpatialCpuTimeMatchesCpuCartesianSpect
   expect_spectra_near(cuda_rows, cpu_rows);
 }
 
+TEST_F(MagnonSpectrumCudaMonitorTest, CudaSpatialAutoTimeFallsBackForCartesianSpectrum) {
+  if (!magnon_spectrum_cuda_device_available()) {
+    GTEST_SKIP() << "CUDA runtime is enabled but no CUDA device is available";
+  }
+
+  MagnonSpectrumStubSolver cpu_solver;
+  const auto cpu_rows = run_cartesian_probe(cpu_solver, "cpu", "cpu");
+
+  MagnonSpectrumCudaStubSolver cuda_solver;
+  const auto cuda_rows = run_cartesian_probe(cuda_solver, "cuda", "auto");
+
+  expect_spectra_near(cuda_rows, cpu_rows);
+}
+
+TEST_F(MagnonSpectrumCudaMonitorTest, RejectsExplicitCudaTimeForCartesianSpectrum) {
+  if (!magnon_spectrum_cuda_device_available()) {
+    GTEST_SKIP() << "CUDA runtime is enabled but no CUDA device is available";
+  }
+
+  MagnonSpectrumCudaStubSolver cuda_solver;
+  initialise_cartesian_lattice("cuda", "cuda");
+  globals::solver = &cuda_solver;
+
+  CartesianSpectrumProbeMonitor monitor(first_monitor_settings());
+  write_spin_state(0);
+  EXPECT_THROW(monitor.update(cuda_solver), std::runtime_error);
+  globals::solver = nullptr;
+}
+
 TEST_F(MagnonSpectrumCudaMonitorTest, CudaSpatialCudaTimeMatchesCpuWelchSpectrum) {
   if (!magnon_spectrum_cuda_device_available()) {
     GTEST_SKIP() << "CUDA runtime is enabled but no CUDA device is available";
