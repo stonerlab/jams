@@ -9,6 +9,7 @@
 #include <jams/helpers/mixed_precision.h>
 
 #include <array>
+#include <cstddef>
 
 #include <cufft.h>
 
@@ -27,6 +28,14 @@ class CudaDipoleFFTHamiltonian : public Hamiltonian {
         void   calculate_fields(jams::Real time, const jams::MultiArray<jams::Real, 2>& spins) override;
 
         void add_energy_current_interactions(jams::EnergyCurrentInteractionSink& sink) const override;
+        void calculate_energy_current_fields(
+            const jams::MultiArray<jams::Real, 2>& spins,
+            jams::MultiArray<jams::Real, 2>& energy_current_rx,
+            jams::MultiArray<jams::Real, 2>& energy_current_ry,
+            jams::MultiArray<jams::Real, 2>& energy_current_rz);
+
+        void ensure_energy_current_tensors();
+        [[nodiscard]] std::size_t energy_current_tensor_memory() const;
 
         EnergyCurrentInteractionSupport energy_current_interaction_support() const override {
           return EnergyCurrentInteractionSupport::Supported;
@@ -37,6 +46,7 @@ class CudaDipoleFFTHamiltonian : public Hamiltonian {
         bool check_symmetry_ = true;
 
         void generate_kspace_dipole_tensor(const int pos_i, const int pos_j, const int pair, std::vector<jams::Vec<double, 3>> &generated_positions);
+        void generate_kspace_energy_current_tensor(int pos_i, int pos_j, int pair);
 
         jams::Real                          r_cutoff_;
         jams::Real                          distance_tolerance_;
@@ -57,6 +67,7 @@ class CudaDipoleFFTHamiltonian : public Hamiltonian {
         // compact path: upper-triangular motif pairs
         // padded/cropped path: full motif-pair table
         jams::MultiArray<jams::cufftComplex, 3> kspace_tensors_;
+        jams::MultiArray<jams::cufftComplex, 3> kspace_energy_current_tensors_;
 
         cufftHandle                     cuda_fft_s_rspace_to_kspace;
         cufftHandle                     cuda_fft_h_kspace_to_rspace;

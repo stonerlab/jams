@@ -3,13 +3,16 @@
 #include <ctime>
 
 #include <libconfig.h++>
+#include <array>
 #include <memory>
 
 #include "jams/core/globals.h"
 #include "jams/core/lattice.h"
 #include "jams/core/physics.h"
 #include "jams/core/solver.h"
+#include "jams/containers/sparse_matrix_builder.h"
 #include "jams/helpers/utils.h"
+#include "jams/hamiltonian/energy_current_interaction.h"
 #include "jams/hamiltonian/dipole_bruteforce.h"
 #include "jams/hamiltonian/dipole_fft.h"
 #include "jams/hamiltonian/dipole_neartree.h"
@@ -41,6 +44,126 @@ jams::MultiArray<jams::Real, 2> current_test_field_spins() {
 #include "jams/hamiltonian/cuda_dipole_fft.h"
 #include "jams/hamiltonian/cuda_dipole_bruteforce.h"
 #endif
+
+namespace {
+
+#if HAS_CUDA
+
+bool cuda_device_is_available() {
+  int device_count = 0;
+  const auto device_status = cudaGetDeviceCount(&device_count);
+  return device_status == cudaSuccess && device_count > 0;
+}
+
+class SparseEnergyCurrentTestSink final : public jams::EnergyCurrentInteractionSink {
+public:
+  SparseEnergyCurrentTestSink(jams::SparseMatrix<double>::Builder& rx_builder,
+                              jams::SparseMatrix<double>::Builder& ry_builder,
+                              jams::SparseMatrix<double>::Builder& rz_builder)
+      : rx_builder_(rx_builder),
+        ry_builder_(ry_builder),
+        rz_builder_(rz_builder) {
+  }
+
+  void insert(const int site_i,
+              const int site_j,
+              const jams::Vec<double, 3>& r_ji,
+              const jams::Mat<double, 3, 3>& interaction) override {
+    for (auto m = 0; m < 3; ++m) {
+      for (auto n = 0; n < 3; ++n) {
+        if (interaction[m][n] == 0.0) {
+          continue;
+        }
+
+        const int row = 3 * site_i + m;
+        const int col = 3 * site_j + n;
+        if (r_ji[0] != 0.0) {
+          rx_builder_.insert(row, col, r_ji[0] * interaction[m][n]);
+        }
+        if (r_ji[1] != 0.0) {
+          ry_builder_.insert(row, col, r_ji[1] * interaction[m][n]);
+        }
+        if (r_ji[2] != 0.0) {
+          rz_builder_.insert(row, col, r_ji[2] * interaction[m][n]);
+        }
+      }
+    }
+  }
+
+private:
+  jams::SparseMatrix<double>::Builder& rx_builder_;
+  jams::SparseMatrix<double>::Builder& ry_builder_;
+  jams::SparseMatrix<double>::Builder& rz_builder_;
+};
+
+std::array<jams::MultiArray<double, 2>, 3> sparse_energy_current_fields(
+    const CudaDipoleFFTHamiltonian& hamiltonian) {
+  std::array<jams::SparseMatrix<double>::Builder, 3> builders = {
+      jams::SparseMatrix<double>::Builder(globals::num_spins3, globals::num_spins3),
+      jams::SparseMatrix<double>::Builder(globals::num_spins3, globals::num_spins3),
+      jams::SparseMatrix<double>::Builder(globals::num_spins3, globals::num_spins3)
+  };
+  for (auto& builder : builders) {
+    builder.set_format(jams::SparseMatrixFormat::CSR);
+  }
+
+  SparseEnergyCurrentTestSink sink(builders[0], builders[1], builders[2]);
+  hamiltonian.add_energy_current_interactions(sink);
+
+  std::array<jams::MultiArray<double, 2>, 3> fields;
+  for (auto direction = 0; direction < 3; ++direction) {
+    auto op = builders[direction].build();
+    zero(fields[direction].resize(globals::num_spins, 3));
+    op.multiply(globals::s, fields[direction]);
+  }
+  return fields;
+}
+
+void set_energy_current_test_spins() {
+  for (unsigned int i = 0; i < globals::num_spins; ++i) {
+    globals::s(i, 0) = 0.13 * static_cast<double>(i + 1);
+    globals::s(i, 1) = -0.07 * static_cast<double>(i + 2);
+    globals::s(i, 2) = 0.11 * static_cast<double>(i + 3);
+  }
+}
+
+void assert_cuda_fft_energy_current_matches_sparse(
+    CudaDipoleFFTHamiltonian& hamiltonian,
+    const double tolerance) {
+  set_energy_current_test_spins();
+
+  const auto sparse_fields = sparse_energy_current_fields(hamiltonian);
+
+  auto field_spins = current_test_field_spins();
+  jams::MultiArray<jams::Real, 2> fft_rx;
+  jams::MultiArray<jams::Real, 2> fft_ry;
+  jams::MultiArray<jams::Real, 2> fft_rz;
+  hamiltonian.calculate_energy_current_fields(field_spins, fft_rx, fft_ry, fft_rz);
+  hamiltonian.synchronize_done();
+
+  const std::array<const jams::MultiArray<jams::Real, 2>*, 3> fft_fields = {
+      &fft_rx, &fft_ry, &fft_rz};
+  for (auto direction = 0; direction < 3; ++direction) {
+    for (unsigned int i = 0; i < globals::num_spins; ++i) {
+      for (auto n = 0; n < 3; ++n) {
+        ASSERT_NEAR(
+            static_cast<double>((*fft_fields[direction])(i, n)),
+            sparse_fields[direction](i, n),
+            tolerance);
+      }
+    }
+  }
+}
+
+#if DO_MIXED_PRECISION
+constexpr double energy_current_field_tolerance = 2.0e-5;
+#else
+constexpr double energy_current_field_tolerance = 1.0e-8;
+#endif
+
+#endif
+
+}  // namespace
 
 // Testing to validate the dipole Hamiltonians give correct results. We compare
 // to analytic results from 2016-Johnston-PhysRevB.93.014421 as well as using
@@ -356,9 +479,7 @@ TEST_F(CroppedDipoleFFTHamiltonianTest, CpuFftMatchesBruteforceForCroppedTopMoti
 #ifdef HAS_CUDA
 TEST_F(CroppedDipoleFFTHamiltonianTest, CudaFftMatchesBruteforceForCroppedTopMotif) {
   using namespace jams::testing::dipole;
-  int device_count = 0;
-  const auto device_status = cudaGetDeviceCount(&device_count);
-  if (device_status != cudaSuccess || device_count == 0) {
+  if (!cuda_device_is_available()) {
     GTEST_SKIP() << "CUDA device is not available";
   }
   cudaDeviceReset();
@@ -393,6 +514,63 @@ TEST_F(CroppedDipoleFFTHamiltonianTest, CudaFftMatchesBruteforceForCroppedTopMot
       ASSERT_NEAR(fft_hamiltonian.field(i, n), bruteforce_hamiltonian.field(i, n), 1.0e-5);
     }
   }
+}
+
+TEST_F(CroppedDipoleFFTHamiltonianTest, CudaFftEnergyCurrentMatchesSparseForPeriodicOneBasis) {
+  using namespace jams::testing::dipole;
+  if (!cuda_device_is_available()) {
+    GTEST_SKIP() << "CUDA device is not available";
+  }
+  cudaDeviceReset();
+  initialise(
+      config_basic_gpu
+      + config_unitcell_sc
+      + config_lattice({4.0, 4.0, 4.0}, {true, true, true})
+      + config_dipole("dipole-fft", 1.1));
+
+  const auto& settings = globals::config->lookup("hamiltonians.[0]");
+  CudaDipoleFFTHamiltonian fft_hamiltonian(settings, globals::num_spins);
+  assert_cuda_fft_energy_current_matches_sparse(
+      fft_hamiltonian,
+      energy_current_field_tolerance);
+}
+
+TEST_F(CroppedDipoleFFTHamiltonianTest, CudaFftEnergyCurrentMatchesSparseForPeriodicMultiBasis) {
+  using namespace jams::testing::dipole;
+  if (!cuda_device_is_available()) {
+    GTEST_SKIP() << "CUDA device is not available";
+  }
+  cudaDeviceReset();
+  initialise(
+      config_basic_gpu
+      + config_unitcell_sc_2_atom
+      + config_lattice({3.0, 3.0, 3.0}, {true, true, true})
+      + config_dipole("dipole-fft", 1.1));
+
+  const auto& settings = globals::config->lookup("hamiltonians.[0]");
+  CudaDipoleFFTHamiltonian fft_hamiltonian(settings, globals::num_spins);
+  assert_cuda_fft_energy_current_matches_sparse(
+      fft_hamiltonian,
+      energy_current_field_tolerance);
+}
+
+TEST_F(CroppedDipoleFFTHamiltonianTest, CudaFftEnergyCurrentMatchesSparseForCroppedFullStorage) {
+  using namespace jams::testing::dipole;
+  if (!cuda_device_is_available()) {
+    GTEST_SKIP() << "CUDA device is not available";
+  }
+  cudaDeviceReset();
+  initialise(
+      config_basic_gpu
+      + config_unitcell_sc_z_2_atom
+      + config_lattice({1.0, 1.0, 2.5}, {false, false, false})
+      + config_dipole("dipole-fft", 2.2));
+
+  const auto& settings = globals::config->lookup("hamiltonians.[0]");
+  CudaDipoleFFTHamiltonian fft_hamiltonian(settings, globals::num_spins);
+  assert_cuda_fft_energy_current_matches_sparse(
+      fft_hamiltonian,
+      energy_current_field_tolerance);
 }
 #endif
 

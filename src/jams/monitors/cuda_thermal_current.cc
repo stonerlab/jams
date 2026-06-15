@@ -3,6 +3,7 @@
 //
 
 #include <jams/helpers/exception.h>
+#include <algorithm>
 #include <array>
 #include <utility>
 #include <vector>
@@ -10,17 +11,55 @@
 #include <jams/common.h>
 #include <jams/helpers/error.h>
 #include <jams/helpers/consts.h>
+#include <jams/helpers/utils.h>
 #include <jams/cuda/cuda_array_kernels.h>
 
 #include "jams/helpers/output.h"
 #include "jams/core/globals.h"
 #include "jams/core/solver.h"
 #include "jams/core/lattice.h"
+#include "jams/hamiltonian/cuda_dipole_fft.h"
+#include "jams/interface/config.h"
 #include "jams/monitors/cuda_thermal_current.h"
 #include "jams/cuda/cuda_common.h"
 #include "cuda_thermal_current.h"
 
 namespace {
+
+std::vector<std::string> excluded_hamiltonian_modules_from(
+    const libconfig::Setting& settings) {
+  std::vector<std::string> excluded_modules;
+  if (!settings.exists("exclude_hamiltonians")) {
+    return excluded_modules;
+  }
+
+  const auto& excluded_setting = settings["exclude_hamiltonians"];
+  if (!jams::is_sequence_setting(excluded_setting)) {
+    throw jams::ConfigException(
+        excluded_setting,
+        "exclude_hamiltonians must be an array or list of module names");
+  }
+
+  excluded_modules.reserve(excluded_setting.getLength());
+  for (auto i = 0; i < excluded_setting.getLength(); ++i) {
+    if (!jams::is_string_setting(excluded_setting[i])) {
+      throw jams::ConfigException(
+          excluded_setting[i],
+          "excluded Hamiltonian module name must be a string");
+    }
+    excluded_modules.push_back(lowercase(std::string(excluded_setting[i].c_str())));
+  }
+
+  return excluded_modules;
+}
+
+bool is_excluded_hamiltonian(
+    const Hamiltonian& hamiltonian,
+    const std::vector<std::string>& excluded_modules) {
+  const auto module_name = lowercase(hamiltonian.module_name());
+  return std::find(excluded_modules.begin(), excluded_modules.end(), module_name)
+      != excluded_modules.end();
+}
 
 class SparseEnergyCurrentInteractionSink final : public jams::EnergyCurrentInteractionSink {
 public:
@@ -81,7 +120,21 @@ CudaThermalCurrentMonitor::CudaThermalCurrentMonitor(const libconfig::Setting &s
     builder.set_format(jams::SparseMatrixFormat::CSR);
   }
 
+  const auto excluded_hamiltonian_modules = excluded_hamiltonian_modules_from(settings);
+
   for (const auto& hamiltonian : globals::solver->hamiltonians()) {
+    if (is_excluded_hamiltonian(*hamiltonian, excluded_hamiltonian_modules)) {
+      std::cout << "    excluding Hamiltonian '" << hamiltonian->module_name()
+                << "' from thermal-current transport operator\n";
+      continue;
+    }
+
+    if (auto* dipole_fft = dynamic_cast<CudaDipoleFFTHamiltonian*>(hamiltonian.get())) {
+      dipole_fft->ensure_energy_current_tensors();
+      dipole_fft_energy_current_providers_.push_back(dipole_fft);
+      continue;
+    }
+
     switch (hamiltonian->energy_current_interaction_support()) {
       case Hamiltonian::EnergyCurrentInteractionSupport::None:
         continue;
@@ -104,6 +157,10 @@ CudaThermalCurrentMonitor::CudaThermalCurrentMonitor(const libconfig::Setting &s
   energy_current_operator_rx_ = energy_current_operator_builders[0].build();
   energy_current_operator_ry_ = energy_current_operator_builders[1].build();
   energy_current_operator_rz_ = energy_current_operator_builders[2].build();
+  has_sparse_energy_current_operator_ =
+      energy_current_operator_rx_.num_non_zero() > 0
+      || energy_current_operator_ry_.num_non_zero() > 0
+      || energy_current_operator_rz_.num_non_zero() > 0;
 
   const double volume_lattice_units = volume(globals::lattice->get_supercell());
   if (volume_lattice_units <= 0.0) {
@@ -126,12 +183,26 @@ CudaThermalCurrentMonitor::CudaThermalCurrentMonitor(const libconfig::Setting &s
                 + energy_current_operator_ry_.memory()
                 + energy_current_operator_rz_.memory()) / kBytesToMegaBytes
             << " MB\n";
+  std::size_t dipole_fft_energy_current_tensor_memory = 0;
+  for (const auto* provider : dipole_fft_energy_current_providers_) {
+    dipole_fft_energy_current_tensor_memory += provider->energy_current_tensor_memory();
+  }
+  if (!dipole_fft_energy_current_providers_.empty()) {
+    std::cout << "    dipole FFT energy current tensor memory: "
+              << dipole_fft_energy_current_tensor_memory / kBytesToMegaBytes
+              << " MB\n";
+  }
 
   zero(spin_derivative_.resize(globals::num_spins, 3));
   zero(energy_current_rx_.resize(globals::num_spins, 3));
   zero(energy_current_ry_.resize(globals::num_spins, 3));
   zero(energy_current_rz_.resize(globals::num_spins, 3));
   zero(energy_current_dot_.resize(globals::num_spins));
+  if (!dipole_fft_energy_current_providers_.empty()) {
+    zero(dipole_fft_energy_current_rx_.resize(globals::num_spins, 3));
+    zero(dipole_fft_energy_current_ry_.resize(globals::num_spins, 3));
+    zero(dipole_fft_energy_current_rz_.resize(globals::num_spins, 3));
+  }
 
   auto cols = globals::solver->monitor_coordinate_columns();
   cols.push_back({"jE_rx", "meV ps^-1 nm^-2"});
@@ -158,11 +229,34 @@ void CudaThermalCurrentMonitor::update(Solver& solver) {
       energy_current_operator_ry_,
       energy_current_operator_rz_,
       current_density_prefactor_,
+      has_sparse_energy_current_operator_,
       spin_derivative_,
       energy_current_rx_,
       energy_current_ry_,
       energy_current_rz_,
       energy_current_dot_);
+
+  const auto& field_spins = solver.spin_array_for_fields();
+  for (auto* provider : dipole_fft_energy_current_providers_) {
+    provider->calculate_energy_current_fields(
+        field_spins,
+        dipole_fft_energy_current_rx_,
+        dipole_fft_energy_current_ry_,
+        dipole_fft_energy_current_rz_);
+    provider->wait_on(stream.get());
+
+    const auto dipole_jE = execute_cuda_thermal_current_field_reduction(
+        stream,
+        current_density_prefactor_,
+        spin_derivative_,
+        dipole_fft_energy_current_rx_,
+        dipole_fft_energy_current_ry_,
+        dipole_fft_energy_current_rz_,
+        energy_current_dot_);
+    jE[0] += dipole_jE[0];
+    jE[1] += dipole_jE[1];
+    jE[2] += dipole_jE[2];
+  }
 
   std::vector<double> values;
   values.reserve(tsv_.num_cols());

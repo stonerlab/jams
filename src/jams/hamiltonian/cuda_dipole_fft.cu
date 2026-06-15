@@ -29,6 +29,10 @@ __host__ __device__ __forceinline__ int upper_tri_index(const int i, const int j
   return i * n - (i * (i - 1)) / 2 + (j - i);
 }
 
+constexpr int kDipoleTensorComponents = 6;
+constexpr int kEnergyCurrentDirections = 3;
+constexpr int kEnergyCurrentTensorComponents = kEnergyCurrentDirections * kDipoleTensorComponents;
+
 struct TensorOffsetRange {
   int begin;
   int end;
@@ -54,11 +58,27 @@ __device__ __forceinline__ cuDoubleComplex complex_conj<cuDoubleComplex>(const c
   return cuConj(z);
 }
 
+template <typename ComplexType>
+__device__ __forceinline__ ComplexType complex_negate(const ComplexType &z);
+
+template <>
+__device__ __forceinline__ cuComplex complex_negate<cuComplex>(const cuComplex &z) {
+  return make_cuComplex(-z.x, -z.y);
+}
+
+template <>
+__device__ __forceinline__ cuDoubleComplex complex_negate<cuDoubleComplex>(const cuDoubleComplex &z) {
+  return make_cuDoubleComplex(-z.x, -z.y);
+}
+
 template<typename ComplexType>
 __global__ void cuda_dipole_convolution(
   const unsigned int num_kpoints,
   const unsigned int num_pos,
   const bool use_full_tensor_storage,
+  const int tensor_components,
+  const int tensor_component_offset,
+  const bool compact_reverse_is_odd,
   const ComplexType* sk,
   const ComplexType* wk,
   ComplexType* hk
@@ -96,7 +116,7 @@ __global__ void cuda_dipole_convolution(
       conjugate_tensor = !swapped;
     }
 
-    int base0 = ((tensor_set * 6 + 0) * (int)num_kpoints) + (int)k_idx;
+    int base0 = ((tensor_set * tensor_components + tensor_component_offset + 0) * (int)num_kpoints) + (int)k_idx;
     int base1 = base0 + (int)num_kpoints;
     int base2 = base1 + (int)num_kpoints;
 
@@ -105,6 +125,11 @@ __global__ void cuda_dipole_convolution(
     ComplexType w0 = conjugate_tensor ? complex_conj(wk[base0]) : wk[base0];
     ComplexType w1 = conjugate_tensor ? complex_conj(wk[base1]) : wk[base1];
     ComplexType w2 = conjugate_tensor ? complex_conj(wk[base2]) : wk[base2];
+    if (compact_reverse_is_odd && !use_full_tensor_storage && conjugate_tensor) {
+      w0 = complex_negate(w0);
+      w1 = complex_negate(w1);
+      w2 = complex_negate(w2);
+    }
 
     hk_sum[0] +=  w0 * sq0 + w1 * sq1 + w2 * sq2;
 
@@ -113,12 +138,19 @@ __global__ void cuda_dipole_convolution(
 
     ComplexType w3 = conjugate_tensor ? complex_conj(wk[base3]) : wk[base3];
     ComplexType w4 = conjugate_tensor ? complex_conj(wk[base4]) : wk[base4];
+    if (compact_reverse_is_odd && !use_full_tensor_storage && conjugate_tensor) {
+      w3 = complex_negate(w3);
+      w4 = complex_negate(w4);
+    }
 
     hk_sum[1] +=  w1 * sq0 + w3 * sq1 + w4 * sq2;
 
     int base5 = base4 + (int)num_kpoints;
 
     ComplexType w5 = conjugate_tensor ? complex_conj(wk[base5]) : wk[base5];
+    if (compact_reverse_is_odd && !use_full_tensor_storage && conjugate_tensor) {
+      w5 = complex_negate(w5);
+    }
 
     hk_sum[2] +=  w2 * sq0 + w4 * sq1 + w5 * sq2;
   }
@@ -350,7 +382,7 @@ CudaDipoleFFTHamiltonian::CudaDipoleFFTHamiltonian(const libconfig::Setting &set
     rspace_h_dense_.zero();
   }
 
-  const auto num_tensor_components = 6;
+  const auto num_tensor_components = kDipoleTensorComponents;
 
   const int num_tensor_sets = use_full_tensor_storage_
       ? num_sites * num_sites
@@ -526,6 +558,9 @@ void CudaDipoleFFTHamiltonian::calculate_fields(jams::Real time, const jams::Mul
       fft_size,
       num_pos,
       use_full_tensor_storage_,
+      kDipoleTensorComponents,
+      0,
+      false,
       kspace_s_.device_data(),
       kspace_tensors_.device_data(),
       kspace_h_.mutable_device_data());
@@ -549,6 +584,144 @@ void CudaDipoleFFTHamiltonian::calculate_fields(jams::Real time, const jams::Mul
     DEBUG_CHECK_CUDA_ASYNC_STATUS;
   }
 
+}
+
+void CudaDipoleFFTHamiltonian::ensure_energy_current_tensors() {
+  if (!kspace_energy_current_tensors_.empty()) {
+    return;
+  }
+
+  const int num_sites = globals::lattice->num_basis_sites();
+  const int num_kpoints = kspace_padded_size_[0] * kspace_padded_size_[1] * (kspace_padded_size_[2] / 2 + 1);
+  const int num_tensor_sets = use_full_tensor_storage_
+      ? num_sites * num_sites
+      : num_sites * (num_sites + 1) / 2;
+
+  std::cout << "    generating dipole FFT energy current tensors\n";
+  kspace_energy_current_tensors_.resize(
+      num_tensor_sets,
+      kEnergyCurrentTensorComponents,
+      num_kpoints);
+  kspace_energy_current_tensors_.zero();
+
+  if (use_full_tensor_storage_) {
+    for (int pos_i = 0; pos_i < num_sites; ++pos_i) {
+      for (int pos_j = 0; pos_j < num_sites; ++pos_j) {
+        const int tensor_set = pos_i * num_sites + pos_j;
+        generate_kspace_energy_current_tensor(pos_i, pos_j, tensor_set);
+      }
+    }
+  } else {
+    for (int pos_i = 0; pos_i < num_sites; ++pos_i) {
+      for (int pos_j = pos_i; pos_j < num_sites; ++pos_j) {
+        const int tensor_set = upper_tri_index(pos_i, pos_j, num_sites);
+        // The compact convolution reads upper-triangular cross-pair tensors
+        // directly for the reversed motif access and reconstructs the forward
+        // access by conjugation. Store the weighted kernel in that orientation.
+        if (pos_i == pos_j) {
+          generate_kspace_energy_current_tensor(pos_i, pos_j, tensor_set);
+        } else {
+          generate_kspace_energy_current_tensor(pos_j, pos_i, tensor_set);
+        }
+      }
+    }
+  }
+}
+
+std::size_t CudaDipoleFFTHamiltonian::energy_current_tensor_memory() const {
+  return kspace_energy_current_tensors_.bytes();
+}
+
+void CudaDipoleFFTHamiltonian::calculate_energy_current_fields(
+    const jams::MultiArray<jams::Real, 2>& spins,
+    jams::MultiArray<jams::Real, 2>& energy_current_rx,
+    jams::MultiArray<jams::Real, 2>& energy_current_ry,
+    jams::MultiArray<jams::Real, 2>& energy_current_rz) {
+  ensure_energy_current_tensors();
+
+  energy_current_rx.resize(globals::num_spins, 3);
+  energy_current_ry.resize(globals::num_spins, 3);
+  energy_current_rz.resize(globals::num_spins, 3);
+
+  if (use_dense_fft_buffers_) {
+    const unsigned int num_dense_slots = fft_site_map_.size();
+    const dim3 pack_block = {128, 1, 1};
+    const dim3 pack_grid = cuda_grid_size(pack_block, {num_dense_slots, 1, 1});
+    cuda_pack_lattice_vector_field<<<pack_grid, pack_block, 0, cuda_stream_.get()>>>(
+        num_dense_slots,
+        fft_site_map_.device_data(),
+        spins.device_data(),
+        rspace_s_dense_.mutable_device_data());
+    DEBUG_CHECK_CUDA_ASYNC_STATUS;
+
+#if DO_MIXED_PRECISION
+    CHECK_CUFFT_STATUS(cufftExecR2C(cuda_fft_s_rspace_to_kspace, const_cast<cufftReal*>(reinterpret_cast<const cufftReal*>(rspace_s_dense_.device_data())), kspace_s_.mutable_device_data()));
+#else
+    CHECK_CUFFT_STATUS(cufftExecD2Z(cuda_fft_s_rspace_to_kspace, const_cast<cufftDoubleReal*>(reinterpret_cast<const cufftDoubleReal*>(rspace_s_dense_.device_data())), kspace_s_.mutable_device_data()));
+#endif
+  } else {
+#if DO_MIXED_PRECISION
+    CHECK_CUFFT_STATUS(cufftExecR2C(cuda_fft_s_rspace_to_kspace, const_cast<cufftReal*>(reinterpret_cast<const cufftReal*>(spins.device_data())), kspace_s_.mutable_device_data()));
+#else
+    CHECK_CUFFT_STATUS(cufftExecD2Z(cuda_fft_s_rspace_to_kspace, const_cast<cufftDoubleReal*>(reinterpret_cast<const cufftDoubleReal*>(spins.device_data())), kspace_s_.mutable_device_data()));
+#endif
+  }
+
+  unsigned int num_pos = globals::lattice->num_basis_sites();
+  const unsigned int fft_size = kspace_padded_size_[0] * kspace_padded_size_[1] * (kspace_padded_size_[2] / 2 + 1);
+  const dim3 block_size = {64, 1, 1};
+  const dim3 grid_size = cuda_grid_size(block_size, {fft_size, num_pos, 1});
+
+  for (int direction = 0; direction < kEnergyCurrentDirections; ++direction) {
+    cuda_dipole_convolution<<<grid_size, block_size, 0, cuda_stream_.get()>>>(
+        fft_size,
+        num_pos,
+        use_full_tensor_storage_,
+        kEnergyCurrentTensorComponents,
+        direction * kDipoleTensorComponents,
+        true,
+        kspace_s_.device_data(),
+        kspace_energy_current_tensors_.device_data(),
+        kspace_h_.mutable_device_data());
+    DEBUG_CHECK_CUDA_ASYNC_STATUS;
+
+    jams::MultiArray<jams::Real, 2>* output = &energy_current_rx;
+    if (direction == 1) {
+      output = &energy_current_ry;
+    } else if (direction == 2) {
+      output = &energy_current_rz;
+    }
+
+#if DO_MIXED_PRECISION
+    CHECK_CUFFT_STATUS(cufftExecC2R(
+        cuda_fft_h_kspace_to_rspace,
+        const_cast<cufftComplex*>(kspace_h_.device_data()),
+        reinterpret_cast<cufftReal*>(use_dense_fft_buffers_
+            ? rspace_h_dense_.mutable_device_data()
+            : output->mutable_device_data())));
+#else
+    CHECK_CUFFT_STATUS(cufftExecZ2D(
+        cuda_fft_h_kspace_to_rspace,
+        const_cast<cufftDoubleComplex*>(kspace_h_.device_data()),
+        reinterpret_cast<cufftDoubleReal*>(use_dense_fft_buffers_
+            ? rspace_h_dense_.mutable_device_data()
+            : output->mutable_device_data())));
+#endif
+
+    if (use_dense_fft_buffers_) {
+      const unsigned int num_dense_slots = fft_site_map_.size();
+      const dim3 unpack_block = {128, 1, 1};
+      const dim3 unpack_grid = cuda_grid_size(unpack_block, {num_dense_slots, 1, 1});
+      cuda_unpack_lattice_vector_field<<<unpack_grid, unpack_block, 0, cuda_stream_.get()>>>(
+          num_dense_slots,
+          fft_site_map_.device_data(),
+          rspace_h_dense_.device_data(),
+          output->mutable_device_data());
+      DEBUG_CHECK_CUDA_ASYNC_STATUS;
+    }
+  }
+
+  record_done();
 }
 
 // Generates the dipole tensor between unit cell positions i and j and appends
@@ -649,5 +822,99 @@ void CudaDipoleFFTHamiltonian::generate_kspace_dipole_tensor(const int pos_i, co
       for (const auto& r : generated_positions) {
         debugfile << r << "\n";
       }
+    }
+}
+
+void CudaDipoleFFTHamiltonian::generate_kspace_energy_current_tensor(
+    const int pos_i,
+    const int pos_j,
+    const int pair) {
+    const jams::Vec<double, 3> r_frac_i = globals::lattice->basis_site_atom(pos_i).position_frac;
+    const jams::Vec<double, 3> r_frac_j = globals::lattice->basis_site_atom(pos_j).position_frac;
+
+    const jams::Vec<double, 3> r_cart_j = globals::lattice->fractional_to_cartesian(r_frac_j);
+
+    const int num_kz = kspace_padded_size_[2] / 2 + 1;
+    const int num_ky = kspace_padded_size_[1];
+
+    const double mu_i = globals::lattice->material(globals::lattice->basis_site_atom(pos_i).material_index).moment;
+    const double mu_j = globals::lattice->material(globals::lattice->basis_site_atom(pos_j).material_index).moment;
+    const double fft_normalization_factor = 1.0 / jams::product(kspace_padded_size_);
+
+    const auto offset_range_x = tensor_offset_range(kspace_size_[0], globals::lattice->is_periodic(0));
+    const auto offset_range_y = tensor_offset_range(kspace_size_[1], globals::lattice->is_periodic(1));
+    const auto offset_range_z = tensor_offset_range(kspace_size_[2], globals::lattice->is_periodic(2));
+
+    for (int dx = offset_range_x.begin; dx < offset_range_x.end; ++dx) {
+        for (int dy = offset_range_y.begin; dy < offset_range_y.end; ++dy) {
+            for (int dz = offset_range_z.begin; dz < offset_range_z.end; ++dz) {
+                if (dx == 0 && dy == 0 && dz == 0 && pos_i == pos_j) {
+                    continue;
+                }
+
+                const auto r_ji =
+                    globals::lattice->displacement(
+                        r_cart_j,
+                        globals::lattice->generate_cartesian_lattice_position_from_fractional(
+                            r_frac_i, {dx, dy, dz}));
+
+                const auto r_abs_sq = jams::norm_squared(r_ji);
+
+                if (!std::isnormal(r_abs_sq)) {
+                  throw std::runtime_error("fatal error in CudaDipoleFFTHamiltonian::generate_kspace_energy_current_tensor: r_abs_sq is not normal");
+                }
+
+                if (r_abs_sq > pow2(r_cutoff_ + distance_tolerance_)) {
+                    continue;
+                }
+
+                const auto interaction = jams::dipole::interaction_tensor(
+                    r_ji, mu_i, mu_j, globals::lattice->parameter(), fft_normalization_factor);
+
+                const jams::ComplexHi phase_step_x = std::polar(1.0, -kTwoPi * static_cast<double>(dx) / static_cast<double>(kspace_padded_size_[0]));
+                const jams::ComplexHi phase_step_y = std::polar(1.0, -kTwoPi * static_cast<double>(dy) / static_cast<double>(kspace_padded_size_[1]));
+                const jams::ComplexHi phase_step_z = std::polar(1.0, -kTwoPi * static_cast<double>(dz) / static_cast<double>(kspace_padded_size_[2]));
+
+                jams::ComplexHi phase_x = {1.0, 0.0};
+                for (int h = 0; h < kspace_padded_size_[0]; ++h) {
+                  jams::ComplexHi phase_y = phase_x;
+                  for (int k = 0; k < kspace_padded_size_[1]; ++k) {
+                    jams::ComplexHi phase = phase_y;
+                    for (int l = 0; l < num_kz; ++l) {
+                      const int k_idx = (h * num_ky + k) * num_kz + l;
+                      const jams::ComplexHi components[kDipoleTensorComponents] = {
+                          interaction[0][0] * phase,
+                          interaction[0][1] * phase,
+                          interaction[0][2] * phase,
+                          interaction[1][1] * phase,
+                          interaction[1][2] * phase,
+                          interaction[2][2] * phase
+                      };
+
+                      for (int direction = 0; direction < kEnergyCurrentDirections; ++direction) {
+                        const double displacement_weight = r_ji[direction];
+                        const int component_offset = direction * kDipoleTensorComponents;
+                        for (int component = 0; component < kDipoleTensorComponents; ++component) {
+                          const auto weighted_component = displacement_weight * components[component];
+#if DO_MIXED_PRECISION
+                          kspace_energy_current_tensors_(pair, component_offset + component, k_idx) +=
+                              make_cuComplex(
+                                  static_cast<float>(weighted_component.real()),
+                                  static_cast<float>(weighted_component.imag()));
+#else
+                          kspace_energy_current_tensors_(pair, component_offset + component, k_idx) +=
+                              make_cuDoubleComplex(weighted_component.real(), weighted_component.imag());
+#endif
+                        }
+                      }
+
+                      phase *= phase_step_z;
+                    }
+                    phase_y *= phase_step_y;
+                  }
+                  phase_x *= phase_step_x;
+                }
+            }
+        }
     }
 }
