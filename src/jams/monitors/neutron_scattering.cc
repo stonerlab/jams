@@ -248,7 +248,9 @@ void NeutronScatteringMonitor::output_neutron_cross_section() {
           values.push_back(barns_unitcell * total_polarized_neutron_cross_sections_(k, i, j).imag());
         }
         tsv.write_row(values);
-        total_distance += jams::norm(k_points_[j].xyz - k_points_[j+1].xyz);
+        if (j + 1 < path_end) {
+          total_distance += jams::norm(k_points_[j].xyz - k_points_[j + 1].xyz);
+        }
       }
     }
   }
