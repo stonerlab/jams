@@ -66,130 +66,70 @@ void NeutronScatteringMonitor::update(Solver& solver) {
   store_sk_snapshot(spins);
 
   if (periodogram_window_complete()) {
-    const auto& spectrum = finalise_periodogram_spectrum();
-
-    element_sum(total_unpolarized_neutron_cross_section_,
-        calculate_unpolarized_cross_section(spectrum));
-
-    if (!neutron_polarizations_.empty()) {
-      element_sum(total_polarized_neutron_cross_sections_,
-                  calculate_polarized_cross_sections(spectrum, neutron_polarizations_));
+    for (auto k = 0; k < num_k_points(); ++k) {
+      accumulate_cross_sections_for_k(k, compute_frequency_spectrum_at_k(k));
     }
 
     output_neutron_cross_section();
+    advance_periodogram_window();
   }
 }
 
-/**
- * Compute the alpha, beta components of the scattiner cross section.
- *
- * @param alpha cartesian component {x,y,z}
- * @param beta  cartesian component {x,y,z}
- * @param site_a unit cell site index
- * @param site_b unit cell site index
- * @param sqw_a spin data for site a in reciprocal space and frequency space
- * @param sqw_b spin data for site b in reciprocal space and frequency space
- * @param hkl_indicies list of reciprocal space hkl indicies
- * @return
- */
-
-jams::MultiArray<jams::ComplexHi, 2> NeutronScatteringMonitor::calculate_unpolarized_cross_section(const CmplxMappedSpectrum& spectrum) {
+void NeutronScatteringMonitor::accumulate_cross_sections_for_k(
+    const int k_index,
+    const CmplxMappedSlice& spectrum) {
   const auto num_sites = spectrum.extent(0);
   const auto num_freqencies = spectrum.extent(1);
-  const auto num_reciprocal_points = spectrum.extent(2);
-  if (spectrum.extent(3) < 3) {
+  if (spectrum.extent(2) < 3) {
     throw std::runtime_error("NeutronScatteringMonitor requires at least 3 channels");
   }
 
-  jams::MultiArray<jams::ComplexHi, 2> cross_section(num_freqencies, num_reciprocal_points);
-  cross_section.zero();
+  auto kpoint = k_points_[k_index];
+  auto Q = jams::unit_vector(kpoint.xyz);
+  auto q = kpoint.hkl;
 
   for (auto a = 0; a < num_sites; ++a) {
     for (auto b = 0; b < num_sites; ++b) {
       jams::Vec<double, 3> r_ab = globals::lattice->basis_site_atom(b).position_frac - globals::lattice->basis_site_atom(a).position_frac;
+      const auto ff = neutron_form_factors_(a, k_index) * neutron_form_factors_(b, k_index);
+      // structure factor: note that q and r are in fractional coordinates (hkl, abc)
+      const auto sf = exp(-kImagTwoPi * jams::dot(q, r_ab));
 
-      for (auto k = 0; k < num_reciprocal_points; ++k) {
-        auto kpoint = k_points_[k];
-        auto Q = jams::unit_vector(kpoint.xyz);
-        auto q = kpoint.hkl;
-        auto ff = neutron_form_factors_(a, k) * neutron_form_factors_(b, k);
-        // structure factor: note that q and r are in fractional coordinates (hkl, abc)
-        auto sf = exp(-kImagTwoPi * jams::dot(q, r_ab));
+      for (auto f = 0; f < num_freqencies; ++f) {
+        jams::Vec<std::complex<double>, 3> s_a = {
+            conj(spectrum(a, f, 0)),
+            conj(spectrum(a, f, 1)),
+            conj(spectrum(a, f, 2))
+        };
+        jams::Vec<std::complex<double>, 3> s_b = {
+            spectrum(b, f, 0),
+            spectrum(b, f, 1),
+            spectrum(b, f, 2)
+        };
+        for (auto i : {0, 1, 2}) {
+          for (auto j : {0, 1, 2}) {
+            total_unpolarized_neutron_cross_section_(f, k_index) +=
+                sf * ff * (kronecker_delta(i, j) - Q[i] * Q[j]) * s_a[i] * s_b[j];
+          }
+        }
 
-        for (auto f = 0; f < num_freqencies; ++f) {
-          jams::Vec<std::complex<double>, 3> s_a = {
-              conj(spectrum(a, f, k, 0)),
-              conj(spectrum(a, f, k, 1)),
-              conj(spectrum(a, f, k, 2))
-          };
-          jams::Vec<std::complex<double>, 3> s_b = {
-              spectrum(b, f, k, 0),
-              spectrum(b, f, k, 1),
-              spectrum(b, f, k, 2)
-          };
+        for (auto p = 0; p < neutron_polarizations_.size(); ++p) {
+          auto P = neutron_polarizations_[p];
+          auto PxQ = jams::cross(P, Q);
+
+          total_polarized_neutron_cross_sections_(p, f, k_index) +=
+              sf * ff * kImagOne * jams::dot(P, jams::cross(s_a, s_b));
+
           for (auto i : {0, 1, 2}) {
             for (auto j : {0, 1, 2}) {
-              cross_section(f, k) += sf * ff * (kronecker_delta(i, j) - Q[i] * Q[j]) * s_a[i] * s_b[j];
+              total_polarized_neutron_cross_sections_(p, f, k_index) +=
+                  kImagOne * sf * ff * PxQ[i] * Q[j] * (s_a[i] * s_b[j] - s_a[j] * s_b[i]);
             }
           }
         }
       }
     }
   }
-  return cross_section;
-}
-
-jams::MultiArray<jams::ComplexHi, 3> NeutronScatteringMonitor::calculate_polarized_cross_sections(const CmplxMappedSpectrum& spectrum, const std::vector<jams::Vec<double, 3>>& polarizations) {
-  const auto num_sites = spectrum.extent(0);
-  const auto num_freqencies = spectrum.extent(1);
-  const auto num_reciprocal_points = spectrum.extent(2);
-  if (spectrum.extent(3) < 3) {
-    throw std::runtime_error("NeutronScatteringMonitor requires at least 3 channels");
-  }
-
-  jams::MultiArray<jams::ComplexHi, 3> convolved(polarizations.size(), num_freqencies, num_reciprocal_points);
-  convolved.zero();
-
-  for (auto a = 0; a < num_sites; ++a) {
-    for (auto b = 0; b < num_sites; ++b) {
-      const jams::Vec<double, 3> r_ab = globals::lattice->basis_site_atom(b).position_frac - globals::lattice->basis_site_atom(a).position_frac;
-      for (auto k = 0; k < num_reciprocal_points; ++k) {
-        auto kpoint = k_points_[k];
-        auto Q = jams::unit_vector(kpoint.xyz);
-        auto q = kpoint.hkl;
-        auto ff = neutron_form_factors_(a, k) * neutron_form_factors_(b, k);
-        // structure factor: note that q and r are in fractional coordinates (hkl, abc)
-        auto sf = exp(-kImagTwoPi * jams::dot(q, r_ab));
-
-        for (auto f = 0; f < num_freqencies; ++f) {
-          jams::Vec<std::complex<double>, 3> s_a = {
-              conj(spectrum(a, f, k, 0)),
-              conj(spectrum(a, f, k, 1)),
-              conj(spectrum(a, f, k, 2))
-          };
-          jams::Vec<std::complex<double>, 3> s_b = {
-              spectrum(b, f, k, 0),
-              spectrum(b, f, k, 1),
-              spectrum(b, f, k, 2)
-          };
-          for (auto p = 0; p < polarizations.size(); ++p) {
-            auto P = polarizations[p];
-            auto PxQ = jams::cross(P, Q);
-
-            convolved(p, f, k) += sf * ff * kImagOne * jams::dot(P, jams::cross(s_a, s_b));
-
-            for (auto i : {0, 1, 2}) {
-              for (auto j : {0, 1, 2}) {
-                convolved(p, f, k) += kImagOne * sf * ff * PxQ[i] * Q[j] * ( s_a[i] * s_b[j] - s_a[j] * s_b[i]);
-              }
-            }
-          }
-        }
-      }
-    }
-  }
-
-  return convolved;
 }
 
 void NeutronScatteringMonitor::output_neutron_cross_section() {

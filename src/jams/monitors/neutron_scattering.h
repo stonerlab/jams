@@ -43,8 +43,7 @@ private:
 
     void output_neutron_cross_section();
 
-    jams::MultiArray<jams::ComplexHi, 2> calculate_unpolarized_cross_section(const CmplxMappedSpectrum& spectrum);
-    jams::MultiArray<jams::ComplexHi, 3> calculate_polarized_cross_sections(const CmplxMappedSpectrum& spectrum, const std::vector<jams::Vec<double, 3>>& polarizations);
+    void accumulate_cross_sections_for_k(int k_index, const CmplxMappedSlice& spectrum);
 
     jams::MultiArray<double, 2> neutron_form_factors_;
     std::vector<jams::Vec<double, 3>>           neutron_polarizations_;
