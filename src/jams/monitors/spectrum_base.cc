@@ -30,7 +30,7 @@
 namespace {
 
 constexpr std::size_t kAutoFileBackedSkTimeSeriesThresholdBytes =
-    1024ull * 1024ull * 1024ull;
+    12ull * 1024ull * 1024ull * 1024ull;
 
 int default_fftw_thread_count()
 {
@@ -401,7 +401,7 @@ bool SpectrumBaseMonitor::use_file_backed_sk_time_series_(const std::size_t requ
   {
     case SkTimeSeriesBackendPolicy::Auto:
       return full_brillouin_zone_appended_
-          || required_bytes >= kAutoFileBackedSkTimeSeriesThresholdBytes;
+          || required_bytes > kAutoFileBackedSkTimeSeriesThresholdBytes;
     case SkTimeSeriesBackendPolicy::Memory:
       return false;
     case SkTimeSeriesBackendPolicy::File:
