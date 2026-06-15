@@ -248,6 +248,7 @@ protected:
 
   void configure_periodogram(libconfig::Setting& settings);
   void enable_cuda_time_fft_backend_();
+  void validate_cuda_time_fft_backend_support_() const;
 
   bool periodogram_window_complete() const;
 

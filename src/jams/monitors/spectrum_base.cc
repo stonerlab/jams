@@ -435,6 +435,14 @@ void SpectrumBaseMonitor::enable_cuda_time_fft_backend_()
   cuda_time_fft_supported_ = true;
 }
 
+void SpectrumBaseMonitor::validate_cuda_time_fft_backend_support_() const
+{
+  if (cuda_time_fft_requested_() && !cuda_time_fft_supported_)
+  {
+    throw std::runtime_error("time_fft_backend = \"cuda\" is not supported by this monitor");
+  }
+}
+
 void SpectrumBaseMonitor::log_fft_backend_info_() const
 {
   std::cout << "  spatial FFT backend " << backend_name(active_spatial_fft_backend_) << std::endl;

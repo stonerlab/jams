@@ -23,6 +23,8 @@
 NeutronScatteringMonitor::NeutronScatteringMonitor(const libconfig::Setting &settings)
 : SpectrumBaseMonitor(settings) {
 
+  validate_cuda_time_fft_backend_support_();
+
   // default to 1.0 in case no form factor is given in the settings
   fill(neutron_form_factors_.resize(globals::lattice->num_basis_sites(), num_k_points()), 1.0);
   if (settings.exists("form_factor")) {

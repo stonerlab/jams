@@ -44,7 +44,9 @@ public:
   using SpectrumRows = std::vector<std::vector<double>>;
 
   explicit CartesianSpectrumProbeMonitor(const libconfig::Setting& settings)
-      : SpectrumBaseMonitor(settings) {}
+      : SpectrumBaseMonitor(settings) {
+    validate_cuda_time_fft_backend_support_();
+  }
 
   void post_process() override {}
 
@@ -476,9 +478,9 @@ TEST_F(MagnonSpectrumCudaMonitorTest, RejectsExplicitCudaTimeForCartesianSpectru
   initialise_cartesian_lattice("cuda", "cuda");
   globals::solver = &cuda_solver;
 
-  CartesianSpectrumProbeMonitor monitor(first_monitor_settings());
-  write_spin_state(0);
-  EXPECT_THROW(monitor.update(cuda_solver), std::runtime_error);
+  EXPECT_THROW(
+      CartesianSpectrumProbeMonitor monitor(first_monitor_settings()),
+      std::runtime_error);
   globals::solver = nullptr;
 }
 

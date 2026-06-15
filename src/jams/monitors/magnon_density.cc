@@ -14,6 +14,8 @@
 MagnonDensityMonitor::MagnonDensityMonitor(const libconfig::Setting& settings)
     : SpectrumBaseMonitor(settings, KSamplingMode::FullGrid)
 {
+    validate_cuda_time_fft_backend_support_();
+
     const int time_points = periodogram_length();
     const int freq_bins = keep_negative_frequencies() ? time_points
                                                       : (time_points / 2 + 1);
