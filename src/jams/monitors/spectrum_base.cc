@@ -16,6 +16,7 @@
 #include <algorithm>
 #include <cmath>
 #include <iostream>
+#include <limits>
 #include <mutex>
 #include <string>
 #include <thread>
@@ -27,6 +28,9 @@
 #endif
 
 namespace {
+
+constexpr std::size_t kAutoFileBackedSkTimeSeriesThresholdBytes =
+    1024ull * 1024ull * 1024ull;
 
 int default_fftw_thread_count()
 {
@@ -83,6 +87,25 @@ const char* backend_name(const SpectrumBaseMonitor::ActiveFftBackend backend)
       return "cuda";
   }
   return "unknown";
+}
+
+std::size_t sk_time_series_required_bytes(
+    const SpectrumBaseMonitor::CmplxStoredRingStorage::shape_type& shape)
+{
+  std::size_t elements = 1;
+  for (const auto dim : shape)
+  {
+    if (dim != 0 && elements > std::numeric_limits<std::size_t>::max() / dim)
+    {
+      throw std::runtime_error("S(k,t) time-series size overflow");
+    }
+    elements *= dim;
+  }
+  if (elements > std::numeric_limits<std::size_t>::max() / sizeof(SpectrumBaseMonitor::CmplxStored))
+  {
+    throw std::runtime_error("S(k,t) time-series byte size overflow");
+  }
+  return elements * sizeof(SpectrumBaseMonitor::CmplxStored);
 }
 
 #if JAMS_HAS_FFTW_THREADS
@@ -372,12 +395,13 @@ bool SpectrumBaseMonitor::needs_local_frame_mapping_() const
   return channel_transform_.use_local_frame;
 }
 
-bool SpectrumBaseMonitor::use_file_backed_sk_time_series_() const
+bool SpectrumBaseMonitor::use_file_backed_sk_time_series_(const std::size_t required_bytes) const
 {
   switch (sk_time_series_backend_policy_)
   {
     case SkTimeSeriesBackendPolicy::Auto:
-      return full_brillouin_zone_appended_;
+      return full_brillouin_zone_appended_
+          || required_bytes >= kAutoFileBackedSkTimeSeriesThresholdBytes;
     case SkTimeSeriesBackendPolicy::Memory:
       return false;
     case SkTimeSeriesBackendPolicy::File:
@@ -572,12 +596,15 @@ void SpectrumBaseMonitor::resize_channel_storage_()
 
   if (!use_cuda_time_fft_())
   {
+    const CmplxStoredRingStorage::shape_type sk_shape{
+        static_cast<std::size_t>(T),
+        static_cast<std::size_t>(A),
+        static_cast<std::size_t>(K),
+        static_cast<std::size_t>(stored_channel_count_)};
+    const auto required_bytes = sk_time_series_required_bytes(sk_shape);
     sk_time_series_.resize(
-        {static_cast<std::size_t>(T),
-         static_cast<std::size_t>(A),
-         static_cast<std::size_t>(K),
-         static_cast<std::size_t>(stored_channel_count_)},
-        use_file_backed_sk_time_series_());
+        sk_shape,
+        use_file_backed_sk_time_series_(required_bytes));
   }
   sk_time_series_storage_initialised_ = true;
   log_channel_storage_info_();

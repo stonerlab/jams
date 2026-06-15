@@ -347,7 +347,7 @@ private:
   bool needs_local_frame_mapping_() const;
   void ensure_channel_storage_initialised_();
   void resize_channel_storage_();
-  bool use_file_backed_sk_time_series_() const;
+  bool use_file_backed_sk_time_series_(std::size_t required_bytes) const;
   void configure_temporal_estimator_(libconfig::Setting& settings);
   void configure_fftw_threads_(const libconfig::Setting& settings);
   void append_compact_sk_sample_(const std::vector<CmplxStored>& sample);
