@@ -34,9 +34,9 @@ NeutronScatteringMonitor::NeutronScatteringMonitor(const libconfig::Setting &set
   }
 
   zero(total_unpolarized_neutron_cross_section_.resize(
-      periodogram_length(), num_k_points()));
+      num_frequencies(), num_k_points()));
   zero(total_polarized_neutron_cross_sections_.resize(
-      neutron_polarizations_.size(), periodogram_length(), num_k_points()));
+      neutron_polarizations_.size(), num_frequencies(), num_k_points()));
 
   print_info();
 }
@@ -221,11 +221,17 @@ void NeutronScatteringMonitor::output_neutron_cross_section() {
     auto prefactor = (sample_time_interval() / periodogram_window_count()) * (1.0 / (kTwoPi * kHBarIU))
                      * pow2((0.5 * kNeutronGFactor * pow2(kElementaryCharge)) / (kElectronMass * pow2(kSpeedOfLight)));
     auto barns_unitcell = prefactor / (1e-28 * globals::lattice->num_cells());
-    auto time_points = total_unpolarized_neutron_cross_section_.extent(0);
+    const auto time_points = periodogram_length();
+    const auto freq_count = total_unpolarized_neutron_cross_section_.extent(0);
+    const auto freq_start = (time_points % 2 == 0) ? (time_points / 2 + 1) : ((time_points + 1) / 2);
 
     auto path_begin = k_segment_offsets_[n];
     auto path_end = k_segment_offsets_[n + 1];
-    for (auto i = 0; i < (time_points / 2) + 1; ++i) {
+    for (auto i = 0; i < freq_count; ++i) {
+      const auto f = keep_negative_frequencies() ? (freq_start + i) % time_points : i;
+      const auto freq_index = (f <= time_points / 2) ? static_cast<int>(f)
+                                                     : static_cast<int>(f) - static_cast<int>(time_points);
+      const auto freq_thz = static_cast<double>(freq_index) * frequency_resolution_thz();
       double total_distance = 0.0;
       for (auto j = path_begin; j < path_end; ++j) {
         std::vector<double> values;
@@ -238,14 +244,14 @@ void NeutronScatteringMonitor::output_neutron_cross_section() {
         values.push_back(k_points_[j].xyz[0]);
         values.push_back(k_points_[j].xyz[1]);
         values.push_back(k_points_[j].xyz[2]);
-        values.push_back(i * frequency_resolution_thz());
-        values.push_back(i * frequency_resolution_thz() * 4.135668);
+        values.push_back(freq_thz);
+        values.push_back(freq_thz * 4.135668);
         // cross section output units are Barns Steradian^-1 Joules^-1 unitcell^-1
-        values.push_back(barns_unitcell * total_unpolarized_neutron_cross_section_(i, j).real());
-        values.push_back(barns_unitcell * total_unpolarized_neutron_cross_section_(i, j).imag());
+        values.push_back(barns_unitcell * total_unpolarized_neutron_cross_section_(f, j).real());
+        values.push_back(barns_unitcell * total_unpolarized_neutron_cross_section_(f, j).imag());
         for (auto k = 0; k < total_polarized_neutron_cross_sections_.extent(0); ++k) {
-          values.push_back(barns_unitcell * total_polarized_neutron_cross_sections_(k, i, j).real());
-          values.push_back(barns_unitcell * total_polarized_neutron_cross_sections_(k, i, j).imag());
+          values.push_back(barns_unitcell * total_polarized_neutron_cross_sections_(k, f, j).real());
+          values.push_back(barns_unitcell * total_polarized_neutron_cross_sections_(k, f, j).imag());
         }
         tsv.write_row(values);
         if (j + 1 < path_end) {
