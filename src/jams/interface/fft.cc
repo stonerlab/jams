@@ -34,15 +34,27 @@ double fft_window_default(const int n, const int n_total) {
   return fft_window_blackman_4(n, n_total);
 }
 
+double fft_window_default_fraction(double x) {
+  return fft_window_blackman_4_fraction(x);
+}
+
 double fft_window_hann(const int n, const int n_total) {
   return 0.50 - 0.50*cos((kTwoPi*n)/double(n_total-1));
 }
 
-double fft_window_blackman_4(const int n, const int n_total) {
+double fft_window_blackman_4_fraction(double x) {
   // F. J. Harris, Proc. IEEE 66, 51 (1978)
   const double a0 = 0.40217, a1 = 0.49704, a2 = 0.09392, a3 = 0.00183;
-  const double x = (kTwoPi * n)/double(n_total-1);
-  return a0 - a1 * cos(x) + a2 * cos(2 * x) - a3 * cos(3 * x);
+  x = std::clamp(x, 0.0, 1.0);
+  const double phase = kTwoPi * x;
+  return a0 - a1 * cos(phase) + a2 * cos(2 * phase) - a3 * cos(3 * phase);
+}
+
+double fft_window_blackman_4(const int n, const int n_total) {
+  if (n_total <= 1) {
+    return 1.0;
+  }
+  return fft_window_blackman_4_fraction(double(n) / double(n_total - 1));
 }
 
 double fft_window_exponential(const int n, const int n_total) {

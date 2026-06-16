@@ -49,6 +49,20 @@ public:
     Cuda
   };
 
+  enum class SpatialTransformMode
+  {
+    FftGrid,
+    DirectSum
+  };
+
+  struct DirectSumSite
+  {
+    int site_index = 0;
+    int basis_index = 0;
+    jams::Vec<double, 3> position_frac {};
+    double window_weight = 1.0;
+  };
+
   /// @brief Defines the mapping from Cartesian spin components to output spectral channels.
   ///
   /// This structure specifies how spin components are transformed and combined before
@@ -336,11 +350,20 @@ private:
     File
   };
 
+  struct DirectSumWindow
+  {
+    std::array<bool, 3> enabled {false, false, false};
+    jams::Vec<double, 3> origin {};
+    jams::Vec<double, 3> width {};
+  };
+
   // Initialisation helpers.
+  void configure_direct_sum_(const libconfig::Setting& settings, KSamplingMode k_sampling_mode);
   void configure_storage_backend_policy_(const libconfig::Setting& settings);
   void configure_fft_backend_policy_(const libconfig::Setting& settings);
   void initialise_k_points_(const libconfig::Setting& settings, KSamplingMode k_sampling_mode);
   void initialise_basis_phase_factors_();
+  void initialise_direct_sum_sites_();
   void initialise_cuda_backend_();
 #if HAS_CUDA
   std::unique_ptr<CudaBackend> make_cuda_backend_() const;
@@ -366,7 +389,10 @@ private:
   void configure_temporal_estimator_(libconfig::Setting& settings);
   void configure_fftw_threads_(const libconfig::Setting& settings);
   void append_compact_sk_sample_(const std::vector<CmplxStored>& sample);
+  void store_direct_sum_snapshot_(const jams::MultiArray<double, 2>& spin_state);
+  double direct_sum_window_weight_(const jams::Vec<double, 3>& position_cart) const;
   bool use_cuda_spatial_fft_() const;
+  bool use_direct_sum_() const;
   bool use_cuda_time_fft_() const;
   bool cuda_time_fft_requested_() const;
   bool cuda_time_fft_auto_() const;
@@ -393,7 +419,9 @@ private:
 
   bool keep_negative_frequencies_ = false;
   ChannelTransform channel_transform_ = cartesian_channel_map();
+  SpatialTransformMode spatial_transform_mode_ = SpatialTransformMode::FftGrid;
   FftBackendPolicy spatial_fft_backend_policy_ = FftBackendPolicy::Auto;
+  FftBackendPolicy direct_sum_backend_policy_ = FftBackendPolicy::Auto;
   FftBackendPolicy time_fft_backend_policy_ = FftBackendPolicy::Auto;
   ActiveFftBackend active_spatial_fft_backend_ = ActiveFftBackend::Cpu;
   ActiveFftBackend active_time_fft_backend_ = ActiveFftBackend::Cpu;
@@ -420,6 +448,9 @@ private:
   // Parsed from `sk_time_series_backend` (or legacy `storage`).
   SkTimeSeriesBackendPolicy sk_time_series_backend_policy_ = SkTimeSeriesBackendPolicy::Auto;
   bool full_brillouin_zone_appended_ = false;
+  DirectSumWindow direct_sum_window_;
+  std::vector<DirectSumSite> direct_sum_sites_;
+  double direct_sum_spatial_scale_ = 1.0;
   CmplxStoredRingStorage sk_time_series_; // Ring over periodogram time axis.
 
   /// @brief Output memory for the mapped spectrum

@@ -175,6 +175,67 @@ SpectrumBaseMonitor::ChannelTransform SpectrumBaseMonitor::raise_lower_channel_m
 // ---------------------------------------------------------------------------
 // Construction helpers
 // ---------------------------------------------------------------------------
+void SpectrumBaseMonitor::configure_direct_sum_(
+    const libconfig::Setting& settings,
+    const KSamplingMode k_sampling_mode)
+{
+  if (!settings.exists("direct_sum"))
+  {
+    return;
+  }
+
+  const auto& direct_sum_settings = settings["direct_sum"];
+  if (!direct_sum_settings.isGroup())
+  {
+    throw std::runtime_error("direct_sum must be a settings group");
+  }
+  if (!jams::config_optional<bool>(direct_sum_settings, "enabled", true))
+  {
+    return;
+  }
+  if (k_sampling_mode == KSamplingMode::FullGrid)
+  {
+    throw std::runtime_error("direct_sum is not compatible with full-grid k sampling");
+  }
+  if (!direct_sum_settings.exists("hkl_path"))
+  {
+    throw std::runtime_error("direct_sum.hkl_path is required when direct_sum.enabled is true");
+  }
+
+  spatial_transform_mode_ = SpatialTransformMode::DirectSum;
+  direct_sum_backend_policy_ = parse_fft_backend_policy(
+      direct_sum_settings, "backend", direct_sum_backend_policy_);
+
+  if (direct_sum_settings.exists("window"))
+  {
+    const auto& window_settings = direct_sum_settings["window"];
+    if (!window_settings.isGroup())
+    {
+      throw std::runtime_error("direct_sum.window must be a settings group");
+    }
+    const std::array<const char*, 3> axes {"x", "y", "z"};
+    for (int axis = 0; axis < 3; ++axis)
+    {
+      if (!window_settings.exists(axes[axis]))
+      {
+        continue;
+      }
+      const auto& axis_settings = window_settings[axes[axis]];
+      if (!axis_settings.isGroup())
+      {
+        throw std::runtime_error("direct_sum.window axis settings must be groups");
+      }
+      direct_sum_window_.enabled[axis] = true;
+      direct_sum_window_.origin[axis] = jams::config_required<double>(axis_settings, "origin");
+      direct_sum_window_.width[axis] = jams::config_required<double>(axis_settings, "width");
+      if (direct_sum_window_.width[axis] <= 0.0)
+      {
+        throw std::runtime_error("direct_sum.window width must be greater than zero");
+      }
+    }
+  }
+}
+
 void SpectrumBaseMonitor::configure_storage_backend_policy_(const libconfig::Setting& settings)
 {
   std::string backend_setting = "auto";
@@ -211,8 +272,15 @@ void SpectrumBaseMonitor::configure_storage_backend_policy_(const libconfig::Set
 
 void SpectrumBaseMonitor::configure_fft_backend_policy_(const libconfig::Setting& settings)
 {
-  spatial_fft_backend_policy_ = parse_fft_backend_policy(
-      settings, "spatial_fft_backend", spatial_fft_backend_policy_);
+  if (use_direct_sum_())
+  {
+    spatial_fft_backend_policy_ = direct_sum_backend_policy_;
+  }
+  else
+  {
+    spatial_fft_backend_policy_ = parse_fft_backend_policy(
+        settings, "spatial_fft_backend", spatial_fft_backend_policy_);
+  }
   time_fft_backend_policy_ = parse_fft_backend_policy(
       settings, "time_fft_backend", time_fft_backend_policy_);
   cuda_time_fft_memory_limit_mib_ = jams::config_optional<int>(
@@ -239,11 +307,17 @@ void SpectrumBaseMonitor::configure_fft_backend_policy_(const libconfig::Setting
 #if HAS_CUDA
       if (!cuda_solver)
       {
-        throw std::runtime_error("spatial_fft_backend = \"cuda\" requires a CUDA solver");
+        throw std::runtime_error(
+            use_direct_sum_()
+                ? "direct_sum.backend = \"cuda\" requires a CUDA solver"
+                : "spatial_fft_backend = \"cuda\" requires a CUDA solver");
       }
       active_spatial_fft_backend_ = ActiveFftBackend::Cuda;
 #else
-      throw std::runtime_error("spatial_fft_backend = \"cuda\" requires a CUDA build");
+      throw std::runtime_error(
+          use_direct_sum_()
+              ? "direct_sum.backend = \"cuda\" requires a CUDA build"
+              : "spatial_fft_backend = \"cuda\" requires a CUDA build");
 #endif
       break;
   }
@@ -251,7 +325,10 @@ void SpectrumBaseMonitor::configure_fft_backend_policy_(const libconfig::Setting
   if (time_fft_backend_policy_ == FftBackendPolicy::Cuda
       && active_spatial_fft_backend_ != ActiveFftBackend::Cuda)
   {
-    throw std::runtime_error("time_fft_backend = \"cuda\" requires spatial_fft_backend to select CUDA");
+    throw std::runtime_error(
+        use_direct_sum_()
+            ? "time_fft_backend = \"cuda\" requires direct_sum.backend to select CUDA"
+            : "time_fft_backend = \"cuda\" requires spatial_fft_backend to select CUDA");
   }
 }
 
@@ -268,8 +345,26 @@ void SpectrumBaseMonitor::initialise_k_points_(
     builder.append_full_k_grid(k_points_, k_segment_offsets_, kspace_size);
     full_brillouin_zone_appended_ = true;
   }
+  else if (use_direct_sum_())
+  {
+    auto& direct_sum_settings = const_cast<libconfig::Setting&>(settings["direct_sum"]);
+    libconfig::Setting* points_per_segment = direct_sum_settings.exists("points_per_segment")
+        ? &direct_sum_settings["points_per_segment"]
+        : nullptr;
+    builder.configure_exact_k_list(
+        k_points_,
+        k_segment_offsets_,
+        direct_sum_settings["hkl_path"],
+        points_per_segment);
+    full_brillouin_zone_appended_ = false;
+  }
   else
   {
+    if (!settings.exists("hkl_path"))
+    {
+      throw std::runtime_error(
+          "hkl_path is required unless direct_sum.enabled is true and direct_sum.hkl_path is set");
+    }
     full_brillouin_zone_appended_ = builder.configure_k_list(
         k_points_, k_segment_offsets_, settings["hkl_path"], kspace_size);
   }
@@ -286,6 +381,63 @@ void SpectrumBaseMonitor::initialise_basis_phase_factors_()
   generate_phase_factors_(basis_phase_factors_, r_frac, k_points_);
 }
 
+double SpectrumBaseMonitor::direct_sum_window_weight_(
+    const jams::Vec<double, 3>& position_cart) const
+{
+  double weight = 1.0;
+  for (int axis = 0; axis < 3; ++axis)
+  {
+    if (!direct_sum_window_.enabled[axis])
+    {
+      continue;
+    }
+    const double width = direct_sum_window_.width[axis];
+    const double start = direct_sum_window_.origin[axis] - 0.5 * width;
+    const double x = (position_cart[axis] - start) / width;
+    if (x < 0.0 || x > 1.0)
+    {
+      return 0.0;
+    }
+    weight *= fft_window_default_fraction(x);
+  }
+  return weight;
+}
+
+void SpectrumBaseMonitor::initialise_direct_sum_sites_()
+{
+  if (!use_direct_sum_())
+  {
+    return;
+  }
+
+  direct_sum_sites_.clear();
+  direct_sum_sites_.reserve(static_cast<std::size_t>(globals::num_spins));
+  const auto kspace_size = globals::lattice->kspace_size();
+  direct_sum_spatial_scale_ = 1.0 / std::sqrt(static_cast<double>(jams::product(kspace_size)));
+
+  for (int site = 0; site < globals::num_spins; ++site)
+  {
+    const double window_weight = direct_sum_window_weight_(
+        globals::lattice->lattice_site_position_cart(site));
+    if (window_weight == 0.0)
+    {
+      continue;
+    }
+    DirectSumSite direct_site;
+    direct_site.site_index = site;
+    direct_site.basis_index = static_cast<int>(globals::lattice->lattice_site_basis_index(site));
+    direct_site.position_frac = globals::lattice->lattice_site_vector_frac(site);
+    direct_site.window_weight = window_weight;
+    direct_sum_sites_.push_back(direct_site);
+  }
+
+  std::cout << "  direct spatial summation sites "
+            << direct_sum_sites_.size()
+            << " / "
+            << globals::num_spins
+            << std::endl;
+}
+
 void SpectrumBaseMonitor::initialise_cuda_backend_()
 {
 #if HAS_CUDA
@@ -294,7 +446,8 @@ void SpectrumBaseMonitor::initialise_cuda_backend_()
     return;
   }
   cuda_backend_ = make_cuda_backend_();
-  std::cout << "  cuda spatial FFT memory (MiB) "
+  std::cout << (use_direct_sum_() ? "  cuda direct spatial memory (MiB) "
+                                  : "  cuda spatial FFT memory (MiB) ")
             << static_cast<double>(cuda_backend_->spatial_memory_bytes()) / (1024.0 * 1024.0)
             << std::endl;
 #else
@@ -318,6 +471,7 @@ SpectrumBaseMonitor::SpectrumBaseMonitor(
       settings,
       "keep_negative_frequencies",
       keep_negative_frequencies_);
+  configure_direct_sum_(settings, k_sampling_mode);
   configure_storage_backend_policy_(settings);
   configure_fft_backend_policy_(settings);
 
@@ -329,10 +483,15 @@ SpectrumBaseMonitor::SpectrumBaseMonitor(
   configure_fftw_threads_(settings);
   initialise_k_points_(settings, k_sampling_mode);
   initialise_basis_phase_factors_();
+  initialise_direct_sum_sites_();
   initialise_cuda_backend_();
   log_fft_backend_info_();
 
-  if (!use_cuda_spatial_fft_())
+  if (use_direct_sum_())
+  {
+    std::cout << "  direct spatial summation active; no sk_grid buffer needed" << std::endl;
+  }
+  else if (!use_cuda_spatial_fft_())
   {
     std::cout << "  allocating sk_grid buffer" << std::endl;
     zero(sk_grid_.resize(
@@ -414,6 +573,11 @@ bool SpectrumBaseMonitor::use_cuda_spatial_fft_() const
   return active_spatial_fft_backend_ == ActiveFftBackend::Cuda;
 }
 
+bool SpectrumBaseMonitor::use_direct_sum_() const
+{
+  return spatial_transform_mode_ == SpatialTransformMode::DirectSum;
+}
+
 bool SpectrumBaseMonitor::use_cuda_time_fft_() const
 {
   return active_time_fft_backend_ == ActiveFftBackend::Cuda;
@@ -451,7 +615,10 @@ void SpectrumBaseMonitor::validate_cuda_time_fft_backend_support_() const
 
 void SpectrumBaseMonitor::log_fft_backend_info_() const
 {
-  std::cout << "  spatial FFT backend " << backend_name(active_spatial_fft_backend_) << std::endl;
+  std::cout << "  spatial transform "
+            << (use_direct_sum_() ? "direct-sum" : "fft-grid")
+            << std::endl;
+  std::cout << "  spatial backend " << backend_name(active_spatial_fft_backend_) << std::endl;
   std::cout << "  time FFT backend policy ";
   switch (time_fft_backend_policy_)
   {
@@ -1186,6 +1353,10 @@ void SpectrumBaseMonitor::append_sk_sample_for_k_list(const jams::MultiArray<jam
   {
     for (auto k = 0; k < k_list.size(); ++k)
     {
+      if (!k_list[k].has_fft_index)
+      {
+        throw std::runtime_error("FFT spatial sampling received a k-point without an FFT grid index");
+      }
       const auto [offset, is_conjugate] = k_list[k].index;
       const auto idx = offset;
       const auto base =
@@ -1245,6 +1416,70 @@ void SpectrumBaseMonitor::append_compact_sk_sample_(const std::vector<CmplxStore
       {
         std::copy_n(sample.data() + logical_offset, count, destination);
       });
+}
+
+void SpectrumBaseMonitor::store_direct_sum_snapshot_(
+    const jams::MultiArray<double, 2>& spin_state)
+{
+  const auto num_basis = static_cast<std::size_t>(num_basis_atoms());
+  const auto num_k = k_points_.size();
+  const auto stored_channels = static_cast<std::size_t>(stored_channel_count_);
+  const bool use_local_frame = needs_local_frame_mapping_();
+
+  std::vector<jams::Vec<std::complex<double>, 3>> sk_sum(num_basis * num_k);
+  for (auto& value : sk_sum)
+  {
+    value = {0.0, 0.0, 0.0};
+  }
+
+  for (const auto& site : direct_sum_sites_)
+  {
+    const jams::Vec<double, 3> spin = {
+        spin_state(site.site_index, 0),
+        spin_state(site.site_index, 1),
+        spin_state(site.site_index, 2)};
+    const double site_scale = direct_sum_spatial_scale_ * site.window_weight;
+
+    for (std::size_t k = 0; k < num_k; ++k)
+    {
+      const auto phase = std::exp(-kImagTwoPi * jams::dot(k_points_[k].hkl, site.position_frac));
+      auto& out = sk_sum[static_cast<std::size_t>(site.basis_index) * num_k + k];
+      for (int c = 0; c < 3; ++c)
+      {
+        out[c] += (site_scale * spin[c]) * phase;
+      }
+    }
+  }
+
+  std::vector<CmplxStored> sample(num_basis * num_k * stored_channels);
+  for (std::size_t a = 0; a < num_basis; ++a)
+  {
+    for (std::size_t k = 0; k < num_k; ++k)
+    {
+      const auto& spin_xyz = sk_sum[a * num_k + k];
+      const auto base = (a * num_k + k) * stored_channels;
+      if (use_local_frame)
+      {
+        sample[base + 0] = CmplxStored{static_cast<float>(spin_xyz[0].real()), static_cast<float>(spin_xyz[0].imag())};
+        sample[base + 1] = CmplxStored{static_cast<float>(spin_xyz[1].real()), static_cast<float>(spin_xyz[1].imag())};
+        sample[base + 2] = CmplxStored{static_cast<float>(spin_xyz[2].real()), static_cast<float>(spin_xyz[2].imag())};
+      }
+      else
+      {
+        for (std::size_t c = 0; c < stored_channels; ++c)
+        {
+          const auto mapped = map_spin_component_(
+              static_cast<int>(a),
+              static_cast<int>(c),
+              spin_xyz,
+              nullptr);
+          sample[base + c] = CmplxStored{static_cast<float>(mapped.real()), static_cast<float>(mapped.imag())};
+        }
+      }
+    }
+  }
+
+  append_compact_sk_sample_(sample);
 }
 
 // ---------------------------------------------------------------------------
@@ -1576,6 +1811,54 @@ void SpectrumBaseMonitor::generate_phase_factors_(
 void SpectrumBaseMonitor::store_sk_snapshot(const jams::MultiArray<double, 2> &data)
 {
   ensure_channel_storage_initialised_();
+
+  if (use_direct_sum_())
+  {
+    if (needs_local_frame_mapping_() && !use_cuda_spatial_fft_())
+    {
+      store_sublattice_magnetisation_(data);
+    }
+
+    if (use_cuda_spatial_fft_())
+    {
+#if HAS_CUDA
+      initialise_cuda_backend_();
+      std::vector<CmplxStored> compact_sample;
+      std::vector<jams::Vec<double, 3>> basis_magnetisation;
+      const bool copy_sample_to_host = !use_cuda_time_fft_();
+      const bool copy_basis_magnetisation_to_host =
+          copy_sample_to_host && needs_local_frame_mapping_();
+
+      cuda_backend_->store_sample(
+          data,
+          periodogram_sample_index_,
+          stored_channel_count_,
+          needs_local_frame_mapping_(),
+          channel_transform_,
+          copy_sample_to_host,
+          compact_sample,
+          copy_basis_magnetisation_to_host,
+          basis_magnetisation);
+
+      if (copy_sample_to_host)
+      {
+        append_compact_sk_sample_(compact_sample);
+        if (copy_basis_magnetisation_to_host)
+        {
+          append_sublattice_magnetisation_sample_(basis_magnetisation);
+        }
+      }
+      periodogram_sample_index_++;
+      return;
+#else
+      throw std::runtime_error("CUDA direct spatial backend selected in a non-CUDA build");
+#endif
+    }
+
+    store_direct_sum_snapshot_(data);
+    periodogram_sample_index_++;
+    return;
+  }
 
   if (use_cuda_spatial_fft_())
   {

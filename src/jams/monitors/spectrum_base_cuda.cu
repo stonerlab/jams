@@ -62,6 +62,28 @@ __device__ inline cufftDoubleComplex from_float2(const float2 z)
   return {static_cast<double>(z.x), static_cast<double>(z.y)};
 }
 
+__device__ inline double atomic_add_double(double* address, const double value)
+{
+#if defined(__CUDA_ARCH__) && (__CUDA_ARCH__ < 600)
+  auto* address_as_ull = reinterpret_cast<unsigned long long int*>(address);
+  auto old = *address_as_ull;
+  unsigned long long int assumed;
+
+  do
+  {
+    assumed = old;
+    old = atomicCAS(
+        address_as_ull,
+        assumed,
+        __double_as_longlong(value + __longlong_as_double(assumed)));
+  } while (assumed != old);
+
+  return __longlong_as_double(old);
+#else
+  return atomicAdd(address, value);
+#endif
+}
+
 __global__ void pack_dense_spins_kernel(
     const int num_values,
     const int* site_map,
@@ -139,6 +161,93 @@ __global__ void extract_compact_sample_kernel(
   }
 
   const int base = output_offset + (a * num_k + k) * stored_channels;
+  if (needs_local_frame)
+  {
+    out[base + 0] = to_float2(spin[0]);
+    out[base + 1] = to_float2(spin[1]);
+    out[base + 2] = to_float2(spin[2]);
+    return;
+  }
+
+  const double spin_scale = scale_to_physical_spin
+      ? static_cast<double>(moments[a]) / electron_g
+      : 1.0;
+  for (int out_c = 0; out_c < stored_channels; ++out_c)
+  {
+    cufftDoubleComplex mapped = {0.0, 0.0};
+    for (int xyz = 0; xyz < 3; ++xyz)
+    {
+      mapped = add_z(mapped, mul_z(channel_weights[3 * out_c + xyz], spin[xyz]));
+    }
+    out[base + out_c] = to_float2(scale_z(mapped, spin_scale));
+  }
+}
+
+__global__ void direct_spatial_sum_kernel(
+    const int num_direct_sites,
+    const int num_k,
+    const double spatial_scale,
+    const int* site_indices,
+    const int* basis_indices,
+    const double* positions_frac,
+    const double* window_weights,
+    const double* k_hkl,
+    const double* spins,
+    cufftDoubleComplex* direct_sum)
+{
+  const int idx = blockIdx.x * blockDim.x + threadIdx.x;
+  const int total = num_direct_sites * num_k;
+  if (idx >= total)
+  {
+    return;
+  }
+
+  const int k = idx % num_k;
+  const int direct_site = idx / num_k;
+  const int site = site_indices[direct_site];
+  const int basis = basis_indices[direct_site];
+  const double* r = positions_frac + 3 * direct_site;
+  const double* q = k_hkl + 3 * k;
+  const double q_dot_r = q[0] * r[0] + q[1] * r[1] + q[2] * r[2];
+  const double angle = -2.0 * M_PI * q_dot_r;
+  const double phase_re = cos(angle);
+  const double phase_im = sin(angle);
+  const double scale = spatial_scale * window_weights[direct_site];
+
+  for (int c = 0; c < 3; ++c)
+  {
+    const double value = scale * spins[3 * site + c];
+    cufftDoubleComplex* out = direct_sum + (basis * num_k + k) * 3 + c;
+    atomic_add_double(&out->x, value * phase_re);
+    atomic_add_double(&out->y, value * phase_im);
+  }
+}
+
+__global__ void map_direct_sum_sample_kernel(
+    const int num_basis,
+    const int num_k,
+    const int stored_channels,
+    const int output_offset,
+    const bool needs_local_frame,
+    const bool scale_to_physical_spin,
+    const double electron_g,
+    const cufftDoubleComplex* direct_sum,
+    const cufftDoubleComplex* channel_weights,
+    const jams::Real* moments,
+    float2* out)
+{
+  const int idx = blockIdx.x * blockDim.x + threadIdx.x;
+  const int total = num_basis * num_k;
+  if (idx >= total)
+  {
+    return;
+  }
+
+  const int k = idx % num_k;
+  const int a = idx / num_k;
+  const cufftDoubleComplex* spin = direct_sum + (a * num_k + k) * 3;
+  const int base = output_offset + (a * num_k + k) * stored_channels;
+
   if (needs_local_frame)
   {
     out[base + 0] = to_float2(spin[0]);
@@ -425,20 +534,32 @@ public:
   SpectrumCudaBackend(
       const Lattice& lattice,
       const std::vector<jams::HKLIndex>& k_points,
-      const jams::MultiArray<jams::ComplexHi, 2>& basis_phase_factors)
+      const jams::MultiArray<jams::ComplexHi, 2>& basis_phase_factors,
+      const bool use_direct_sum,
+      const std::vector<SpectrumBaseMonitor::DirectSumSite>& direct_sum_sites,
+      const double direct_sum_spatial_scale)
       : num_basis_(lattice.num_basis_sites()),
         num_spins_(globals::num_spins),
         grid_size_(lattice.size()),
         padded_size_(lattice.kspace_size()),
         kspace_z_r2c_(padded_size_[2] / 2 + 1),
         num_k_points_(static_cast<int>(k_points.size())),
+        use_direct_sum_(use_direct_sum),
+        direct_sum_spatial_scale_(direct_sum_spatial_scale),
         use_dense_input_(lattice.has_cropping() || grid_size_ != padded_size_)
   {
-    initialise_k_indices(k_points);
-    initialise_basis_phase_factors(basis_phase_factors);
+    if (use_direct_sum_)
+    {
+      initialise_direct_sum_buffers(k_points, direct_sum_sites);
+    }
+    else
+    {
+      initialise_k_indices(k_points);
+      initialise_basis_phase_factors(basis_phase_factors);
+      initialise_spatial_buffers(lattice);
+      initialise_spatial_plan();
+    }
     initialise_basis_reduction(lattice);
-    initialise_spatial_buffers(lattice);
-    initialise_spatial_plan();
   }
 
   ~SpectrumCudaBackend() override
@@ -637,7 +758,6 @@ public:
       std::vector<jams::Vec<double, 3>>& host_basis_magnetisation) override
   {
     ensure_channel_weights_uploaded(channel_transform);
-    run_spatial_fft(spins);
 
     const int sample_size = num_basis_ * num_k_points_ * stored_channels;
     if (copy_sample_to_host)
@@ -652,25 +772,40 @@ public:
         ? 0
         : map_ring_index(time_index) * sample_size;
 
-    const dim3 block(256);
-    const dim3 grid((num_basis_ * num_k_points_ + block.x - 1) / block.x);
-    extract_compact_sample_kernel<<<grid, block, 0, stream_.get()>>>(
-        num_basis_,
-        num_k_points_,
-        stored_channels,
-        output_offset,
-        padded_size_[1],
-        kspace_z_r2c_,
-        needs_local_frame,
-        channel_transform.scale_to_physical_spin,
-        kElectronGFactor,
-        sk_grid_.device_data(),
-        k_indices_.device_data(),
-        reinterpret_cast<const cufftDoubleComplex*>(basis_phase_factors_.device_data()),
-        reinterpret_cast<const cufftDoubleComplex*>(channel_weights_.device_data()),
-        globals::mus.device_data(),
-        output);
-    DEBUG_CHECK_CUDA_ASYNC_STATUS;
+    if (use_direct_sum_)
+    {
+      run_direct_sum_sample(
+          spins,
+          stored_channels,
+          needs_local_frame,
+          channel_transform.scale_to_physical_spin,
+          output_offset,
+          output);
+    }
+    else
+    {
+      run_spatial_fft(spins);
+
+      const dim3 block(256);
+      const dim3 grid((num_basis_ * num_k_points_ + block.x - 1) / block.x);
+      extract_compact_sample_kernel<<<grid, block, 0, stream_.get()>>>(
+          num_basis_,
+          num_k_points_,
+          stored_channels,
+          output_offset,
+          padded_size_[1],
+          kspace_z_r2c_,
+          needs_local_frame,
+          channel_transform.scale_to_physical_spin,
+          kElectronGFactor,
+          sk_grid_.device_data(),
+          k_indices_.device_data(),
+          reinterpret_cast<const cufftDoubleComplex*>(basis_phase_factors_.device_data()),
+          reinterpret_cast<const cufftDoubleComplex*>(channel_weights_.device_data()),
+          globals::mus.device_data(),
+          output);
+      DEBUG_CHECK_CUDA_ASYNC_STATUS;
+    }
 
     if (needs_local_frame && (copy_basis_magnetisation_to_host || time_configured_))
     {
@@ -1041,6 +1176,59 @@ private:
     basis_phase_factors_.release_stale_host();
   }
 
+  void initialise_direct_sum_buffers(
+      const std::vector<jams::HKLIndex>& k_points,
+      const std::vector<SpectrumBaseMonitor::DirectSumSite>& direct_sum_sites)
+  {
+    std::vector<double> k_hkl;
+    k_hkl.reserve(k_points.size() * 3);
+    for (const auto& point : k_points)
+    {
+      k_hkl.push_back(point.hkl[0]);
+      k_hkl.push_back(point.hkl[1]);
+      k_hkl.push_back(point.hkl[2]);
+    }
+    copy_matrix_to_device_only(
+        direct_k_hkl_,
+        k_hkl,
+        static_cast<int>(k_points.size()),
+        3);
+    spatial_memory_bytes_ += bytes_count<double>(static_cast<int>(k_hkl.size()));
+
+    num_direct_sum_sites_ = static_cast<int>(direct_sum_sites.size());
+    std::vector<int> site_indices;
+    std::vector<int> basis_indices;
+    std::vector<double> positions_frac;
+    std::vector<double> window_weights;
+    site_indices.reserve(direct_sum_sites.size());
+    basis_indices.reserve(direct_sum_sites.size());
+    positions_frac.reserve(direct_sum_sites.size() * 3);
+    window_weights.reserve(direct_sum_sites.size());
+
+    for (const auto& site : direct_sum_sites)
+    {
+      site_indices.push_back(site.site_index);
+      basis_indices.push_back(site.basis_index);
+      positions_frac.push_back(site.position_frac[0]);
+      positions_frac.push_back(site.position_frac[1]);
+      positions_frac.push_back(site.position_frac[2]);
+      window_weights.push_back(site.window_weight);
+    }
+
+    copy_vector_to_device_only(direct_site_indices_, site_indices);
+    copy_vector_to_device_only(direct_site_basis_indices_, basis_indices);
+    copy_matrix_to_device_only(direct_site_positions_frac_, positions_frac, num_direct_sum_sites_, 3);
+    copy_vector_to_device_only(direct_site_window_weights_, window_weights);
+
+    direct_sum_buffer_.resize(num_basis_, num_k_points_, 3);
+    direct_sum_buffer_.zero();
+    direct_sum_buffer_.release_stale_host();
+
+    spatial_memory_bytes_ += bytes_count<int>(num_direct_sum_sites_, 2);
+    spatial_memory_bytes_ += bytes_count<double>(num_direct_sum_sites_, 4);
+    spatial_memory_bytes_ += bytes_count<cufftDoubleComplex>(num_basis_, num_k_points_, 3);
+  }
+
   void initialise_basis_reduction(const Lattice& lattice)
   {
     basis_chunks_ = jams::monitors::make_cuda_basis_spin_group_chunks(lattice, num_spins_);
@@ -1196,6 +1384,58 @@ private:
     sk_grid_.release_stale_host();
   }
 
+  void run_direct_sum_sample(
+      const jams::MultiArray<double, 2>& spins,
+      const int stored_channels,
+      const bool needs_local_frame,
+      const bool scale_to_physical_spin,
+      const int output_offset,
+      float2* output)
+  {
+    const std::size_t buffer_bytes =
+        sizeof(cufftDoubleComplex) * static_cast<std::size_t>(direct_sum_buffer_.size());
+    CHECK_CUDA_STATUS(cudaMemsetAsync(
+        direct_sum_buffer_.mutable_device_data(),
+        0,
+        buffer_bytes,
+        stream_.get()));
+
+    if (num_direct_sum_sites_ > 0)
+    {
+      const dim3 sum_block(128);
+      const dim3 sum_grid((num_direct_sum_sites_ * num_k_points_ + sum_block.x - 1) / sum_block.x);
+      direct_spatial_sum_kernel<<<sum_grid, sum_block, 0, stream_.get()>>>(
+          num_direct_sum_sites_,
+          num_k_points_,
+          direct_sum_spatial_scale_,
+          direct_site_indices_.device_data(),
+          direct_site_basis_indices_.device_data(),
+          direct_site_positions_frac_.device_data(),
+          direct_site_window_weights_.device_data(),
+          direct_k_hkl_.device_data(),
+          spins.device_data(),
+          direct_sum_buffer_.mutable_device_data());
+      DEBUG_CHECK_CUDA_ASYNC_STATUS;
+    }
+
+    const dim3 map_block(256);
+    const dim3 map_grid((num_basis_ * num_k_points_ + map_block.x - 1) / map_block.x);
+    map_direct_sum_sample_kernel<<<map_grid, map_block, 0, stream_.get()>>>(
+        num_basis_,
+        num_k_points_,
+        stored_channels,
+        output_offset,
+        needs_local_frame,
+        scale_to_physical_spin,
+        kElectronGFactor,
+        direct_sum_buffer_.device_data(),
+        reinterpret_cast<const cufftDoubleComplex*>(channel_weights_.device_data()),
+        globals::mus.device_data(),
+        output);
+    DEBUG_CHECK_CUDA_ASYNC_STATUS;
+    direct_sum_buffer_.release_stale_host();
+  }
+
   void run_one_time_fft(
       const int k,
       const double* window,
@@ -1234,6 +1474,9 @@ private:
   jams::Vec<int, 3> padded_size_ {};
   int kspace_z_r2c_ = 0;
   int num_k_points_ = 0;
+  bool use_direct_sum_ = false;
+  double direct_sum_spatial_scale_ = 1.0;
+  int num_direct_sum_sites_ = 0;
   bool use_dense_input_ = false;
   std::size_t spatial_memory_bytes_ = 0;
 
@@ -1247,6 +1490,12 @@ private:
   jams::monitors::CudaSpinGroupChunks basis_chunks_;
   jams::MultiArray<double, 2> basis_chunk_sums_;
   jams::MultiArray<int, 2> k_indices_;
+  jams::MultiArray<double, 2> direct_k_hkl_;
+  jams::MultiArray<int, 1> direct_site_indices_;
+  jams::MultiArray<int, 1> direct_site_basis_indices_;
+  jams::MultiArray<double, 2> direct_site_positions_frac_;
+  jams::MultiArray<double, 1> direct_site_window_weights_;
+  jams::MultiArray<cufftDoubleComplex, 3> direct_sum_buffer_;
   jams::MultiArray<jams::ComplexHi, 2> basis_phase_factors_;
   jams::MultiArray<jams::ComplexHi, 2> channel_weights_;
   jams::MultiArray<CmplxStored, 1> sample_block_;
@@ -1286,7 +1535,10 @@ SpectrumBaseMonitor::make_cuda_backend_() const
   return std::make_unique<SpectrumCudaBackend>(
       *globals::lattice,
       k_points_,
-      basis_phase_factors_);
+      basis_phase_factors_,
+      use_direct_sum_(),
+      direct_sum_sites_,
+      direct_sum_spatial_scale_);
 }
 
 #endif  // HAS_CUDA

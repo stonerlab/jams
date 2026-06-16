@@ -51,9 +51,11 @@ namespace jams {
 
 // Windowing functions
 double fft_window_default(const int n, const int n_total);
+double fft_window_default_fraction(double x);
 double fft_window_hann(const int n, const int n_total);
 double fft_window_hamming(const int n, const int n_total);
 double fft_window_blackman_4(const int n, const int n_total);
+double fft_window_blackman_4_fraction(double x);
 double fft_window_exponential(const int n, const int n_total);
 double fft_window_nuttall(const int n, const int n_total);
 

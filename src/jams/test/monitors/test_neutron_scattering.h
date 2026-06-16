@@ -75,8 +75,15 @@ protected:
       const std::string& run_name,
       const std::string& spatial_backend,
       const std::string& time_backend,
-      const std::string& estimator = "welch") {
-    initialise_lattice(spatial_backend, time_backend, estimator);
+      const std::string& estimator = "welch",
+      const std::string& direct_sum_config = "",
+      const bool include_outer_hkl_path = true) {
+    initialise_lattice(
+        spatial_backend,
+        time_backend,
+        estimator,
+        direct_sum_config,
+        include_outer_hkl_path);
 
     const auto run_dir = output_dir_ / run_name;
     std::filesystem::remove_all(run_dir);
@@ -98,11 +105,18 @@ protected:
   void initialise_lattice(
       const std::string& spatial_backend,
       const std::string& time_backend,
-      const std::string& estimator) {
+      const std::string& estimator,
+      const std::string& direct_sum_config = "",
+      const bool include_outer_hkl_path = true) {
     delete globals::lattice;
     globals::lattice = new Lattice();
     globals::config = std::make_unique<libconfig::Config>();
-    globals::config->readString(config(spatial_backend, time_backend, estimator));
+    globals::config->readString(config(
+        spatial_backend,
+        time_backend,
+        estimator,
+        direct_sum_config,
+        include_outer_hkl_path));
     globals::lattice->init_from_config(*globals::config);
   }
 
@@ -206,7 +220,15 @@ protected:
   static std::string config(
       const std::string& spatial_backend,
       const std::string& time_backend,
-      const std::string& estimator) {
+      const std::string& estimator,
+      const std::string& direct_sum_config,
+      const bool include_outer_hkl_path = true) {
+    const std::string outer_hkl_path = include_outer_hkl_path ? R"(
+          hkl_path = (
+            [0.25, 0.0, 0.0],
+            [0.50, 0.0, 0.0]
+          );
+      )" : "";
     return std::string(R"(
       solver : {
         module = "llg-heun-cpu";
@@ -246,10 +268,7 @@ protected:
           sk_time_series_backend = "memory";
           spatial_fft_backend = ")") + spatial_backend + R"(";
           time_fft_backend = ")" + time_backend + R"(";
-          hkl_path = (
-            [0.25, 0.0, 0.0],
-            [0.50, 0.0, 0.0]
-          );
+      )" + outer_hkl_path + direct_sum_config + R"(
           compute_periodogram : {
             length = )" + std::to_string(periodogram_length_) + R"(;
             overlap = 0;
@@ -268,6 +287,150 @@ TEST_F(NeutronScatteringMonitorTest, NonNegativeFrequencyOutputUsesRetainedBinsO
   NeutronScatteringStubSolver solver;
   const auto rows = run_neutron(solver, "cpu_welch", "cpu", "cpu");
   expect_rows_finite(rows);
+}
+
+TEST_F(NeutronScatteringMonitorTest, DirectSumExactQPathIsNotClampedToFftGrid) {
+  NeutronScatteringStubSolver solver;
+  const auto rows = run_neutron(
+      solver,
+      "direct_exact_q",
+      "cpu",
+      "cpu",
+      "welch",
+      R"(
+          direct_sum : {
+            enabled = true;
+            backend = "cpu";
+            hkl_path = (
+              [0.30, 0.0, 0.0]
+            );
+          };
+      )");
+
+  ASSERT_EQ(rows.size(), 5u);
+  for (const auto& row : rows) {
+    ASSERT_EQ(row.size(), 12u);
+    EXPECT_NEAR(row[2], 0.30, 1.0e-12);
+    EXPECT_NEAR(row[3], 0.0, 1.0e-12);
+    EXPECT_NEAR(row[4], 0.0, 1.0e-12);
+  }
+}
+
+TEST_F(NeutronScatteringMonitorTest, DirectSumDoesNotRequireOuterHklPath) {
+  NeutronScatteringStubSolver solver;
+  const auto rows = run_neutron(
+      solver,
+      "direct_no_outer_hkl",
+      "cpu",
+      "cpu",
+      "welch",
+      R"(
+          direct_sum : {
+            enabled = true;
+            backend = "cpu";
+            hkl_path = (
+              [0.30, 0.0, 0.0]
+            );
+          };
+      )",
+      false);
+
+  ASSERT_EQ(rows.size(), 5u);
+  for (const auto& row : rows) {
+    ASSERT_EQ(row.size(), 12u);
+    EXPECT_NEAR(row[2], 0.30, 1.0e-12);
+  }
+}
+
+TEST_F(NeutronScatteringMonitorTest, DirectSumCpuMatchesFftAtGridAlignedPoints) {
+  NeutronScatteringStubSolver fft_solver;
+  const auto fft_rows = run_neutron(fft_solver, "fft_grid_ref", "cpu", "cpu");
+
+  NeutronScatteringStubSolver direct_solver;
+  const auto direct_rows = run_neutron(
+      direct_solver,
+      "direct_grid",
+      "cpu",
+      "cpu",
+      "welch",
+      R"(
+          direct_sum : {
+            enabled = true;
+            backend = "cpu";
+            hkl_path = (
+              [0.25, 0.0, 0.0],
+              [0.50, 0.0, 0.0]
+            );
+            points_per_segment = 2;
+          };
+      )");
+
+  expect_rows_near(direct_rows, fft_rows, 2.0e-5, 1.0e-7);
+}
+
+TEST_F(NeutronScatteringMonitorTest, DirectSumPathCountsIncludeEndpointsAndDedupeSharedNodes) {
+  NeutronScatteringStubSolver solver;
+  const auto rows = run_neutron(
+      solver,
+      "direct_endpoint_dedupe",
+      "cpu",
+      "cpu",
+      "welch",
+      R"(
+          direct_sum : {
+            enabled = true;
+            backend = "cpu";
+            hkl_path = (
+              [0.00, 0.00, 0.0],
+              [0.25, 0.00, 0.0],
+              [0.25, 0.50, 0.0]
+            );
+            points_per_segment = [3, 3];
+          };
+      )");
+
+  ASSERT_EQ(rows.size(), 25u);
+  const std::vector<std::vector<double>> expected_hkl = {
+      {0.000, 0.00, 0.0},
+      {0.125, 0.00, 0.0},
+      {0.250, 0.00, 0.0},
+      {0.250, 0.25, 0.0},
+      {0.250, 0.50, 0.0}};
+
+  for (std::size_t i = 0; i < expected_hkl.size(); ++i) {
+    EXPECT_NEAR(rows[i][2], expected_hkl[i][0], 1.0e-12);
+    EXPECT_NEAR(rows[i][3], expected_hkl[i][1], 1.0e-12);
+    EXPECT_NEAR(rows[i][4], expected_hkl[i][2], 1.0e-12);
+  }
+}
+
+TEST_F(NeutronScatteringMonitorTest, DirectSumWindowCanUseSingleCartesianDirectionAndExcludeAllSites) {
+  NeutronScatteringStubSolver solver;
+  const auto rows = run_neutron(
+      solver,
+      "direct_z_window_empty",
+      "cpu",
+      "cpu",
+      "welch",
+      R"(
+          direct_sum : {
+            enabled = true;
+            backend = "cpu";
+            hkl_path = (
+              [0.25, 0.0, 0.0]
+            );
+            window : {
+              z : { origin = 100.0; width = 1.0; };
+            };
+          };
+      )");
+
+  ASSERT_EQ(rows.size(), 5u);
+  for (const auto& row : rows) {
+    ASSERT_EQ(row.size(), 12u);
+    EXPECT_NEAR(row[10], 0.0, 1.0e-12);
+    EXPECT_NEAR(row[11], 0.0, 1.0e-12);
+  }
 }
 
 #if HAS_CUDA
@@ -311,6 +474,80 @@ TEST_F(NeutronScatteringMonitorTest, CudaSpatialCudaTimeMatchesCpuMultitaperRows
   const auto cuda_rows = run_neutron(cuda_solver, "cuda_time_multitaper", "cuda", "cuda", "multitaper");
 
   expect_rows_near(cuda_rows, cpu_rows);
+}
+
+TEST_F(NeutronScatteringMonitorTest, DirectSumCudaSpatialCpuTimeMatchesCpuDirectRows) {
+  if (!neutron_scattering_cuda_device_available()) {
+    GTEST_SKIP() << "CUDA runtime is enabled but no CUDA device is available";
+  }
+
+  const std::string cpu_direct = R"(
+          direct_sum : {
+            enabled = true;
+            backend = "cpu";
+            hkl_path = (
+              [0.25, 0.0, 0.0],
+              [0.50, 0.0, 0.0]
+            );
+            points_per_segment = 2;
+          };
+      )";
+  const std::string cuda_direct = R"(
+          direct_sum : {
+            enabled = true;
+            backend = "cuda";
+            hkl_path = (
+              [0.25, 0.0, 0.0],
+              [0.50, 0.0, 0.0]
+            );
+            points_per_segment = 2;
+          };
+      )";
+
+  NeutronScatteringStubSolver cpu_solver;
+  const auto cpu_rows = run_neutron(cpu_solver, "direct_cpu_ref", "cpu", "cpu", "welch", cpu_direct);
+
+  NeutronScatteringCudaStubSolver cuda_solver;
+  const auto cuda_rows = run_neutron(cuda_solver, "direct_cuda_cpu_time", "cpu", "cpu", "welch", cuda_direct);
+
+  expect_rows_near(cuda_rows, cpu_rows, 2.0e-5, 1.0e-7);
+}
+
+TEST_F(NeutronScatteringMonitorTest, DirectSumCudaSpatialCudaTimeMatchesCpuDirectRows) {
+  if (!neutron_scattering_cuda_device_available()) {
+    GTEST_SKIP() << "CUDA runtime is enabled but no CUDA device is available";
+  }
+
+  const std::string cpu_direct = R"(
+          direct_sum : {
+            enabled = true;
+            backend = "cpu";
+            hkl_path = (
+              [0.25, 0.0, 0.0],
+              [0.50, 0.0, 0.0]
+            );
+            points_per_segment = 2;
+          };
+      )";
+  const std::string cuda_direct = R"(
+          direct_sum : {
+            enabled = true;
+            backend = "cuda";
+            hkl_path = (
+              [0.25, 0.0, 0.0],
+              [0.50, 0.0, 0.0]
+            );
+            points_per_segment = 2;
+          };
+      )";
+
+  NeutronScatteringStubSolver cpu_solver;
+  const auto cpu_rows = run_neutron(cpu_solver, "direct_cpu_cuda_time_ref", "cpu", "cpu", "welch", cpu_direct);
+
+  NeutronScatteringCudaStubSolver cuda_solver;
+  const auto cuda_rows = run_neutron(cuda_solver, "direct_cuda_cuda_time", "cpu", "cuda", "welch", cuda_direct);
+
+  expect_rows_near(cuda_rows, cpu_rows, 2.0e-5, 1.0e-7);
 }
 #endif
 
