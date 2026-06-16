@@ -354,6 +354,7 @@ private:
   struct DirectSumWindow
   {
     std::array<bool, 3> enabled {false, false, false};
+    std::array<bool, 3> default_origin {false, false, false};
     jams::Vec<double, 3> origin {};
     jams::Vec<double, 3> width {};
   };
@@ -365,6 +366,7 @@ private:
   void initialise_k_points_(const libconfig::Setting& settings, KSamplingMode k_sampling_mode);
   void initialise_basis_phase_factors_();
   void initialise_direct_sum_sites_();
+  void validate_direct_sum_window_extent_();
   void initialise_cuda_backend_();
 #if HAS_CUDA
   std::unique_ptr<CudaBackend> make_cuda_backend_() const;

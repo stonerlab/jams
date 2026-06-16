@@ -18,6 +18,7 @@
 #include <iostream>
 #include <limits>
 #include <mutex>
+#include <sstream>
 #include <string>
 #include <thread>
 #include <stdexcept>
@@ -226,7 +227,22 @@ void SpectrumBaseMonitor::configure_direct_sum_(
         throw std::runtime_error("direct_sum.window axis settings must be groups");
       }
       direct_sum_window_.enabled[axis] = true;
-      direct_sum_window_.origin[axis] = jams::config_required<double>(axis_settings, "origin");
+      if (axis_settings.exists("origin") && axis_settings.exists("center"))
+      {
+        throw std::runtime_error("direct_sum.window axis settings must specify at most one of origin and center");
+      }
+      if (axis_settings.exists("origin"))
+      {
+        direct_sum_window_.origin[axis] = jams::config_required<double>(axis_settings, "origin");
+      }
+      else if (axis_settings.exists("center"))
+      {
+        direct_sum_window_.origin[axis] = jams::config_required<double>(axis_settings, "center");
+      }
+      else
+      {
+        direct_sum_window_.default_origin[axis] = true;
+      }
       direct_sum_window_.width[axis] = jams::config_required<double>(axis_settings, "width");
       if (direct_sum_window_.width[axis] <= 0.0)
       {
@@ -403,6 +419,90 @@ double SpectrumBaseMonitor::direct_sum_window_weight_(
   return weight;
 }
 
+void SpectrumBaseMonitor::validate_direct_sum_window_extent_()
+{
+  bool has_window = false;
+  for (const bool enabled : direct_sum_window_.enabled)
+  {
+    has_window = has_window || enabled;
+  }
+  if (!has_window)
+  {
+    return;
+  }
+
+  const auto& supercell = globals::lattice->get_supercell();
+  const std::array<jams::Vec<double, 3>, 3> cell_edges {
+      supercell.a1(),
+      supercell.a2(),
+      supercell.a3()};
+
+  jams::Vec<double, 3> box_min {
+      std::numeric_limits<double>::max(),
+      std::numeric_limits<double>::max(),
+      std::numeric_limits<double>::max()};
+  jams::Vec<double, 3> box_max {
+      std::numeric_limits<double>::lowest(),
+      std::numeric_limits<double>::lowest(),
+      std::numeric_limits<double>::lowest()};
+
+  for (int corner_mask = 0; corner_mask < 8; ++corner_mask)
+  {
+    jams::Vec<double, 3> corner {0.0, 0.0, 0.0};
+    for (int edge = 0; edge < 3; ++edge)
+    {
+      if ((corner_mask & (1 << edge)) != 0)
+      {
+        corner += cell_edges[edge];
+      }
+    }
+
+    for (int axis = 0; axis < 3; ++axis)
+    {
+      box_min[axis] = std::min(box_min[axis], corner[axis]);
+      box_max[axis] = std::max(box_max[axis], corner[axis]);
+    }
+  }
+
+  const std::array<const char*, 3> axes {"x", "y", "z"};
+  for (int axis = 0; axis < 3; ++axis)
+  {
+    if (!direct_sum_window_.enabled[axis])
+    {
+      continue;
+    }
+    if (direct_sum_window_.default_origin[axis])
+    {
+      direct_sum_window_.origin[axis] = 0.5 * (box_min[axis] + box_max[axis]);
+      std::cout << "  direct_sum.window." << axes[axis]
+                << " origin defaulted to simulation box center "
+                << direct_sum_window_.origin[axis] << std::endl;
+      direct_sum_window_.default_origin[axis] = false;
+    }
+
+    const double window_min = direct_sum_window_.origin[axis] - 0.5 * direct_sum_window_.width[axis];
+    const double window_max = direct_sum_window_.origin[axis] + 0.5 * direct_sum_window_.width[axis];
+    const double tolerance = 1.0e-10 * std::max({
+        1.0,
+        std::abs(window_min),
+        std::abs(window_max),
+        std::abs(box_min[axis]),
+        std::abs(box_max[axis])});
+
+    if (window_min < box_min[axis] - tolerance || window_max > box_max[axis] + tolerance)
+    {
+      std::ostringstream message;
+      message << "direct_sum.window." << axes[axis]
+              << " spans [" << window_min << ", " << window_max << "]"
+              << " but the simulation box spans ["
+              << box_min[axis] << ", " << box_max[axis] << "]"
+              << " along Cartesian " << axes[axis]
+              << "; the spatial window would be clipped by the simulation box";
+      throw std::runtime_error(message.str());
+    }
+  }
+}
+
 void SpectrumBaseMonitor::initialise_direct_sum_sites_()
 {
   if (!use_direct_sum_())
@@ -414,6 +514,8 @@ void SpectrumBaseMonitor::initialise_direct_sum_sites_()
   direct_sum_sites_.reserve(static_cast<std::size_t>(globals::num_spins));
   const auto kspace_size = globals::lattice->kspace_size();
   direct_sum_spatial_scale_ = 1.0 / std::sqrt(static_cast<double>(jams::product(kspace_size)));
+
+  validate_direct_sum_window_extent_();
 
   for (int site = 0; site < globals::num_spins; ++site)
   {

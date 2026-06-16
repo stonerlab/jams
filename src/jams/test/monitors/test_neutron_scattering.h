@@ -527,11 +527,38 @@ TEST_F(NeutronScatteringMonitorTest, DirectSumPathCountsIncludeEndpointsAndDedup
   }
 }
 
-TEST_F(NeutronScatteringMonitorTest, DirectSumWindowCanUseSingleCartesianDirectionAndExcludeAllSites) {
+TEST_F(NeutronScatteringMonitorTest, DirectSumWindowDefaultsOriginToSimulationBoxCenter) {
   NeutronScatteringStubSolver solver;
   const auto rows = run_neutron(
       solver,
-      "direct_z_window_empty",
+      "direct_y_window_default_center",
+      "cpu",
+      "cpu",
+      "welch",
+      R"(
+          direct_sum : {
+            enabled = true;
+            backend = "cpu";
+            hkl_path = (
+              [0.25, 0.0, 0.0]
+            );
+            window : {
+              y : { width = 0.5; };
+            };
+          };
+      )");
+
+  ASSERT_EQ(rows.size(), 5u);
+  for (const auto& row : rows) {
+    ASSERT_EQ(row.size(), 12u);
+    EXPECT_NEAR(row[10], 0.0, 1.0e-12);
+    EXPECT_NEAR(row[11], 0.0, 1.0e-12);
+  }
+}
+
+TEST_F(NeutronScatteringMonitorTest, DirectSumWindowClippedBySimulationBoxThrows) {
+  NeutronScatteringStubSolver solver;
+  initialise_lattice(
       "cpu",
       "cpu",
       "welch",
@@ -548,12 +575,18 @@ TEST_F(NeutronScatteringMonitorTest, DirectSumWindowCanUseSingleCartesianDirecti
           };
       )");
 
-  ASSERT_EQ(rows.size(), 5u);
-  for (const auto& row : rows) {
-    ASSERT_EQ(row.size(), 12u);
-    EXPECT_NEAR(row[10], 0.0, 1.0e-12);
-    EXPECT_NEAR(row[11], 0.0, 1.0e-12);
+  std::string message;
+  globals::solver = &solver;
+  try {
+    NeutronScatteringMonitor monitor(first_monitor_settings());
+  } catch (const std::runtime_error& error) {
+    message = error.what();
   }
+  globals::solver = nullptr;
+
+  ASSERT_FALSE(message.empty()) << "Expected clipped direct-sum spatial window to throw";
+  EXPECT_NE(message.find("direct_sum.window.z"), std::string::npos);
+  EXPECT_NE(message.find("clipped by the simulation box"), std::string::npos);
 }
 
 #if HAS_CUDA
