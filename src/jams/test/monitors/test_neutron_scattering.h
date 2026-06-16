@@ -102,21 +102,50 @@ protected:
     return read_neutron_rows();
   }
 
+  NeutronRows run_two_basis_cancellation(
+      Solver& solver,
+      const std::string& run_name,
+      const std::string& direct_sum_backend,
+      const std::string& time_backend) {
+    initialise_lattice_from_config_string(
+        two_basis_cancellation_config(direct_sum_backend, time_backend));
+
+    const auto run_dir = output_dir_ / run_name;
+    std::filesystem::remove_all(run_dir);
+    std::filesystem::create_directories(run_dir);
+    jams::Jams::set_output_dir(run_dir.string());
+
+    globals::solver = &solver;
+    {
+      NeutronScatteringMonitor monitor(first_monitor_settings());
+      for (int t = 0; t < periodogram_length_; ++t) {
+        write_two_basis_cancellation_spin_state(t);
+        monitor.update(solver);
+      }
+    }
+    globals::solver = nullptr;
+    return read_neutron_rows();
+  }
+
   void initialise_lattice(
       const std::string& spatial_backend,
       const std::string& time_backend,
       const std::string& estimator,
       const std::string& direct_sum_config = "",
       const bool include_outer_hkl_path = true) {
-    delete globals::lattice;
-    globals::lattice = new Lattice();
-    globals::config = std::make_unique<libconfig::Config>();
-    globals::config->readString(config(
+    initialise_lattice_from_config_string(config(
         spatial_backend,
         time_backend,
         estimator,
         direct_sum_config,
         include_outer_hkl_path));
+  }
+
+  void initialise_lattice_from_config_string(const std::string& config_string) {
+    delete globals::lattice;
+    globals::lattice = new Lattice();
+    globals::config = std::make_unique<libconfig::Config>();
+    globals::config->readString(config_string);
     globals::lattice->init_from_config(*globals::config);
   }
 
@@ -132,6 +161,18 @@ protected:
       spins(spin, 0) = 0.10 * std::cos(0.37 * t + 0.13 * site);
       spins(spin, 1) = 0.07 * std::sin(0.51 * t + 0.19 * site);
       spins(spin, 2) = 1.0 + 0.03 * std::cos(0.23 * t + 0.29 * site);
+    }
+  }
+
+  void write_two_basis_cancellation_spin_state(const int time_index) {
+    auto spins = globals::s.mutable_host_view();
+    const double t = static_cast<double>(time_index);
+    const double sy = 0.20 * std::cos(0.37 * t) + 0.04 * std::sin(0.61 * t);
+    const double sz = 0.12 * std::sin(0.43 * t);
+    for (int spin = 0; spin < globals::num_spins; ++spin) {
+      spins(spin, 0) = 0.0;
+      spins(spin, 1) = sy;
+      spins(spin, 2) = sz;
     }
   }
 
@@ -182,6 +223,17 @@ protected:
         EXPECT_NEAR(actual[row][col], expected[row][col], absolute_tolerance + relative_tolerance * scale)
             << "row " << row << " col " << col;
       }
+    }
+  }
+
+  static void expect_unpolarized_cross_section_zero(
+      const NeutronRows& rows,
+      const double tolerance = 1.0e-10) {
+    ASSERT_EQ(rows.size(), 5u);
+    for (const auto& row : rows) {
+      ASSERT_EQ(row.size(), 12u);
+      EXPECT_NEAR(row[10], 0.0, tolerance);
+      EXPECT_NEAR(row[11], 0.0, tolerance);
     }
   }
 
@@ -279,6 +331,66 @@ protected:
     )";
   }
 
+  static std::string two_basis_cancellation_config(
+      const std::string& direct_sum_backend,
+      const std::string& time_backend) {
+    return std::string(R"(
+      solver : {
+        module = "llg-heun-cpu";
+        t_step = 2.5e-13;
+        t_min  = 2.5e-13;
+        t_max  = 2.0e-12;
+      };
+
+      materials = (
+        { name = "A"; moment = 1.0; spin = [0.0, 0.0, 1.0]; }
+      );
+
+      unitcell : {
+        symops = false;
+        parameter = 1.0e-9;
+        basis = (
+          [1.0, 0.0, 0.0],
+          [0.0, 1.0, 0.0],
+          [0.0, 0.0, 1.0]);
+        positions = (
+          ("A", [0.0, 0.0, 0.0]),
+          ("A", [0.5, 0.0, 0.0])
+        );
+      };
+
+      lattice : {
+        size = [1, 1, 1];
+        periodic = [true, true, true];
+        normalise_spins = false;
+      };
+
+      monitors = (
+        {
+          module = "neutron-scattering";
+          output_steps = 1;
+          keep_negative_frequencies = false;
+          fftw_threads = 1;
+          sk_time_series_backend = "memory";
+          spatial_fft_backend = "cpu";
+          time_fft_backend = ")") + time_backend + R"(";
+          direct_sum : {
+            enabled = true;
+            backend = ")" + direct_sum_backend + R"(";
+            hkl_path = (
+              [1.0, 0.0, 0.0]
+            );
+          };
+          compute_periodogram : {
+            length = )" + std::to_string(periodogram_length_) + R"(;
+            overlap = 0;
+            estimator = "welch";
+          };
+        }
+      );
+    )";
+  }
+
   std::filesystem::path output_dir_;
   static constexpr int periodogram_length_ = 8;
 };
@@ -340,6 +452,17 @@ TEST_F(NeutronScatteringMonitorTest, DirectSumDoesNotRequireOuterHklPath) {
     ASSERT_EQ(row.size(), 12u);
     EXPECT_NEAR(row[2], 0.30, 1.0e-12);
   }
+}
+
+TEST_F(NeutronScatteringMonitorTest, DirectSumTwoBasisCancellationUsesFullPositionPhase) {
+  NeutronScatteringStubSolver solver;
+  const auto rows = run_two_basis_cancellation(
+      solver,
+      "direct_two_basis_phase_cancel",
+      "cpu",
+      "cpu");
+
+  expect_unpolarized_cross_section_zero(rows);
 }
 
 TEST_F(NeutronScatteringMonitorTest, DirectSumCpuMatchesFftAtGridAlignedPoints) {
@@ -548,6 +671,36 @@ TEST_F(NeutronScatteringMonitorTest, DirectSumCudaSpatialCudaTimeMatchesCpuDirec
   const auto cuda_rows = run_neutron(cuda_solver, "direct_cuda_cuda_time", "cpu", "cuda", "welch", cuda_direct);
 
   expect_rows_near(cuda_rows, cpu_rows, 2.0e-5, 1.0e-7);
+}
+
+TEST_F(NeutronScatteringMonitorTest, DirectSumCudaSpatialCpuTimeTwoBasisCancellationUsesFullPositionPhase) {
+  if (!neutron_scattering_cuda_device_available()) {
+    GTEST_SKIP() << "CUDA runtime is enabled but no CUDA device is available";
+  }
+
+  NeutronScatteringCudaStubSolver solver;
+  const auto rows = run_two_basis_cancellation(
+      solver,
+      "direct_cuda_cpu_time_two_basis_phase_cancel",
+      "cuda",
+      "cpu");
+
+  expect_unpolarized_cross_section_zero(rows);
+}
+
+TEST_F(NeutronScatteringMonitorTest, DirectSumCudaSpatialCudaTimeTwoBasisCancellationUsesFullPositionPhase) {
+  if (!neutron_scattering_cuda_device_available()) {
+    GTEST_SKIP() << "CUDA runtime is enabled but no CUDA device is available";
+  }
+
+  NeutronScatteringCudaStubSolver solver;
+  const auto rows = run_two_basis_cancellation(
+      solver,
+      "direct_cuda_cuda_time_two_basis_phase_cancel",
+      "cuda",
+      "cuda");
+
+  expect_unpolarized_cross_section_zero(rows);
 }
 #endif
 

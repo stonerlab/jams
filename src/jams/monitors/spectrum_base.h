@@ -283,7 +283,9 @@ protected:
   /// @brief Update the stored k-space time series from the current real-space spin state.
   ///
   /// Performs a spatial Fourier transform S(r) → S(k) and appends the result to the
-  /// current periodogram window.
+  /// current periodogram window. Each stored per-basis component includes the full
+  /// site-position phase:
+  ///   S_a(Q,t) = scale * sum_{i in basis a} S_i(t) exp(-2 pi i Q.r_i).
   void store_sk_snapshot(const jams::MultiArray<double,2>& spin_state);
 
   /// @brief Try to accumulate the magnon spectrum using the CUDA time FFT path.
@@ -311,8 +313,8 @@ protected:
   /// Extracts S(k) values for each basis site and each k-point in @p kspace_path from
   /// the full k-space field @p kspace_data, applies the unit-cell basis phase factors,
   /// and performs Hermitian reconstruction (conjugation) where required by the r2c layout.
-  /// The resulting values are stored into the k-space time series buffer at the current
-  /// periodogram index.
+  /// The resulting stored S_a(Q,t) contains the full site-position phase. Direct-sum
+  /// mode uses the same convention by summing directly over lattice_site_vector_frac().
   ///
   /// If dynamic channel mapping is enabled, Cartesian components (Sx,Sy,Sz) are stored
   /// for later rotation/mapping; otherwise the configured channel map is applied here.
@@ -332,8 +334,7 @@ protected:
   /// @details Layout: sk_grid_(kx, ky, kz, basis_index)
   jams::MultiArray<jams::Vec<std::complex<double>, 3>, 4> sk_grid_;
 
-  /// @brief S(k, t) time series where only k along kpath are stored
-  /// @details Layout: sk_time_series_(periodogram_index, basis_index, kpath_index, channel)
+  /// @brief Unit-cell basis phase factors exp(-2 pi i Q.r_a).
   jams::MultiArray<jams::ComplexHi, 2> basis_phase_factors_;
 
 private:
@@ -451,7 +452,9 @@ private:
   DirectSumWindow direct_sum_window_;
   std::vector<DirectSumSite> direct_sum_sites_;
   double direct_sum_spatial_scale_ = 1.0;
-  CmplxStoredRingStorage sk_time_series_; // Ring over periodogram time axis.
+  /// @brief Ring over periodogram time axis for S_a(Q,t) values.
+  /// @details Values include full-position spatial phases per basis channel.
+  CmplxStoredRingStorage sk_time_series_;
 
   /// @brief Output memory for the mapped spectrum
   CmplxMappedSpectrum skw_buffer_;

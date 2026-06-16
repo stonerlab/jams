@@ -94,17 +94,15 @@ void NeutronScatteringMonitor::accumulate_cross_sections_for_k(
   const auto freq_start = (time_points % 2 == 0) ? (time_points / 2 + 1) : ((time_points + 1) / 2);
   auto kpoint = k_points_[k_index];
   auto Q = jams::unit_vector(kpoint.xyz);
-  auto q = kpoint.hkl;
 
   for (auto a = 0; a < num_sites; ++a) {
     for (auto b = 0; b < num_sites; ++b) {
-      jams::Vec<double, 3> r_ab = globals::lattice->basis_site_atom(b).position_frac - globals::lattice->basis_site_atom(a).position_frac;
       const auto ff = neutron_form_factors_(a, k_index) * neutron_form_factors_(b, k_index);
-      // structure factor: note that q and r are in fractional coordinates (hkl, abc)
-      const auto sf = exp(-kImagTwoPi * jams::dot(q, r_ab));
 
       for (auto freq = 0; freq < frequency_count; ++freq) {
         const auto f = keep_negative_frequencies() ? (freq_start + freq) % time_points : freq;
+        // SpectrumBaseMonitor stores S_a(Q) with the full site-position phase,
+        // so no additional motif-pair phase is applied here.
         jams::Vec<std::complex<double>, 3> s_a = {
             conj(spectrum(a, f, 0)),
             conj(spectrum(a, f, 1)),
@@ -118,7 +116,7 @@ void NeutronScatteringMonitor::accumulate_cross_sections_for_k(
         for (auto i : {0, 1, 2}) {
           for (auto j : {0, 1, 2}) {
             total_unpolarized_neutron_cross_section_(f, k_index) +=
-                sf * ff * (kronecker_delta(i, j) - Q[i] * Q[j]) * s_a[i] * s_b[j];
+                ff * (kronecker_delta(i, j) - Q[i] * Q[j]) * s_a[i] * s_b[j];
           }
         }
 
@@ -127,12 +125,12 @@ void NeutronScatteringMonitor::accumulate_cross_sections_for_k(
           auto PxQ = jams::cross(P, Q);
 
           total_polarized_neutron_cross_sections_(p, f, k_index) +=
-              sf * ff * kImagOne * jams::dot(P, jams::cross(s_a, s_b));
+              ff * kImagOne * jams::dot(P, jams::cross(s_a, s_b));
 
           for (auto i : {0, 1, 2}) {
             for (auto j : {0, 1, 2}) {
               total_polarized_neutron_cross_sections_(p, f, k_index) +=
-                  kImagOne * sf * ff * PxQ[i] * Q[j] * (s_a[i] * s_b[j] - s_a[j] * s_b[i]);
+                  kImagOne * ff * PxQ[i] * Q[j] * (s_a[i] * s_b[j] - s_a[j] * s_b[i]);
             }
           }
         }
