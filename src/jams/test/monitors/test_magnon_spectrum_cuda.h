@@ -45,6 +45,7 @@ public:
 
   explicit CartesianSpectrumProbeMonitor(const libconfig::Setting& settings)
       : SpectrumBaseMonitor(settings) {
+    enable_cuda_frequency_slices_backend_();
     validate_cuda_time_fft_backend_support_();
   }
 
@@ -138,8 +139,9 @@ protected:
   SpectrumTable run_cartesian_probe(
       Solver& solver,
       const std::string& spatial_backend,
-      const std::string& time_backend) {
-    initialise_cartesian_lattice(spatial_backend, time_backend);
+      const std::string& time_backend,
+      const std::string& estimator = "welch") {
+    initialise_cartesian_lattice(spatial_backend, time_backend, estimator);
 
     globals::solver = &solver;
     SpectrumTable rows;
@@ -173,11 +175,12 @@ protected:
 
   void initialise_cartesian_lattice(
       const std::string& spatial_backend,
-      const std::string& time_backend) {
+      const std::string& time_backend,
+      const std::string& estimator = "welch") {
     delete globals::lattice;
     globals::lattice = new Lattice();
     globals::config = std::make_unique<libconfig::Config>();
-    globals::config->readString(cartesian_probe_config(spatial_backend, time_backend));
+    globals::config->readString(cartesian_probe_config(spatial_backend, time_backend, estimator));
     globals::lattice->init_from_config(*globals::config);
   }
 
@@ -344,7 +347,8 @@ protected:
 
   static std::string cartesian_probe_config(
       const std::string& spatial_backend,
-      const std::string& time_backend) {
+      const std::string& time_backend,
+      const std::string& estimator) {
     return std::string(R"(
       solver : {
         module = "llg-heun-cpu";
@@ -393,7 +397,7 @@ protected:
           compute_periodogram : {
             length = )" + std::to_string(periodogram_length_) + R"(;
             overlap = 0;
-            estimator = "welch";
+      )" + periodogram_config(estimator) + R"(
           };
         }
       );
@@ -455,7 +459,7 @@ TEST_F(MagnonSpectrumCudaMonitorTest, CudaSpatialCpuTimeMatchesCpuCartesianSpect
   expect_spectra_near(cuda_rows, cpu_rows);
 }
 
-TEST_F(MagnonSpectrumCudaMonitorTest, CudaSpatialAutoTimeFallsBackForCartesianSpectrum) {
+TEST_F(MagnonSpectrumCudaMonitorTest, CudaSpatialAutoTimeMatchesCpuCartesianSpectrum) {
   if (!magnon_spectrum_cuda_device_available()) {
     GTEST_SKIP() << "CUDA runtime is enabled but no CUDA device is available";
   }
@@ -469,19 +473,32 @@ TEST_F(MagnonSpectrumCudaMonitorTest, CudaSpatialAutoTimeFallsBackForCartesianSp
   expect_spectra_near(cuda_rows, cpu_rows);
 }
 
-TEST_F(MagnonSpectrumCudaMonitorTest, RejectsExplicitCudaTimeForCartesianSpectrum) {
+TEST_F(MagnonSpectrumCudaMonitorTest, CudaSpatialCudaTimeMatchesCpuCartesianSpectrum) {
   if (!magnon_spectrum_cuda_device_available()) {
     GTEST_SKIP() << "CUDA runtime is enabled but no CUDA device is available";
   }
 
-  MagnonSpectrumCudaStubSolver cuda_solver;
-  initialise_cartesian_lattice("cuda", "cuda");
-  globals::solver = &cuda_solver;
+  MagnonSpectrumStubSolver cpu_solver;
+  const auto cpu_rows = run_cartesian_probe(cpu_solver, "cpu", "cpu");
 
-  EXPECT_THROW(
-      CartesianSpectrumProbeMonitor monitor(first_monitor_settings()),
-      std::runtime_error);
-  globals::solver = nullptr;
+  MagnonSpectrumCudaStubSolver cuda_solver;
+  const auto cuda_rows = run_cartesian_probe(cuda_solver, "cuda", "cuda");
+
+  expect_spectra_near(cuda_rows, cpu_rows);
+}
+
+TEST_F(MagnonSpectrumCudaMonitorTest, CudaSpatialCudaTimeMatchesCpuCartesianMultitaperSpectrum) {
+  if (!magnon_spectrum_cuda_device_available()) {
+    GTEST_SKIP() << "CUDA runtime is enabled but no CUDA device is available";
+  }
+
+  MagnonSpectrumStubSolver cpu_solver;
+  const auto cpu_rows = run_cartesian_probe(cpu_solver, "cpu", "cpu", "multitaper");
+
+  MagnonSpectrumCudaStubSolver cuda_solver;
+  const auto cuda_rows = run_cartesian_probe(cuda_solver, "cuda", "cuda", "multitaper");
+
+  expect_spectra_near(cuda_rows, cpu_rows);
 }
 
 TEST_F(MagnonSpectrumCudaMonitorTest, CudaSpatialCudaTimeMatchesCpuWelchSpectrum) {

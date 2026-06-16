@@ -432,6 +432,13 @@ bool SpectrumBaseMonitor::cuda_time_fft_auto_() const
 void SpectrumBaseMonitor::enable_cuda_time_fft_backend_()
 {
   cuda_time_fft_supported_ = true;
+  cuda_time_fft_needs_magnon_accumulation_ = true;
+}
+
+void SpectrumBaseMonitor::enable_cuda_frequency_slices_backend_()
+{
+  cuda_time_fft_supported_ = true;
+  cuda_time_fft_needs_frequency_slices_ = true;
 }
 
 void SpectrumBaseMonitor::validate_cuda_time_fft_backend_support_() const
@@ -532,7 +539,9 @@ void SpectrumBaseMonitor::configure_cuda_time_fft_storage_()
       num_freq,
       multitaper_count_,
       needs_local_frame_mapping_(),
-      use_multitaper);
+      use_multitaper,
+      cuda_time_fft_needs_magnon_accumulation_,
+      cuda_time_fft_needs_frequency_slices_);
 
   bool use_cuda_time = false;
   if (cuda_time_fft_requested_())
@@ -573,7 +582,10 @@ void SpectrumBaseMonitor::configure_cuda_time_fft_storage_()
       C,
       num_freq,
       keep_negative_frequencies_,
-      needs_local_frame_mapping_());
+      needs_local_frame_mapping_(),
+      cuda_time_fft_needs_magnon_accumulation_,
+      cuda_time_fft_needs_frequency_slices_,
+      use_multitaper);
   active_time_fft_backend_ = ActiveFftBackend::Cuda;
   std::cout << "  time FFT backend cuda" << std::endl;
 #else
@@ -783,6 +795,26 @@ void SpectrumBaseMonitor::configure_periodogram(libconfig::Setting &settings)
 // ---------------------------------------------------------------------------
 // Frequency-space processing
 // ---------------------------------------------------------------------------
+void SpectrumBaseMonitor::prepare_frequency_windows_()
+{
+  if (periodogram_window_.size() != periodogram_length())
+  {
+    generate_normalised_window_(periodogram_window_, periodogram_length());
+  }
+  if (temporal_estimator_ == TemporalEstimator::Multitaper
+      && (multitaper_windows_.extent(0) != multitaper_count_
+          || multitaper_windows_.extent(1) != periodogram_length()
+          || multitaper_weights_.size() != static_cast<std::size_t>(multitaper_count_)))
+  {
+    generate_normalised_dpss_tapers_(
+        multitaper_windows_,
+        multitaper_weights_,
+        multitaper_count_,
+        periodogram_length(),
+        multitaper_bandwidth_);
+  }
+}
+
 const SpectrumBaseMonitor::CmplxMappedSlice& SpectrumBaseMonitor::compute_frequency_spectrum_at_k(
   const int kpoint_index)
 {
@@ -791,21 +823,36 @@ const SpectrumBaseMonitor::CmplxMappedSlice& SpectrumBaseMonitor::compute_freque
   const int channels = num_channels();
   const bool use_local_frame = needs_local_frame_mapping_();
 
-  if (periodogram_window_.size() != num_time_samples)
+  prepare_frequency_windows_();
+
+  if (use_cuda_time_fft_())
   {
-    generate_normalised_window_(periodogram_window_, num_time_samples);
-  }
-  if (temporal_estimator_ == TemporalEstimator::Multitaper
-      && (multitaper_windows_.extent(0) != multitaper_count_
-          || multitaper_windows_.extent(1) != num_time_samples
-          || multitaper_weights_.size() != static_cast<std::size_t>(multitaper_count_)))
-  {
-    generate_normalised_dpss_tapers_(
+#if HAS_CUDA
+    if (!cuda_time_fft_needs_frequency_slices_)
+    {
+      throw std::runtime_error("CUDA frequency-slice time FFT is not enabled for this monitor");
+    }
+    assert(cuda_backend_);
+    if (frequency_scratch_.extent(0) != num_sites
+        || frequency_scratch_.extent(1) != num_time_samples
+        || frequency_scratch_.extent(2) != channels)
+    {
+      frequency_scratch_.resize(num_sites, num_time_samples, channels);
+    }
+    cuda_backend_->configure_frequency_inputs(
+        periodogram_window_,
         multitaper_windows_,
         multitaper_weights_,
-        multitaper_count_,
-        num_time_samples,
-        multitaper_bandwidth_);
+        channel_transform_);
+    cuda_backend_->compute_frequency_spectrum_at_k(
+        kpoint_index,
+        temporal_estimator_ == TemporalEstimator::Multitaper,
+        multitaper_count_);
+    cuda_backend_->copy_frequency_spectrum_slice_to_host(frequency_scratch_);
+    return frequency_scratch_;
+#else
+    throw std::runtime_error("CUDA time FFT backend selected in a non-CUDA build");
+#endif
   }
 
   if (!sk_time_fft_plan_
@@ -1014,22 +1061,7 @@ bool SpectrumBaseMonitor::accumulate_magnon_spectrum_cuda(
 
 #if HAS_CUDA
   assert(cuda_backend_);
-  if (periodogram_window_.size() != periodogram_length())
-  {
-    generate_normalised_window_(periodogram_window_, periodogram_length());
-  }
-  if (temporal_estimator_ == TemporalEstimator::Multitaper
-      && (multitaper_windows_.extent(0) != multitaper_count_
-          || multitaper_windows_.extent(1) != periodogram_length()
-          || multitaper_weights_.size() != static_cast<std::size_t>(multitaper_count_)))
-  {
-    generate_normalised_dpss_tapers_(
-        multitaper_windows_,
-        multitaper_weights_,
-        multitaper_count_,
-        periodogram_length(),
-        multitaper_bandwidth_);
-  }
+  prepare_frequency_windows_();
 
   cuda_backend_->configure_frequency_inputs(
       periodogram_window_,

@@ -348,6 +348,50 @@ __global__ void accumulate_magnon_power_kernel(
   cumulative[(f * num_k + kpoint_index) * 3 + c] += taper_weight * sum;
 }
 
+__global__ void accumulate_tapered_spectrum_kernel(
+    const int total,
+    const double taper_weight,
+    const cufftDoubleComplex* scratch,
+    cufftDoubleComplex* complex_sum,
+    double* power_sum)
+{
+  const int idx = blockIdx.x * blockDim.x + threadIdx.x;
+  if (idx >= total)
+  {
+    return;
+  }
+
+  const cufftDoubleComplex value = scratch[idx];
+  complex_sum[idx] = add_z(complex_sum[idx], scale_z(value, taper_weight));
+  power_sum[idx] += taper_weight * norm_z(value);
+}
+
+__global__ void reconstruct_tapered_spectrum_kernel(
+    const int total,
+    const cufftDoubleComplex* complex_sum,
+    const double* power_sum,
+    cufftDoubleComplex* scratch)
+{
+  const int idx = blockIdx.x * blockDim.x + threadIdx.x;
+  if (idx >= total)
+  {
+    return;
+  }
+
+  constexpr double kPhaseEpsilon = 1e-30;
+  const cufftDoubleComplex mean = complex_sum[idx];
+  const double mean_power = fmax(0.0, power_sum[idx]);
+  const double mean_abs = sqrt(norm_z(mean));
+  if (mean_abs > kPhaseEpsilon)
+  {
+    scratch[idx] = scale_z(mean, sqrt(mean_power) / mean_abs);
+  }
+  else
+  {
+    scratch[idx] = {0.0, 0.0};
+  }
+}
+
 template<typename T>
 void copy_vector_to_device_only(jams::MultiArray<T, 1>& target, const std::vector<T>& values)
 {
@@ -431,14 +475,17 @@ public:
       const int num_frequencies,
       const int multitaper_count,
       const bool needs_local_frame,
-      const bool use_multitaper) const override
+      const bool use_multitaper,
+      const bool needs_magnon_accumulation,
+      const bool needs_frequency_slices) const override
   {
     const auto bytes_time_series =
         bytes_count<float2>(periodogram_length, num_basis_atoms, num_k_points, stored_channels);
     const auto bytes_scratch =
         bytes_count<cufftDoubleComplex>(num_basis_atoms, output_channels, periodogram_length);
-    const auto bytes_cumulative =
-        bytes_count<double>(num_frequencies, num_k_points, 3);
+    const auto bytes_cumulative = needs_magnon_accumulation
+        ? bytes_count<double>(num_frequencies, num_k_points, 3)
+        : 0;
     const auto bytes_basis_mag = needs_local_frame
         ? bytes_count<double>(periodogram_length, num_basis_atoms, 3)
         : 0;
@@ -448,8 +495,15 @@ public:
     const auto bytes_windows = use_multitaper
         ? bytes_count<double>(multitaper_count, periodogram_length)
         : bytes_count<double>(periodogram_length);
+    const auto bytes_frequency_taper_sum = (needs_frequency_slices && use_multitaper)
+        ? bytes_count<cufftDoubleComplex>(num_basis_atoms, output_channels, periodogram_length)
+        : 0;
+    const auto bytes_frequency_taper_power_sum = (needs_frequency_slices && use_multitaper)
+        ? bytes_count<double>(num_basis_atoms, output_channels, periodogram_length)
+        : 0;
     return bytes_time_series + bytes_scratch + bytes_cumulative
-        + bytes_basis_mag + bytes_rotations + bytes_windows;
+        + bytes_basis_mag + bytes_rotations + bytes_windows
+        + bytes_frequency_taper_sum + bytes_frequency_taper_power_sum;
   }
 
   void reset_time_storage() override
@@ -459,11 +513,15 @@ public:
     rotations_.clear();
     time_scratch_.clear();
     cumulative_magnon_.clear();
+    frequency_taper_sum_.clear();
+    frequency_taper_power_sum_.clear();
     periodogram_window_.clear();
     multitaper_windows_.clear();
     multitaper_weights_.clear();
     ring_offset_ = 0;
     time_configured_ = false;
+    magnon_accumulation_configured_ = false;
+    frequency_slices_configured_ = false;
     if (time_plan_)
     {
       cufftDestroy(time_plan_);
@@ -479,7 +537,10 @@ public:
       const int output_channels,
       const int num_frequencies,
       const bool keep_negative_frequencies,
-      const bool needs_local_frame) override
+      const bool needs_local_frame,
+      const bool needs_magnon_accumulation,
+      const bool needs_frequency_slices,
+      const bool use_multitaper) override
   {
     periodogram_length_ = periodogram_length;
     stored_channels_ = stored_channels;
@@ -487,6 +548,8 @@ public:
     num_frequencies_ = num_frequencies;
     keep_negative_frequencies_ = keep_negative_frequencies;
     needs_local_frame_ = needs_local_frame;
+    magnon_accumulation_configured_ = needs_magnon_accumulation;
+    frequency_slices_configured_ = needs_frequency_slices;
     ring_offset_ = 0;
 
     time_series_.resize(periodogram_length, num_basis_atoms, num_k_points, stored_channels);
@@ -512,9 +575,31 @@ public:
     time_scratch_.zero();
     time_scratch_.release_stale_host();
 
-    cumulative_magnon_.resize(num_frequencies, num_k_points, 3);
-    cumulative_magnon_.zero();
-    cumulative_magnon_.release_stale_host();
+    if (needs_magnon_accumulation)
+    {
+      cumulative_magnon_.resize(num_frequencies, num_k_points, 3);
+      cumulative_magnon_.zero();
+      cumulative_magnon_.release_stale_host();
+    }
+    else
+    {
+      cumulative_magnon_.clear();
+    }
+
+    if (needs_frequency_slices && use_multitaper)
+    {
+      frequency_taper_sum_.resize(num_basis_atoms, output_channels, periodogram_length);
+      frequency_taper_sum_.zero();
+      frequency_taper_sum_.release_stale_host();
+      frequency_taper_power_sum_.resize(num_basis_atoms, output_channels, periodogram_length);
+      frequency_taper_power_sum_.zero();
+      frequency_taper_power_sum_.release_stale_host();
+    }
+    else
+    {
+      frequency_taper_sum_.clear();
+      frequency_taper_power_sum_.clear();
+    }
 
     if (time_plan_)
     {
@@ -691,6 +776,10 @@ public:
     {
       throw std::runtime_error("CUDA time FFT storage is not configured");
     }
+    if (!magnon_accumulation_configured_)
+    {
+      throw std::runtime_error("CUDA magnon spectrum accumulation is not configured");
+    }
     if (periodogram_length != periodogram_length_
         || num_basis_atoms != num_basis_
         || num_k_points != num_k_points_
@@ -779,6 +868,129 @@ public:
       }
     }
     cumulative_magnon_.release_stale_host();
+  }
+
+  void compute_frequency_spectrum_at_k(
+      const int kpoint_index,
+      const bool use_multitaper,
+      const int multitaper_count) override
+  {
+    if (!time_configured_)
+    {
+      throw std::runtime_error("CUDA time FFT storage is not configured");
+    }
+    if (!frequency_slices_configured_)
+    {
+      throw std::runtime_error("CUDA frequency-slice output is not configured");
+    }
+    if (kpoint_index < 0 || kpoint_index >= num_k_points_)
+    {
+      throw std::runtime_error("CUDA frequency-slice k-point index is out of range");
+    }
+
+    if (needs_local_frame_)
+    {
+      const dim3 block(128);
+      const dim3 grid((num_basis_ + block.x - 1) / block.x);
+      compute_rotations_kernel<<<grid, block, 0, stream_.get()>>>(
+          num_basis_,
+          periodogram_length_,
+          ring_offset_,
+          basis_mag_ring_.device_data(),
+          periodogram_window_.device_data(),
+          rotations_.mutable_device_data());
+      DEBUG_CHECK_CUDA_ASYNC_STATUS;
+      rotations_.release_stale_host();
+    }
+
+    const dim3 prepare_block(128);
+    const dim3 prepare_grid((num_basis_ * output_channels_ + prepare_block.x - 1) / prepare_block.x);
+    if (!use_multitaper)
+    {
+      run_one_time_fft(kpoint_index, periodogram_window_.device_data(), prepare_grid, prepare_block);
+      stream_.synchronize();
+      return;
+    }
+
+    if (frequency_taper_sum_.extent(0) != num_basis_
+        || frequency_taper_sum_.extent(1) != output_channels_
+        || frequency_taper_sum_.extent(2) != periodogram_length_
+        || frequency_taper_power_sum_.extent(0) != num_basis_
+        || frequency_taper_power_sum_.extent(1) != output_channels_
+        || frequency_taper_power_sum_.extent(2) != periodogram_length_)
+    {
+      frequency_taper_sum_.resize(num_basis_, output_channels_, periodogram_length_);
+      frequency_taper_power_sum_.resize(num_basis_, output_channels_, periodogram_length_);
+    }
+
+    const std::size_t total_bytes_complex =
+        sizeof(cufftDoubleComplex) * static_cast<std::size_t>(frequency_taper_sum_.size());
+    const std::size_t total_bytes_power =
+        sizeof(double) * static_cast<std::size_t>(frequency_taper_power_sum_.size());
+    CHECK_CUDA_STATUS(cudaMemsetAsync(
+        frequency_taper_sum_.mutable_device_data(),
+        0,
+        total_bytes_complex,
+        stream_.get()));
+    CHECK_CUDA_STATUS(cudaMemsetAsync(
+        frequency_taper_power_sum_.mutable_device_data(),
+        0,
+        total_bytes_power,
+        stream_.get()));
+
+    const int total = num_basis_ * output_channels_ * periodogram_length_;
+    const dim3 accum_block(128);
+    const dim3 accum_grid((total + accum_block.x - 1) / accum_block.x);
+    for (int taper = 0; taper < multitaper_count; ++taper)
+    {
+      const double* window = multitaper_windows_.device_data() + taper * periodogram_length_;
+      run_one_time_fft(kpoint_index, window, prepare_grid, prepare_block);
+      const double taper_weight = multitaper_weights_host_.at(static_cast<std::size_t>(taper));
+      accumulate_tapered_spectrum_kernel<<<accum_grid, accum_block, 0, stream_.get()>>>(
+          total,
+          taper_weight,
+          time_scratch_.device_data(),
+          frequency_taper_sum_.mutable_device_data(),
+          frequency_taper_power_sum_.mutable_device_data());
+      DEBUG_CHECK_CUDA_ASYNC_STATUS;
+    }
+
+    reconstruct_tapered_spectrum_kernel<<<accum_grid, accum_block, 0, stream_.get()>>>(
+        total,
+        frequency_taper_sum_.device_data(),
+        frequency_taper_power_sum_.device_data(),
+        time_scratch_.mutable_device_data());
+    DEBUG_CHECK_CUDA_ASYNC_STATUS;
+    stream_.synchronize();
+    time_scratch_.release_stale_host();
+    frequency_taper_sum_.release_stale_host();
+    frequency_taper_power_sum_.release_stale_host();
+  }
+
+  void copy_frequency_spectrum_slice_to_host(
+      SpectrumBaseMonitor::CmplxMappedSlice& spectrum) override
+  {
+    if (spectrum.extent(0) != num_basis_
+        || spectrum.extent(1) != periodogram_length_
+        || spectrum.extent(2) != output_channels_)
+    {
+      spectrum.resize(num_basis_, periodogram_length_, output_channels_);
+    }
+
+    stream_.synchronize();
+    const auto source = time_scratch_.host_view();
+    auto destination = spectrum.mutable_host_view();
+    for (int a = 0; a < num_basis_; ++a)
+    {
+      for (int c = 0; c < output_channels_; ++c)
+      {
+        for (int t = 0; t < periodogram_length_; ++t)
+        {
+          const auto value = source(a, c, t);
+          destination(a, t, c) = jams::ComplexHi{value.x, value.y};
+        }
+      }
+    }
   }
 
   void advance_ring_window(const int overlap) override
@@ -1041,6 +1253,8 @@ private:
   jams::MultiArray<double, 2> basis_magnetisation_sample_;
 
   bool time_configured_ = false;
+  bool magnon_accumulation_configured_ = false;
+  bool frequency_slices_configured_ = false;
   int periodogram_length_ = 0;
   int stored_channels_ = 0;
   int output_channels_ = 0;
@@ -1055,6 +1269,8 @@ private:
   jams::MultiArray<double, 2> rotations_;
   jams::MultiArray<cufftDoubleComplex, 3> time_scratch_;
   jams::MultiArray<double, 3> cumulative_magnon_;
+  jams::MultiArray<cufftDoubleComplex, 3> frequency_taper_sum_;
+  jams::MultiArray<double, 3> frequency_taper_power_sum_;
   jams::MultiArray<double, 1> periodogram_window_;
   jams::MultiArray<double, 2> multitaper_windows_;
   jams::MultiArray<double, 1> multitaper_weights_;

@@ -23,6 +23,7 @@
 NeutronScatteringMonitor::NeutronScatteringMonitor(const libconfig::Setting &settings)
 : SpectrumBaseMonitor(settings) {
 
+  enable_cuda_frequency_slices_backend_();
   validate_cuda_time_fft_backend_support_();
 
   // default to 1.0 in case no form factor is given in the settings

@@ -126,7 +126,9 @@ public:
         int num_frequencies,
         int multitaper_count,
         bool needs_local_frame,
-        bool use_multitaper) const = 0;
+        bool use_multitaper,
+        bool needs_magnon_accumulation,
+        bool needs_frequency_slices) const = 0;
 
     virtual void reset_time_storage() = 0;
     virtual void configure_time_storage(
@@ -137,7 +139,10 @@ public:
         int output_channels,
         int num_frequencies,
         bool keep_negative_frequencies,
-        bool needs_local_frame) = 0;
+        bool needs_local_frame,
+        bool needs_magnon_accumulation,
+        bool needs_frequency_slices,
+        bool use_multitaper) = 0;
 
     virtual void store_sample(
         const jams::MultiArray<double, 2>& spins,
@@ -168,6 +173,14 @@ public:
 
     virtual void copy_magnon_spectrum_to_host(
         jams::MultiArray<jams::Vec<double, 3>, 2>& cumulative) = 0;
+
+    virtual void compute_frequency_spectrum_at_k(
+        int kpoint_index,
+        bool use_multitaper,
+        int multitaper_count) = 0;
+
+    virtual void copy_frequency_spectrum_slice_to_host(
+        CmplxMappedSlice& spectrum) = 0;
 
     virtual void advance_ring_window(int overlap) = 0;
   };
@@ -248,6 +261,7 @@ protected:
 
   void configure_periodogram(libconfig::Setting& settings);
   void enable_cuda_time_fft_backend_();
+  void enable_cuda_frequency_slices_backend_();
   void validate_cuda_time_fft_backend_support_() const;
 
   bool periodogram_window_complete() const;
@@ -357,6 +371,7 @@ private:
   bool cuda_time_fft_requested_() const;
   bool cuda_time_fft_auto_() const;
   void configure_cuda_time_fft_storage_();
+  void prepare_frequency_windows_();
 
   /// @brief Generate the window function for a width of num_time_samples.
   ///
@@ -384,6 +399,8 @@ private:
   ActiveFftBackend active_time_fft_backend_ = ActiveFftBackend::Cpu;
   int cuda_time_fft_memory_limit_mib_ = 0;
   bool cuda_time_fft_supported_ = false;
+  bool cuda_time_fft_needs_magnon_accumulation_ = false;
+  bool cuda_time_fft_needs_frequency_slices_ = false;
 
   jams::PeriodogramProps periodogram_props_ {2000, 1000};
   int periodogram_sample_index_ = 0;
