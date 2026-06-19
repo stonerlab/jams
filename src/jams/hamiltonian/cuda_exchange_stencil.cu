@@ -1,13 +1,15 @@
 // Copyright 2026 Joseph Barker. All rights reserved.
 
-#include <jams/hamiltonian/cuda_exchange_stencil.h>
+#include <jams/hamiltonian/exchange_backend.h>
 
 #if HAS_CUDA
 
 #include <iostream>
+#include <memory>
 #include <map>
 #include <stdexcept>
 #include <tuple>
+#include <utility>
 #include <vector>
 
 #include <jams/core/globals.h>
@@ -286,16 +288,70 @@ void launch_cuda_exchange_stencil_field_kernel(
 
 }  // namespace
 
-CudaExchangeStencilHamiltonian::CudaExchangeStencilHamiltonian(
-    const libconfig::Setting& settings,
-    const unsigned int size)
-    : ExchangeStencilHamiltonian(settings, size) {
-  if (!has_sparse_fallback()) {
-    upload_stencil_to_device();
+class CudaExchangeStencilBackend : public ExchangeStencilBackend {
+public:
+  CudaExchangeStencilBackend(
+      const libconfig::Setting& settings,
+      std::shared_ptr<const ExchangeInteractionSetup> setup,
+      cudaStream_t stream);
+
+  [[nodiscard]] bool uses_device() const override {
+    return true;
   }
+
+  [[nodiscard]] bool supports_calculate_fields_in_parallel() const override {
+    return false;
+  }
+
+  void calculate_fields(jams::Real time, const SpinArray& spins, FieldArray& field) override;
+  void calculate_energies(
+      jams::Real time,
+      const SpinArray& spins,
+      FieldArray& field,
+      EnergyArray& energy) override;
+  [[nodiscard]] jams::Real calculate_total_energy(
+      jams::Real time,
+      const SpinArray& spins,
+      FieldArray& field,
+      EnergyArray& energy) override;
+
+private:
+  void upload_stencil_to_device();
+
+  cudaStream_t stream_ = nullptr;
+  jams::MultiArray<int, 1> device_entry_offsets_;
+  jams::MultiArray<int, 1> device_entry_dx_;
+  jams::MultiArray<int, 1> device_entry_dy_;
+  jams::MultiArray<int, 1> device_entry_dz_;
+  jams::MultiArray<int, 1> device_target_basis_;
+  jams::MultiArray<int, 1> device_group_offsets_;
+  jams::MultiArray<int, 1> device_group_entry_offsets_;
+  jams::MultiArray<int, 1> device_group_translation_ids_;
+  jams::MultiArray<int, 1> device_group_dx_;
+  jams::MultiArray<int, 1> device_group_dy_;
+  jams::MultiArray<int, 1> device_group_dz_;
+  jams::MultiArray<int, 1> device_translation_target_cells_;
+  jams::MultiArray<jams::Real, 1> device_values_;
+  int num_cell_translations_ = 0;
+  int num_stencil_entries_ = 0;
+  int num_stencil_groups_ = 0;
+  int field_kernel_block_size_ = 128;
+  int components_per_entry_ = 1;
+  bool use_direct_periodic_kernel_ = false;
+  bool fully_periodic_ = false;
+  jams::InteractionTensorStorage tensor_storage_ = jams::InteractionTensorStorage::Isotropic;
+};
+
+CudaExchangeStencilBackend::CudaExchangeStencilBackend(
+    const libconfig::Setting& settings,
+    std::shared_ptr<const ExchangeInteractionSetup> setup,
+    cudaStream_t stream)
+    : ExchangeStencilBackend(settings, std::move(setup)),
+      stream_(stream) {
+  upload_stencil_to_device();
 }
 
-void CudaExchangeStencilHamiltonian::upload_stencil_to_device() {
+void CudaExchangeStencilBackend::upload_stencil_to_device() {
   struct UploadEntry {
     int target_basis = 0;
     int translation_id = 0;
@@ -500,12 +556,7 @@ void CudaExchangeStencilHamiltonian::upload_stencil_to_device() {
   (void)device_values_.device_data();
 }
 
-void CudaExchangeStencilHamiltonian::calculate_fields(jams::Real time, const SpinArray& spins) {
-  if (has_sparse_fallback()) {
-    ExchangeStencilHamiltonian::calculate_fields(time, spins);
-    return;
-  }
-
+void CudaExchangeStencilBackend::calculate_fields(jams::Real time, const SpinArray& spins, FieldArray& field) {
   const dim3 block_size = {static_cast<unsigned int>(field_kernel_block_size_), 1, 1};
   const dim3 grid_size = cuda_grid_size(
       block_size,
@@ -558,8 +609,8 @@ void CudaExchangeStencilHamiltonian::calculate_fields(jams::Real time, const Spi
           device_target_basis_.device_data(),
           device_values_.device_data(),
           spins.device_data(),
-          field_.mutable_device_data(),
-          cuda_stream_.get());
+          field.mutable_device_data(),
+          stream_);
       break;
     case jams::InteractionTensorStorage::Anisotropic:
       launch_cuda_exchange_stencil_field_kernel<
@@ -588,8 +639,8 @@ void CudaExchangeStencilHamiltonian::calculate_fields(jams::Real time, const Spi
           device_target_basis_.device_data(),
           device_values_.device_data(),
           spins.device_data(),
-          field_.mutable_device_data(),
-          cuda_stream_.get());
+          field.mutable_device_data(),
+          stream_);
       break;
     case jams::InteractionTensorStorage::Symmetric:
       launch_cuda_exchange_stencil_field_kernel<
@@ -618,8 +669,8 @@ void CudaExchangeStencilHamiltonian::calculate_fields(jams::Real time, const Spi
           device_target_basis_.device_data(),
           device_values_.device_data(),
           spins.device_data(),
-          field_.mutable_device_data(),
-          cuda_stream_.get());
+          field.mutable_device_data(),
+          stream_);
       break;
     case jams::InteractionTensorStorage::Antisymmetric:
       launch_cuda_exchange_stencil_field_kernel<
@@ -648,8 +699,8 @@ void CudaExchangeStencilHamiltonian::calculate_fields(jams::Real time, const Spi
           device_target_basis_.device_data(),
           device_values_.device_data(),
           spins.device_data(),
-          field_.mutable_device_data(),
-          cuda_stream_.get());
+          field.mutable_device_data(),
+          stream_);
       break;
     case jams::InteractionTensorStorage::General:
       launch_cuda_exchange_stencil_field_kernel<
@@ -678,8 +729,8 @@ void CudaExchangeStencilHamiltonian::calculate_fields(jams::Real time, const Spi
           device_target_basis_.device_data(),
           device_values_.device_data(),
           spins.device_data(),
-          field_.mutable_device_data(),
-          cuda_stream_.get());
+          field.mutable_device_data(),
+          stream_);
       break;
     case jams::InteractionTensorStorage::Auto:
       throw std::runtime_error("cannot launch exchange-stencil field kernel with auto tensor storage");
@@ -687,31 +738,35 @@ void CudaExchangeStencilHamiltonian::calculate_fields(jams::Real time, const Spi
   DEBUG_CHECK_CUDA_ASYNC_STATUS;
 }
 
-void CudaExchangeStencilHamiltonian::calculate_energies(jams::Real time, const SpinArray& spins) {
-  if (has_sparse_fallback()) {
-    ExchangeStencilHamiltonian::calculate_energies(time, spins);
-    return;
-  }
-
-  calculate_fields(time, spins);
+void CudaExchangeStencilBackend::calculate_energies(
+    jams::Real time,
+    const SpinArray& spins,
+    FieldArray& field,
+    EnergyArray& energy) {
+  calculate_fields(time, spins, field);
   cuda_array_dot_product(
       globals::num_spins,
       static_cast<jams::Real>(-0.5),
       spins.device_data(),
-      field_.device_data(),
-      energy_.mutable_device_data(),
-      cuda_stream_.get());
+      field.device_data(),
+      energy.mutable_device_data(),
+      stream_);
 }
 
-jams::Real CudaExchangeStencilHamiltonian::calculate_total_energy(
+jams::Real CudaExchangeStencilBackend::calculate_total_energy(
     jams::Real time,
-    const SpinArray& spins) {
-  if (has_sparse_fallback()) {
-    return ExchangeStencilHamiltonian::calculate_total_energy(time, spins);
-  }
+    const SpinArray& spins,
+    FieldArray& field,
+    EnergyArray& energy) {
+  calculate_energies(time, spins, field, energy);
+  return cuda_reduce_array(energy.device_data(), globals::num_spins, stream_);
+}
 
-  calculate_energies(time, spins);
-  return cuda_reduce_array(energy_.device_data(), globals::num_spins, cuda_stream_.get());
+std::unique_ptr<ExchangeBackendImpl> make_cuda_exchange_stencil_backend(
+    const libconfig::Setting& settings,
+    std::shared_ptr<const ExchangeInteractionSetup> setup,
+    cudaStream_t stream) {
+  return std::make_unique<CudaExchangeStencilBackend>(settings, std::move(setup), stream);
 }
 
 #endif  // HAS_CUDA

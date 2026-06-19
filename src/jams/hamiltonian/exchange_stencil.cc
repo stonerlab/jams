@@ -1,6 +1,6 @@
 // Copyright 2026 Joseph Barker. All rights reserved.
 
-#include "jams/hamiltonian/exchange_stencil.h"
+#include "jams/hamiltonian/exchange_backend.h"
 
 #include <algorithm>
 #include <fstream>
@@ -125,7 +125,7 @@ void accumulate_tensor_field(
 
 }  // namespace
 
-bool ExchangeStencilHamiltonian::TemplateKey::operator<(const TemplateKey& other) const {
+bool ExchangeStencilBackend::TemplateKey::operator<(const TemplateKey& other) const {
   return std::tie(
              basis_site_i,
              basis_site_j,
@@ -140,82 +140,36 @@ bool ExchangeStencilHamiltonian::TemplateKey::operator<(const TemplateKey& other
              other.lattice_translation[2]);
 }
 
-ExchangeStencilHamiltonian::~ExchangeStencilHamiltonian() = default;
+ExchangeStencilBackend::~ExchangeStencilBackend() = default;
 
-ExchangeStencilHamiltonian::ExchangeStencilHamiltonian(
+ExchangeStencilBackend::ExchangeStencilBackend(
     const libconfig::Setting& settings,
-    const unsigned int size)
-    : Hamiltonian(settings, size) {
+    std::shared_ptr<const ExchangeInteractionSetup> setup)
+    : setup_(std::move(setup)) {
+  initialize_from_setup(settings);
+}
+
+void ExchangeStencilBackend::initialize_from_setup(
+    const libconfig::Setting& settings) {
   lattice_size_ = globals::lattice->size();
   periodic_boundaries_ = globals::lattice->periodic_boundaries();
   num_basis_sites_ = globals::lattice->num_basis_sites();
   num_cells_ = lattice_size_[0] * lattice_size_[1] * lattice_size_[2];
+  interaction_prefactor_ = setup_->interaction_prefactor();
+  energy_cutoff_ = setup_->energy_cutoff();
 
-  parse_settings(settings);
-
-  if (!direct_lattice_layout_is_supported()) {
-    enable_sparse_fallback(settings, size, "lattice layout is not dense and regular");
-    return;
+  const auto support = check_support(*setup_);
+  if (!support.supported) {
+    throw jams::ConfigException(settings, "exchange stencil backend is unsafe: ", support.reason);
   }
 
-  const auto use_symops = jams::config_optional<bool>(settings, "symops", true);
-  const auto coord_format = jams::config_optional<CoordinateFormat>(
-      settings, "coordinate_format", CoordinateFormat::CARTESIAN);
-
-  std::vector<InteractionChecks> interaction_checks;
-  if (jams::config_optional<bool>(settings, "check_no_zero_motif_neighbour_count", true)) {
-    interaction_checks.push_back(InteractionChecks::kNoZeroMotifNeighbourCount);
-  }
-  if (jams::config_optional<bool>(settings, "check_identical_motif_neighbour_count", true)) {
-    interaction_checks.push_back(InteractionChecks::kIdenticalMotifNeighbourCount);
-  }
-  if (jams::config_optional<bool>(settings, "check_identical_motif_total_exchange", true)) {
-    interaction_checks.push_back(InteractionChecks::kIdenticalMotifTotalExchange);
-  }
-
-  std::vector<InteractionData> interaction_templates;
-  if (settings.exists("exc_file")) {
-    const auto file_path = jams::config_required<std::string>(settings, "exc_file");
-    std::cout << "    interaction file name " << file_path << "\n";
-    std::ifstream interaction_file(file_path);
-    if (interaction_file.fail()) {
-      throw jams::FileException(file_path.c_str(), "failed to open file");
-    }
-    interaction_templates = generate_interaction_data(
-        interaction_file,
-        coord_format,
-        use_symops,
-        energy_cutoff_,
-        radius_cutoff_,
-        distance_tolerance_,
-        interaction_checks,
-        radius_cutoff_tolerance_);
-  } else if (settings.exists("interactions")) {
-    interaction_templates = generate_interaction_data(
-        settings["interactions"],
-        coord_format,
-        use_symops,
-        energy_cutoff_,
-        radius_cutoff_,
-        distance_tolerance_,
-        interaction_checks,
-        radius_cutoff_tolerance_);
-  } else {
-    throw jams::ConfigException(settings, "'exc_file' or 'interactions' settings are required");
-  }
-
-  build_stencil_entries(interaction_templates);
-
-  if (!stencil_entries_match_dense_materials()) {
-    enable_sparse_fallback(settings, size, "interaction template materials do not match the dense basis");
-    return;
-  }
+  stencil_entries_by_basis_ = make_stencil_entries(*setup_, num_basis_sites_);
 
   if (jams::config_optional<bool>(settings, "check_sparse_matrix_symmetry", true)) {
     validate_stencil_symmetry();
   }
   validate_no_duplicate_physical_targets();
-  validate_stencil_checks(interaction_checks);
+  validate_stencil_checks(setup_->interaction_checks());
   build_runtime_entries();
 
   std::cout << "    stencil entries: " << num_stencil_entries() << "\n";
@@ -227,56 +181,43 @@ ExchangeStencilHamiltonian::ExchangeStencilHamiltonian(
   }
 }
 
-void ExchangeStencilHamiltonian::parse_settings(const libconfig::Setting& settings) {
-  energy_cutoff_ = jams::config_optional<double>(settings, "energy_cutoff", 0.0);
-  std::cout << "    interaction energy cutoff " << energy_cutoff_ << "\n";
-
-  radius_cutoff_ = jams::config_optional<double>(settings, "radius_cutoff", 100.0);
-  std::cout << "    interaction radius cutoff " << radius_cutoff_ << "\n";
-
-  radius_cutoff_tolerance_ = jams::config_optional<double>(
-      settings, "radius_cutoff_tolerance", jams::defaults::lattice_tolerance);
-  if (radius_cutoff_tolerance_ < 0.0) {
-    throw jams::ConfigException(settings, "radius_cutoff_tolerance must be non-negative");
+ExchangeBackendSupport ExchangeStencilBackend::check_support(
+    const ExchangeInteractionSetup& setup) {
+  const auto lattice_size = globals::lattice->size();
+  const auto num_basis_sites = globals::lattice->num_basis_sites();
+  if (!direct_lattice_layout_is_supported(lattice_size, num_basis_sites)) {
+    return {false, "lattice layout is not dense and regular"};
   }
-  std::cout << "    interaction radius cutoff tolerance " << radius_cutoff_tolerance_ << "\n";
 
-  distance_tolerance_ = jams::config_optional<double>(
-      settings, "distance_tolerance", jams::defaults::lattice_tolerance);
-  std::cout << "    distance_tolerance " << distance_tolerance_ << "\n";
+  const auto entries = make_stencil_entries(setup, num_basis_sites);
+  if (!stencil_entries_match_dense_materials(entries)) {
+    return {false, "interaction template materials do not match the dense basis"};
+  }
 
-  interaction_prefactor_ = jams::config_optional<double>(settings, "interaction_prefactor", 1.0);
-  std::cout << "    interaction_prefactor " << interaction_prefactor_ << "\n";
-
-  safety_check_distance_tolerance(distance_tolerance_);
-
-  const auto coord_format = jams::config_optional<CoordinateFormat>(
-      settings, "coordinate_format", CoordinateFormat::CARTESIAN);
-  std::cout << "    coordinate format: " << to_string(coord_format) << "\n";
+  return {true, ""};
 }
 
-void ExchangeStencilHamiltonian::enable_sparse_fallback(
-    const libconfig::Setting& settings,
-    const unsigned int size,
-    const std::string& reason) {
-  std::cout << "    falling back to sparse exchange: " << reason << "\n";
-  sparse_fallback_ = std::make_unique<ExchangeHamiltonian>(settings, size);
-}
-
-bool ExchangeStencilHamiltonian::direct_lattice_layout_is_supported() const {
+bool ExchangeStencilBackend::direct_lattice_layout_is_supported(
+    const jams::Vec<int, 3>& lattice_size,
+    const int num_basis_sites) {
   if (globals::lattice->has_impurities() || globals::lattice->has_cropping()) {
     return false;
   }
 
-  const auto expected_num_spins = lattice_size_[0] * lattice_size_[1] * lattice_size_[2] * num_basis_sites_;
+  const auto dense_site_index = [&](const int cell_x, const int cell_y, const int cell_z, const int basis_site) {
+    return (((cell_x * lattice_size[1] + cell_y) * lattice_size[2] + cell_z) * num_basis_sites)
+        + basis_site;
+  };
+
+  const auto expected_num_spins = lattice_size[0] * lattice_size[1] * lattice_size[2] * num_basis_sites;
   if (globals::num_spins != expected_num_spins) {
     return false;
   }
 
-  for (auto cell_x = 0; cell_x < lattice_size_[0]; ++cell_x) {
-    for (auto cell_y = 0; cell_y < lattice_size_[1]; ++cell_y) {
-      for (auto cell_z = 0; cell_z < lattice_size_[2]; ++cell_z) {
-        for (auto basis = 0; basis < num_basis_sites_; ++basis) {
+  for (auto cell_x = 0; cell_x < lattice_size[0]; ++cell_x) {
+    for (auto cell_y = 0; cell_y < lattice_size[1]; ++cell_y) {
+      for (auto cell_z = 0; cell_z < lattice_size[2]; ++cell_z) {
+        for (auto basis = 0; basis < num_basis_sites; ++basis) {
           const auto site = globals::lattice->site_index_by_unit_cell_optional(cell_x, cell_y, cell_z, basis);
           if (!site || *site != dense_site_index(cell_x, cell_y, cell_z, basis)) {
             return false;
@@ -295,15 +236,17 @@ bool ExchangeStencilHamiltonian::direct_lattice_layout_is_supported() const {
   return true;
 }
 
-void ExchangeStencilHamiltonian::build_stencil_entries(
-    const std::vector<InteractionData>& interactions) {
-  stencil_entries_by_basis_.assign(num_basis_sites_, {});
+std::vector<std::vector<ExchangeStencilBackend::StencilEntry>>
+ExchangeStencilBackend::make_stencil_entries(
+    const ExchangeInteractionSetup& setup,
+    const int num_basis_sites) {
+  std::vector<std::vector<StencilEntry>> entries_by_basis(num_basis_sites);
   std::set<TemplateKey> seen_templates;
 
-  for (const auto& interaction : interactions) {
-    const auto tensor = interaction_prefactor_ * input_energy_unit_conversion_
+  for (const auto& interaction : setup.interaction_templates()) {
+    const auto tensor = setup.interaction_prefactor() * setup.input_energy_unit_conversion()
         * interaction.interaction_value_tensor;
-    if (max_abs(tensor) <= energy_cutoff_ * input_energy_unit_conversion_) {
+    if (max_abs(tensor) <= setup.energy_cutoff() * setup.input_energy_unit_conversion()) {
       continue;
     }
 
@@ -326,11 +269,13 @@ void ExchangeStencilHamiltonian::build_stencil_entries(
     entry.tensor = matrix_cast<jams::Real>(tensor);
     entry.type_i = interaction.type_i;
     entry.type_j = interaction.type_j;
-    stencil_entries_by_basis_[interaction.basis_site_i].push_back(std::move(entry));
+    entries_by_basis[interaction.basis_site_i].push_back(std::move(entry));
   }
+
+  return entries_by_basis;
 }
 
-void ExchangeStencilHamiltonian::build_runtime_entries() {
+void ExchangeStencilBackend::build_runtime_entries() {
   fully_periodic_ = periodic_boundaries_[0] && periodic_boundaries_[1] && periodic_boundaries_[2];
   tensor_storage_ = jams::InteractionTensorStorage::Auto;
 
@@ -445,11 +390,12 @@ void ExchangeStencilHamiltonian::build_runtime_entries() {
   std::cout << "    stencil field path: mapped\n";
 }
 
-bool ExchangeStencilHamiltonian::stencil_entries_match_dense_materials() const {
-  for (auto basis_i = 0; basis_i < num_basis_sites_; ++basis_i) {
+bool ExchangeStencilBackend::stencil_entries_match_dense_materials(
+    const std::vector<std::vector<StencilEntry>>& entries_by_basis) {
+  for (auto basis_i = 0; basis_i < static_cast<int>(entries_by_basis.size()); ++basis_i) {
     const auto type_i = globals::lattice->material_name(
         globals::lattice->basis_site_atom(basis_i).material_index);
-    for (const auto& entry : stencil_entries_by_basis_[basis_i]) {
+    for (const auto& entry : entries_by_basis[basis_i]) {
       const auto type_j = globals::lattice->material_name(
           globals::lattice->basis_site_atom(entry.basis_site_j).material_index);
       if (entry.type_i != type_i || entry.type_j != type_j) {
@@ -460,7 +406,7 @@ bool ExchangeStencilHamiltonian::stencil_entries_match_dense_materials() const {
   return true;
 }
 
-void ExchangeStencilHamiltonian::validate_stencil_symmetry() const {
+void ExchangeStencilBackend::validate_stencil_symmetry() const {
   std::map<TemplateKey, const StencilEntry*> entries;
   for (auto basis_i = 0; basis_i < num_basis_sites_; ++basis_i) {
     for (const auto& entry : stencil_entries_by_basis_[basis_i]) {
@@ -488,7 +434,7 @@ void ExchangeStencilHamiltonian::validate_stencil_symmetry() const {
   }
 }
 
-void ExchangeStencilHamiltonian::validate_no_duplicate_physical_targets() const {
+void ExchangeStencilBackend::validate_no_duplicate_physical_targets() const {
   for (auto site = 0; site < globals::num_spins; ++site) {
     const auto source_cell = globals::lattice->cell_offset(site);
     const auto basis = static_cast<int>(globals::lattice->lattice_site_basis_index(site));
@@ -510,7 +456,7 @@ void ExchangeStencilHamiltonian::validate_no_duplicate_physical_targets() const 
   }
 }
 
-void ExchangeStencilHamiltonian::validate_stencil_checks(
+void ExchangeStencilBackend::validate_stencil_checks(
     const std::vector<InteractionChecks>& checks) const {
   if (checks.empty()) {
     return;
@@ -577,7 +523,7 @@ void ExchangeStencilHamiltonian::validate_stencil_checks(
   }
 }
 
-std::optional<int> ExchangeStencilHamiltonian::stencil_target_site(
+std::optional<int> ExchangeStencilBackend::stencil_target_site(
     const jams::Vec<int, 3>& source_cell,
     const StencilEntry& entry) const {
   auto target_cell = source_cell + entry.lattice_translation;
@@ -591,16 +537,7 @@ std::optional<int> ExchangeStencilHamiltonian::stencil_target_site(
       entry.basis_site_j);
 }
 
-int ExchangeStencilHamiltonian::dense_site_index(
-    const int cell_x,
-    const int cell_y,
-    const int cell_z,
-    const int basis_site) const {
-  return (((cell_x * lattice_size_[1] + cell_y) * lattice_size_[2] + cell_z) * num_basis_sites_)
-      + basis_site;
-}
-
-std::size_t ExchangeStencilHamiltonian::num_stencil_entries() const {
+std::size_t ExchangeStencilBackend::num_stencil_entries() const {
   std::size_t total = 0;
   for (const auto& entries : stencil_entries_by_basis_) {
     total += entries.size();
@@ -608,7 +545,7 @@ std::size_t ExchangeStencilHamiltonian::num_stencil_entries() const {
   return total;
 }
 
-jams::Vec<jams::Real, 3> ExchangeStencilHamiltonian::calculate_stencil_field_for_site(
+jams::Vec<jams::Real, 3> ExchangeStencilBackend::calculate_stencil_field_for_site(
     const int site,
     const SpinHostView& spins) const {
   if (fully_periodic_) {
@@ -646,7 +583,7 @@ jams::Vec<jams::Real, 3> ExchangeStencilHamiltonian::calculate_stencil_field_for
 }
 
 template <jams::InteractionTensorStorage Storage, bool FullyPeriodic>
-jams::Vec<jams::Real, 3> ExchangeStencilHamiltonian::calculate_stencil_field_for_site_storage(
+jams::Vec<jams::Real, 3> ExchangeStencilBackend::calculate_stencil_field_for_site_storage(
     const int site,
     const SpinHostView& spins) const {
   const int basis = site % num_basis_sites_;
@@ -685,10 +622,10 @@ jams::Vec<jams::Real, 3> ExchangeStencilHamiltonian::calculate_stencil_field_for
 }
 
 template <jams::InteractionTensorStorage Storage, bool FullyPeriodic>
-void ExchangeStencilHamiltonian::calculate_fields_storage(const SpinHostView& spins) {
+void ExchangeStencilBackend::calculate_fields_storage(const SpinHostView& spins, FieldArray& field) {
   const int num_basis = num_basis_sites_;
   const auto* spin_values = spins.data();
-  auto field_view = field_.mutable_host_view();
+  auto field_view = field.mutable_host_view();
   auto* field_values = field_view.data();
   const auto* tensor_values = runtime_values_.data();
   constexpr int kComponents = storage_component_count<Storage>();
@@ -734,7 +671,9 @@ void ExchangeStencilHamiltonian::calculate_fields_storage(const SpinHostView& sp
 }
 
 template <jams::InteractionTensorStorage Storage, bool FullyPeriodic>
-void ExchangeStencilHamiltonian::calculate_fields_storage_in_parallel(const SpinHostView& spins) {
+void ExchangeStencilBackend::calculate_fields_storage_in_parallel(
+    const SpinHostView& spins,
+    FieldArray& field) {
   const int num_basis = num_basis_sites_;
   const jams::Real* spin_values = nullptr;
   jams::Real* field_values = nullptr;
@@ -742,11 +681,11 @@ void ExchangeStencilHamiltonian::calculate_fields_storage_in_parallel(const Spin
 #pragma omp single copyprivate(spin_values, field_values)
   {
     spin_values = spins.data();
-    field_values = field_.data();
+    field_values = field.data();
   }
 #else
   spin_values = spins.data();
-  field_values = field_.data();
+  field_values = field.data();
 #endif
   const auto* tensor_values = runtime_values_.data();
   constexpr int kComponents = storage_component_count<Storage>();
@@ -791,35 +730,25 @@ void ExchangeStencilHamiltonian::calculate_fields_storage_in_parallel(const Spin
   }
 }
 
-void ExchangeStencilHamiltonian::calculate_fields(jams::Real time, const SpinArray& spins) {
-  if (sparse_fallback_) {
-    sparse_fallback_->calculate_fields(time, spins);
-    for (auto site = 0; site < globals::num_spins; ++site) {
-      for (auto n = 0; n < 3; ++n) {
-        field_(site, n) = sparse_fallback_->field(site, n);
-      }
-    }
-    return;
-  }
-
+void ExchangeStencilBackend::calculate_fields(jams::Real time, const SpinArray& spins, FieldArray& field) {
   const auto spin_view = spins.host_view();
 
   if (fully_periodic_) {
     switch (tensor_storage_) {
       case jams::InteractionTensorStorage::Isotropic:
-        calculate_fields_storage<jams::InteractionTensorStorage::Isotropic, true>(spin_view);
+        calculate_fields_storage<jams::InteractionTensorStorage::Isotropic, true>(spin_view, field);
         return;
       case jams::InteractionTensorStorage::Anisotropic:
-        calculate_fields_storage<jams::InteractionTensorStorage::Anisotropic, true>(spin_view);
+        calculate_fields_storage<jams::InteractionTensorStorage::Anisotropic, true>(spin_view, field);
         return;
       case jams::InteractionTensorStorage::Symmetric:
-        calculate_fields_storage<jams::InteractionTensorStorage::Symmetric, true>(spin_view);
+        calculate_fields_storage<jams::InteractionTensorStorage::Symmetric, true>(spin_view, field);
         return;
       case jams::InteractionTensorStorage::Antisymmetric:
-        calculate_fields_storage<jams::InteractionTensorStorage::Antisymmetric, true>(spin_view);
+        calculate_fields_storage<jams::InteractionTensorStorage::Antisymmetric, true>(spin_view, field);
         return;
       case jams::InteractionTensorStorage::General:
-        calculate_fields_storage<jams::InteractionTensorStorage::General, true>(spin_view);
+        calculate_fields_storage<jams::InteractionTensorStorage::General, true>(spin_view, field);
         return;
       case jams::InteractionTensorStorage::Auto:
         break;
@@ -828,71 +757,51 @@ void ExchangeStencilHamiltonian::calculate_fields(jams::Real time, const SpinArr
 
   switch (tensor_storage_) {
     case jams::InteractionTensorStorage::Isotropic:
-      calculate_fields_storage<jams::InteractionTensorStorage::Isotropic, false>(spin_view);
+      calculate_fields_storage<jams::InteractionTensorStorage::Isotropic, false>(spin_view, field);
       return;
     case jams::InteractionTensorStorage::Anisotropic:
-      calculate_fields_storage<jams::InteractionTensorStorage::Anisotropic, false>(spin_view);
+      calculate_fields_storage<jams::InteractionTensorStorage::Anisotropic, false>(spin_view, field);
       return;
     case jams::InteractionTensorStorage::Symmetric:
-      calculate_fields_storage<jams::InteractionTensorStorage::Symmetric, false>(spin_view);
+      calculate_fields_storage<jams::InteractionTensorStorage::Symmetric, false>(spin_view, field);
       return;
     case jams::InteractionTensorStorage::Antisymmetric:
-      calculate_fields_storage<jams::InteractionTensorStorage::Antisymmetric, false>(spin_view);
+      calculate_fields_storage<jams::InteractionTensorStorage::Antisymmetric, false>(spin_view, field);
       return;
     case jams::InteractionTensorStorage::General:
-      calculate_fields_storage<jams::InteractionTensorStorage::General, false>(spin_view);
+      calculate_fields_storage<jams::InteractionTensorStorage::General, false>(spin_view, field);
       return;
     case jams::InteractionTensorStorage::Auto:
       throw std::runtime_error("cannot calculate exchange-stencil fields with auto tensor storage");
   }
 }
 
-bool ExchangeStencilHamiltonian::supports_calculate_fields_in_parallel() const {
-  return !sparse_fallback_ || sparse_fallback_->supports_calculate_fields_in_parallel();
+bool ExchangeStencilBackend::supports_calculate_fields_in_parallel() const {
+  return true;
 }
 
-void ExchangeStencilHamiltonian::calculate_fields_in_parallel(jams::Real time, const SpinArray& spins) {
-  if (sparse_fallback_) {
-    sparse_fallback_->calculate_fields_in_parallel(time, spins);
-    jams::Real* fallback_field = nullptr;
-    jams::Real* field_values = nullptr;
-#if HAS_OMP
-#pragma omp single copyprivate(fallback_field, field_values)
-    {
-      fallback_field = sparse_fallback_->ptr_field();
-      field_values = field_.data();
-    }
-#else
-    fallback_field = sparse_fallback_->ptr_field();
-    field_values = field_.data();
-#endif
-#if HAS_OMP
-#pragma omp for schedule(static)
-#endif
-    for (auto i = 0; i < globals::num_spins3; ++i) {
-      field_values[i] = fallback_field[i];
-    }
-    return;
-  }
-
+void ExchangeStencilBackend::calculate_fields_in_parallel(
+    jams::Real time,
+    const SpinArray& spins,
+    FieldArray& field) {
   const auto spin_view = spins.host_view();
 
   if (fully_periodic_) {
     switch (tensor_storage_) {
       case jams::InteractionTensorStorage::Isotropic:
-        calculate_fields_storage_in_parallel<jams::InteractionTensorStorage::Isotropic, true>(spin_view);
+        calculate_fields_storage_in_parallel<jams::InteractionTensorStorage::Isotropic, true>(spin_view, field);
         return;
       case jams::InteractionTensorStorage::Anisotropic:
-        calculate_fields_storage_in_parallel<jams::InteractionTensorStorage::Anisotropic, true>(spin_view);
+        calculate_fields_storage_in_parallel<jams::InteractionTensorStorage::Anisotropic, true>(spin_view, field);
         return;
       case jams::InteractionTensorStorage::Symmetric:
-        calculate_fields_storage_in_parallel<jams::InteractionTensorStorage::Symmetric, true>(spin_view);
+        calculate_fields_storage_in_parallel<jams::InteractionTensorStorage::Symmetric, true>(spin_view, field);
         return;
       case jams::InteractionTensorStorage::Antisymmetric:
-        calculate_fields_storage_in_parallel<jams::InteractionTensorStorage::Antisymmetric, true>(spin_view);
+        calculate_fields_storage_in_parallel<jams::InteractionTensorStorage::Antisymmetric, true>(spin_view, field);
         return;
       case jams::InteractionTensorStorage::General:
-        calculate_fields_storage_in_parallel<jams::InteractionTensorStorage::General, true>(spin_view);
+        calculate_fields_storage_in_parallel<jams::InteractionTensorStorage::General, true>(spin_view, field);
         return;
       case jams::InteractionTensorStorage::Auto:
         throw std::runtime_error("cannot calculate exchange-stencil fields with auto tensor storage");
@@ -901,41 +810,52 @@ void ExchangeStencilHamiltonian::calculate_fields_in_parallel(jams::Real time, c
 
   switch (tensor_storage_) {
     case jams::InteractionTensorStorage::Isotropic:
-      calculate_fields_storage_in_parallel<jams::InteractionTensorStorage::Isotropic, false>(spin_view);
+      calculate_fields_storage_in_parallel<jams::InteractionTensorStorage::Isotropic, false>(spin_view, field);
       return;
     case jams::InteractionTensorStorage::Anisotropic:
-      calculate_fields_storage_in_parallel<jams::InteractionTensorStorage::Anisotropic, false>(spin_view);
+      calculate_fields_storage_in_parallel<jams::InteractionTensorStorage::Anisotropic, false>(spin_view, field);
       return;
     case jams::InteractionTensorStorage::Symmetric:
-      calculate_fields_storage_in_parallel<jams::InteractionTensorStorage::Symmetric, false>(spin_view);
+      calculate_fields_storage_in_parallel<jams::InteractionTensorStorage::Symmetric, false>(spin_view, field);
       return;
     case jams::InteractionTensorStorage::Antisymmetric:
-      calculate_fields_storage_in_parallel<jams::InteractionTensorStorage::Antisymmetric, false>(spin_view);
+      calculate_fields_storage_in_parallel<jams::InteractionTensorStorage::Antisymmetric, false>(spin_view, field);
       return;
     case jams::InteractionTensorStorage::General:
-      calculate_fields_storage_in_parallel<jams::InteractionTensorStorage::General, false>(spin_view);
+      calculate_fields_storage_in_parallel<jams::InteractionTensorStorage::General, false>(spin_view, field);
       return;
     case jams::InteractionTensorStorage::Auto:
       throw std::runtime_error("cannot calculate exchange-stencil fields with auto tensor storage");
   }
 }
 
-void ExchangeStencilHamiltonian::calculate_energies(jams::Real time, const SpinArray& spins) {
-  if (sparse_fallback_) {
-    sparse_fallback_->calculate_energies(time, spins);
-    for (auto site = 0; site < globals::num_spins; ++site) {
-      energy_(site) = sparse_fallback_->energy(site);
-      for (auto n = 0; n < 3; ++n) {
-        field_(site, n) = sparse_fallback_->field(site, n);
-      }
-    }
-    return;
+jams::Real ExchangeStencilBackend::calculate_total_energy(
+    jams::Real time,
+    const SpinArray& spins,
+    FieldArray& field,
+    EnergyArray& energy) {
+  calculate_energies(time, spins, field, energy);
+  const auto energy_view = energy.host_view();
+  const auto* energy_values = energy_view.data();
+  jams::Real total_energy = 0;
+#if HAS_OMP
+#pragma omp parallel for reduction(+ : total_energy)
+#endif
+  for (auto site = 0; site < globals::num_spins; ++site) {
+    total_energy += energy_values[site];
   }
+  return total_energy;
+}
 
-  calculate_fields(time, spins);
+void ExchangeStencilBackend::calculate_energies(
+    jams::Real time,
+    const SpinArray& spins,
+    FieldArray& field,
+    EnergyArray& energy) {
+  calculate_fields(time, spins, field);
   const auto spin_view = spins.host_view();
-  const auto field_view = field_.host_view();
-  auto energy_view = energy_.mutable_host_view();
+  const auto field_view = field.host_view();
+  auto energy_view = energy.mutable_host_view();
   const auto* spin_values = spin_view.data();
   const auto* field_values = field_view.data();
   auto* energy_values = energy_view.data();
@@ -951,71 +871,39 @@ void ExchangeStencilHamiltonian::calculate_energies(jams::Real time, const SpinA
   }
 }
 
-jams::Real ExchangeStencilHamiltonian::calculate_total_energy(
+jams::Vec<jams::Real, 3> ExchangeStencilBackend::calculate_field(
+    const int site,
     jams::Real time,
     const SpinArray& spins) {
-  if (sparse_fallback_) {
-    return sparse_fallback_->calculate_total_energy(time, spins);
-  }
-
-  calculate_energies(time, spins);
-  const auto energy_view = energy_.host_view();
-  const auto* energy_values = energy_view.data();
-  jams::Real total_energy = 0;
-#if HAS_OMP
-#pragma omp parallel for reduction(+ : total_energy)
-#endif
-  for (auto site = 0; site < globals::num_spins; ++site) {
-    total_energy += energy_values[site];
-  }
-  return total_energy;
+  return calculate_stencil_field_for_site(site, spins.host_view());
 }
 
-jams::Vec<jams::Real, 3> ExchangeStencilHamiltonian::calculate_field(
+jams::Real ExchangeStencilBackend::calculate_energy(
     const int site,
-    jams::Real time) {
-  if (sparse_fallback_) {
-    return sparse_fallback_->calculate_field(site, time);
-  }
-
-  return calculate_stencil_field_for_site(site, global_spin_array_for_fields().host_view());
-}
-
-jams::Real ExchangeStencilHamiltonian::calculate_energy(const int site, jams::Real time) {
-  if (sparse_fallback_) {
-    return sparse_fallback_->calculate_energy(site, time);
-  }
-
-  const auto field = calculate_field(site, time);
+    jams::Real time,
+    const SpinArray& spins) {
+  const auto field = calculate_field(site, time, spins);
   const jams::Vec<jams::Real, 3> s_i = {
-      static_cast<jams::Real>(globals::s(site, 0)),
-      static_cast<jams::Real>(globals::s(site, 1)),
-      static_cast<jams::Real>(globals::s(site, 2))};
+      static_cast<jams::Real>(spins(site, 0)),
+      static_cast<jams::Real>(spins(site, 1)),
+      static_cast<jams::Real>(spins(site, 2))};
   return static_cast<jams::Real>(-0.5) * jams::dot(s_i, field);
 }
 
-jams::Real ExchangeStencilHamiltonian::calculate_energy_difference(
+jams::Real ExchangeStencilBackend::calculate_energy_difference(
     const int site,
     const jams::Vec<double, 3>& spin_initial,
     const jams::Vec<double, 3>& spin_final,
-    jams::Real time) {
-  if (sparse_fallback_) {
-    return sparse_fallback_->calculate_energy_difference(site, spin_initial, spin_final, time);
-  }
-
-  const auto field = calculate_field(site, time);
+    jams::Real time,
+    const SpinArray& spins) {
+  const auto field = calculate_field(site, time, spins);
   const auto e_initial = -jams::dot(spin_initial, field);
   const auto e_final = -jams::dot(spin_final, field);
   return e_final - e_initial;
 }
 
-void ExchangeStencilHamiltonian::add_energy_current_interactions(
+void ExchangeStencilBackend::add_energy_current_interactions(
     jams::EnergyCurrentInteractionSink& sink) const {
-  if (sparse_fallback_) {
-    sparse_fallback_->add_energy_current_interactions(sink);
-    return;
-  }
-
   for (auto cell_x = 0; cell_x < lattice_size_[0]; ++cell_x) {
     for (auto cell_y = 0; cell_y < lattice_size_[1]; ++cell_y) {
       for (auto cell_z = 0; cell_z < lattice_size_[2]; ++cell_z) {

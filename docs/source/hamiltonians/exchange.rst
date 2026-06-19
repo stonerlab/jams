@@ -20,6 +20,17 @@ materials/unitcell positions, so  if :math:`A` and :math:`B` are materials
 Settings
 ########
 
+.. describe:: backend = "auto"
+
+    Exchange backend selector. Must be one of:
+
+    - :code:`"auto"`: prefer the stencil backend when it is safe, otherwise use :code:`"sparse-matrix"`.
+    - :code:`"stencil"`: require the stencil backend and raise an error if the lattice or interactions cannot be represented safely as a dense stencil.
+    - :code:`"sparse-matrix"`: use the sparse interaction matrix backend.
+    - :code:`"benchmark"`: when stencil is safe, construct stencil and sparse-matrix backends, run 10 warm-up field calculations and time 100 field calculations for each, then keep the faster backend. If stencil is unsafe, use :code:`"sparse-matrix"` without timing.
+
+    The stencil backend requires a dense regular lattice layout with no cropping or impurities and interaction templates whose materials match the dense basis. The sparse-matrix backend supports the general exchange interaction list.
+
 .. describe:: exc_file
 
     Name of file containing exchange interaction data (format specified below)
@@ -72,3 +83,10 @@ Settings
 
     Tolerance to use for floating point comparisons of distances for rij.
 
+.. describe:: tensor_storage = "auto"
+
+    Sparse-matrix backend storage selector. This setting is valid when the effective backend is :code:`"sparse-matrix"`: either :code:`backend = "sparse-matrix"` is set explicitly, or :code:`backend = "auto"` falls back to the sparse-matrix backend. It is also valid with :code:`backend = "benchmark"` because the sparse-matrix candidate is constructed and timed.
+
+.. describe:: tensor_storage_tolerance = 0.0
+
+    Sparse-matrix tensor storage classification tolerance. This setting is valid when the effective backend is :code:`"sparse-matrix"`: either :code:`backend = "sparse-matrix"` is set explicitly, or :code:`backend = "auto"` falls back to the sparse-matrix backend. It is also valid with :code:`backend = "benchmark"` because the sparse-matrix candidate is constructed and timed.

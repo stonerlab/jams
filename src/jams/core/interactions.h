@@ -105,7 +105,7 @@ generate_interaction_data(libconfig::Setting &setting,
                           double radius_cutoff_tolerance = jams::defaults::lattice_tolerance);
 
 jams::InteractionList<jams::Mat<double, 3, 3>, 2>
-neighbour_list_from_interactions(std::vector<InteractionData> &interactions);
+neighbour_list_from_interactions(const std::vector<InteractionData> &interactions);
 
 void
 neighbour_list_checks(const jams::InteractionList<jams::Mat<double, 3, 3>, 2>& list,

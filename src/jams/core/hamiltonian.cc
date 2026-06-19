@@ -19,7 +19,6 @@
 #include "jams/hamiltonian/anisotropy_polynomial.h"
 #include "jams/hamiltonian/cubic_anisotropy.h"
 #include "jams/hamiltonian/exchange.h"
-#include "jams/hamiltonian/exchange_stencil.h"
 #include "jams/hamiltonian/exchange_neartree.h"
 #include "jams/hamiltonian/exchange_functional.h"
 #include "jams/hamiltonian/random_anisotropy.h"
@@ -48,7 +47,6 @@
   #include "jams/hamiltonian/cuda_dipole_fft.h"
   #include "jams/hamiltonian/cuda_field_pulse.h"
   #include "jams/hamiltonian/cuda_crystal_field.h"
-  #include "jams/hamiltonian/cuda_exchange_stencil.h"
 #endif
 
 #define DEFINED_HAMILTONIAN(name, type, settings, size) \
@@ -91,8 +89,13 @@ Hamiltonian * Hamiltonian::create(const libconfig::Setting &settings, const unsi
     throw jams::removed_feature_error("dipole hamiltonians now have specific names and 'strategy' has been removed");
   }
 
-  DEFINED_HAMILTONIAN("exchange", ExchangeHamiltonian, settings, size);
-  DEFINED_HAMILTONIAN_CUDA_VARIANT("exchange-stencil", ExchangeStencilHamiltonian, is_cuda_solver, settings, size);
+  if (lowercase(jams::config_required<std::string>(settings, "module")) == "exchange") {
+    return new ExchangeHamiltonian(settings, size, is_cuda_solver);
+  }
+  if (lowercase(jams::config_required<std::string>(settings, "module")) == "exchange-stencil") {
+    throw jams::removed_feature_error(
+        "exchange-stencil has been removed; use module = \"exchange\" with backend = \"stencil\"");
+  }
   DEFINED_HAMILTONIAN("exchange-functional", ExchangeFunctionalHamiltonian, settings, size);
   DEFINED_HAMILTONIAN("exchange-neartree", ExchangeNeartreeHamiltonian, settings, size);
   DEFINED_HAMILTONIAN("dipole-tensor", DipoleTensorHamiltonian, settings, size);

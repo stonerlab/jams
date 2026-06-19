@@ -15,15 +15,10 @@
 #include "jams/core/physics.h"
 #include "jams/core/solver.h"
 #include "jams/hamiltonian/exchange.h"
-#include "jams/hamiltonian/exchange_stencil.h"
 #include "jams/helpers/exception.h"
 #include "jams/helpers/output.h"
 #include "jams/helpers/utils.h"
 #include "jams/test/output.h"
-
-#if HAS_CUDA
-#include "jams/hamiltonian/cuda_exchange_stencil.h"
-#endif
 
 namespace jams::testing::exchange_stencil {
 
@@ -84,7 +79,15 @@ inline std::string make_config(
     const std::string& extra_lattice = "",
     const std::string& extra_exchange_settings = "",
     const std::string& extra_root_settings = "",
-    const std::string& lattice_size = "[4, 3, 2]") {
+    const std::string& lattice_size = "[4, 3, 2]",
+    const std::string& first_backend = "sparse-matrix",
+    const std::string& second_module = "exchange",
+    const std::string& second_backend = "stencil") {
+  const auto backend_setting = [](const std::string& backend) {
+    return backend.empty()
+        ? std::string{}
+        : std::string("        backend = \"") + backend + "\";\n";
+  };
   return std::string(R"CFG(
     solver : {
       module = "llg-heun-cpu";
@@ -127,14 +130,16 @@ inline std::string make_config(
 )CFG" + interactions + R"CFG(
         );
         symops = )CFG" + symops + R"CFG(;
+)CFG" + backend_setting(first_backend) + R"CFG(
 )CFG" + extra_exchange_settings + R"CFG(
       },
       {
-        module = "exchange-stencil";
+        module = ")CFG" + second_module + R"CFG(";
         interactions = (
 )CFG" + interactions + R"CFG(
         );
         symops = )CFG" + symops + R"CFG(;
+)CFG" + backend_setting(second_backend) + R"CFG(
 )CFG" + extra_exchange_settings + R"CFG(
       }
     );
@@ -188,35 +193,35 @@ inline void assert_near_scaled(const double expected, const double actual, const
   ASSERT_NEAR(expected, actual, tolerance * scale);
 }
 
-template <typename StencilHamiltonian>
-void compare_to_sparse_exchange(const libconfig::Setting& settings, const double tolerance) {
-  ExchangeHamiltonian reference(settings[0], globals::num_spins);
-  StencilHamiltonian stencil(settings[1], globals::num_spins);
+inline void compare_hamiltonian_outputs(
+    Hamiltonian& reference,
+    Hamiltonian& candidate,
+    const double tolerance) {
   auto spins = make_spins();
 
   reference.calculate_fields(0.0, spins);
-  stencil.calculate_fields(0.0, spins);
+  candidate.calculate_fields(0.0, spins);
 
   for (auto site = 0; site < globals::num_spins; ++site) {
     for (auto n = 0; n < 3; ++n) {
-      assert_near_scaled(reference.field(site, n), stencil.field(site, n), tolerance);
+      assert_near_scaled(reference.field(site, n), candidate.field(site, n), tolerance);
     }
   }
 
   reference.calculate_energies(0.0, spins);
-  stencil.calculate_energies(0.0, spins);
+  candidate.calculate_energies(0.0, spins);
   for (auto site = 0; site < globals::num_spins; ++site) {
-    assert_near_scaled(reference.energy(site), stencil.energy(site), tolerance);
+    assert_near_scaled(reference.energy(site), candidate.energy(site), tolerance);
   }
 
   const auto reference_energy = reference.calculate_total_energy(0.0, spins);
-  const auto stencil_energy = stencil.calculate_total_energy(0.0, spins);
-  assert_near_scaled(reference_energy, stencil_energy, tolerance);
+  const auto candidate_energy = candidate.calculate_total_energy(0.0, spins);
+  assert_near_scaled(reference_energy, candidate_energy, tolerance);
 
   for (auto site = 0; site < globals::num_spins; ++site) {
     assert_near_scaled(
         reference.calculate_energy(site, 0.0),
-        stencil.calculate_energy(site, 0.0),
+        candidate.calculate_energy(site, 0.0),
         tolerance);
     const jams::Vec<double, 3> spin_initial = {
         globals::s(site, 0),
@@ -228,30 +233,45 @@ void compare_to_sparse_exchange(const libconfig::Setting& settings, const double
         -globals::s(site, 2)};
     assert_near_scaled(
         reference.calculate_energy_difference(site, spin_initial, spin_final, 0.0),
-        stencil.calculate_energy_difference(site, spin_initial, spin_final, 0.0),
+        candidate.calculate_energy_difference(site, spin_initial, spin_final, 0.0),
         tolerance);
   }
 }
 
-template <typename StencilHamiltonian>
-void compare_fields_to_sparse_exchange(const libconfig::Setting& settings, const double tolerance) {
-  ExchangeHamiltonian reference(settings[0], globals::num_spins);
-  StencilHamiltonian stencil(settings[1], globals::num_spins);
+inline void compare_to_sparse_exchange(
+    const libconfig::Setting& settings,
+    const double tolerance,
+    const bool candidate_is_cuda_solver = false) {
+  ExchangeHamiltonian reference(settings[0], globals::num_spins, false);
+  ExchangeHamiltonian candidate(settings[1], globals::num_spins, candidate_is_cuda_solver);
+  EXPECT_EQ(reference.active_backend(), ExchangeBackend::SparseMatrix);
+  EXPECT_EQ(candidate.active_backend(), ExchangeBackend::Stencil);
+  compare_hamiltonian_outputs(reference, candidate, tolerance);
+}
+
+inline void compare_fields_to_sparse_exchange(
+    const libconfig::Setting& settings,
+    const double tolerance,
+    const bool candidate_is_cuda_solver = false) {
+  ExchangeHamiltonian reference(settings[0], globals::num_spins, false);
+  ExchangeHamiltonian candidate(settings[1], globals::num_spins, candidate_is_cuda_solver);
+  EXPECT_EQ(reference.active_backend(), ExchangeBackend::SparseMatrix);
+  EXPECT_EQ(candidate.active_backend(), ExchangeBackend::Stencil);
   auto spins = make_spins();
 
   reference.calculate_fields(0.0, spins);
-  stencil.calculate_fields(0.0, spins);
+  candidate.calculate_fields(0.0, spins);
 
   double scale = 1.0;
   for (auto site = 0; site < globals::num_spins; ++site) {
     for (auto n = 0; n < 3; ++n) {
       scale = std::max(scale, std::abs(static_cast<double>(reference.field(site, n))));
-      scale = std::max(scale, std::abs(static_cast<double>(stencil.field(site, n))));
+      scale = std::max(scale, std::abs(static_cast<double>(candidate.field(site, n))));
     }
   }
   for (auto site = 0; site < globals::num_spins; ++site) {
     for (auto n = 0; n < 3; ++n) {
-      ASSERT_NEAR(reference.field(site, n), stencil.field(site, n), tolerance * scale);
+      ASSERT_NEAR(reference.field(site, n), candidate.field(site, n), tolerance * scale);
     }
   }
 }
@@ -304,7 +324,7 @@ TEST_F(ExchangeStencilHamiltonianTest, MatchesSparseForPeriodicScalarExchange) {
       single_material(),
       scalar_interactions(),
       "false"));
-  compare_to_sparse_exchange<ExchangeStencilHamiltonian>(globals::config->lookup("hamiltonians"), 1.0e-8);
+  compare_to_sparse_exchange(globals::config->lookup("hamiltonians"), 1.0e-8);
 }
 
 TEST_F(ExchangeStencilHamiltonianTest, MatchesSparseForMixedOpenBoundaries) {
@@ -315,7 +335,7 @@ TEST_F(ExchangeStencilHamiltonianTest, MatchesSparseForMixedOpenBoundaries) {
       single_material(),
       scalar_interactions(),
       "false"));
-  compare_to_sparse_exchange<ExchangeStencilHamiltonian>(globals::config->lookup("hamiltonians"), 1.0e-8);
+  compare_to_sparse_exchange(globals::config->lookup("hamiltonians"), 1.0e-8);
 }
 
 TEST_F(ExchangeStencilHamiltonianTest, MatchesSparseForTensorExchange) {
@@ -326,7 +346,7 @@ TEST_F(ExchangeStencilHamiltonianTest, MatchesSparseForTensorExchange) {
       single_material(),
       tensor_interactions(),
       "false"));
-  compare_to_sparse_exchange<ExchangeStencilHamiltonian>(globals::config->lookup("hamiltonians"), 1.0e-8);
+  compare_to_sparse_exchange(globals::config->lookup("hamiltonians"), 1.0e-8);
 }
 
 TEST_F(ExchangeStencilHamiltonianTest, MatchesSparseForMultiBasisExchange) {
@@ -337,7 +357,7 @@ TEST_F(ExchangeStencilHamiltonianTest, MatchesSparseForMultiBasisExchange) {
       two_materials(),
       multi_basis_interactions(),
       "false"));
-  compare_to_sparse_exchange<ExchangeStencilHamiltonian>(globals::config->lookup("hamiltonians"), 1.0e-8);
+  compare_to_sparse_exchange(globals::config->lookup("hamiltonians"), 1.0e-8);
 }
 
 TEST_F(ExchangeStencilHamiltonianTest, MatchesSparseForSymopsGeneratedExchange) {
@@ -354,7 +374,7 @@ TEST_F(ExchangeStencilHamiltonianTest, MatchesSparseForSymopsGeneratedExchange) 
       "",
       "",
       "[4, 4, 4]"));
-  compare_to_sparse_exchange<ExchangeStencilHamiltonian>(globals::config->lookup("hamiltonians"), 1.0e-8);
+  compare_to_sparse_exchange(globals::config->lookup("hamiltonians"), 1.0e-8);
 }
 
 TEST_F(ExchangeStencilHamiltonianTest, MatchesSparseForExchangeFileInput) {
@@ -401,16 +421,89 @@ TEST_F(ExchangeStencilHamiltonianTest, MatchesSparseForExchangeFileInput) {
         module = "exchange";
         exc_file = "exchange_stencil_test_exc.in";
         symops = false;
+        backend = "sparse-matrix";
       },
       {
-        module = "exchange-stencil";
+        module = "exchange";
         exc_file = "exchange_stencil_test_exc.in";
         symops = false;
+        backend = "stencil";
       }
     );
   )");
-  compare_to_sparse_exchange<ExchangeStencilHamiltonian>(globals::config->lookup("hamiltonians"), 1.0e-8);
+  compare_to_sparse_exchange(globals::config->lookup("hamiltonians"), 1.0e-8);
   std::remove(file_name.c_str());
+}
+
+TEST_F(ExchangeStencilHamiltonianTest, AutoSelectsStencilForDenseExchange) {
+  using namespace jams::testing::exchange_stencil;
+  SetUp(make_config(
+      "[true, true, true]",
+      single_basis_positions(),
+      single_material(),
+      scalar_interactions(),
+      "false",
+      "",
+      "",
+      "",
+      "[4, 3, 2]",
+      "",
+      "exchange",
+      "sparse-matrix"));
+  const auto& settings = globals::config->lookup("hamiltonians");
+  ExchangeHamiltonian auto_exchange(settings[0], globals::num_spins, false);
+  ExchangeHamiltonian sparse_exchange(settings[1], globals::num_spins, false);
+  EXPECT_EQ(auto_exchange.active_backend(), ExchangeBackend::Stencil);
+  EXPECT_EQ(sparse_exchange.active_backend(), ExchangeBackend::SparseMatrix);
+  compare_hamiltonian_outputs(auto_exchange, sparse_exchange, 1.0e-8);
+}
+
+TEST_F(ExchangeStencilHamiltonianTest, SelectsSparseMatrixWhenRequested) {
+  using namespace jams::testing::exchange_stencil;
+  SetUp(make_config(
+      "[true, true, true]",
+      single_basis_positions(),
+      single_material(),
+      scalar_interactions(),
+      "false",
+      "",
+      R"(
+        tensor_storage = "isotropic";
+      )",
+      "",
+      "[4, 3, 2]",
+      "sparse-matrix",
+      "exchange",
+      "sparse-matrix"));
+  const auto& settings = globals::config->lookup("hamiltonians");
+  ExchangeHamiltonian reference(settings[0], globals::num_spins, false);
+  ExchangeHamiltonian candidate(settings[1], globals::num_spins, false);
+  EXPECT_EQ(candidate.active_backend(), ExchangeBackend::SparseMatrix);
+  compare_hamiltonian_outputs(reference, candidate, 1.0e-8);
+}
+
+TEST_F(ExchangeStencilHamiltonianTest, BenchmarkSelectsBackendAndMatchesSparseForDenseExchange) {
+  using namespace jams::testing::exchange_stencil;
+  SetUp(make_config(
+      "[true, true, true]",
+      single_basis_positions(),
+      single_material(),
+      scalar_interactions(),
+      "false",
+      "",
+      "",
+      "",
+      "[4, 3, 2]",
+      "sparse-matrix",
+      "exchange",
+      "benchmark"));
+  const auto& settings = globals::config->lookup("hamiltonians");
+  ExchangeHamiltonian reference(settings[0], globals::num_spins, false);
+  ExchangeHamiltonian candidate(settings[1], globals::num_spins, false);
+  EXPECT_EQ(reference.active_backend(), ExchangeBackend::SparseMatrix);
+  EXPECT_TRUE(candidate.active_backend() == ExchangeBackend::Stencil
+              || candidate.active_backend() == ExchangeBackend::SparseMatrix);
+  compare_hamiltonian_outputs(reference, candidate, 1.0e-8);
 }
 
 TEST_F(ExchangeStencilHamiltonianTest, FallsBackAndMatchesSparseWhenImpuritiesAreConfigured) {
@@ -429,10 +522,56 @@ TEST_F(ExchangeStencilHamiltonianTest, FallsBackAndMatchesSparseWhenImpuritiesAr
           ("A", "B", 0.0)
         );
       )"));
-  compare_to_sparse_exchange<ExchangeStencilHamiltonian>(globals::config->lookup("hamiltonians"), 1.0e-8);
+  compare_to_sparse_exchange(globals::config->lookup("hamiltonians"), 1.0e-8);
 }
 
-TEST_F(ExchangeStencilHamiltonianTest, FallsBackAndMatchesSparseWhenLatticeIsCropped) {
+TEST_F(ExchangeStencilHamiltonianTest, AutoFallsBackToSparseWhenLatticeIsCropped) {
+  using namespace jams::testing::exchange_stencil;
+  SetUp(make_config(
+      "[true, true, false]",
+      single_basis_positions(),
+      single_material(),
+      scalar_interactions(),
+      "false",
+      "",
+      "",
+      "",
+      "[4.0, 3.0, 2.5]",
+      "sparse-matrix",
+      "exchange",
+      ""));
+  ASSERT_TRUE(globals::lattice->has_cropping());
+  const auto& settings = globals::config->lookup("hamiltonians");
+  ExchangeHamiltonian reference(settings[0], globals::num_spins, false);
+  ExchangeHamiltonian auto_exchange(settings[1], globals::num_spins, false);
+  EXPECT_EQ(auto_exchange.active_backend(), ExchangeBackend::SparseMatrix);
+  compare_hamiltonian_outputs(reference, auto_exchange, 1.0e-8);
+}
+
+TEST_F(ExchangeStencilHamiltonianTest, BenchmarkFallsBackToSparseWhenLatticeIsCropped) {
+  using namespace jams::testing::exchange_stencil;
+  SetUp(make_config(
+      "[true, true, false]",
+      single_basis_positions(),
+      single_material(),
+      scalar_interactions(),
+      "false",
+      "",
+      "",
+      "",
+      "[4.0, 3.0, 2.5]",
+      "sparse-matrix",
+      "exchange",
+      "benchmark"));
+  ASSERT_TRUE(globals::lattice->has_cropping());
+  const auto& settings = globals::config->lookup("hamiltonians");
+  ExchangeHamiltonian reference(settings[0], globals::num_spins, false);
+  ExchangeHamiltonian benchmark_exchange(settings[1], globals::num_spins, false);
+  EXPECT_EQ(benchmark_exchange.active_backend(), ExchangeBackend::SparseMatrix);
+  compare_hamiltonian_outputs(reference, benchmark_exchange, 1.0e-8);
+}
+
+TEST_F(ExchangeStencilHamiltonianTest, ForcedStencilRejectsUnsafeCroppedLattice) {
   using namespace jams::testing::exchange_stencil;
   SetUp(make_config(
       "[true, true, false]",
@@ -445,7 +584,104 @@ TEST_F(ExchangeStencilHamiltonianTest, FallsBackAndMatchesSparseWhenLatticeIsCro
       "",
       "[4.0, 3.0, 2.5]"));
   ASSERT_TRUE(globals::lattice->has_cropping());
-  compare_to_sparse_exchange<ExchangeStencilHamiltonian>(globals::config->lookup("hamiltonians"), 1.0e-8);
+  EXPECT_THROW(
+      ExchangeHamiltonian(globals::config->lookup("hamiltonians.[1]"), globals::num_spins, false),
+      jams::ConfigException);
+}
+
+TEST_F(ExchangeStencilHamiltonianTest, BenchmarkAcceptsSparseOnlySettings) {
+  using namespace jams::testing::exchange_stencil;
+  SetUp(make_config(
+      "[true, true, true]",
+      single_basis_positions(),
+      single_material(),
+      scalar_interactions(),
+      "false",
+      "",
+      R"(
+        tensor_storage = "isotropic";
+        tensor_storage_tolerance = 0.0;
+      )",
+      "",
+      "[4, 3, 2]",
+      "sparse-matrix",
+      "exchange",
+      "benchmark"));
+  const auto& settings = globals::config->lookup("hamiltonians");
+  ExchangeHamiltonian reference(settings[0], globals::num_spins, false);
+  ExchangeHamiltonian candidate(settings[1], globals::num_spins, false);
+  EXPECT_TRUE(candidate.active_backend() == ExchangeBackend::Stencil
+              || candidate.active_backend() == ExchangeBackend::SparseMatrix);
+  compare_hamiltonian_outputs(reference, candidate, 1.0e-8);
+}
+
+TEST_F(ExchangeStencilHamiltonianTest, RejectsInvalidExchangeBackend) {
+  using namespace jams::testing::exchange_stencil;
+  SetUp(make_config(
+      "[true, true, true]",
+      single_basis_positions(),
+      single_material(),
+      scalar_interactions(),
+      "false",
+      "",
+      R"(
+        backend = "dense";
+      )",
+      "",
+      "[4, 3, 2]",
+      "",
+      "exchange",
+      ""));
+  try {
+    ExchangeHamiltonian(globals::config->lookup("hamiltonians.[0]"), globals::num_spins, false);
+    FAIL() << "expected invalid backend to throw";
+  } catch (const jams::ConfigException& error) {
+    EXPECT_NE(std::string(error.what()).find("benchmark"), std::string::npos)
+        << error.what();
+  }
+}
+
+TEST_F(ExchangeStencilHamiltonianTest, RejectsSparseOnlySettingsWhenAutoSelectsStencil) {
+  using namespace jams::testing::exchange_stencil;
+  SetUp(make_config(
+      "[true, true, true]",
+      single_basis_positions(),
+      single_material(),
+      scalar_interactions(),
+      "false",
+      "",
+      R"(
+        tensor_storage = "isotropic";
+      )",
+      "",
+      "[4, 3, 2]",
+      "",
+      "exchange",
+      "stencil"));
+  EXPECT_THROW(
+      ExchangeHamiltonian(globals::config->lookup("hamiltonians.[0]"), globals::num_spins, false),
+      jams::ConfigException);
+}
+
+TEST_F(ExchangeStencilHamiltonianTest, FactoryRejectsLegacyExchangeStencilModule) {
+  using namespace jams::testing::exchange_stencil;
+  SetUp(make_config(
+      "[true, true, true]",
+      single_basis_positions(),
+      single_material(),
+      scalar_interactions(),
+      "false",
+      "",
+      "",
+      "",
+      "[4, 3, 2]",
+      "sparse-matrix",
+      "exchange-stencil",
+      ""));
+  EXPECT_THROW(
+      std::unique_ptr<Hamiltonian>(
+          Hamiltonian::create(globals::config->lookup("hamiltonians.[1]"), globals::num_spins, false)),
+      jams::removed_feature_error);
 }
 
 TEST_F(ExchangeStencilHamiltonianTest, RejectsDuplicateStencilTemplates) {
@@ -461,7 +697,7 @@ TEST_F(ExchangeStencilHamiltonianTest, RejectsDuplicateStencilTemplates) {
       )",
       "false"));
   EXPECT_THROW(
-      ExchangeStencilHamiltonian(globals::config->lookup("hamiltonians.[1]"), globals::num_spins),
+      ExchangeHamiltonian(globals::config->lookup("hamiltonians.[1]"), globals::num_spins, false),
       std::runtime_error);
 }
 
@@ -481,7 +717,7 @@ TEST_F(ExchangeStencilHamiltonianTest, RejectsDuplicatePhysicalTargetsAfterPerio
       "",
       "[4, 4, 2]"));
   EXPECT_THROW(
-      ExchangeStencilHamiltonian(globals::config->lookup("hamiltonians.[1]"), globals::num_spins),
+      ExchangeHamiltonian(globals::config->lookup("hamiltonians.[1]"), globals::num_spins, false),
       std::runtime_error);
 }
 
@@ -496,7 +732,7 @@ TEST_F(ExchangeStencilHamiltonianTest, RejectsMissingReverseInteraction) {
       )",
       "false"));
   EXPECT_THROW(
-      ExchangeStencilHamiltonian(globals::config->lookup("hamiltonians.[1]"), globals::num_spins),
+      ExchangeHamiltonian(globals::config->lookup("hamiltonians.[1]"), globals::num_spins, false),
       jams::SanityException);
 }
 
@@ -509,9 +745,7 @@ TEST_F(ExchangeStencilHamiltonianTest, CudaMatchesSparseForPeriodicScalarExchang
       single_material(),
       scalar_interactions(),
       "false"));
-  compare_to_sparse_exchange<CudaExchangeStencilHamiltonian>(
-      globals::config->lookup("hamiltonians"),
-      1.0e-5);
+  compare_to_sparse_exchange(globals::config->lookup("hamiltonians"), 1.0e-5, true);
 }
 
 TEST_F(ExchangeStencilHamiltonianTest, CudaMatchesSparseForMixedOpenBoundaries) {
@@ -522,9 +756,7 @@ TEST_F(ExchangeStencilHamiltonianTest, CudaMatchesSparseForMixedOpenBoundaries) 
       single_material(),
       scalar_interactions(),
       "false"));
-  compare_to_sparse_exchange<CudaExchangeStencilHamiltonian>(
-      globals::config->lookup("hamiltonians"),
-      1.0e-5);
+  compare_to_sparse_exchange(globals::config->lookup("hamiltonians"), 1.0e-5, true);
 }
 
 TEST_F(ExchangeStencilHamiltonianTest, CudaMatchesSparseForDiagonalTensorExchange) {
@@ -535,9 +767,7 @@ TEST_F(ExchangeStencilHamiltonianTest, CudaMatchesSparseForDiagonalTensorExchang
       single_material(),
       diagonal_tensor_interactions(),
       "false"));
-  compare_to_sparse_exchange<CudaExchangeStencilHamiltonian>(
-      globals::config->lookup("hamiltonians"),
-      1.0e-5);
+  compare_to_sparse_exchange(globals::config->lookup("hamiltonians"), 1.0e-5, true);
 }
 
 TEST_F(ExchangeStencilHamiltonianTest, CudaMatchesSparseForSymmetricTensorExchange) {
@@ -548,9 +778,7 @@ TEST_F(ExchangeStencilHamiltonianTest, CudaMatchesSparseForSymmetricTensorExchan
       single_material(),
       symmetric_tensor_interactions(),
       "false"));
-  compare_to_sparse_exchange<CudaExchangeStencilHamiltonian>(
-      globals::config->lookup("hamiltonians"),
-      1.0e-5);
+  compare_to_sparse_exchange(globals::config->lookup("hamiltonians"), 1.0e-5, true);
 }
 
 TEST_F(ExchangeStencilHamiltonianTest, CudaMatchesSparseForAntisymmetricTensorExchange) {
@@ -561,9 +789,7 @@ TEST_F(ExchangeStencilHamiltonianTest, CudaMatchesSparseForAntisymmetricTensorEx
       single_material(),
       antisymmetric_tensor_interactions(),
       "false"));
-  compare_fields_to_sparse_exchange<CudaExchangeStencilHamiltonian>(
-      globals::config->lookup("hamiltonians"),
-      1.0e-5);
+  compare_fields_to_sparse_exchange(globals::config->lookup("hamiltonians"), 1.0e-5, true);
 }
 
 TEST_F(ExchangeStencilHamiltonianTest, CudaMatchesSparseForGeneralTensorExchange) {
@@ -574,9 +800,31 @@ TEST_F(ExchangeStencilHamiltonianTest, CudaMatchesSparseForGeneralTensorExchange
       single_material(),
       tensor_interactions(),
       "false"));
-  compare_to_sparse_exchange<CudaExchangeStencilHamiltonian>(
-      globals::config->lookup("hamiltonians"),
-      1.0e-5);
+  compare_to_sparse_exchange(globals::config->lookup("hamiltonians"), 1.0e-5, true);
+}
+
+TEST_F(ExchangeStencilHamiltonianTest, CudaBenchmarkSelectsBackendAndMatchesSparseForPeriodicScalarExchange) {
+  using namespace jams::testing::exchange_stencil;
+  SetUp(make_config(
+      "[true, true, true]",
+      single_basis_positions(),
+      single_material(),
+      scalar_interactions(),
+      "false",
+      "",
+      "",
+      "",
+      "[4, 3, 2]",
+      "sparse-matrix",
+      "exchange",
+      "benchmark"));
+  const auto& settings = globals::config->lookup("hamiltonians");
+  ExchangeHamiltonian reference(settings[0], globals::num_spins, false);
+  ExchangeHamiltonian candidate(settings[1], globals::num_spins, true);
+  EXPECT_EQ(reference.active_backend(), ExchangeBackend::SparseMatrix);
+  EXPECT_TRUE(candidate.active_backend() == ExchangeBackend::Stencil
+              || candidate.active_backend() == ExchangeBackend::SparseMatrix);
+  compare_hamiltonian_outputs(reference, candidate, 1.0e-5);
 }
 #endif  // HAS_CUDA
 

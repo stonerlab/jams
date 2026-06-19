@@ -438,7 +438,7 @@ post_process_interactions(std::vector<InteractionData> &interactions, const Inte
 }
 
 jams::InteractionList<jams::Mat<double, 3, 3>, 2>
-neighbour_list_from_interactions(std::vector<InteractionData> &interactions) {
+neighbour_list_from_interactions(const std::vector<InteractionData> &interactions) {
   jams::InteractionList<jams::Mat<double, 3, 3>, 2> nbr_list;
   NeighbourListSkipDiagnostics skip_diagnostics;
 
