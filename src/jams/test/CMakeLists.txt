@@ -33,6 +33,11 @@ gtest_discover_tests(jams_low_level_tests
 
 add_executable(jams_tests "jams_test.cc")
 
+if(JAMS_BUILD_CUDA)
+    target_sources(jams_tests PRIVATE
+            "solvers/test_cuda_solver_parameter.cu")
+endif()
+
 target_link_libraries(jams_tests
         jams_core
         gtest

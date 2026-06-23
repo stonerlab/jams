@@ -20,15 +20,16 @@
 // -----------------------------------------------------------------------------
 // Kernel 1: compute ω_n, store it, and do predictor rotation S* = R(Δt ω_n) S_n
 // -----------------------------------------------------------------------------
+template <typename GyroParam, typename AlphaParam, typename FieldScaleParam>
 __global__ void cuda_llg_dm_kernel_predict
 (
   const double * s_init_dev,
   double * omega1_dev,                 // store ω_n (double, 3 per spin)
   double * s_pred_dev,                 // output S*
   const jams::Real * h_step_dev,        // field at time t_n for S_n
-  const jams::Real * gyro_dev,
-  const jams::Real * mus_dev,
-  const jams::Real * alpha_dev,
+  const GyroParam gyro,
+  const FieldScaleParam field_scale,
+  const AlphaParam alpha,
   const unsigned dev_num_spins,
   const double dt
 )
@@ -41,7 +42,7 @@ __global__ void cuda_llg_dm_kernel_predict
   jams::Real h[3];
   #pragma unroll
   for (int n = 0; n < 3; ++n) {
-    h[n] = h_step_dev[base + n] / mus_dev[idx];
+    h[n] = field_scale.scale(h_step_dev[base + n], idx);
   }
 
   double s[3];
@@ -51,7 +52,7 @@ __global__ void cuda_llg_dm_kernel_predict
   }
 
   double omega1[3];
-  omega_llg(s, h, gyro_dev[idx], alpha_dev[idx], omega1);
+  omega_llg(s, h, gyro.get(idx), alpha.get(idx), omega1);
 
   // store ω_n
   #pragma unroll
@@ -79,6 +80,7 @@ __global__ void cuda_llg_dm_kernel_predict
 // -----------------------------------------------------------------------------
 // Kernel 2: compute ω_* from S* and H(S*), average, then rotate original S_n
 // -----------------------------------------------------------------------------
+template <typename GyroParam, typename AlphaParam, typename FieldScaleParam>
 __global__ void cuda_llg_dm_kernel_correct
 (
   const double * s_init_dev,            // original S_n
@@ -86,9 +88,9 @@ __global__ void cuda_llg_dm_kernel_correct
   const double * omega1_dev,            // ω_n
   double * s_out_dev,                   // S_{n+1}
   const jams::Real * h_step_dev,        // field at time t_{n+1} (or t_n+Δt) for S*
-  const jams::Real * gyro_dev,
-  const jams::Real * mus_dev,
-  const jams::Real * alpha_dev,
+  const GyroParam gyro,
+  const FieldScaleParam field_scale,
+  const AlphaParam alpha,
   const unsigned dev_num_spins,
   const double dt
 )
@@ -101,7 +103,7 @@ __global__ void cuda_llg_dm_kernel_correct
   jams::Real h[3];
   #pragma unroll
   for (int n = 0; n < 3; ++n) {
-    h[n] = h_step_dev[base + n] / mus_dev[idx];
+    h[n] = field_scale.scale(h_step_dev[base + n], idx);
   }
 
   double s_pred[3];
@@ -111,7 +113,7 @@ __global__ void cuda_llg_dm_kernel_correct
   }
 
   double omega2[3];
-  omega_llg(s_pred, h, gyro_dev[idx], alpha_dev[idx], omega2);
+  omega_llg(s_pred, h, gyro.get(idx), alpha.get(idx), omega2);
 
   double omega1[3];
   #pragma unroll
@@ -174,6 +176,15 @@ void CUDALLGDMSolver::initialize(const libconfig::Setting& settings)
   std::cout << "  thermostat " << thermostat_name.c_str() << "\n";
 
   initialize_gyro_eff(settings, gyro_eff_);
+  const auto gyro_eff_choice = cuda_spin_parameter_choice(gyro_eff_);
+  gyro_eff_is_uniform_ = gyro_eff_choice.is_uniform;
+  gyro_eff_uniform_value_ = gyro_eff_choice.uniform_value;
+  const auto alpha_choice = cuda_spin_parameter_choice(globals::alpha);
+  alpha_is_uniform_ = alpha_choice.is_uniform;
+  alpha_uniform_value_ = alpha_choice.uniform_value;
+  const auto mus_choice = cuda_field_scale_choice(globals::mus);
+  mus_is_uniform_ = mus_choice.is_uniform;
+  mus_uniform_inv_value_ = mus_choice.uniform_inv_mus;
 
   s_init_.resize(globals::num_spins, 3);
   s_pred_.resize(globals::num_spins, 3);
@@ -188,7 +199,11 @@ void CUDALLGDMSolver::initialize(const libconfig::Setting& settings)
 }
 
 
-void CUDALLGDMSolver::run()
+template <typename GyroParam, typename AlphaParam, typename FieldScaleParam>
+void CUDALLGDMSolver::run_with_parameters(
+    const GyroParam gyro,
+    const AlphaParam alpha,
+    const FieldScaleParam field_scale)
 {
   const double t0 = time_;
   const double half_dt = 0.5 * step_size_;
@@ -204,8 +219,8 @@ void CUDALLGDMSolver::run()
   cuda_llg_noise_step_rodrigues_kernel<<<grid_size, block_size, 0, jams::instance().cuda_master_stream().get()>>>(
     globals::s.mutable_device_data(),
     thermostat_->device_data(),
-    gyro_eff_.device_data(),
-    globals::alpha.device_data(),
+    gyro,
+    alpha,
     globals::num_spins, half_dt);
   DEBUG_CHECK_CUDA_ASYNC_STATUS
   record_spin_barrier_event();
@@ -229,9 +244,9 @@ void CUDALLGDMSolver::run()
     omega1_.mutable_device_data(),
     s_pred_.mutable_device_data(),
     globals::h.device_data(),
-    gyro_eff_.device_data(),
-    globals::mus.device_data(),
-    globals::alpha.device_data(),
+    gyro,
+    field_scale,
+    alpha,
     globals::num_spins, step_size_);
   DEBUG_CHECK_CUDA_ASYNC_STATUS
   record_spin_barrier_event();
@@ -256,9 +271,9 @@ void CUDALLGDMSolver::run()
     omega1_.device_data(),
     globals::s.mutable_device_data(),
     globals::h.device_data(),
-    gyro_eff_.device_data(),
-    globals::mus.device_data(),
-    globals::alpha.device_data(),
+    gyro,
+    field_scale,
+    alpha,
     globals::num_spins, step_size_);
   DEBUG_CHECK_CUDA_ASYNC_STATUS
   record_spin_barrier_event();
@@ -271,12 +286,29 @@ void CUDALLGDMSolver::run()
   cuda_llg_noise_step_rodrigues_kernel<<<grid_size, block_size, 0, jams::instance().cuda_master_stream().get()>>>(
     globals::s.mutable_device_data(),
     thermostat_->device_data(),
-    gyro_eff_.device_data(),
-    globals::alpha.device_data(),
+    gyro,
+    alpha,
     globals::num_spins, half_dt);
   DEBUG_CHECK_CUDA_ASYNC_STATUS
   record_spin_barrier_event();
 
   iteration_++;
   time_ = iteration_ * step_size_;
+}
+
+void CUDALLGDMSolver::run()
+{
+  dispatch_cuda_spin_parameters(
+      {gyro_eff_is_uniform_, gyro_eff_uniform_value_},
+      {alpha_is_uniform_, alpha_uniform_value_},
+      gyro_eff_,
+      globals::alpha,
+      [this](const auto gyro, const auto alpha) {
+        dispatch_cuda_field_scale(
+            {mus_is_uniform_, mus_uniform_inv_value_},
+            globals::mus,
+            [this, gyro, alpha](const auto field_scale) {
+              run_with_parameters(gyro, alpha, field_scale);
+            });
+      });
 }

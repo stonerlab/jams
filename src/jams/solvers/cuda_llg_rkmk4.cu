@@ -9,6 +9,7 @@
 #include "jams/cuda/cuda_device_vector_ops.h"
 #include "jams/solvers/cuda_solver_functions.cuh"
 
+template <typename GyroParam, typename AlphaParam, typename FieldScaleParam>
 __global__ void cuda_llg_rkmk4_kernel_step_1
 (
   const double * s_step_dev,
@@ -17,9 +18,9 @@ __global__ void cuda_llg_rkmk4_kernel_step_1
   double * s_out_dev,
   jams::Real * s_cache_dev,
   const jams::Real * h_step_dev,
-  const jams::Real * gyro_dev,
-  const jams::Real * mus_dev,
-  const jams::Real * alpha_dev,
+  const GyroParam gyro,
+  const FieldScaleParam field_scale,
+  const AlphaParam alpha,
   const unsigned dev_num_spins,
   const double dt
 )
@@ -31,7 +32,7 @@ __global__ void cuda_llg_rkmk4_kernel_step_1
 
   jams::Real h[3];
   for (auto n = 0; n < 3; ++n) {
-    h[n] = h_step_dev[base + n] / mus_dev[idx];
+    h[n] = field_scale.scale(h_step_dev[base + n], idx);
   }
 
   double s[3];
@@ -41,7 +42,7 @@ __global__ void cuda_llg_rkmk4_kernel_step_1
   }
 
   double omega[3];
-  omega_llg(s, h, gyro_dev[idx], alpha_dev[idx], omega);
+  omega_llg(s, h, gyro.get(idx), alpha.get(idx), omega);
 
   double k1[3];
   for (auto n = 0; n < 3; ++n) {
@@ -59,6 +60,7 @@ __global__ void cuda_llg_rkmk4_kernel_step_1
   rkmk_store_spin_and_cache(s_out_dev, s_cache_dev, base, s_out);
 }
 
+template <typename GyroParam, typename AlphaParam, typename FieldScaleParam>
 __global__ void cuda_llg_rkmk4_kernel_step_2
 (
   const double * s_init_dev,
@@ -68,9 +70,9 @@ __global__ void cuda_llg_rkmk4_kernel_step_2
   double * s_out_dev,
   jams::Real * s_cache_dev,
   const jams::Real * h_step_dev,
-  const jams::Real * gyro_dev,
-  const jams::Real * mus_dev,
-  const jams::Real * alpha_dev,
+  const GyroParam gyro,
+  const FieldScaleParam field_scale,
+  const AlphaParam alpha,
   const unsigned dev_num_spins,
   const double dt
 )
@@ -82,7 +84,7 @@ __global__ void cuda_llg_rkmk4_kernel_step_2
 
   jams::Real h[3];
   for (auto n = 0; n < 3; ++n) {
-    h[n] = h_step_dev[base + n] / mus_dev[idx];
+    h[n] = field_scale.scale(h_step_dev[base + n], idx);
   }
 
   double s[3];
@@ -91,7 +93,7 @@ __global__ void cuda_llg_rkmk4_kernel_step_2
   }
 
   double omega[3];
-  omega_llg(s, h, gyro_dev[idx], alpha_dev[idx], omega);
+  omega_llg(s, h, gyro.get(idx), alpha.get(idx), omega);
 
   double v2[3];
   for (auto n = 0; n < 3; ++n) {
@@ -125,6 +127,7 @@ __global__ void cuda_llg_rkmk4_kernel_step_2
   rkmk_store_spin_and_cache(s_out_dev, s_cache_dev, base, s_out);
 }
 
+template <typename GyroParam, typename AlphaParam, typename FieldScaleParam>
 __global__ void cuda_llg_rkmk4_kernel_step_3
 (
   const double * s_init_dev,
@@ -134,9 +137,9 @@ __global__ void cuda_llg_rkmk4_kernel_step_3
   double * s_out_dev,
   jams::Real * s_cache_dev,
   const jams::Real * h_step_dev,
-  const jams::Real * gyro_dev,
-  const jams::Real * mus_dev,
-  const jams::Real * alpha_dev,
+  const GyroParam gyro,
+  const FieldScaleParam field_scale,
+  const AlphaParam alpha,
   const unsigned dev_num_spins,
   const double dt
 )
@@ -148,7 +151,7 @@ __global__ void cuda_llg_rkmk4_kernel_step_3
 
   jams::Real h[3];
   for (auto n = 0; n < 3; ++n) {
-    h[n] = h_step_dev[base + n] / mus_dev[idx];
+    h[n] = field_scale.scale(h_step_dev[base + n], idx);
   }
 
   double s[3];
@@ -157,7 +160,7 @@ __global__ void cuda_llg_rkmk4_kernel_step_3
   }
 
   double omega[3];
-  omega_llg(s, h, gyro_dev[idx], alpha_dev[idx], omega);
+  omega_llg(s, h, gyro.get(idx), alpha.get(idx), omega);
 
   double v3[3];
   for (auto n = 0; n < 3; ++n) {
@@ -186,6 +189,7 @@ __global__ void cuda_llg_rkmk4_kernel_step_3
   rkmk_store_spin_and_cache(s_out_dev, s_cache_dev, base, s_out);
 }
 
+template <typename GyroParam, typename AlphaParam, typename FieldScaleParam>
 __global__ void cuda_llg_rkmk4_kernel_step_4
 (
   const double * s_init_dev,
@@ -197,9 +201,9 @@ __global__ void cuda_llg_rkmk4_kernel_step_4
   jams::Real * s_cache_dev,
   const jams::Real * h_step_dev,
   const jams::Real * noise_dev,
-  const jams::Real * gyro_dev,
-  const jams::Real * mus_dev,
-  const jams::Real * alpha_dev,
+  const GyroParam gyro,
+  const FieldScaleParam field_scale,
+  const AlphaParam alpha,
   const unsigned dev_num_spins,
   const double dt,
   const double noise_dt
@@ -212,7 +216,7 @@ __global__ void cuda_llg_rkmk4_kernel_step_4
 
   jams::Real h[3];
   for (auto n = 0; n < 3; ++n) {
-    h[n] = h_step_dev[base + n] / mus_dev[idx];
+    h[n] = field_scale.scale(h_step_dev[base + n], idx);
   }
 
   double s[3];
@@ -221,7 +225,7 @@ __global__ void cuda_llg_rkmk4_kernel_step_4
   }
 
   double omega[3];
-  omega_llg(s, h, gyro_dev[idx], alpha_dev[idx], omega);
+  omega_llg(s, h, gyro.get(idx), alpha.get(idx), omega);
 
   double v4[3];
   for (auto n = 0; n < 3; ++n) {
@@ -250,7 +254,7 @@ __global__ void cuda_llg_rkmk4_kernel_step_4
   rodrigues_rotate(k, s_init, s_out);
 
   double s_noisy[3];
-  rkmk_noise_step_rodrigues(s_out, noise_dev, gyro_dev, alpha_dev, idx, base, noise_dt, s_noisy);
+  rkmk_noise_step_rodrigues(s_out, noise_dev, gyro, alpha, idx, base, noise_dt, s_noisy);
   rkmk_store_spin_and_cache(s_out_dev, s_cache_dev, base, s_noisy);
 }
 
@@ -277,6 +281,15 @@ void CUDALLGRKMK4Solver::initialize(const libconfig::Setting& settings)
   std::cout << "done\n";
 
   initialize_gyro_eff(settings, gyro_eff_);
+  const auto gyro_eff_choice = cuda_spin_parameter_choice(gyro_eff_);
+  gyro_eff_is_uniform_ = gyro_eff_choice.is_uniform;
+  gyro_eff_uniform_value_ = gyro_eff_choice.uniform_value;
+  const auto alpha_choice = cuda_spin_parameter_choice(globals::alpha);
+  alpha_is_uniform_ = alpha_choice.is_uniform;
+  alpha_uniform_value_ = alpha_choice.uniform_value;
+  const auto mus_choice = cuda_field_scale_choice(globals::mus);
+  mus_is_uniform_ = mus_choice.is_uniform;
+  mus_uniform_inv_value_ = mus_choice.uniform_inv_mus;
 
   s_init_.resize(globals::num_spins, 3);
   k1_.resize(globals::num_spins, 3);
@@ -284,7 +297,11 @@ void CUDALLGRKMK4Solver::initialize(const libconfig::Setting& settings)
   k3_.resize(globals::num_spins, 3);
 }
 
-void CUDALLGRKMK4Solver::run()
+template <typename GyroParam, typename AlphaParam, typename FieldScaleParam>
+void CUDALLGRKMK4Solver::run_with_parameters(
+    const GyroParam gyro,
+    const AlphaParam alpha,
+    const FieldScaleParam field_scale)
 {
   const double t0 = time_;
   const double half_dt = 0.5 * step_size_;
@@ -302,8 +319,8 @@ void CUDALLGRKMK4Solver::run()
     globals::s.mutable_device_data(),
     field_spin_cache,
     thermostat_->device_data(),
-    gyro_eff_.device_data(),
-    globals::alpha.device_data(),
+    gyro,
+    alpha,
     globals::num_spins, half_dt);
   DEBUG_CHECK_CUDA_ASYNC_STATUS
   record_spin_and_field_cache_barrier_event();
@@ -317,9 +334,9 @@ void CUDALLGRKMK4Solver::run()
     globals::s.mutable_device_data(),
     field_spin_cache,
     globals::h.device_data(),
-    gyro_eff_.device_data(),
-    globals::mus.device_data(),
-    globals::alpha.device_data(),
+    gyro,
+    field_scale,
+    alpha,
     globals::num_spins, step_size_);
   DEBUG_CHECK_CUDA_ASYNC_STATUS
   record_spin_and_field_cache_barrier_event();
@@ -336,9 +353,9 @@ void CUDALLGRKMK4Solver::run()
     globals::s.mutable_device_data(),
     field_spin_cache,
     globals::h.device_data(),
-    gyro_eff_.device_data(),
-    globals::mus.device_data(),
-    globals::alpha.device_data(),
+    gyro,
+    field_scale,
+    alpha,
     globals::num_spins, step_size_);
   DEBUG_CHECK_CUDA_ASYNC_STATUS
   record_spin_and_field_cache_barrier_event();
@@ -354,9 +371,9 @@ void CUDALLGRKMK4Solver::run()
     globals::s.mutable_device_data(),
     field_spin_cache,
     globals::h.device_data(),
-    gyro_eff_.device_data(),
-    globals::mus.device_data(),
-    globals::alpha.device_data(),
+    gyro,
+    field_scale,
+    alpha,
     globals::num_spins, step_size_);
   DEBUG_CHECK_CUDA_ASYNC_STATUS
   record_spin_and_field_cache_barrier_event();
@@ -379,13 +396,30 @@ void CUDALLGRKMK4Solver::run()
     field_spin_cache,
     globals::h.device_data(),
     thermostat_->device_data(),
-    gyro_eff_.device_data(),
-    globals::mus.device_data(),
-    globals::alpha.device_data(),
+    gyro,
+    field_scale,
+    alpha,
     globals::num_spins, step_size_, half_dt);
   DEBUG_CHECK_CUDA_ASYNC_STATUS
   record_spin_and_field_cache_barrier_event();
 
   iteration_++;
   time_ = iteration_ * step_size_;
+}
+
+void CUDALLGRKMK4Solver::run()
+{
+  dispatch_cuda_spin_parameters(
+      {gyro_eff_is_uniform_, gyro_eff_uniform_value_},
+      {alpha_is_uniform_, alpha_uniform_value_},
+      gyro_eff_,
+      globals::alpha,
+      [this](const auto gyro, const auto alpha) {
+        dispatch_cuda_field_scale(
+            {mus_is_uniform_, mus_uniform_inv_value_},
+            globals::mus,
+            [this, gyro, alpha](const auto field_scale) {
+              run_with_parameters(gyro, alpha, field_scale);
+            });
+      });
 }

@@ -5,9 +5,183 @@
 #ifndef JAMS_CUDA_SOLVER_FUNCTIONS_CUH
 #define JAMS_CUDA_SOLVER_FUNCTIONS_CUH
 
+#include "jams/common.h"
+#include "jams/containers/multiarray.h"
 #include "jams/cuda/cuda_device_vector_ops.h"
 #include "jams/solvers/llg_rkmk_functions.h"
+
+#include <algorithm>
 #include <cuda_runtime.h>
+
+struct CudaUniformParameter {
+  jams::Real value;
+
+  __host__ __device__ __forceinline__ jams::Real get(const unsigned) const {
+    return value;
+  }
+};
+
+struct CudaPerSpinParameter {
+  const jams::Real* values;
+
+  __host__ __device__ __forceinline__ jams::Real get(const unsigned idx) const {
+    return values[idx];
+  }
+};
+
+struct CudaSpinParameterChoice {
+  bool is_uniform = false;
+  jams::Real uniform_value = jams::Real{0.0};
+};
+
+struct CudaUniformFieldScale {
+  jams::Real inv_mus;
+
+  __host__ __device__ __forceinline__ jams::Real scale(
+      const jams::Real field,
+      const unsigned) const {
+    return field * inv_mus;
+  }
+};
+
+struct CudaPerSpinFieldScale {
+  const jams::Real* mus;
+
+  __host__ __device__ __forceinline__ jams::Real scale(
+      const jams::Real field,
+      const unsigned idx) const {
+    return field / mus[idx];
+  }
+};
+
+struct CudaFieldScaleChoice {
+  bool is_uniform = false;
+  jams::Real uniform_inv_mus = jams::Real{0.0};
+};
+
+inline CudaSpinParameterChoice cuda_spin_parameter_choice(
+    const jams::MultiArray<jams::Real, 1>& values)
+{
+  const auto span = values.host_span();
+  if (span.empty()) {
+    return {};
+  }
+
+  const auto first = span.front();
+  const auto is_uniform = std::all_of(
+      span.begin() + 1,
+      span.end(),
+      [first](const jams::Real value) {
+        return value == first;
+      });
+
+  return {is_uniform, first};
+}
+
+inline CudaFieldScaleChoice cuda_field_scale_choice(
+    const jams::MultiArray<jams::Real, 1>& mus)
+{
+  const auto mus_choice = cuda_spin_parameter_choice(mus);
+  if (!mus_choice.is_uniform) {
+    return {};
+  }
+
+  return {true, jams::Real{1.0} / mus_choice.uniform_value};
+}
+
+template <typename Function>
+inline void dispatch_cuda_spin_parameter(
+    const CudaSpinParameterChoice choice,
+    const jams::Real* values,
+    Function&& function)
+{
+  if (choice.is_uniform) {
+    function(CudaUniformParameter{choice.uniform_value});
+  } else {
+    function(CudaPerSpinParameter{values});
+  }
+}
+
+template <typename Function>
+inline void dispatch_cuda_spin_parameter(
+    const CudaSpinParameterChoice choice,
+    const jams::MultiArray<jams::Real, 1>& values,
+    Function&& function)
+{
+  if (choice.is_uniform) {
+    function(CudaUniformParameter{choice.uniform_value});
+  } else {
+    function(CudaPerSpinParameter{values.device_data()});
+  }
+}
+
+template <typename Function>
+inline void dispatch_cuda_spin_parameters(
+    const CudaSpinParameterChoice gyro_choice,
+    const CudaSpinParameterChoice alpha_choice,
+    const jams::Real* gyro_values,
+    const jams::Real* alpha_values,
+    Function&& function)
+{
+  dispatch_cuda_spin_parameter(
+      gyro_choice,
+      gyro_values,
+      [&](const auto gyro) {
+        dispatch_cuda_spin_parameter(
+            alpha_choice,
+            alpha_values,
+            [&](const auto alpha) {
+              function(gyro, alpha);
+            });
+      });
+}
+
+template <typename Function>
+inline void dispatch_cuda_spin_parameters(
+    const CudaSpinParameterChoice gyro_choice,
+    const CudaSpinParameterChoice alpha_choice,
+    const jams::MultiArray<jams::Real, 1>& gyro_values,
+    const jams::MultiArray<jams::Real, 1>& alpha_values,
+    Function&& function)
+{
+  dispatch_cuda_spin_parameter(
+      gyro_choice,
+      gyro_values,
+      [&](const auto gyro) {
+        dispatch_cuda_spin_parameter(
+            alpha_choice,
+            alpha_values,
+            [&](const auto alpha) {
+              function(gyro, alpha);
+            });
+      });
+}
+
+template <typename Function>
+inline void dispatch_cuda_field_scale(
+    const CudaFieldScaleChoice choice,
+    const jams::Real* mus,
+    Function&& function)
+{
+  if (choice.is_uniform) {
+    function(CudaUniformFieldScale{choice.uniform_inv_mus});
+  } else {
+    function(CudaPerSpinFieldScale{mus});
+  }
+}
+
+template <typename Function>
+inline void dispatch_cuda_field_scale(
+    const CudaFieldScaleChoice choice,
+    const jams::MultiArray<jams::Real, 1>& mus,
+    Function&& function)
+{
+  if (choice.is_uniform) {
+    function(CudaUniformFieldScale{choice.uniform_inv_mus});
+  } else {
+    function(CudaPerSpinFieldScale{mus.device_data()});
+  }
+}
 
 __device__ __forceinline__
 void omega_llg(const double s[3], const jams::Real h[3],
@@ -104,12 +278,13 @@ __device__ __forceinline__ void rkmk_store_spin_and_cache
   }
 }
 
+template <typename GyroParam, typename AlphaParam>
 __device__ __forceinline__ void rkmk_noise_step_rodrigues
 (
   const double s[3],
   const jams::Real *noise_dev,
-  const jams::Real *gyro_dev,
-  const jams::Real *alpha_dev,
+  const GyroParam gyro,
+  const AlphaParam alpha,
   const unsigned idx,
   const unsigned base,
   const double dt,
@@ -123,18 +298,19 @@ __device__ __forceinline__ void rkmk_noise_step_rodrigues
   };
 
   double w[3];
-  omega_llg(s, h, gyro_dev[idx], alpha_dev[idx], w);
+  omega_llg(s, h, gyro.get(idx), alpha.get(idx), w);
 
   const double phi[3] = {dt * w[0], dt * w[1], dt * w[2]};
   rodrigues_rotate(phi, s, out);
 }
 
+template <typename GyroParam, typename AlphaParam>
 __global__ inline void cuda_llg_noise_step_rodrigues_cache_kernel(
   double* s_inout_dev,
   jams::Real* s_cache_dev,
   const jams::Real* noise_dev,
-  const jams::Real* gyro_dev,
-  const jams::Real* alpha_dev,
+  const GyroParam gyro,
+  const AlphaParam alpha,
   unsigned num_spins,
   double dt)
 {
@@ -149,16 +325,17 @@ __global__ inline void cuda_llg_noise_step_rodrigues_cache_kernel(
   };
 
   double out[3];
-  rkmk_noise_step_rodrigues(s, noise_dev, gyro_dev, alpha_dev, idx, base, dt, out);
+  rkmk_noise_step_rodrigues(s, noise_dev, gyro, alpha, idx, base, dt, out);
   rkmk_store_spin_and_cache(s_inout_dev, s_cache_dev, base, out);
 }
 
 
+template <typename GyroParam, typename AlphaParam>
 __global__ inline void cuda_llg_noise_step_rodrigues_kernel(
   double* s_inout_dev,
   const jams::Real* noise_dev,
-  const jams::Real* gyro_dev,
-  const jams::Real* alpha_dev,
+  const GyroParam gyro,
+  const AlphaParam alpha,
   unsigned num_spins,
   double dt)
 {
@@ -173,15 +350,16 @@ __global__ inline void cuda_llg_noise_step_rodrigues_kernel(
   };
 
   double out[3];
-  rkmk_noise_step_rodrigues(s, noise_dev, gyro_dev, alpha_dev, idx, base, dt, out);
+  rkmk_noise_step_rodrigues(s, noise_dev, gyro, alpha, idx, base, dt, out);
   rkmk_store_spin_and_cache(s_inout_dev, nullptr, base, out);
 }
 
+template <typename GyroParam, typename AlphaParam>
 __global__ inline void cuda_llg_noise_step_cayley_kernel(
   double* s_inout_dev,
   const jams::Real* noise_dev,
-  const jams::Real* gyro_dev,
-  const jams::Real* alpha_dev,
+  const GyroParam gyro,
+  const AlphaParam alpha,
   unsigned num_spins,
   double dt)
 {
@@ -200,7 +378,7 @@ __global__ inline void cuda_llg_noise_step_cayley_kernel(
   };
 
   double w[3];
-  omega_llg(s, h, gyro_dev[idx], alpha_dev[idx], w);
+  omega_llg(s, h, gyro.get(idx), alpha.get(idx), w);
 
   double phi[3] = {dt * w[0], dt * w[1], dt * w[2]};
   double out[3];

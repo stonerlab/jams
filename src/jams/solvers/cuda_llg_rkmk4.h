@@ -22,8 +22,17 @@ public:
 
     std::string name() const override { return "llg-rkmk4-gpu"; }
 private:
+    template <typename GyroParam, typename AlphaParam, typename FieldScaleParam>
+    void run_with_parameters(GyroParam gyro, AlphaParam alpha, FieldScaleParam field_scale);
+
     CudaStream dev_stream_;
     jams::MultiArray<jams::Real, 1> gyro_eff_;
+    bool gyro_eff_is_uniform_ = false;
+    jams::Real gyro_eff_uniform_value_ = jams::Real{0.0};
+    bool alpha_is_uniform_ = false;
+    jams::Real alpha_uniform_value_ = jams::Real{0.0};
+    bool mus_is_uniform_ = false;
+    jams::Real mus_uniform_inv_value_ = jams::Real{0.0};
     jams::MultiArray<double, 2> s_init_;
     jams::MultiArray<double, 2> k1_;
     jams::MultiArray<double, 2> k2_;

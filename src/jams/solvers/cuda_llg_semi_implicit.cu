@@ -10,13 +10,14 @@
 #include "jams/solvers/cuda_solver_functions.cuh"
 
 
+template <typename DtGyroMuParam, typename AlphaParam>
 __global__ __maxnreg__(32)
 void cuda_llg_semi_implicit_pred_kernel
 (
   double * __restrict__ s_inout_dev, // in: S_n, out: (S_n + S'_n+1) / 2
   const jams::Real * __restrict__ h_dev,
-  const jams::Real * __restrict__ gyro_dev,
-  const jams::Real * __restrict__ alpha_dev,
+  const DtGyroMuParam dt_gyro_mu,
+  const AlphaParam alpha,
   const unsigned dev_num_spins
 )
 {
@@ -37,7 +38,7 @@ void cuda_llg_semi_implicit_pred_kernel
     s_inout_dev[base + 2]
   };
 
-  double3 omega = omega_llg(s, h, gyro_dev[idx], alpha_dev[idx]);
+  double3 omega = omega_llg(s, h, dt_gyro_mu.get(idx), alpha.get(idx));
 
   omega = project_to_tangent(omega, s);
 
@@ -54,15 +55,16 @@ void cuda_llg_semi_implicit_pred_kernel
   s_inout_dev[base + 2] = s_pred.z;
 }
 
+template <typename DtGyroMuParam, typename AlphaParam>
 __global__ void cuda_llg_semi_implicit_corr_kernel
 (
   double * __restrict__ s_inout_dev, // in: (S_n + S'_{n+1}) / 2 out: S_{n+1}
   const double * __restrict__ s_init_dev, // S_n
   const jams::Real * __restrict__ h_dev,  // field at the same time as s_step
-  const jams::Real * __restrict__ gyro_dev,
-  const jams::Real * __restrict__ alpha_dev,
+  const DtGyroMuParam dt_gyro_mu,
+  const AlphaParam alpha,
   const unsigned dev_num_spins
-  )
+)
 {
   const unsigned int idx = blockIdx.x * blockDim.x + threadIdx.x;
   if (idx >= dev_num_spins) return;
@@ -81,7 +83,7 @@ __global__ void cuda_llg_semi_implicit_corr_kernel
     s_inout_dev[base + 2]
   };
 
-  double3 omega = omega_llg(s, h, gyro_dev[idx], alpha_dev[idx]);
+  double3 omega = omega_llg(s, h, dt_gyro_mu.get(idx), alpha.get(idx));
 
   omega = project_to_tangent(omega, s);
 
@@ -122,12 +124,21 @@ void CUDALLGSemiImplictSolver::initialize(const libconfig::Setting& settings)
   std::cout << "done\n";
 
   initialize_gyro_eff(settings, gyro_eff_);
+  const auto gyro_eff_choice = cuda_spin_parameter_choice(gyro_eff_);
+  gyro_eff_is_uniform_ = gyro_eff_choice.is_uniform;
+  gyro_eff_uniform_value_ = gyro_eff_choice.uniform_value;
+  const auto alpha_choice = cuda_spin_parameter_choice(globals::alpha);
+  alpha_is_uniform_ = alpha_choice.is_uniform;
+  alpha_uniform_value_ = alpha_choice.uniform_value;
 
   dt_gyro_mu_.resize(globals::num_spins);
   for (auto i = 0; i < globals::num_spins; ++i)
   {
     dt_gyro_mu_(i) = step_size_ * gyro_eff_(i) / globals::mus(i);
   }
+  const auto dt_gyro_mu_choice = cuda_spin_parameter_choice(dt_gyro_mu_);
+  dt_gyro_mu_is_uniform_ = dt_gyro_mu_choice.is_uniform;
+  dt_gyro_mu_uniform_value_ = dt_gyro_mu_choice.uniform_value;
 
   s_init_.resize(globals::num_spins, 3);
   for (auto i = 0; i < globals::num_spins; ++i) {
@@ -138,7 +149,11 @@ void CUDALLGSemiImplictSolver::initialize(const libconfig::Setting& settings)
 }
 
 
-void CUDALLGSemiImplictSolver::run()
+template <typename GyroParam, typename AlphaParam, typename DtGyroMuParam>
+void CUDALLGSemiImplictSolver::run_with_parameters(
+    const GyroParam gyro,
+    const AlphaParam alpha,
+    const DtGyroMuParam dt_gyro_mu)
 {
   jams::Real t0 = time_;
   const jams::Real half_dt = 0.5 * step_size_;
@@ -151,11 +166,11 @@ void CUDALLGSemiImplictSolver::run()
   thermostat_->wait_on(jams::instance().cuda_master_stream().get());
 
   cuda_llg_noise_step_cayley_kernel<<<grid_size, block_size, 0,  jams::instance().cuda_master_stream().get()>>>(
-  globals::s.mutable_device_data(),
-  thermostat_->device_data(),
-  gyro_eff_.device_data(),
-  globals::alpha.device_data(),
-  globals::num_spins, half_dt);
+    globals::s.mutable_device_data(),
+    thermostat_->device_data(),
+    gyro,
+    alpha,
+    globals::num_spins, half_dt);
   DEBUG_CHECK_CUDA_ASYNC_STATUS
   record_spin_barrier_event();
 
@@ -171,8 +186,8 @@ void CUDALLGSemiImplictSolver::run()
   cuda_llg_semi_implicit_pred_kernel<<<grid_size, block_size, 0, jams::instance().cuda_master_stream().get()>>>(
     globals::s.mutable_device_data(),
     globals::h.device_data(),
-    dt_gyro_mu_.device_data(),
-    globals::alpha.device_data(),
+    dt_gyro_mu,
+    alpha,
     globals::num_spins
     );
   DEBUG_CHECK_CUDA_ASYNC_STATUS
@@ -183,11 +198,11 @@ void CUDALLGSemiImplictSolver::run()
   compute_fields();
 
   cuda_llg_semi_implicit_corr_kernel<<<grid_size, block_size, 0, jams::instance().cuda_master_stream().get()>>>(
-  globals::s.mutable_device_data(),
-  s_init_.device_data(),
+    globals::s.mutable_device_data(),
+    s_init_.device_data(),
     globals::h.device_data(),
-    dt_gyro_mu_.device_data(),
-    globals::alpha.device_data(),
+    dt_gyro_mu,
+    alpha,
     globals::num_spins
     );
   DEBUG_CHECK_CUDA_ASYNC_STATUS
@@ -197,16 +212,31 @@ void CUDALLGSemiImplictSolver::run()
   thermostat_->wait_on(jams::instance().cuda_master_stream().get());
 
   cuda_llg_noise_step_cayley_kernel<<<grid_size, block_size, 0,  jams::instance().cuda_master_stream().get()>>>(
-  globals::s.mutable_device_data(),
-  thermostat_->device_data(),
-  gyro_eff_.device_data(),
-  globals::alpha.device_data(),
-  globals::num_spins, half_dt);
+    globals::s.mutable_device_data(),
+    thermostat_->device_data(),
+    gyro,
+    alpha,
+    globals::num_spins, half_dt);
   DEBUG_CHECK_CUDA_ASYNC_STATUS
   record_spin_barrier_event();
 
   iteration_++;
   time_ = iteration_ * step_size_;
+}
 
-
+void CUDALLGSemiImplictSolver::run()
+{
+  dispatch_cuda_spin_parameter(
+      {gyro_eff_is_uniform_, gyro_eff_uniform_value_},
+      gyro_eff_,
+      [this](const auto gyro) {
+        dispatch_cuda_spin_parameters(
+            {dt_gyro_mu_is_uniform_, dt_gyro_mu_uniform_value_},
+            {alpha_is_uniform_, alpha_uniform_value_},
+            dt_gyro_mu_,
+            globals::alpha,
+            [this, gyro](const auto dt_gyro_mu, const auto alpha) {
+              run_with_parameters(gyro, alpha, dt_gyro_mu);
+            });
+      });
 }
