@@ -5,6 +5,7 @@
 
 #include <algorithm>
 #include <cctype>
+#include <complex>
 #include <cmath>
 #include <filesystem>
 #include <fstream>
@@ -20,7 +21,10 @@
 #include <jams/core/globals.h>
 #include <jams/core/lattice.h>
 #include <jams/core/solver.h>
+#include <jams/helpers/consts.h>
 #include <jams/helpers/output.h>
+#include <jams/interface/fft.h>
+#include <jams/monitors/magnon_density.h>
 #include <jams/monitors/magnon_spectrum.h>
 #include <jams/monitors/spectrum_base.h>
 
@@ -77,6 +81,56 @@ private:
   SpectrumRows rows_;
 };
 
+class RaisedSpectrumProbeMonitor final : public SpectrumBaseMonitor {
+public:
+  struct PowerRow {
+    int basis = 0;
+    int frequency = 0;
+    int k = 0;
+    double power = 0.0;
+  };
+
+  explicit RaisedSpectrumProbeMonitor(const libconfig::Setting& settings)
+      : SpectrumBaseMonitor(settings, KSamplingMode::FullGrid) {
+    require_negative_frequencies_();
+    auto channel_map = raise_lower_channel_map();
+    channel_map.output_channels = 1;
+    set_channel_map(channel_map);
+  }
+
+  void post_process() override {}
+
+  void update(Solver& solver) override {
+    store_sk_snapshot(globals::s);
+    if (!periodogram_window_complete()) {
+      return;
+    }
+
+    const auto& spectrum = finalise_periodogram_spectrum();
+    powers_.clear();
+    for (std::size_t a = 0; a < spectrum.extent(0); ++a) {
+      for (std::size_t f = 0; f < spectrum.extent(1); ++f) {
+        for (std::size_t k = 0; k < spectrum.extent(2); ++k) {
+          powers_.push_back({
+              static_cast<int>(a),
+              static_cast<int>(f),
+              static_cast<int>(k),
+              std::norm(spectrum(a, f, k, 0))});
+        }
+      }
+    }
+  }
+
+  double spin_length_for_test(const int basis) const {
+    return basis_spin_length_(basis);
+  }
+
+  const std::vector<PowerRow>& powers() const { return powers_; }
+
+private:
+  std::vector<PowerRow> powers_;
+};
+
 #if HAS_CUDA
 class MagnonSpectrumCudaStubSolver : public MagnonSpectrumStubSolver {
 public:
@@ -92,6 +146,12 @@ inline bool magnon_spectrum_cuda_device_available() {
 class MagnonSpectrumCudaMonitorTest : public ::testing::Test {
 protected:
   using SpectrumTable = std::vector<std::vector<double>>;
+  using DensityTable = std::vector<std::vector<double>>;
+
+  struct RaisedProbeResult {
+    std::vector<RaisedSpectrumProbeMonitor::PowerRow> powers;
+    std::vector<double> spin_lengths;
+  };
 
   void SetUp() override {
     globals::solver = nullptr;
@@ -136,6 +196,80 @@ protected:
     return read_spectrum_rows();
   }
 
+  DensityTable run_density(
+      Solver& solver,
+      const std::string& run_name,
+      const std::string& estimator,
+      const std::string& spatial_backend,
+      const std::string& time_backend,
+      const int cuda_memory_limit_mib = 0) {
+    initialise_density_lattice(estimator, spatial_backend, time_backend, cuda_memory_limit_mib);
+
+    const auto run_dir = output_dir_ / run_name;
+    std::filesystem::remove_all(run_dir);
+    std::filesystem::create_directories(run_dir);
+    jams::Jams::set_output_dir(run_dir.string());
+
+    globals::solver = &solver;
+    {
+      MagnonDensityMonitor monitor(first_monitor_settings());
+      for (int t = 0; t < periodogram_length_; ++t) {
+        write_spin_state(t);
+        monitor.update(solver);
+      }
+    }
+    globals::solver = nullptr;
+
+    return read_density_rows();
+  }
+
+  DensityTable run_one_basis_density(Solver& solver, const std::string& run_name) {
+    initialise_one_basis_density_lattice();
+
+    const auto run_dir = output_dir_ / run_name;
+    std::filesystem::remove_all(run_dir);
+    std::filesystem::create_directories(run_dir);
+    jams::Jams::set_output_dir(run_dir.string());
+
+    globals::solver = &solver;
+    {
+      MagnonDensityMonitor monitor(first_monitor_settings());
+      for (int t = 0; t < periodogram_length_; ++t) {
+        write_one_basis_known_spin_state(t);
+        monitor.update(solver);
+      }
+    }
+    globals::solver = nullptr;
+
+    return read_density_rows();
+  }
+
+  RaisedProbeResult run_raised_probe(
+      Solver& solver,
+      const std::string& estimator,
+      const std::string& spatial_backend,
+      const std::string& time_backend,
+      const int cuda_memory_limit_mib = 0) {
+    initialise_density_lattice(estimator, spatial_backend, time_backend, cuda_memory_limit_mib);
+
+    globals::solver = &solver;
+    RaisedProbeResult result;
+    {
+      RaisedSpectrumProbeMonitor monitor(first_monitor_settings());
+      for (int t = 0; t < periodogram_length_; ++t) {
+        write_spin_state(t);
+        monitor.update(solver);
+      }
+      result.powers = monitor.powers();
+      result.spin_lengths.reserve(static_cast<std::size_t>(globals::lattice->num_basis_sites()));
+      for (int a = 0; a < globals::lattice->num_basis_sites(); ++a) {
+        result.spin_lengths.push_back(monitor.spin_length_for_test(a));
+      }
+    }
+    globals::solver = nullptr;
+    return result;
+  }
+
   SpectrumTable run_cartesian_probe(
       Solver& solver,
       const std::string& spatial_backend,
@@ -173,6 +307,30 @@ protected:
     globals::lattice->init_from_config(*globals::config);
   }
 
+  void initialise_density_lattice(
+      const std::string& estimator,
+      const std::string& spatial_backend,
+      const std::string& time_backend,
+      const int cuda_memory_limit_mib = 0) {
+    delete globals::lattice;
+    globals::lattice = new Lattice();
+    globals::config = std::make_unique<libconfig::Config>();
+    globals::config->readString(density_config(
+        estimator,
+        spatial_backend,
+        time_backend,
+        cuda_memory_limit_mib));
+    globals::lattice->init_from_config(*globals::config);
+  }
+
+  void initialise_one_basis_density_lattice() {
+    delete globals::lattice;
+    globals::lattice = new Lattice();
+    globals::config = std::make_unique<libconfig::Config>();
+    globals::config->readString(one_basis_density_config());
+    globals::lattice->init_from_config(*globals::config);
+  }
+
   void initialise_cartesian_lattice(
       const std::string& spatial_backend,
       const std::string& time_backend,
@@ -200,11 +358,43 @@ protected:
     }
   }
 
+  void write_one_basis_known_spin_state(const int time_index) {
+    auto spins = globals::s.mutable_host_view();
+    ASSERT_EQ(globals::num_spins, 1);
+    spins(0, 0) = one_basis_known_x(time_index);
+    spins(0, 1) = one_basis_known_y(time_index);
+    spins(0, 2) = 1.0;
+  }
+
   static SpectrumTable read_spectrum_rows() {
     std::ifstream file(jams::output::monitor_filename_series("magnon-spectrum_path", "tsv", 0, 1));
     EXPECT_TRUE(file.good());
 
     SpectrumTable rows;
+    std::string line;
+    while (std::getline(file, line)) {
+      if (line.empty() || line[0] == '#') {
+        continue;
+      }
+
+      std::istringstream stream(line);
+      std::vector<double> values;
+      double value = 0.0;
+      while (stream >> value) {
+        values.push_back(value);
+      }
+      if (!values.empty()) {
+        rows.push_back(std::move(values));
+      }
+    }
+    return rows;
+  }
+
+  static DensityTable read_density_rows() {
+    std::ifstream file(jams::output::monitor_filename("magnon-density", "tsv"));
+    EXPECT_TRUE(file.good());
+
+    DensityTable rows;
     std::string line;
     while (std::getline(file, line)) {
       if (line.empty() || line[0] == '#') {
@@ -250,6 +440,16 @@ protected:
     }
   }
 
+  static void expect_finite_density(const DensityTable& rows) {
+    ASSERT_FALSE(rows.empty());
+    for (const auto& row : rows) {
+      ASSERT_EQ(row.size(), 4u);
+      for (const double value : row) {
+        EXPECT_TRUE(std::isfinite(value));
+      }
+    }
+  }
+
   static std::string current_test_id() {
     const auto* info = ::testing::UnitTest::GetInstance()->current_test_info();
     std::string id = info
@@ -280,6 +480,61 @@ protected:
     }
 
     throw std::runtime_error("unexpected estimator in test");
+  }
+
+  static double one_basis_known_x(const int time_index) {
+    return one_basis_transverse_scale_ * (static_cast<double>(time_index) - 0.5 * (periodogram_length_ - 1));
+  }
+
+  static double one_basis_known_y(const int time_index) {
+    (void)time_index;
+    return 0.0;
+  }
+
+  static std::vector<double> expected_one_basis_density_two_sided(const double dt_ps) {
+    const int N = periodogram_length_;
+    const double spin_length =
+        (one_basis_moment_mu_b_ * kBohrMagnetonIU) / (kElectronGFactor * kBohrMagnetonIU);
+
+    std::vector<std::complex<double>> splus(static_cast<std::size_t>(N));
+    std::complex<double> mean = 0.0;
+    for (int t = 0; t < N; ++t) {
+      const std::complex<double> sample =
+          spin_length * kInvSqrtTwo * std::complex<double>(one_basis_known_x(t), one_basis_known_y(t));
+      splus[static_cast<std::size_t>(t)] = {
+          static_cast<float>(sample.real()),
+          static_cast<float>(sample.imag())};
+      mean += splus[static_cast<std::size_t>(t)];
+    }
+    mean /= static_cast<double>(N);
+
+    std::vector<double> window(static_cast<std::size_t>(N));
+    double w2sum = 0.0;
+    for (int t = 0; t < N; ++t) {
+      const double w = fft_window_default(t, N);
+      window[static_cast<std::size_t>(t)] = w;
+      w2sum += w * w;
+    }
+    const double inv_rms = 1.0 / std::sqrt(w2sum / static_cast<double>(N));
+    for (double& w : window) {
+      w *= inv_rms;
+    }
+
+    const double df = 1.0 / (static_cast<double>(N) * dt_ps);
+    const double volume = pow3(one_basis_parameter_m_);
+    const double prefactor = 1.0 / (volume * df * kTHz2meV);
+    std::vector<double> expected(static_cast<std::size_t>(N), 0.0);
+    for (int f = 0; f < N; ++f) {
+      std::complex<double> spectrum = 0.0;
+      for (int t = 0; t < N; ++t) {
+        const auto centred = (splus[static_cast<std::size_t>(t)] - mean) / static_cast<double>(N);
+        const auto windowed = window[static_cast<std::size_t>(t)] * centred;
+        const double phase = -kTwoPi * static_cast<double>(f * t) / static_cast<double>(N);
+        spectrum += windowed * std::exp(std::complex<double>(0.0, phase));
+      }
+      expected[static_cast<std::size_t>(f)] = prefactor * std::norm(spectrum) / spin_length;
+    }
+    return expected;
   }
 
   static std::string base_config(
@@ -339,6 +594,113 @@ protected:
             length = )" + std::to_string(periodogram_length_) + R"(;
             overlap = 0;
       )" + periodogram_config(estimator) + R"(
+          };
+        }
+      );
+    )";
+  }
+
+  static std::string density_config(
+      const std::string& estimator,
+      const std::string& spatial_backend,
+      const std::string& time_backend,
+      const int cuda_memory_limit_mib) {
+    return std::string(R"(
+      solver : {
+        module = "llg-heun-cpu";
+        t_step = 2.5e-13;
+        t_min  = 2.5e-13;
+        t_max  = 2.0e-12;
+      };
+
+      materials = (
+        { name = "A"; moment = 1.0; spin = [0.0, 0.0, 1.0]; },
+        { name = "B"; moment = 1.5; spin = [0.0, 0.0, 1.0]; }
+      );
+
+      unitcell : {
+        symops = false;
+        parameter = 1.0e-9;
+        basis = (
+          [1.0, 0.0, 0.0],
+          [0.0, 1.0, 0.0],
+          [0.0, 0.0, 1.0]);
+        positions = (
+          ("A", [0.00, 0.0, 0.0]),
+          ("B", [0.50, 0.0, 0.0])
+        );
+      };
+
+      lattice : {
+        size = [2, 1, 1];
+        periodic = [true, true, true];
+        normalise_spins = false;
+      };
+
+      monitors = (
+        {
+          module = "magnon-density";
+          output_steps = 1;
+          keep_negative_frequencies = false;
+          fftw_threads = 1;
+          sk_time_series_backend = "memory";
+          spatial_fft_backend = ")") + spatial_backend + R"(";
+          time_fft_backend = ")" + time_backend + R"(";
+          cuda_time_fft_memory_limit_mib = )" + std::to_string(cuda_memory_limit_mib) + R"(;
+          compute_periodogram : {
+            length = )" + std::to_string(periodogram_length_) + R"(;
+            overlap = 0;
+      )" + periodogram_config(estimator) + R"(
+          };
+        }
+      );
+    )";
+  }
+
+  static std::string one_basis_density_config() {
+    return std::string(R"(
+      solver : {
+        module = "llg-heun-cpu";
+        t_step = 2.5e-13;
+        t_min  = 2.5e-13;
+        t_max  = 2.0e-12;
+      };
+
+      materials = (
+        { name = "A"; moment = )") + std::to_string(one_basis_moment_mu_b_) + R"(; spin = [0.0, 0.0, 1.0]; }
+      );
+
+      unitcell : {
+        symops = false;
+        parameter = 1.0e-9;
+        basis = (
+          [1.0, 0.0, 0.0],
+          [0.0, 1.0, 0.0],
+          [0.0, 0.0, 1.0]);
+        positions = (
+          ("A", [0.00, 0.0, 0.0])
+        );
+      };
+
+      lattice : {
+        size = [1, 1, 1];
+        periodic = [true, true, true];
+        normalise_spins = false;
+      };
+
+      monitors = (
+        {
+          module = "magnon-density";
+          output_steps = 1;
+          keep_negative_frequencies = false;
+          fftw_threads = 1;
+          sk_time_series_backend = "memory";
+          spatial_fft_backend = "cpu";
+          time_fft_backend = "cpu";
+          compute_periodogram : {
+            length = )" + std::to_string(periodogram_length_) + R"(;
+            overlap = 0;
+            estimator = "welch";
           };
         }
       );
@@ -405,6 +767,9 @@ protected:
   }
 
   static constexpr int periodogram_length_ = 8;
+  static constexpr double one_basis_moment_mu_b_ = 2.75;
+  static constexpr double one_basis_parameter_m_ = 1.0e-9;
+  static constexpr double one_basis_transverse_scale_ = 0.02;
   std::filesystem::path output_dir_;
 };
 
@@ -428,6 +793,95 @@ TEST_F(MagnonSpectrumCudaMonitorTest, RejectsExplicitCudaSpatialWithoutCudaSolve
   globals::solver = &solver;
   EXPECT_THROW((void)MagnonSpectrumMonitor(first_monitor_settings()), std::runtime_error);
   globals::solver = nullptr;
+}
+
+TEST_F(MagnonSpectrumCudaMonitorTest, MagnonDensityWritesTwoSidedAndFoldedRows) {
+  MagnonSpectrumStubSolver solver;
+  const auto rows = run_density(solver, "density_cpu_welch", "welch", "cpu", "cpu");
+  expect_finite_density(rows);
+  ASSERT_EQ(rows.size(), static_cast<std::size_t>(periodogram_length_));
+
+  const double df = 1.0 / (static_cast<double>(periodogram_length_) * solver.time_step());
+  for (const auto& row : rows) {
+    const int freq_bin = static_cast<int>(std::llround(row[0] / df));
+    if (freq_bin < 0) {
+      EXPECT_NEAR(row[3], 0.0, 1.0e-12);
+      continue;
+    }
+
+    if (freq_bin == 0 || (periodogram_length_ % 2 == 0 && freq_bin == periodogram_length_ / 2)) {
+      EXPECT_NEAR(row[3], row[2], std::max(1.0, std::abs(row[2])) * 1.0e-8);
+      continue;
+    }
+
+    const auto negative = std::find_if(
+        rows.begin(),
+        rows.end(),
+        [&](const auto& candidate) {
+          return static_cast<int>(std::llround(candidate[0] / df)) == -freq_bin;
+        });
+    ASSERT_NE(negative, rows.end());
+    const double expected_folded = row[2] + (*negative)[2];
+    EXPECT_NEAR(row[3], expected_folded, std::max(1.0, std::abs(expected_folded)) * 1.0e-8);
+  }
+}
+
+TEST_F(MagnonSpectrumCudaMonitorTest, MagnonDensityUsesDimensionlessPerBasisSpinLength) {
+  MagnonSpectrumStubSolver probe_solver;
+  const auto probe = run_raised_probe(probe_solver, "welch", "cpu", "cpu");
+  ASSERT_EQ(probe.spin_lengths.size(), 2u);
+  EXPECT_NEAR(probe.spin_lengths[0], 1.0 / kElectronGFactor, 1.0e-12);
+  EXPECT_NEAR(probe.spin_lengths[1], 1.5 / kElectronGFactor, 1.0e-12);
+
+  MagnonSpectrumStubSolver density_solver;
+  const auto rows = run_density(density_solver, "density_cpu_weighted", "welch", "cpu", "cpu");
+  expect_finite_density(rows);
+
+  std::vector<double> expected_by_frequency(static_cast<std::size_t>(periodogram_length_), 0.0);
+  for (const auto& power : probe.powers) {
+    expected_by_frequency[static_cast<std::size_t>(power.frequency)] +=
+        power.power / probe.spin_lengths[static_cast<std::size_t>(power.basis)];
+  }
+
+  const double df = 1.0 / (static_cast<double>(periodogram_length_) * density_solver.time_step());
+  const double volume = 2.0 * pow3(1.0e-9);
+  const double prefactor = 1.0 / (volume * df * kTHz2meV);
+  for (const auto& row : rows) {
+    const int freq_bin = static_cast<int>(std::llround(row[0] / df));
+    const int f = (freq_bin >= 0) ? freq_bin : periodogram_length_ + freq_bin;
+    ASSERT_GE(f, 0);
+    ASSERT_LT(f, periodogram_length_);
+    const double expected = prefactor * expected_by_frequency[static_cast<std::size_t>(f)];
+    EXPECT_NEAR(row[2], expected, std::max(1.0, std::abs(expected)) * 1.0e-6);
+  }
+}
+
+TEST_F(MagnonSpectrumCudaMonitorTest, MagnonDensityOneBasisMatchesHandComputedDensity) {
+  MagnonSpectrumStubSolver solver;
+  const auto rows = run_one_basis_density(solver, "density_one_basis_hand_computed");
+  expect_finite_density(rows);
+  ASSERT_EQ(rows.size(), static_cast<std::size_t>(periodogram_length_));
+
+  const double df = 1.0 / (static_cast<double>(periodogram_length_) * solver.time_step());
+  const auto expected = expected_one_basis_density_two_sided(solver.time_step());
+  for (const auto& row : rows) {
+    const int freq_bin = static_cast<int>(std::llround(row[0] / df));
+    const int f = (freq_bin >= 0) ? freq_bin : periodogram_length_ + freq_bin;
+    ASSERT_GE(f, 0);
+    ASSERT_LT(f, periodogram_length_);
+
+    const double expected_two_sided = expected[static_cast<std::size_t>(f)];
+    EXPECT_NEAR(row[2], expected_two_sided, std::max(1.0, std::abs(expected_two_sided)) * 1.0e-5);
+
+    double expected_folded = 0.0;
+    if (freq_bin == 0 || (periodogram_length_ % 2 == 0 && f == periodogram_length_ / 2)) {
+      expected_folded = expected_two_sided;
+    } else if (freq_bin > 0) {
+      expected_folded = expected[static_cast<std::size_t>(f)]
+          + expected[static_cast<std::size_t>(periodogram_length_ - f)];
+    }
+    EXPECT_NEAR(row[3], expected_folded, std::max(1.0, std::abs(expected_folded)) * 1.0e-5);
+  }
 }
 
 #if HAS_CUDA
@@ -515,6 +969,20 @@ TEST_F(MagnonSpectrumCudaMonitorTest, CudaSpatialCudaTimeMatchesCpuWelchSpectrum
   expect_spectra_near(cuda_rows, cpu_rows);
 }
 
+TEST_F(MagnonSpectrumCudaMonitorTest, CudaSpatialCudaTimeMatchesCpuWelchMagnonDensity) {
+  if (!magnon_spectrum_cuda_device_available()) {
+    GTEST_SKIP() << "CUDA runtime is enabled but no CUDA device is available";
+  }
+
+  MagnonSpectrumStubSolver cpu_solver;
+  const auto cpu_rows = run_density(cpu_solver, "density_cpu_welch_cuda_ref", "welch", "cpu", "cpu");
+
+  MagnonSpectrumCudaStubSolver cuda_solver;
+  const auto cuda_rows = run_density(cuda_solver, "density_cuda_welch", "welch", "cuda", "cuda");
+
+  expect_spectra_near(cuda_rows, cpu_rows);
+}
+
 TEST_F(MagnonSpectrumCudaMonitorTest, CudaSpatialCpuTimeMatchesCpuMultitaperSpectrum) {
   if (!magnon_spectrum_cuda_device_available()) {
     GTEST_SKIP() << "CUDA runtime is enabled but no CUDA device is available";
@@ -539,6 +1007,20 @@ TEST_F(MagnonSpectrumCudaMonitorTest, CudaSpatialCudaTimeMatchesCpuMultitaperSpe
 
   MagnonSpectrumCudaStubSolver cuda_solver;
   const auto cuda_rows = run_spectrum(cuda_solver, "cuda_spatial_cuda_time_multitaper", "multitaper", "cuda", "cuda");
+
+  expect_spectra_near(cuda_rows, cpu_rows);
+}
+
+TEST_F(MagnonSpectrumCudaMonitorTest, CudaSpatialCudaTimeMatchesCpuMultitaperMagnonDensity) {
+  if (!magnon_spectrum_cuda_device_available()) {
+    GTEST_SKIP() << "CUDA runtime is enabled but no CUDA device is available";
+  }
+
+  MagnonSpectrumStubSolver cpu_solver;
+  const auto cpu_rows = run_density(cpu_solver, "density_cpu_multitaper_cuda_ref", "multitaper", "cpu", "cpu");
+
+  MagnonSpectrumCudaStubSolver cuda_solver;
+  const auto cuda_rows = run_density(cuda_solver, "density_cuda_multitaper", "multitaper", "cuda", "cuda");
 
   expect_spectra_near(cuda_rows, cpu_rows);
 }

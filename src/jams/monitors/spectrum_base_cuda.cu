@@ -125,12 +125,11 @@ __global__ void extract_compact_sample_kernel(
     const int kspace_z_r2c,
     const bool needs_local_frame,
     const bool scale_to_physical_spin,
-    const double electron_g,
+    const double* basis_spin_lengths,
     const cufftDoubleComplex* sk_grid,
     const int* k_indices,
     const cufftDoubleComplex* basis_phase_factors,
     const cufftDoubleComplex* channel_weights,
-    const jams::Real* moments,
     float2* out)
 {
   const int idx = blockIdx.x * blockDim.x + threadIdx.x;
@@ -170,7 +169,7 @@ __global__ void extract_compact_sample_kernel(
   }
 
   const double spin_scale = scale_to_physical_spin
-      ? static_cast<double>(moments[a]) / electron_g
+      ? basis_spin_lengths[a]
       : 1.0;
   for (int out_c = 0; out_c < stored_channels; ++out_c)
   {
@@ -230,10 +229,9 @@ __global__ void map_direct_sum_sample_kernel(
     const int output_offset,
     const bool needs_local_frame,
     const bool scale_to_physical_spin,
-    const double electron_g,
+    const double* basis_spin_lengths,
     const cufftDoubleComplex* direct_sum,
     const cufftDoubleComplex* channel_weights,
-    const jams::Real* moments,
     float2* out)
 {
   const int idx = blockIdx.x * blockDim.x + threadIdx.x;
@@ -257,7 +255,7 @@ __global__ void map_direct_sum_sample_kernel(
   }
 
   const double spin_scale = scale_to_physical_spin
-      ? static_cast<double>(moments[a]) / electron_g
+      ? basis_spin_lengths[a]
       : 1.0;
   for (int out_c = 0; out_c < stored_channels; ++out_c)
   {
@@ -361,11 +359,10 @@ __global__ void prepare_time_fft_input_kernel(
     const int kpoint_index,
     const bool needs_local_frame,
     const bool scale_to_physical_spin,
-    const double electron_g,
+    const double* basis_spin_lengths,
     const float2* time_series,
     const double* rotations,
     const cufftDoubleComplex* channel_weights,
-    const jams::Real* moments,
     const double* window,
     cufftDoubleComplex* scratch)
 {
@@ -380,7 +377,7 @@ __global__ void prepare_time_fft_input_kernel(
   const int a = idx / output_channels;
   const double time_norm = 1.0 / static_cast<double>(periodogram_length);
   const double spin_scale = scale_to_physical_spin
-      ? static_cast<double>(moments[a]) / electron_g
+      ? basis_spin_lengths[a]
       : 1.0;
   cufftDoubleComplex mean = {0.0, 0.0};
 
@@ -455,6 +452,33 @@ __global__ void accumulate_magnon_power_kernel(
     sum += norm_z(scratch[(a * output_channels + c) * periodogram_length + f]);
   }
   cumulative[(f * num_k + kpoint_index) * 3 + c] += taper_weight * sum;
+}
+
+__global__ void accumulate_magnon_density_kernel(
+    const int num_basis,
+    const int output_channels,
+    const int periodogram_length,
+    const int num_frequencies,
+    const int num_k,
+    const int kpoint_index,
+    const double taper_weight,
+    const cufftDoubleComplex* scratch,
+    const double* basis_spin_lengths,
+    double* cumulative)
+{
+  const int f = blockIdx.x * blockDim.x + threadIdx.x;
+  if (f >= num_frequencies)
+  {
+    return;
+  }
+
+  double sum = 0.0;
+  for (int a = 0; a < num_basis; ++a)
+  {
+    const double spin_length = basis_spin_lengths[a];
+    sum += norm_z(scratch[(a * output_channels) * periodogram_length + f]) / spin_length;
+  }
+  cumulative[(f * num_k + kpoint_index) * 3] += taper_weight * sum;
 }
 
 __global__ void accumulate_tapered_spectrum_kernel(
@@ -548,6 +572,7 @@ public:
         direct_sum_spatial_scale_(direct_sum_spatial_scale),
         use_dense_input_(lattice.has_cropping() || grid_size_ != padded_size_)
   {
+    initialise_basis_spin_lengths(lattice);
     if (use_direct_sum_)
     {
       initialise_direct_sum_buffers(k_points, direct_sum_sites);
@@ -797,12 +822,11 @@ public:
           kspace_z_r2c_,
           needs_local_frame,
           channel_transform.scale_to_physical_spin,
-          kElectronGFactor,
+          basis_spin_lengths_.device_data(),
           sk_grid_.device_data(),
           k_indices_.device_data(),
           reinterpret_cast<const cufftDoubleComplex*>(basis_phase_factors_.device_data()),
           reinterpret_cast<const cufftDoubleComplex*>(channel_weights_.device_data()),
-          globals::mus.device_data(),
           output);
       DEBUG_CHECK_CUDA_ASYNC_STATUS;
     }
@@ -1001,6 +1025,120 @@ public:
         cumulative(f, k)[1] = host(f, k, 1);
         cumulative(f, k)[2] = host(f, k, 2);
       }
+    }
+    cumulative_magnon_.release_stale_host();
+  }
+
+  void accumulate_magnon_density(
+      const int periodogram_length,
+      const int num_basis_atoms,
+      const int num_k_points,
+      const int output_channels,
+      const bool keep_negative_frequencies,
+      const bool needs_local_frame,
+      const bool use_multitaper,
+      const int multitaper_count) override
+  {
+    if (!time_configured_)
+    {
+      throw std::runtime_error("CUDA time FFT storage is not configured");
+    }
+    if (!magnon_accumulation_configured_)
+    {
+      throw std::runtime_error("CUDA magnon density accumulation is not configured");
+    }
+    if (periodogram_length != periodogram_length_
+        || num_basis_atoms != num_basis_
+        || num_k_points != num_k_points_
+        || output_channels != output_channels_
+        || keep_negative_frequencies != keep_negative_frequencies_
+        || needs_local_frame != needs_local_frame_)
+    {
+      throw std::runtime_error("CUDA time FFT configuration does not match current spectrum settings");
+    }
+    if (output_channels_ < 1)
+    {
+      throw std::runtime_error("CUDA magnon density requires at least one output channel");
+    }
+
+    if (needs_local_frame)
+    {
+      const dim3 block(128);
+      const dim3 grid((num_basis_ + block.x - 1) / block.x);
+      compute_rotations_kernel<<<grid, block, 0, stream_.get()>>>(
+          num_basis_,
+          periodogram_length_,
+          ring_offset_,
+          basis_mag_ring_.device_data(),
+          periodogram_window_.device_data(),
+          rotations_.mutable_device_data());
+      DEBUG_CHECK_CUDA_ASYNC_STATUS;
+      rotations_.release_stale_host();
+    }
+
+    const int freq_count = keep_negative_frequencies_
+        ? periodogram_length_
+        : (periodogram_length_ / 2 + 1);
+    const dim3 prepare_block(128);
+    const dim3 prepare_grid((num_basis_ * output_channels_ + prepare_block.x - 1) / prepare_block.x);
+    const dim3 accum_block(128);
+    const dim3 accum_grid((freq_count + accum_block.x - 1) / accum_block.x);
+
+    for (int k = 0; k < num_k_points_; ++k)
+    {
+      if (!use_multitaper)
+      {
+        run_one_time_fft(k, periodogram_window_.device_data(), prepare_grid, prepare_block);
+        accumulate_magnon_density_kernel<<<accum_grid, accum_block, 0, stream_.get()>>>(
+            num_basis_,
+            output_channels_,
+            periodogram_length_,
+            freq_count,
+            num_k_points_,
+            k,
+            1.0,
+            time_scratch_.device_data(),
+            basis_spin_lengths_.device_data(),
+            cumulative_magnon_.mutable_device_data());
+        DEBUG_CHECK_CUDA_ASYNC_STATUS;
+        continue;
+      }
+
+      for (int taper = 0; taper < multitaper_count; ++taper)
+      {
+        const double* window = multitaper_windows_.device_data() + taper * periodogram_length_;
+        run_one_time_fft(k, window, prepare_grid, prepare_block);
+        const double taper_weight = multitaper_weights_host_.at(static_cast<std::size_t>(taper));
+        accumulate_magnon_density_kernel<<<accum_grid, accum_block, 0, stream_.get()>>>(
+            num_basis_,
+            output_channels_,
+            periodogram_length_,
+            freq_count,
+            num_k_points_,
+            k,
+            taper_weight,
+            time_scratch_.device_data(),
+            basis_spin_lengths_.device_data(),
+            cumulative_magnon_.mutable_device_data());
+        DEBUG_CHECK_CUDA_ASYNC_STATUS;
+      }
+    }
+    stream_.synchronize();
+    cumulative_magnon_.release_stale_host();
+  }
+
+  void copy_magnon_density_to_host(
+      jams::MultiArray<double, 1>& cumulative) override
+  {
+    const auto host = cumulative_magnon_.host_view();
+    for (int f = 0; f < cumulative_magnon_.extent(0); ++f)
+    {
+      double sum = 0.0;
+      for (int k = 0; k < cumulative_magnon_.extent(1); ++k)
+      {
+        sum += host(f, k, 0);
+      }
+      cumulative(f) = sum;
     }
     cumulative_magnon_.release_stale_host();
   }
@@ -1237,6 +1375,24 @@ private:
     spatial_memory_bytes_ += bytes_count<double>(basis_chunks_.num_chunks, 3);
   }
 
+  void initialise_basis_spin_lengths(const Lattice& lattice)
+  {
+    std::vector<double> spin_lengths(static_cast<std::size_t>(num_basis_));
+    for (int a = 0; a < num_basis_; ++a)
+    {
+      const auto material_index = lattice.basis_site_atom(a).material_index;
+      const double moment = lattice.material(material_index).moment;
+      const double spin_length = moment / (kElectronGFactor * kBohrMagnetonIU);
+      if (!std::isfinite(spin_length) || spin_length <= 0.0)
+      {
+        throw std::runtime_error("basis spin length must be finite and positive for spectrum monitors");
+      }
+      spin_lengths[static_cast<std::size_t>(a)] = spin_length;
+    }
+    copy_vector_to_device_only(basis_spin_lengths_, spin_lengths);
+    spatial_memory_bytes_ += bytes_count<double>(num_basis_);
+  }
+
   void initialise_spatial_buffers(const Lattice& lattice)
   {
     const int num_kspace_values =
@@ -1427,10 +1583,9 @@ private:
         output_offset,
         needs_local_frame,
         scale_to_physical_spin,
-        kElectronGFactor,
+        basis_spin_lengths_.device_data(),
         direct_sum_buffer_.device_data(),
         reinterpret_cast<const cufftDoubleComplex*>(channel_weights_.device_data()),
-        globals::mus.device_data(),
         output);
     DEBUG_CHECK_CUDA_ASYNC_STATUS;
     direct_sum_buffer_.release_stale_host();
@@ -1452,11 +1607,10 @@ private:
         k,
         needs_local_frame_,
         scale_to_physical_spin_,
-        kElectronGFactor,
+        basis_spin_lengths_.device_data(),
         reinterpret_cast<const float2*>(time_series_.device_data()),
         needs_local_frame_ ? rotations_.device_data() : nullptr,
         reinterpret_cast<const cufftDoubleComplex*>(channel_weights_.device_data()),
-        globals::mus.device_data(),
         window,
         time_scratch_.mutable_device_data());
     DEBUG_CHECK_CUDA_ASYNC_STATUS;
@@ -1497,6 +1651,7 @@ private:
   jams::MultiArray<double, 1> direct_site_window_weights_;
   jams::MultiArray<cufftDoubleComplex, 3> direct_sum_buffer_;
   jams::MultiArray<jams::ComplexHi, 2> basis_phase_factors_;
+  jams::MultiArray<double, 1> basis_spin_lengths_;
   jams::MultiArray<jams::ComplexHi, 2> channel_weights_;
   jams::MultiArray<CmplxStored, 1> sample_block_;
   jams::MultiArray<double, 2> basis_magnetisation_sample_;

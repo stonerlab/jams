@@ -14,12 +14,12 @@
 MagnonDensityMonitor::MagnonDensityMonitor(const libconfig::Setting& settings)
     : SpectrumBaseMonitor(settings, KSamplingMode::FullGrid)
 {
+    enable_cuda_time_fft_backend_();
+    require_negative_frequencies_();
     validate_cuda_time_fft_backend_support_();
 
     const int time_points = periodogram_length();
-    const int freq_bins = keep_negative_frequencies() ? time_points
-                                                      : (time_points / 2 + 1);
-    zero(cumulative_magnon_density_.resize(freq_bins));
+    zero(cumulative_magnon_density_.resize(time_points));
 
     auto channel_map = raise_lower_channel_map();
     channel_map.output_channels = 1; // S+ only
@@ -47,87 +47,66 @@ void MagnonDensityMonitor::output_magnon_density()
         jams::output::monitor_filename(name(), "tsv"),
         {{"f_THz", "THz", jams::output::ColFmt::Fixed},
          {"E_meV", "meV", jams::output::ColFmt::Fixed},
-         {"magnon_density_meV^-1_m^-3", "meV^-1 m^-3"}});
+         {"magnon_density_two_sided_meV^-1_m^-3", "meV^-1 m^-3"},
+         {"magnon_density_positive_folded_meV^-1_m^-3", "meV^-1 m^-3"}});
 
     const int time_points = periodogram_length();
 
-    // ---- Clean physical normalisation ----
-    // Convert |S+|^2 → magnon occupation
-    // Make spectrum integrate to magnon number
-    // Output per unit real-space volume
-
-    const double Nt = static_cast<double>(periodogram_length());
-    (void)Nt;
-
-    // For a one-sided spectrum, we apply wfreq below. Here we normalise to magnons per (m^3 * meV).
-    // The discrete FFT bins have width df (THz). To convert a per-bin sum into a density, divide by df.
     const double df_thz = frequency_resolution_thz();
-    const double inv_df_thz = 1.0 / df_thz;
-
-    // Total real-space volume of the simulated supercell in m^3
     const double v = volume(globals::lattice->get_supercell()) * pow3(globals::lattice->parameter());
-
-    // Average spin length S = mu/g across basis sites.
-    // globals::mus is indexed by material, so look up via basis-site material_index.
-    const auto moments = globals::mus.host_view();
-    double avg_S = 0.0;
-    for (int a = 0; a < num_basis_atoms(); ++a)
-    {
-        const double mu = moments(a);        // Bohr magnetons
-        const double S  = mu / kElectronGFactor;    // dimensionless spin length
-        avg_S += S;
-    }
-    avg_S /= static_cast<double>(num_basis_atoms());
-
-    // Prefactor converts accumulated |S+(q, f)|^2 into magnon number density per meV per m^3:
-    //  - divide by avg_S to convert |S+|^2 -> occupation (a^\dagger a)
-    //  - average over periodograms and k-points
-    //  - divide by volume to get per m^3
-    //  - divide by df to get per THz, then divide by kTHz2meV at output to get per meV
-    const double prefactor = inv_df_thz / (avg_S * v * periodogram_window_count());
-
-    const auto freq_end = keep_negative_frequencies() ? time_points : (time_points / 2) + 1;
+    const double prefactor = 1.0 / (v * periodogram_window_count() * df_thz * kTHz2meV);
     const auto freq_start = (time_points % 2 == 0) ? (time_points / 2 + 1) : ((time_points + 1) / 2);
-    assert(cumulative_magnon_density_.size() >= static_cast<std::size_t>(freq_end));
-    for (auto i = 0; i < freq_end; ++i)
+    assert(cumulative_magnon_density_.size() >= static_cast<std::size_t>(time_points));
+    for (auto i = 0; i < time_points; ++i)
     {
-        const auto f = keep_negative_frequencies() ? (freq_start + i) % time_points : i;
-
-        double wfreq = 1.0;
-        if (!keep_negative_frequencies()) {
-          const bool is_dc = (f == 0);
-          const bool is_nyquist = ((time_points % 2) == 0) && (f == (time_points / 2));
-          wfreq = (is_dc || is_nyquist) ? 1.0 : 2.0;
-        }
-
+        const auto f = (freq_start + i) % time_points;
         const auto freq_index = (f <= time_points / 2) ? static_cast<int>(f)
                                                        : static_cast<int>(f) - static_cast<int>(time_points);
         const auto freq_thz = static_cast<double>(freq_index) * frequency_resolution_thz();
+        const double two_sided_density = prefactor * cumulative_magnon_density_(static_cast<std::size_t>(f));
+
+        double folded_density = 0.0;
+        if (freq_index == 0
+            || ((time_points % 2) == 0 && f == time_points / 2))
+        {
+            folded_density = two_sided_density;
+        }
+        else if (freq_index > 0)
+        {
+            const auto negative_f = static_cast<std::size_t>(time_points - f);
+            folded_density = prefactor
+                * (cumulative_magnon_density_(static_cast<std::size_t>(f))
+                   + cumulative_magnon_density_(negative_f));
+        }
 
         tsv.write_row_values(
             freq_thz,
             freq_thz * kTHz2meV,
-            (prefactor * wfreq / kTHz2meV) * cumulative_magnon_density_(static_cast<std::size_t>(f)));
+            two_sided_density,
+            folded_density);
     }
 }
 
 void MagnonDensityMonitor::accumulate_magnon_density()
 {
+    if (accumulate_magnon_density_cuda(cumulative_magnon_density_))
+    {
+        return;
+    }
+
     for (auto k = 0; k < num_k_points(); ++k)
     {
         const auto& sw = compute_frequency_spectrum_at_k(k);
         const auto time_points = periodogram_length();
-        const auto freq_end = keep_negative_frequencies() ? time_points : (time_points / 2) + 1;
-        const auto freq_start = (time_points % 2 == 0) ? (time_points / 2 + 1) : ((time_points + 1) / 2);
 
-        assert(cumulative_magnon_density_.size() >= static_cast<std::size_t>(freq_end));
+        assert(cumulative_magnon_density_.size() >= static_cast<std::size_t>(time_points));
 
         for (auto a = 0; a < num_basis_atoms(); ++a)
         {
-            for (auto i = 0; i < freq_end; ++i)
+            const double inv_spin_length = 1.0 / basis_spin_length_(a);
+            for (auto f = 0; f < time_points; ++f)
             {
-                const auto f = keep_negative_frequencies() ? (freq_start + i) % time_points : i;
-                cumulative_magnon_density_(f) += std::real(sw(a, f, 0) * conj(sw(a, f, 0)));
+                cumulative_magnon_density_(f) += inv_spin_length * std::norm(sw(a, f, 0));
             }
         }
     }

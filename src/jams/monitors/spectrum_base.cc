@@ -707,6 +707,15 @@ void SpectrumBaseMonitor::enable_cuda_frequency_slices_backend_()
   cuda_time_fft_needs_frequency_slices_ = true;
 }
 
+void SpectrumBaseMonitor::require_negative_frequencies_()
+{
+  if (sk_time_series_storage_initialised_)
+  {
+    throw std::runtime_error("negative frequency output must be required before spectrum storage is initialised");
+  }
+  keep_negative_frequencies_ = true;
+}
+
 void SpectrumBaseMonitor::validate_cuda_time_fft_backend_support_() const
 {
   if (cuda_time_fft_requested_() && !cuda_time_fft_supported_)
@@ -1353,6 +1362,39 @@ bool SpectrumBaseMonitor::accumulate_magnon_spectrum_cuda(
 #endif
 }
 
+bool SpectrumBaseMonitor::accumulate_magnon_density_cuda(
+    jams::MultiArray<double, 1>& cumulative)
+{
+  if (!use_cuda_time_fft_())
+  {
+    return false;
+  }
+
+#if HAS_CUDA
+  assert(cuda_backend_);
+  prepare_frequency_windows_();
+
+  cuda_backend_->configure_frequency_inputs(
+      periodogram_window_,
+      multitaper_windows_,
+      multitaper_weights_,
+      channel_transform_);
+  cuda_backend_->accumulate_magnon_density(
+      periodogram_length(),
+      num_basis_atoms(),
+      num_k_points(),
+      num_channels(),
+      keep_negative_frequencies_,
+      needs_local_frame_mapping_(),
+      temporal_estimator_ == TemporalEstimator::Multitaper,
+      multitaper_count_);
+  cuda_backend_->copy_magnon_density_to_host(cumulative);
+  return true;
+#else
+  return false;
+#endif
+}
+
 void SpectrumBaseMonitor::advance_periodogram_window()
 {
   const std::size_t overlap = static_cast<std::size_t>(periodogram_overlap());
@@ -1729,14 +1771,28 @@ jams::ComplexHi SpectrumBaseMonitor::map_spin_component_(
 
   if (channel_transform_.scale_to_physical_spin)
   {
-    const auto moments = globals::mus.host_view();
-    const double mu = moments(basis_index);
-    const double spin_length = mu / kElectronGFactor;
-    s *= spin_length;
+    s *= basis_spin_length_(basis_index);
   }
 
   const auto& w = channel_transform_.weights[channel_index];
   return w[0] * s[0] + w[1] * s[1] + w[2] * s[2];
+}
+
+double SpectrumBaseMonitor::basis_spin_length_(const int basis_index) const
+{
+  if (basis_index < 0 || basis_index >= num_basis_atoms())
+  {
+    throw std::runtime_error("basis spin length requested for invalid basis index");
+  }
+
+  const auto material_index = globals::lattice->basis_site_atom(basis_index).material_index;
+  const double moment = globals::lattice->material(material_index).moment;
+  const double spin_length = moment / (kElectronGFactor * kBohrMagnetonIU);
+  if (!std::isfinite(spin_length) || spin_length <= 0.0)
+  {
+    throw std::runtime_error("basis spin length must be finite and positive for spectrum monitors");
+  }
+  return spin_length;
 }
 
 jams::Vec<std::complex<double>, 3> SpectrumBaseMonitor::read_cartesian_spin_(const int basis_index,

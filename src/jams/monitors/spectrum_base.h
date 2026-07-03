@@ -112,9 +112,9 @@ public:
     /// applying the channel mapping.
     ///
     /// This converts unit spins into physical spin units using
-    /// \f$S = \mu/g\f$, where \f$\mu\f$ is the magnetic moment associated with
-    /// the site. Required when constructing physically meaningful quantities
-    /// such as magnon occupation.
+    /// \f$S = \mu/(g\mu_B)\f$, where \f$\mu\f$ is the magnetic moment
+    /// associated with the site. Required when constructing physically
+    /// meaningful quantities such as magnon occupation.
     bool scale_to_physical_spin = false;
   };
 
@@ -187,6 +187,19 @@ public:
 
     virtual void copy_magnon_spectrum_to_host(
         jams::MultiArray<jams::Vec<double, 3>, 2>& cumulative) = 0;
+
+    virtual void accumulate_magnon_density(
+        int periodogram_length,
+        int num_basis_atoms,
+        int num_k_points,
+        int output_channels,
+        bool keep_negative_frequencies,
+        bool needs_local_frame,
+        bool use_multitaper,
+        int multitaper_count) = 0;
+
+    virtual void copy_magnon_density_to_host(
+        jams::MultiArray<double, 1>& cumulative) = 0;
 
     virtual void compute_frequency_spectrum_at_k(
         int kpoint_index,
@@ -277,6 +290,8 @@ protected:
   void enable_cuda_time_fft_backend_();
   void enable_cuda_frequency_slices_backend_();
   void validate_cuda_time_fft_backend_support_() const;
+  void require_negative_frequencies_();
+  double basis_spin_length_(int basis_index) const;
 
   bool periodogram_window_complete() const;
 
@@ -294,6 +309,7 @@ protected:
   /// synchronized back to host for output; false if the caller should use the
   /// CPU frequency path.
   bool accumulate_magnon_spectrum_cuda(jams::MultiArray<jams::Vec<double, 3>, 2>& cumulative);
+  bool accumulate_magnon_density_cuda(jams::MultiArray<double, 1>& cumulative);
 
   const CmplxMappedSpectrum& finalise_periodogram_spectrum();
 
