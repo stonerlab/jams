@@ -151,6 +151,8 @@ struct config_required_impl<InteractionFileFormat, void> {
       return InteractionFileFormat::JAMS;
     } else if (lowercase(format) == "kkr") {
       return InteractionFileFormat::KKR;
+    } else if (lowercase(format) == "positional_material" || lowercase(format) == "positionalmaterial") {
+      return InteractionFileFormat::POSITIONAL_MATERIAL;
     } else {
       throw std::runtime_error("Unknown interaction file format");
     }

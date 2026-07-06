@@ -43,8 +43,15 @@ Settings
     Format is one of:
 
     - :code:`("MaterialA", "MaterialB", [rx, ry, rz], Jij)`
-    - :code:`("MaterialA", "MaterialB", [rx, ry, rz], Jij_xx, Jij_xy, Jij_xz, Jij_yx, Jij_yy, Jij_yz, Jij_zx, Jij_zy, Jij_zz)`
+    - :code:`("MaterialA", "MaterialB", [rx, ry, rz], [Jij_xx, Jij_xy, Jij_xz, Jij_yx, Jij_yy, Jij_yz, Jij_zx, Jij_zy, Jij_zz])`
     - :code:`(1, 2, [rx, ry, rz], Jij)`
+    - :code:`(1, 2, "MaterialA", "MaterialB", [rx, ry, rz], Jij)`
+    - :code:`(1, 2, "MaterialA", "MaterialB", [rx, ry, rz], [Jij_xx, Jij_xy, Jij_xz, Jij_yx, Jij_yy, Jij_yz, Jij_zx, Jij_zy, Jij_zz])`
+
+    The positional material forms restrict the interaction to a pair of unit
+    cell positions and to the runtime materials on those sites. This is useful
+    for impurity calculations where a fixed motif position can contain more
+    than one material.
 
 
 .. code-block:: none
@@ -56,6 +63,17 @@ Settings
 .. warning::
 
     The data structure used to store the config means that if too many interactions are specified in the :code:`interactions` setting then the memory usage will be very large. In this case the external :code:`exc_file` should be used instead.
+
+    Exchange files use whitespace separated columns. In addition to the legacy
+    material-only and position-only formats, they may use positional material
+    rows:
+
+    - :code:`i j MaterialA MaterialB rx ry rz Jij`
+    - :code:`i j MaterialA MaterialB rx ry rz Jij_xx Jij_xy Jij_xz Jij_yx Jij_yy Jij_yz Jij_zx Jij_zy Jij_zz`
+
+    Material names are not quoted in exchange files. Interactions are not
+    generated reciprocally, so both :code:`Fe Co` and :code:`Co Fe` rows are
+    required when both directions are needed.
 
 .. describe:: coordinate_format = "cartesian"
 
