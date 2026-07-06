@@ -208,7 +208,7 @@ private:
     std::vector<jams::Vec<int, 3>> cell_offsets_;
 
     MaterialMap       materials_;
-    unsigned          impurity_seed_;
+    unsigned          impurity_seed_ = 0;
     ImpurityMap       impurity_map_;
     jams::MultiArray<int, 4> lattice_map_;
 

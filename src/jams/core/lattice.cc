@@ -18,6 +18,7 @@ extern "C"{
 #include <iomanip>
 #include <map>
 #include <memory>
+#include <random>
 #include <string>
 #include <utility>
 #include <functional>
@@ -774,7 +775,8 @@ void Lattice::generate_supercell(const libconfig::Setting &lattice_settings)
   lattice_sites_.reserve(expected_num_atoms);
   lattice_site_to_cell_lookup_.reserve(expected_num_atoms);
 
-  auto impurity_rand = std::bind(std::uniform_real_distribution<>(), pcg32(impurity_seed_));
+  pcg32 impurity_rng(impurity_seed_);
+  std::uniform_real_distribution<double> impurity_distribution(0.0, 1.0);
 
   // loop over the translation vectors for lattice size
   int atom_counter = 0;
@@ -809,10 +811,11 @@ void Lattice::generate_supercell(const libconfig::Setting &lattice_settings)
           auto position    = generate_cartesian_lattice_position_from_fractional(basis_sites_[m].position_frac, cell_offset);
           auto material    = basis_sites_[m].material_index;
 
-          if (impurity_map_.count(material)) {
-            auto impurity    = impurity_map_[material];
+          const auto impurity_iter = impurity_map_.find(material);
+          if (impurity_iter != impurity_map_.end()) {
+            const auto impurity = impurity_iter->second;
 
-            if (impurity_rand() < impurity.fraction) {
+            if (impurity_distribution(impurity_rng) < impurity.fraction) {
               material = impurity.material;
             }
           }
