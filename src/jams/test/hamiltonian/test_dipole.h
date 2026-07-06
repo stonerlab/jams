@@ -6,6 +6,7 @@
 #include <array>
 #include <memory>
 
+#include "jams/common.h"
 #include "jams/core/globals.h"
 #include "jams/core/lattice.h"
 #include "jams/core/physics.h"
@@ -390,7 +391,7 @@ template<typename T>
 class DipoleHamiltonianGPUTests : public DipoleHamiltonianTests<T> {
 public:
     void SetUp(const std::string &config_string) override {
-      cudaDeviceReset();
+      jams::Jams::reset_cuda_device();
       DipoleHamiltonianTests<T>::SetUp(config_string);
     }
 
@@ -508,7 +509,7 @@ TEST_F(CroppedDipoleFFTHamiltonianTest, CudaFftMatchesBruteforceForCroppedTopMot
   if (!cuda_device_is_available()) {
     GTEST_SKIP() << "CUDA device is not available";
   }
-  cudaDeviceReset();
+  jams::Jams::reset_cuda_device();
   initialise(
       config_basic_gpu
       + config_unitcell_sc_z_2_atom
@@ -568,7 +569,7 @@ TEST_F(CroppedDipoleFFTHamiltonianTest, CudaFftEnergyCurrentMatchesSparseForPeri
   if (!cuda_device_is_available()) {
     GTEST_SKIP() << "CUDA device is not available";
   }
-  cudaDeviceReset();
+  jams::Jams::reset_cuda_device();
   initialise(
       config_basic_gpu
       + config_unitcell_sc
@@ -587,7 +588,7 @@ TEST_F(CroppedDipoleFFTHamiltonianTest, CudaFftEnergyCurrentMatchesSparseForPeri
   if (!cuda_device_is_available()) {
     GTEST_SKIP() << "CUDA device is not available";
   }
-  cudaDeviceReset();
+  jams::Jams::reset_cuda_device();
   initialise(
       config_basic_gpu
       + config_unitcell_sc_2_atom
@@ -606,7 +607,7 @@ TEST_F(CroppedDipoleFFTHamiltonianTest, CudaFftEnergyCurrentMatchesSparseForCrop
   if (!cuda_device_is_available()) {
     GTEST_SKIP() << "CUDA device is not available";
   }
-  cudaDeviceReset();
+  jams::Jams::reset_cuda_device();
   initialise(
       config_basic_gpu
       + config_unitcell_sc_z_2_atom

@@ -101,7 +101,7 @@ TEST_F(CudaThermalCurrentMonitorTest, IncludesDipoleFftProviderByDefault) {
   if (!thermal_current_cuda_device_is_available()) {
     GTEST_SKIP() << "CUDA device is not available";
   }
-  cudaDeviceReset();
+  jams::Jams::reset_cuda_device();
   jams::Jams::set_mode(jams::Mode::GPU);
 
   initialise(R"(
@@ -129,7 +129,7 @@ TEST_F(CudaThermalCurrentMonitorTest, ExcludesDipoleFftCaseInsensitively) {
   if (!thermal_current_cuda_device_is_available()) {
     GTEST_SKIP() << "CUDA device is not available";
   }
-  cudaDeviceReset();
+  jams::Jams::reset_cuda_device();
   jams::Jams::set_mode(jams::Mode::GPU);
 
   initialise(R"(

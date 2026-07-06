@@ -11,6 +11,7 @@
 #include <cuda_runtime.h>
 #include <libconfig.h++>
 
+#include "jams/common.h"
 #include "jams/core/globals.h"
 #include "jams/core/hamiltonian.h"
 #include "jams/core/lattice.h"
@@ -50,7 +51,7 @@ class CudaAnisotropyPolynomialHamiltonianTests : public ::testing::Test {
 public:
     void SetUp() override
     {
-        cudaDeviceReset();
+        jams::Jams::reset_cuda_device();
         jams::testing::toggle_cout();
 
         globals::lattice = new Lattice();

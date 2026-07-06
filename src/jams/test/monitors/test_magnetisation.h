@@ -18,6 +18,7 @@
 #include <jams/core/lattice.h>
 #include <jams/core/solver.h>
 #include <jams/helpers/output.h>
+#include <jams/helpers/utils.h>
 #include <jams/monitors/magnetisation.h>
 
 #if HAS_CUDA
@@ -25,6 +26,26 @@
 #endif
 
 namespace jams::testing {
+
+inline void reset_magnetisation_monitor_globals() {
+  globals::num_spins = 0;
+  globals::num_spins3 = 0;
+  jams::util::force_deallocation(globals::s);
+  jams::util::force_deallocation(globals::h);
+  jams::util::force_deallocation(globals::ds_dt);
+  jams::util::force_deallocation(globals::positions);
+  jams::util::force_deallocation(globals::alpha);
+  jams::util::force_deallocation(globals::mus);
+  jams::util::force_deallocation(globals::inv_mus);
+  globals::num_magnetic_spins = 0;
+  jams::util::force_deallocation(globals::gyro);
+  globals::solver = nullptr;
+  globals::config = nullptr;
+  if (globals::lattice != nullptr) {
+    delete globals::lattice;
+    globals::lattice = nullptr;
+  }
+}
 
 class MagnetisationStubSolver : public Solver {
 public:
@@ -48,7 +69,7 @@ inline bool magnetisation_cuda_device_available() {
 class MagnetisationMonitorTest : public ::testing::Test {
 protected:
   void SetUp() override {
-    globals::solver = nullptr;
+    reset_magnetisation_monitor_globals();
     output_dir_ = std::filesystem::temp_directory_path() / "jams_magnetisation_monitor_test";
     std::filesystem::remove_all(output_dir_);
     jams::Jams::set_output_dir(output_dir_.string());
@@ -58,10 +79,7 @@ protected:
   }
 
   void TearDown() override {
-    globals::solver = nullptr;
-    delete globals::lattice;
-    globals::lattice = nullptr;
-    globals::config = nullptr;
+    reset_magnetisation_monitor_globals();
     std::filesystem::remove_all(output_dir_);
   }
 

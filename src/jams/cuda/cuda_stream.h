@@ -40,6 +40,7 @@ class CudaStream {
     inline explicit operator bool() const;
 
     inline void synchronize();
+    inline void reset();
 
     inline cudaStream_t& get();
 
@@ -117,6 +118,10 @@ inline void CudaStream::synchronize() {
   }
   assert(stream_);
   CHECK_CUDA_STATUS(cudaStreamSynchronize(stream_));
+}
+
+inline void CudaStream::reset() {
+  destroy_stream();
 }
 
 inline CudaStream::operator bool() const {
