@@ -1293,7 +1293,7 @@ Lattice::ImpurityMap Lattice::read_impurities_from_config(const libconfig::Setti
     Impurity imp = {materialB, fraction};
 
     if(impurities.emplace(materialA, imp).second == false) {
-      jams::ConfigException(settings, "impurity ", n, " redefines a previous impurity");
+      throw jams::ConfigException(settings, "impurity ", n, " redefines a previous impurity");
     }
   }
   return impurities;

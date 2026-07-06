@@ -279,6 +279,22 @@ TEST_F(LatticeSizeTest, IntegerSizeBuildsDenseCellMotifMap) {
   EXPECT_EQ(globals::lattice->get_supercell().a3(), (jams::Vec<double, 3>{0.0, 0.0, 3.0}));
 }
 
+TEST_F(LatticeSizeTest, RejectsDuplicateImpuritySourceMaterials) {
+  globals::config->readString(base_config() + R"(
+    lattice : {
+      size = [2, 1, 3];
+      periodic = [true, true, true];
+      impurities_seed = 1;
+      impurities = (
+        ("A", "B", 0.25),
+        ("A", "B", 0.50)
+      );
+    };
+  )");
+
+  EXPECT_THROW(globals::lattice->init_from_config(*globals::config), jams::ConfigException);
+}
+
 TEST_F(LatticeSizeTest, MaterialGyroIsBareGammaWhenUsingGilbertPrefactor) {
   globals::config->readString(R"(
       solver : {
