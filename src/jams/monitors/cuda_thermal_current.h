@@ -20,7 +20,7 @@ jams::Vec<double, 3> execute_cuda_thermal_current_kernel(
     const jams::MultiArray<double, 2>& spins,
     const jams::MultiArray<jams::Real, 2>& field,
     const jams::MultiArray<jams::Real, 1>& gyro,
-    const jams::MultiArray<jams::Real, 1>& mus,
+    const jams::MultiArray<jams::Real, 1>& inv_mus,
     jams::SparseMatrix<double>& energy_current_operator_rx,
     jams::SparseMatrix<double>& energy_current_operator_ry,
     jams::SparseMatrix<double>& energy_current_operator_rz,

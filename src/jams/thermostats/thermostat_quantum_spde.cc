@@ -1034,19 +1034,19 @@ ThermostatQuantumSpde::ThermostatQuantumSpde(const jams::Real& temperature,
 
   auto sigma_view = sigma_.mutable_host_view();
   auto alpha_view = globals::alpha.host_view();
-  auto mu_view = globals::mus.host_view();
+  auto inv_mu_view = globals::inv_mus.host_view();
   auto gyro_view = globals::gyro.host_view();
   auto* sigma_values = sigma_view.data();
   const auto* alpha_values = alpha_view.data();
-  const auto* mu_values = mu_view.data();
+  const auto* inv_mu_values = inv_mu_view.data();
   const auto* gyro_values = gyro_view.data();
 #if HAS_OMP
 #pragma omp parallel for schedule(static)
 #endif
   for (auto i = 0; i < num_spins; ++i) {
     const auto value = static_cast<jams::Real>(
-        kBoltzmannIU * std::sqrt((2.0 * alpha_values[i])
-        / (kHBarIU * gyro_values[i] * mu_values[i])));
+        kBoltzmannIU * std::sqrt((2.0 * alpha_values[i] * inv_mu_values[i])
+        / (kHBarIU * gyro_values[i])));
     const auto offset = 3 * i;
     sigma_values[offset] = value;
     sigma_values[offset + 1] = value;

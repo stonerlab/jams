@@ -134,7 +134,7 @@ void CUDALLGSemiImplictSolver::initialize(const libconfig::Setting& settings)
   dt_gyro_mu_.resize(globals::num_spins);
   for (auto i = 0; i < globals::num_spins; ++i)
   {
-    dt_gyro_mu_(i) = step_size_ * gyro_eff_(i) / globals::mus(i);
+    dt_gyro_mu_(i) = step_size_ * gyro_eff_(i) * globals::inv_mus(i);
   }
   const auto dt_gyro_mu_choice = cuda_spin_parameter_choice(dt_gyro_mu_);
   dt_gyro_mu_is_uniform_ = dt_gyro_mu_choice.is_uniform;

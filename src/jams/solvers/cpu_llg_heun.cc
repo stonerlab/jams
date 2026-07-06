@@ -38,7 +38,11 @@ inline jams::Vec<double, 3> normalized_spin(
     const double sx,
     const double sy,
     const double sz) {
-  const double inv_norm = 1.0 / std::sqrt(sx * sx + sy * sy + sz * sz);
+  const double norm_sq = sx * sx + sy * sy + sz * sz;
+  if (norm_sq == 0.0) {
+    return {0.0, 0.0, 0.0};
+  }
+  const double inv_norm = 1.0 / std::sqrt(norm_sq);
   return {sx * inv_norm, sy * inv_norm, sz * inv_norm};
 }
 
@@ -89,10 +93,10 @@ void HeunLLGSolver::run() {
   Solver::compute_fields();
 
   const auto alpha_view = globals::alpha.host_view();
-  const auto mu_view = globals::mus.host_view();
+  const auto inv_mu_view = globals::inv_mus.host_view();
   const auto gyro_eff_view = gyro_eff_.host_view();
   const auto* alpha_values = alpha_view.data();
-  const auto* mu_values = mu_view.data();
+  const auto* inv_mu_values = inv_mu_view.data();
   const auto* gyro_eff_values = gyro_eff_view.data();
   const auto* thermostat_values = thermostat_->data();
 
@@ -109,7 +113,7 @@ void HeunLLGSolver::run() {
 #endif
     for (auto i = 0; i < globals::num_spins; ++i) {
       const auto offset = 3 * i;
-      const double inv_mu = 1.0 / static_cast<double>(mu_values[i]);
+      const double inv_mu = static_cast<double>(inv_mu_values[i]);
       const double hx = static_cast<double>(thermostat_values[offset] + field_values[offset] * inv_mu);
       const double hy = static_cast<double>(thermostat_values[offset + 1] + field_values[offset + 1] * inv_mu);
       const double hz = static_cast<double>(thermostat_values[offset + 2] + field_values[offset + 2] * inv_mu);
@@ -166,7 +170,7 @@ void HeunLLGSolver::run() {
 #endif
     for (auto i = 0; i < globals::num_spins; ++i) {
       const auto offset = 3 * i;
-      const double inv_mu = 1.0 / static_cast<double>(mu_values[i]);
+      const double inv_mu = static_cast<double>(inv_mu_values[i]);
       const double hx = static_cast<double>(thermostat_values[offset] + field_values[offset] * inv_mu);
       const double hy = static_cast<double>(thermostat_values[offset + 1] + field_values[offset + 1] * inv_mu);
       const double hz = static_cast<double>(thermostat_values[offset + 2] + field_values[offset + 2] * inv_mu);

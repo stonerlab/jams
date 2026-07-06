@@ -18,7 +18,7 @@ jams::Vec<double, 3> execute_cuda_spin_current_kernel(
         const int num_spins,
         const double *dev_spins,
         const jams::Real *dev_gyro,
-        const jams::Real *dev_mus,
+        const jams::Real *dev_inv_mus,
         const double *dev_Jrij,
         const int *dev_col_pointers,
         const int *dev_col_indicies,

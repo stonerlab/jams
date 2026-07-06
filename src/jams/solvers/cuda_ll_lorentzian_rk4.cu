@@ -53,7 +53,9 @@ void CUDALLLorentzianRK4Solver::initialize(const libconfig::Setting& settings)
   // that we convert here to get the scaling of the noice correct (i.e. it
   // converts Janet's equations into the JAMS convention).
 
-  double eta_G = globals::alpha(0) / (globals::mus(0) * globals::gyro(0));
+  const int first_spin = globals::first_magnetic_spin();
+  double eta_G = globals::alpha(first_spin) * globals::inv_mus(first_spin)
+      / globals::gyro(first_spin);
 
   lorentzian_A_ =  (eta_G * pow4(lorentzian_omega_)) / (lorentzian_gamma_);
 
@@ -143,7 +145,7 @@ void CUDALLLorentzianRK4Solver::run()
       w_memory_process_.device_data(),
       v_memory_process_.device_data(),
       globals::h.device_data(), thermostat_->device_data(),
-      gyro_eff_.device_data(), globals::mus.device_data(),
+      gyro_eff_.device_data(), globals::mus.device_data(), globals::inv_mus.device_data(),
       lorentzian_omega_, lorentzian_gamma_, lorentzian_A_,
       globals::num_spins);
   DEBUG_CHECK_CUDA_ASYNC_STATUS
@@ -166,7 +168,7 @@ void CUDALLLorentzianRK4Solver::run()
       w_memory_process_.device_data(),
       v_memory_process_.device_data(),
       globals::h.device_data(), thermostat_->device_data(),
-      gyro_eff_.device_data(), globals::mus.device_data(),
+      gyro_eff_.device_data(), globals::mus.device_data(), globals::inv_mus.device_data(),
       lorentzian_omega_, lorentzian_gamma_, lorentzian_A_,
       globals::num_spins);
   DEBUG_CHECK_CUDA_ASYNC_STATUS
@@ -189,7 +191,7 @@ void CUDALLLorentzianRK4Solver::run()
       w_memory_process_.device_data(),
       v_memory_process_.device_data(),
       globals::h.device_data(), thermostat_->device_data(),
-      gyro_eff_.device_data(), globals::mus.device_data(),
+      gyro_eff_.device_data(), globals::mus.device_data(), globals::inv_mus.device_data(),
       lorentzian_omega_, lorentzian_gamma_, lorentzian_A_,
       globals::num_spins);
   DEBUG_CHECK_CUDA_ASYNC_STATUS
@@ -212,7 +214,7 @@ void CUDALLLorentzianRK4Solver::run()
       w_memory_process_.device_data(),
       v_memory_process_.device_data(),
       globals::h.device_data(), thermostat_->device_data(),
-      gyro_eff_.device_data(), globals::mus.device_data(),
+      gyro_eff_.device_data(), globals::mus.device_data(), globals::inv_mus.device_data(),
       lorentzian_omega_, lorentzian_gamma_, lorentzian_A_,
       globals::num_spins);
   DEBUG_CHECK_CUDA_ASYNC_STATUS

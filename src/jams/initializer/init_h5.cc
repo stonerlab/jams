@@ -24,6 +24,7 @@ void jams::InitH5::execute(const libconfig::Setting &settings) {
     std::string file_name = settings["mus"];
     std::cout << "reading mus data from file " << file_name << "\n";
     load_array_from_file(file_name, "/mus", globals::mus);
+    globals::sync_magnetic_moment_data();
   }
 
   if (settings.exists("gyro")) {

@@ -28,6 +28,8 @@ void reset_h5_initializer_globals() {
   jams::util::force_deallocation(globals::positions);
   jams::util::force_deallocation(globals::alpha);
   jams::util::force_deallocation(globals::mus);
+  jams::util::force_deallocation(globals::inv_mus);
+  globals::num_magnetic_spins = 0;
   jams::util::force_deallocation(globals::gyro);
   globals::config = nullptr;
   globals::solver = nullptr;
@@ -155,6 +157,8 @@ class H5InitializerTest : public ::testing::Test {
   }
 
   static void resize_targets() {
+    globals::num_spins = 2;
+    globals::num_spins3 = 6;
     globals::s.resize(2, 3);
     globals::alpha.resize(2);
     globals::mus.resize(2);
@@ -174,6 +178,8 @@ TEST_F(H5InitializerTest, LoadsFloatDatasetsIntoCurrentPrecision) {
   EXPECT_NEAR(static_cast<double>(globals::alpha(0)), 0.125, 1.0e-7);
   EXPECT_NEAR(static_cast<double>(globals::alpha(1)), 0.25, 1.0e-7);
   EXPECT_NEAR(static_cast<double>(globals::mus(0)), 1.5, 1.0e-7);
+  EXPECT_EQ(globals::num_magnetic_spins, 2);
+  EXPECT_NEAR(static_cast<double>(globals::inv_mus(0)), 1.0 / 1.5, 1.0e-7);
   EXPECT_NEAR(static_cast<double>(globals::gyro(1)), 4.5, 1.0e-7);
 }
 
@@ -187,6 +193,8 @@ TEST_F(H5InitializerTest, LoadsDoubleDatasetsIntoCurrentPrecision) {
   EXPECT_NEAR(static_cast<double>(globals::alpha(0)), 0.125, 1.0e-7);
   EXPECT_NEAR(static_cast<double>(globals::alpha(1)), 0.25, 1.0e-7);
   EXPECT_NEAR(static_cast<double>(globals::mus(0)), 1.5, 1.0e-7);
+  EXPECT_EQ(globals::num_magnetic_spins, 2);
+  EXPECT_NEAR(static_cast<double>(globals::inv_mus(0)), 1.0 / 1.5, 1.0e-12);
   EXPECT_NEAR(static_cast<double>(globals::gyro(1)), 4.5, 1.0e-7);
 }
 

@@ -1,6 +1,7 @@
 // Copyright 2014 Joseph Barker. All rights reserved.
 
 #include <cmath>
+#include <stdexcept>
 #include <string>
 #include <iomanip>
 #include <sstream>
@@ -132,8 +133,13 @@ jams::output::TsvWriter MagnetisationMonitor::make_tsv_writer(const libconfig::S
     if (group.empty()) {
       group_normalising_factors_.push_back(1.0);
     } else if (normalize_magnetisation_) {
-      group_normalising_factors_.push_back(
-          1.0 / jams::scalar_field_indexed_reduce(globals::mus, group.indices_array()));
+      const double group_moment =
+          jams::scalar_field_indexed_reduce(globals::mus, group.indices_array());
+      if (group_moment == 0.0) {
+        throw std::runtime_error(
+            "magnetisation monitor cannot normalize a group with zero total moment");
+      }
+      group_normalising_factors_.push_back(1.0 / group_moment);
     } else {
       // internally we use meV T^-1 for mus so convert back to Bohr magneton
       group_normalising_factors_.push_back(1.0 / kBohrMagnetonIU);

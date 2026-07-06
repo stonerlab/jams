@@ -90,20 +90,23 @@ void run_field_scale_case(
     const std::array<jams::Real, 4>& expected) {
   constexpr unsigned kCount = 4;
 
-  jams::MultiArray<jams::Real, 1> mus(kCount);
+  jams::MultiArray<jams::Real, 1> inv_mus(kCount);
   jams::MultiArray<jams::Real, 1> field(kCount);
   jams::MultiArray<jams::Real, 1> out(kCount);
 
-  auto mus_values = mus.mutable_host_span();
+  auto inv_mus_values = inv_mus.mutable_host_span();
   auto field_values = field.mutable_host_span();
+  inv_mus_values[0] = jams::Real{0.5};
+  inv_mus_values[1] = jams::Real{1.0 / 3.0};
+  inv_mus_values[2] = jams::Real{0.0};
+  inv_mus_values[3] = jams::Real{0.2};
   for (unsigned i = 0; i < kCount; ++i) {
-    mus_values[i] = static_cast<jams::Real>(2.0 + i);
     field_values[i] = static_cast<jams::Real>(20.0 + i);
   }
 
   dispatch_cuda_field_scale(
       choice,
-      mus,
+      inv_mus,
       [&](const auto field_scale) {
         cuda_field_scale_test_kernel<<<1, 32>>>(
             field_scale,
@@ -187,7 +190,7 @@ TEST(CudaFieldScaleChoiceTest, EmptyArrayIsNotUniform) {
 
 TEST(CudaFieldScaleChoiceTest, UniformArrayStoresInverseMoment) {
   jams::MultiArray<jams::Real, 1> values(4);
-  values.fill(jams::Real{2.0});
+  values.fill(jams::Real{0.5});
 
   const auto choice = cuda_field_scale_choice(values);
 
@@ -197,8 +200,8 @@ TEST(CudaFieldScaleChoiceTest, UniformArrayStoresInverseMoment) {
 
 TEST(CudaFieldScaleChoiceTest, DifferingElementIsNotUniform) {
   jams::MultiArray<jams::Real, 1> values(4);
-  values.fill(jams::Real{2.0});
-  values(2) = jams::Real{3.0};
+  values.fill(jams::Real{0.5});
+  values(2) = jams::Real{0.25};
 
   const auto choice = cuda_field_scale_choice(values);
 
@@ -255,8 +258,8 @@ TEST(CudaFieldScaleWrapperTest, ScalesFieldsForUniformAndPerSpinMoment) {
   constexpr std::array<jams::Real, 4> kPerSpinExpected = {
       jams::Real{10.0},
       jams::Real{21.0 / 3.0},
-      jams::Real{22.0 / 4.0},
-      jams::Real{23.0 / 5.0}};
+      jams::Real{0.0},
+      jams::Real{4.6}};
 
   run_field_scale_case(
       {true, jams::Real{0.5}},

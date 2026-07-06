@@ -14,7 +14,7 @@ __global__ void cuda_heun_llg_kernelA
   const jams::Real * h_dev,
   const jams::Real * noise_dev,
   const jams::Real * gyro_dev,
-  const jams::Real * mus_dev,
+  const jams::Real * inv_mus_dev,
   const jams::Real * alpha_dev,
   const double dev_dt,
   const unsigned dev_num_spins
@@ -36,7 +36,7 @@ __global__ void cuda_heun_llg_kernelA
   const unsigned int gxy = IDX2D(idx, ty, 85, 3);
 
   if (idx < dev_num_spins && ty < 3) {
-    h[p0] = ((h_dev[gxy] / mus_dev[idx]) + noise_dev[gxy]);
+    h[p0] = ((h_dev[gxy] * inv_mus_dev[idx]) + noise_dev[gxy]);
     s[p0] = s_dev[gxy];
 
     __syncthreads();
@@ -51,7 +51,9 @@ __global__ void cuda_heun_llg_kernelA
 
     __syncthreads();
 
-    s_dev[gxy] = s[p0] * rnorm3d(s[tx3], s[tx3 + 1], s[tx3 + 2]);
+    const double norm_sq = s[tx3] * s[tx3] + s[tx3 + 1] * s[tx3 + 1] + s[tx3 + 2] * s[tx3 + 2];
+    const double recip_snorm = norm_sq > 0.0 ? rsqrt(norm_sq) : 0.0;
+    s_dev[gxy] = s[p0] * recip_snorm;
   }
 }
 
@@ -63,7 +65,7 @@ __global__ void cuda_heun_llg_kernelB
   const jams::Real * h_dev,
   const jams::Real * noise_dev,
   const jams::Real * gyro_dev,
-  const jams::Real * mus_dev,
+  const jams::Real * inv_mus_dev,
   const jams::Real * alpha_dev,
   const double dev_dt,
   const unsigned dev_num_spins
@@ -85,7 +87,7 @@ __global__ void cuda_heun_llg_kernelB
   const unsigned int gxy = IDX2D(idx, ty, 85, 3);
 
   if (idx < dev_num_spins && ty < 3) {
-    h[p0] = ((h_dev[gxy] / mus_dev[idx]) + noise_dev[gxy]);
+    h[p0] = ((h_dev[gxy] * inv_mus_dev[idx]) + noise_dev[gxy]);
     s[p0] = s_dev[gxy];
 
     __syncthreads();
@@ -100,7 +102,9 @@ __global__ void cuda_heun_llg_kernelB
     s[p0] = s_old_dev[gxy] + dev_dt * ds_dt_dev[gxy];
 
     __syncthreads();
-    s_dev[gxy] = s[p0] * rnorm3d(s[tx3], s[tx3 + 1], s[tx3 + 2]);
+    const double norm_sq = s[tx3] * s[tx3] + s[tx3 + 1] * s[tx3 + 1] + s[tx3 + 2] * s[tx3 + 2];
+    const double recip_snorm = norm_sq > 0.0 ? rsqrt(norm_sq) : 0.0;
+    s_dev[gxy] = s[p0] * recip_snorm;
   }
 }
 

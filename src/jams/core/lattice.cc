@@ -989,6 +989,8 @@ void Lattice::generate_supercell(const libconfig::Setting &lattice_settings)
 
     load_array_from_file(spin_filename, "/spins", globals::s);
   }
+
+  globals::sync_magnetic_moment_data();
 }
 
 jams::Vec<double, 3> Lattice::generate_cartesian_lattice_position_from_fractional(

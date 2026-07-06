@@ -21,6 +21,7 @@ __global__ void cuda_ll_lorentzian_rk4_kernel
   const jams::Real * noise_dev,
   const jams::Real * gyro_dev,
   const jams::Real * mus_dev,
+  const jams::Real * inv_mus_dev,
   const double lorentzian_omega,
   const double lorentzian_gamma,
   const double lorentzian_A,
@@ -37,7 +38,7 @@ __global__ void cuda_ll_lorentzian_rk4_kernel
 
     jams::Real h[3];
     for (auto n = 0; n < 3; ++n) {
-      h[n] = ((h_dev[3*idx + n] / mus_dev[idx]) + noise_dev[3*idx + n] + v[n]);
+      h[n] = ((h_dev[3*idx + n] * inv_mus_dev[idx]) + noise_dev[3*idx + n] + v[n]);
     }
 
     double s[3];
@@ -130,7 +131,8 @@ __global__ void cuda_ll_lorentzian_rk4_combination_normalize_kernel
       s[n] = s_old[3*idx + n] + dt * (k1_dev[3*idx + n] + 2*k2_dev[3*idx + n] + 2*k3_dev[3*idx + n] + k4_dev[3*idx + n]) / 6.0;
     }
 
-    double recip_snorm = rsqrt(s[0]*s[0] + s[1]*s[1] + s[2]*s[2]);
+    const double norm_sq = s[0]*s[0] + s[1]*s[1] + s[2]*s[2];
+    const double recip_snorm = norm_sq > 0.0 ? rsqrt(norm_sq) : 0.0;
 
     for (auto n = 0; n < 3; ++n) {
       s_dev[3*idx + n] = s[n] * recip_snorm;

@@ -37,6 +37,8 @@ void reset_hdf5_monitor_globals() {
   jams::util::force_deallocation(globals::positions);
   jams::util::force_deallocation(globals::alpha);
   jams::util::force_deallocation(globals::mus);
+  jams::util::force_deallocation(globals::inv_mus);
+  globals::num_magnetic_spins = 0;
   jams::util::force_deallocation(globals::gyro);
   globals::config = nullptr;
   globals::solver = nullptr;
