@@ -232,6 +232,10 @@ CudaDipoleFFTHamiltonian::CudaDipoleFFTHamiltonian(const libconfig::Setting &set
   check_radius_ = jams::config_optional<bool>(settings, "check_radius", check_radius_);
   check_symmetry_ = jams::config_optional<bool>(settings, "check_symmetry", check_symmetry_);
 
+  if (::globals::lattice->has_impurities()) {
+    throw jams::ConfigException(settings, "dipole-fft is unsafe: lattice has impurities");
+  }
+
   r_cutoff_ = jams::config_required<jams::Real>(settings, "r_cutoff");
   std::cout << "  r_cutoff " << r_cutoff_ << "\n";
   std::cout << "  r_cutoff_max " << ::globals::lattice->max_interaction_radius() << "\n";

@@ -11,6 +11,7 @@
 #include "jams/core/physics.h"
 #include "jams/core/solver.h"
 #include "jams/containers/sparse_matrix_builder.h"
+#include "jams/helpers/exception.h"
 #include "jams/helpers/utils.h"
 #include "jams/hamiltonian/energy_current_interaction.h"
 #include "jams/hamiltonian/dipole_bruteforce.h"
@@ -476,6 +477,27 @@ TEST_F(CroppedDipoleFFTHamiltonianTest, CpuFftMatchesBruteforceForCroppedTopMoti
       1.0e-5);
 }
 
+TEST_F(CroppedDipoleFFTHamiltonianTest, CpuFftRejectsImpurities) {
+  using namespace jams::testing::dipole;
+  initialise(
+      config_basic_cpu
+      + config_unitcell_sc_2_atom
+      + R"(
+        lattice : {
+          size = [2, 2, 2];
+          periodic = [true, true, true];
+          impurities_seed = 1;
+          impurities = (
+            ("FeA", "FeB", 0.50)
+          );
+        };
+      )"
+      + config_dipole("dipole-fft", 1.1));
+
+  const auto& settings = globals::config->lookup("hamiltonians.[0]");
+  EXPECT_THROW(DipoleFFTHamiltonian(settings, globals::num_spins), jams::ConfigException);
+}
+
 #ifdef HAS_CUDA
 TEST_F(CroppedDipoleFFTHamiltonianTest, CudaFftMatchesBruteforceForCroppedTopMotif) {
   using namespace jams::testing::dipole;
@@ -514,6 +536,27 @@ TEST_F(CroppedDipoleFFTHamiltonianTest, CudaFftMatchesBruteforceForCroppedTopMot
       ASSERT_NEAR(fft_hamiltonian.field(i, n), bruteforce_hamiltonian.field(i, n), 1.0e-5);
     }
   }
+}
+
+TEST_F(CroppedDipoleFFTHamiltonianTest, CudaFftRejectsImpurities) {
+  using namespace jams::testing::dipole;
+  initialise(
+      config_basic_gpu
+      + config_unitcell_sc_2_atom
+      + R"(
+        lattice : {
+          size = [2, 2, 2];
+          periodic = [true, true, true];
+          impurities_seed = 1;
+          impurities = (
+            ("FeA", "FeB", 0.50)
+          );
+        };
+      )"
+      + config_dipole("dipole-fft", 1.1));
+
+  const auto& settings = globals::config->lookup("hamiltonians.[0]");
+  EXPECT_THROW(CudaDipoleFFTHamiltonian(settings, globals::num_spins), jams::ConfigException);
 }
 
 TEST_F(CroppedDipoleFFTHamiltonianTest, CudaFftEnergyCurrentMatchesSparseForPeriodicOneBasis) {
