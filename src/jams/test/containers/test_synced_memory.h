@@ -8,6 +8,7 @@
 #include <array>
 #include <complex>
 #include <iterator>
+#include <limits>
 #include <gmock/gmock-matchers.h>
 #include <ranges>
 #include <sstream>
@@ -68,8 +69,18 @@ TYPED_TEST(SynchedMemoryTest, size) {
   ASSERT_EQ(x.size(), 10);
   ASSERT_EQ(x.bytes(), 10*sizeof(TypeParam));
 
-  // if we can't address the memory space with int then we're
-  // in trouble
+  ASSERT_GE(x.max_size(), x.size());
+
+#if HAS_CUDA
+  if (synced_memory_cuda_device_available()) {
+    // CUDA builds cap max_size() by current free device memory, so larger
+    // element types may legitimately report fewer than INT_MAX elements.
+    return;
+  }
+#endif
+
+  // If host-only storage can't address the memory space with int then we're
+  // in trouble.
   ASSERT_GE(x.max_size(), std::numeric_limits<int>::max());
 }
 

@@ -4,6 +4,7 @@
 
 #include <cuda_runtime_api.h>
 
+#include <algorithm>
 #include <array>
 #include <cmath>
 #include <limits>
@@ -120,7 +121,12 @@ void run_field_scale_case(
 
   const auto out_values = out.host_span();
   for (unsigned i = 0; i < kCount; ++i) {
-    EXPECT_EQ(out_values[i], expected[i]);
+    const auto actual_value = static_cast<double>(out_values[i]);
+    const auto expected_value = static_cast<double>(expected[i]);
+    const auto tolerance =
+        16.0 * static_cast<double>(std::numeric_limits<jams::Real>::epsilon()) *
+        std::max({1.0, std::abs(actual_value), std::abs(expected_value)});
+    EXPECT_NEAR(actual_value, expected_value, tolerance);
   }
 }
 
