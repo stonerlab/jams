@@ -57,6 +57,36 @@ protected:
     globals::lattice->init_from_config(*globals::config);
   }
 
+  void reset_lattice() {
+    delete globals::lattice;
+    globals::lattice = new Lattice();
+    globals::config = std::make_unique<libconfig::Config>();
+  }
+
+  static int count_material_sites(const std::string& material_name) {
+    const auto material_id = globals::lattice->material_index(material_name);
+    int count = 0;
+    for (auto i = 0; i < globals::num_spins; ++i) {
+      if (globals::lattice->lattice_site_material_id(i) == material_id) {
+        ++count;
+      }
+    }
+    return count;
+  }
+
+  static std::vector<int> basis_sites_with_material(
+      const unsigned basis_site_index,
+      const std::string& material_name) {
+    std::vector<int> sites;
+    for (auto i = 0; i < globals::num_spins; ++i) {
+      if (globals::lattice->lattice_site_basis_index(i) == basis_site_index &&
+          globals::lattice->lattice_site_material_name(i) == material_name) {
+        sites.push_back(i);
+      }
+    }
+    return sites;
+  }
+
   static bool cartesian_point_set_contains_fractional(
       const std::vector<jams::Vec<double, 3>>& points_cart,
       const jams::Vec<double, 3>& expected_frac,
@@ -124,6 +154,35 @@ protected:
         positions = (
           ("A", [0.0, 0.0, 0.0]),
           ("B", [0.5, 0.0, 0.0])
+        );
+      };
+    )";
+  }
+
+  static std::string base_single_a_three_material_config() {
+    return R"(
+      solver : {
+        module = "llg-heun-cpu";
+        t_step = 1.0e-16;
+        t_min  = 1.0e-16;
+        t_max  = 1.0e-16;
+      };
+
+      materials = (
+        { name = "A"; moment = 1.0; spin = [1.0, 0.0, 0.0]; },
+        { name = "B"; moment = 2.0; spin = [2.0, 0.0, 0.0]; },
+        { name = "C"; moment = 3.0; spin = [3.0, 0.0, 0.0]; }
+      );
+
+      unitcell : {
+        symops = false;
+        parameter = 1.0e-9;
+        basis = (
+          [1.0, 0.0, 0.0],
+          [0.0, 1.0, 0.0],
+          [0.0, 0.0, 1.0]);
+        positions = (
+          ("A", [0.0, 0.0, 0.0])
         );
       };
     )";
@@ -279,7 +338,101 @@ TEST_F(LatticeSizeTest, IntegerSizeBuildsDenseCellMotifMap) {
   EXPECT_EQ(globals::lattice->get_supercell().a3(), (jams::Vec<double, 3>{0.0, 0.0, 3.0}));
 }
 
-TEST_F(LatticeSizeTest, RejectsDuplicateImpuritySourceMaterials) {
+TEST_F(LatticeSizeTest, ImpurityFractionsUseExactRoundedCounts) {
+  initialise_lattice(R"(
+    lattice : {
+      size = [5, 1, 1];
+      periodic = [true, true, true];
+      impurities_seed = 1;
+      impurities = (
+        ("A", "B", 0.50)
+      );
+    };
+  )");
+
+  EXPECT_EQ(count_material_sites("A"), 2);
+  EXPECT_EQ(count_material_sites("B"), 8);
+}
+
+TEST_F(LatticeSizeTest, ImpurityPlacementIsSeededAndCountExact) {
+  const auto substituted_sites_for_seed = [&](const unsigned seed) {
+    reset_lattice();
+    initialise_lattice(R"(
+      lattice : {
+        size = [6, 1, 1];
+        periodic = [true, true, true];
+        impurities_seed = )" + std::to_string(seed) + R"(;
+        impurities = (
+          ("A", "B", 0.50)
+        );
+      };
+    )");
+    return basis_sites_with_material(0, "B");
+  };
+
+  const auto first_sites = substituted_sites_for_seed(7);
+  const auto repeated_sites = substituted_sites_for_seed(7);
+  const auto other_seed_sites = substituted_sites_for_seed(11);
+
+  EXPECT_EQ(first_sites, repeated_sites);
+  EXPECT_EQ(first_sites.size(), 3u);
+  EXPECT_EQ(other_seed_sites.size(), 3u);
+}
+
+TEST_F(LatticeSizeTest, SupportsMultipleImpurityTargetsFromSameSource) {
+  globals::config->readString(base_single_a_three_material_config() + R"(
+    lattice : {
+      size = [10, 1, 1];
+      periodic = [true, true, true];
+      impurities_seed = 1;
+      impurities = (
+        ("A", "B", 0.25),
+        ("A", "C", 0.25)
+      );
+    };
+  )");
+  globals::lattice->init_from_config(*globals::config);
+
+  EXPECT_EQ(count_material_sites("A"), 5);
+  EXPECT_EQ(count_material_sites("B"), 3);
+  EXPECT_EQ(count_material_sites("C"), 2);
+}
+
+TEST_F(LatticeSizeTest, DistinctSourceImpuritiesUseOriginalMaterials) {
+  initialise_lattice(R"(
+    lattice : {
+      size = [4, 1, 1];
+      periodic = [true, true, true];
+      impurities_seed = 1;
+      impurities = (
+        ("A", "B", 0.50),
+        ("B", "A", 0.25)
+      );
+    };
+  )");
+
+  EXPECT_EQ(count_material_sites("A"), 3);
+  EXPECT_EQ(count_material_sites("B"), 5);
+}
+
+TEST_F(LatticeSizeTest, ZeroFractionImpuritiesAreIgnored) {
+  initialise_lattice(R"(
+    lattice : {
+      size = [2, 1, 1];
+      periodic = [true, true, true];
+      impurities_seed = 1;
+      impurities = (
+        ("A", "B", 0.0)
+      );
+    };
+  )");
+
+  EXPECT_FALSE(globals::lattice->has_impurities());
+  EXPECT_EQ(count_material_sites("A"), 2);
+  EXPECT_EQ(count_material_sites("B"), 2);
+}
+
+TEST_F(LatticeSizeTest, RejectsDuplicateImpurityPairs) {
   globals::config->readString(base_config() + R"(
     lattice : {
       size = [2, 1, 3];
@@ -288,6 +441,37 @@ TEST_F(LatticeSizeTest, RejectsDuplicateImpuritySourceMaterials) {
       impurities = (
         ("A", "B", 0.25),
         ("A", "B", 0.50)
+      );
+    };
+  )");
+
+  EXPECT_THROW(globals::lattice->init_from_config(*globals::config), jams::ConfigException);
+}
+
+TEST_F(LatticeSizeTest, RejectsImpurityFractionsForSourceAboveOne) {
+  globals::config->readString(base_single_a_three_material_config() + R"(
+    lattice : {
+      size = [10, 1, 1];
+      periodic = [true, true, true];
+      impurities_seed = 1;
+      impurities = (
+        ("A", "B", 0.60),
+        ("A", "C", 0.50)
+      );
+    };
+  )");
+
+  EXPECT_THROW(globals::lattice->init_from_config(*globals::config), jams::ConfigException);
+}
+
+TEST_F(LatticeSizeTest, RejectsImpuritySourceMatchingTarget) {
+  globals::config->readString(base_config() + R"(
+    lattice : {
+      size = [2, 1, 3];
+      periodic = [true, true, true];
+      impurities_seed = 1;
+      impurities = (
+        ("A", "A", 0.25)
       );
     };
   )");

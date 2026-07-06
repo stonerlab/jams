@@ -19,6 +19,7 @@ extern "C"{
 #include <map>
 #include <memory>
 #include <random>
+#include <set>
 #include <string>
 #include <utility>
 #include <functional>
@@ -51,6 +52,8 @@ using libconfig::Setting;
 using libconfig::Config;
 
 namespace {
+    constexpr double kImpurityFractionTolerance = 1.0e-12;
+
     void output_basis_vectors(const Cell& cell) {
       cout << "    a1 = " << jams::fmt::decimal << cell.a1() << "\n";
       cout << "    a2 = " << jams::fmt::decimal << cell.a2() << "\n";
@@ -202,6 +205,61 @@ namespace {
                   cell.a2() * extents[1],
                   cell.a3() * extents[2],
                   pbc);
+    }
+
+    std::size_t round_half_up_to_size(const double value) {
+      return static_cast<std::size_t>(std::floor(value + 0.5));
+    }
+
+    struct ImpurityRemainder {
+      std::size_t index;
+      double remainder;
+    };
+
+    std::vector<std::size_t> exact_impurity_counts(
+        const std::vector<Impurity>& impurities,
+        const std::size_t source_site_count) {
+      std::vector<std::size_t> counts(impurities.size(), 0);
+      if (impurities.empty() || source_site_count == 0) {
+        return counts;
+      }
+
+      double total_fraction = 0.0;
+      std::vector<ImpurityRemainder> remainders;
+      remainders.reserve(impurities.size());
+
+      std::size_t assigned_count = 0;
+      for (std::size_t n = 0; n < impurities.size(); ++n) {
+        total_fraction += impurities[n].fraction;
+        const double exact_count = impurities[n].fraction * static_cast<double>(source_site_count);
+        const auto floor_count = static_cast<std::size_t>(std::floor(exact_count));
+        counts[n] = floor_count;
+        assigned_count += floor_count;
+        remainders.push_back({n, exact_count - static_cast<double>(floor_count)});
+      }
+
+      const auto total_impurity_count = round_half_up_to_size(
+          total_fraction * static_cast<double>(source_site_count));
+      if (total_impurity_count > source_site_count) {
+        throw jams::SanityException("impurity count exceeds source site count");
+      }
+      if (assigned_count > total_impurity_count) {
+        throw jams::SanityException("apportioned impurity count exceeds total impurity count");
+      }
+
+      std::sort(remainders.begin(), remainders.end(), [](const auto& lhs, const auto& rhs) {
+        if (lhs.remainder == rhs.remainder) {
+          return lhs.index < rhs.index;
+        }
+        return lhs.remainder > rhs.remainder;
+      });
+
+      auto remaining_count = total_impurity_count - assigned_count;
+      for (std::size_t n = 0; n < remaining_count; ++n) {
+        ++counts[remainders[n].index];
+      }
+
+      return counts;
     }
 }
 
@@ -775,12 +833,8 @@ void Lattice::generate_supercell(const libconfig::Setting &lattice_settings)
   lattice_sites_.reserve(expected_num_atoms);
   lattice_site_to_cell_lookup_.reserve(expected_num_atoms);
 
-  pcg32 impurity_rng(impurity_seed_);
-  std::uniform_real_distribution<double> impurity_distribution(0.0, 1.0);
-
   // loop over the translation vectors for lattice size
   int atom_counter = 0;
-  std::vector<size_t> type_counter(materials_.size(), 0);
 
 
   for (auto i = 0; i < lattice_dimensions_[0]; ++i) {
@@ -811,15 +865,6 @@ void Lattice::generate_supercell(const libconfig::Setting &lattice_settings)
           auto position    = generate_cartesian_lattice_position_from_fractional(basis_sites_[m].position_frac, cell_offset);
           auto material    = basis_sites_[m].material_index;
 
-          const auto impurity_iter = impurity_map_.find(material);
-          if (impurity_iter != impurity_map_.end()) {
-            const auto impurity = impurity_iter->second;
-
-            if (impurity_distribution(impurity_rng) < impurity.fraction) {
-              material = impurity.material;
-            }
-          }
-
           lattice_sites_.push_back({atom_counter, material, m, position});
 
           lattice_site_positions_cart_.push_back(position);
@@ -830,7 +875,6 @@ void Lattice::generate_supercell(const libconfig::Setting &lattice_settings)
           // number the site in the fast integer lattice
           lattice_map_(i, j, k, m) = atom_counter;
 
-          type_counter[material]++;
           atom_counter++;
         }
       }
@@ -839,6 +883,32 @@ void Lattice::generate_supercell(const libconfig::Setting &lattice_settings)
 
   if (atom_counter == 0) {
     throw jams::SanityException("the number of computed lattice sites was zero, check input");
+  }
+
+  if (!impurity_map_.empty()) {
+    std::vector<std::vector<int>> source_sites(materials_.size());
+    for (std::size_t site = 0; site < lattice_sites_.size(); ++site) {
+      source_sites[lattice_sites_[site].material_index].push_back(site);
+    }
+
+    pcg32 impurity_rng(impurity_seed_);
+    for (const auto& [source_material, impurities] : impurity_map_) {
+      auto& candidates = source_sites[source_material];
+      std::shuffle(candidates.begin(), candidates.end(), impurity_rng);
+
+      const auto counts = exact_impurity_counts(impurities, candidates.size());
+      std::size_t candidate_offset = 0;
+      for (std::size_t impurity_index = 0; impurity_index < impurities.size(); ++impurity_index) {
+        for (std::size_t n = 0; n < counts[impurity_index]; ++n) {
+          lattice_sites_[candidates[candidate_offset++]].material_index = impurities[impurity_index].material;
+        }
+      }
+    }
+  }
+
+  std::vector<size_t> type_counter(materials_.size(), 0);
+  for (const auto& site : lattice_sites_) {
+    type_counter[site.material_index]++;
   }
 
   cout << "    lattice material count\n";
@@ -1261,6 +1331,8 @@ bool Lattice::material_exists(const std::string &material_name) const {
 
 Lattice::ImpurityMap Lattice::read_impurities_from_config(const libconfig::Setting &settings) {
   Lattice::ImpurityMap impurities;
+  std::map<size_t, double> source_fraction_sums;
+  std::set<std::pair<size_t, size_t>> impurity_pairs;
 
   size_t materialA, materialB;
   for (auto n = 0; n < settings.getLength(); ++n) {
@@ -1286,15 +1358,29 @@ Lattice::ImpurityMap Lattice::read_impurities_from_config(const libconfig::Setti
 
     auto fraction = jams::read_numeric_setting<double>(settings[n][2], "impurity fraction");
 
-    if (fraction < 0.0 || fraction >= 1.0) {
-      throw jams::ConfigException(settings, "impurity ", n, " fraction must be 0 =< x < 1");
+    if (fraction < 0.0 || fraction > 1.0) {
+      throw jams::ConfigException(settings, "impurity ", n, " fraction must be 0 <= x <= 1");
     }
 
-    Impurity imp = {materialB, fraction};
-
-    if(impurities.emplace(materialA, imp).second == false) {
-      throw jams::ConfigException(settings, "impurity ", n, " redefines a previous impurity");
+    if (materialA == materialB) {
+      throw jams::ConfigException(settings, "impurity ", n, " source and target materials are the same");
     }
+
+    if (!impurity_pairs.emplace(materialA, materialB).second) {
+      throw jams::ConfigException(settings, "impurity ", n, " redefines a previous impurity pair");
+    }
+
+    if (fraction == 0.0) {
+      continue;
+    }
+
+    source_fraction_sums[materialA] += fraction;
+    if (source_fraction_sums[materialA] > 1.0 + kImpurityFractionTolerance) {
+      throw jams::ConfigException(settings, "impurity fractions for material ",
+                                  materials_.name(materialA), " sum to more than 1");
+    }
+
+    impurities[materialA].push_back({materialB, fraction});
   }
   return impurities;
 }

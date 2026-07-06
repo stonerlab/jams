@@ -46,7 +46,7 @@ struct Impurity {
 class Lattice : public Base {
 public:
     using MaterialMap = NameIdMap<Material>;
-    using ImpurityMap = std::map<size_t, Impurity>;
+    using ImpurityMap = std::map<size_t, std::vector<Impurity>>;
 
     Lattice() = default;
 
