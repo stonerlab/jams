@@ -18,7 +18,7 @@ void CUDAGSERK4Solver::function_kernel(jams::MultiArray<double, 2>& spins, jams:
   cuda_gse_rk4_kernel<<<grid_size, block_size>>>
       (spins.device_data(), k.mutable_device_data(),
        globals::h.device_data(), thermostat_->device_data(),
-       gyro_eff_.device_data(), globals::mus.device_data(),
+       gyro_eff_.device_data(), globals::inv_mus.device_data(),
        globals::alpha.device_data(), globals::num_spins);
   DEBUG_CHECK_CUDA_ASYNC_STATUS
 }

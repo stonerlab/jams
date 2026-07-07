@@ -287,7 +287,7 @@ void CUDALLGRKMK4Solver::initialize(const libconfig::Setting& settings)
   const auto alpha_choice = cuda_spin_parameter_choice(globals::alpha);
   alpha_is_uniform_ = alpha_choice.is_uniform;
   alpha_uniform_value_ = alpha_choice.uniform_value;
-  const auto mus_choice = cuda_field_scale_choice(globals::mus);
+  const auto mus_choice = cuda_field_scale_choice(globals::inv_mus);
   mus_is_uniform_ = mus_choice.is_uniform;
   mus_uniform_inv_value_ = mus_choice.uniform_inv_mus;
 
@@ -417,7 +417,7 @@ void CUDALLGRKMK4Solver::run()
       [this](const auto gyro, const auto alpha) {
         dispatch_cuda_field_scale(
             {mus_is_uniform_, mus_uniform_inv_value_},
-            globals::mus,
+            globals::inv_mus,
             [this, gyro, alpha](const auto field_scale) {
               run_with_parameters(gyro, alpha, field_scale);
             });

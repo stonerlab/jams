@@ -10,6 +10,7 @@
 #include "jams/interface/config.h"
 
 #include "binary.h"
+#include "jams/monitors/spin_output.h"
 
 BinaryMonitor::BinaryMonitor(const libconfig::Setting &settings)
 : Monitor(settings) {
@@ -28,8 +29,8 @@ void BinaryMonitor::update(Solver& solver) {
   }
 
   // pointers must be reinterpreted as a char *
-  const auto& spins = globals::s;
+  const auto spins = jams::monitors::make_spin_output_array();
   bin_file.write(reinterpret_cast<char*>(&globals::num_spins), sizeof(int));
-  bin_file.write(reinterpret_cast<const char*>(spins.data()), sizeof(double)*globals::num_spins);
+  bin_file.write(reinterpret_cast<const char*>(spins.data()), sizeof(double)*globals::num_spins3);
   bin_file.close();
 }

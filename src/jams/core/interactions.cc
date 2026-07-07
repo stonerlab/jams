@@ -25,6 +25,16 @@
 void neighbour_list_checks(const jams::InteractionList<jams::Mat<double, 3, 3>, 2>& list, const std::vector<InteractionChecks>& checks);
 
 namespace { //anon
+    constexpr int kLegacyScalarFileColumns = 6;
+    constexpr int kLegacyTensorFileColumns = 14;
+    constexpr int kPositionalMaterialScalarFileColumns = 8;
+    constexpr int kPositionalMaterialTensorFileColumns = 16;
+
+    constexpr int kLegacyVectorSettingIndex = 2;
+    constexpr int kLegacyValueSettingIndex = 3;
+    constexpr int kPositionalMaterialVectorSettingIndex = 4;
+    constexpr int kPositionalMaterialValueSettingIndex = 5;
+
     std::string format_unit_cell_offset(const jams::Vec<int, 3>& offset) {
       std::ostringstream stream;
       stream << offset[0] << ", " << offset[1] << ", " << offset[2];
@@ -209,6 +219,19 @@ namespace { //anon
           globals::lattice->cartesian_to_fractional(expected_cart),
           tolerance);
     }
+
+    InteractionType interaction_dimension_from_value_setting(
+        const libconfig::Setting& value_setting) {
+      if (value_setting.isNumber()) {
+        return InteractionType::SCALAR;
+      }
+
+      if (jams::is_numeric_array_setting(value_setting, 9)) {
+        return InteractionType::TENSOR;
+      }
+
+      throw std::runtime_error("interaction energy format is incorrect");
+    }
 } // namespace anon
 
 InteractionFileDescription
@@ -225,9 +248,9 @@ discover_interaction_file_format(std::ifstream &file) {
     }
 
     auto num_cols = file_columns(line);
-    if (num_cols == 6) {
+    if (num_cols == kLegacyScalarFileColumns || num_cols == kPositionalMaterialScalarFileColumns) {
       desc.dimension = InteractionType::SCALAR;
-    } else if (num_cols == 14) {
+    } else if (num_cols == kLegacyTensorFileColumns || num_cols == kPositionalMaterialTensorFileColumns) {
       desc.dimension = InteractionType::TENSOR;
     } else {
       throw std::runtime_error("interaction file has an incorrect number of columns");
@@ -236,18 +259,27 @@ discover_interaction_file_format(std::ifstream &file) {
     std::stringstream is(line);
 
     // discover type from int or string
-    std::string s1, s2;
+    std::string s1, s2, s3, s4;
     is >> s1 >> s2;
 
-    if (string_is_int(s1) != string_is_int(s2)) {
-      // s1 and s2 should not have different types
-      break;
+    const bool first_two_are_positions = string_is_int(s1) && string_is_int(s2);
+    const bool first_two_are_materials = !string_is_int(s1) && !string_is_int(s2);
+
+    if (num_cols == kLegacyScalarFileColumns || num_cols == kLegacyTensorFileColumns) {
+      if (!first_two_are_positions && !first_two_are_materials) {
+        throw std::runtime_error("interaction type format is incorrect");
+      }
+
+      desc.type = first_two_are_positions ? InteractionFileFormat::KKR : InteractionFileFormat::JAMS;
+      file.seekg(initial_pos);
+      return desc;
     }
 
-    if (string_is_int(s1)) {
-      desc.type = InteractionFileFormat::KKR;
+    is >> s3 >> s4;
+    if (first_two_are_positions && !string_is_int(s3) && !string_is_int(s4)) {
+      desc.type = InteractionFileFormat::POSITIONAL_MATERIAL;
     } else {
-      desc.type = InteractionFileFormat::JAMS;
+      throw std::runtime_error("interaction type format is incorrect");
     }
 
     file.seekg(initial_pos);
@@ -260,6 +292,24 @@ discover_interaction_file_format(std::ifstream &file) {
 InteractionFileDescription
 discover_interaction_setting_format(libconfig::Setting& setting) {
   InteractionFileDescription desc;
+
+  if (!setting.isList() || setting.getLength() == 0) {
+    throw std::runtime_error("exchange settings must be a non-empty list");
+  }
+
+  const auto& first_interaction = setting[0];
+  const auto interaction_length = first_interaction.getLength();
+
+  if (interaction_length == 6
+      && jams::is_integer_setting(first_interaction[0])
+      && jams::is_integer_setting(first_interaction[1])
+      && jams::is_string_setting(first_interaction[2])
+      && jams::is_string_setting(first_interaction[3])
+      && jams::is_numeric_array_setting(first_interaction[4], 3)) {
+    desc.type = InteractionFileFormat::POSITIONAL_MATERIAL;
+    desc.dimension = interaction_dimension_from_value_setting(first_interaction[5]);
+    return desc;
+  }
 
   if (!(setting[0][0].getType() == setting[0][1].getType())) {
     throw std::runtime_error("interaction type format is incorrect");
@@ -276,15 +326,7 @@ discover_interaction_setting_format(libconfig::Setting& setting) {
     throw std::runtime_error("interaction vector format is incorrect");
   }
 
-  if (!(jams::is_numeric_array_setting(setting[0][3], 9) || setting[0][3].isNumber())) {
-    throw std::runtime_error("interaction energy format is incorrect");
-  }
-
-  if (setting[0][3].isNumber()) {
-    desc.dimension = InteractionType::SCALAR;
-  } else {
-    desc.dimension = InteractionType::TENSOR;
-  }
+  desc.dimension = interaction_dimension_from_value_setting(setting[0][3]);
 
     return desc;
 }
@@ -306,8 +348,14 @@ interactions_from_file(std::ifstream &file, const InteractionFileDescription& de
 
     if (desc.type == InteractionFileFormat::JAMS) {
       is >> interaction.type_i >> interaction.type_j;
-    } else {
+    } else if (desc.type == InteractionFileFormat::KKR) {
       is >> interaction.basis_site_i >> interaction.basis_site_j;
+      // use zero based indexing
+      interaction.basis_site_i--;
+      interaction.basis_site_j--;
+    } else if (desc.type == InteractionFileFormat::POSITIONAL_MATERIAL) {
+      is >> interaction.basis_site_i >> interaction.basis_site_j
+         >> interaction.type_i >> interaction.type_j;
       // use zero based indexing
       interaction.basis_site_i--;
       interaction.basis_site_j--;
@@ -354,17 +402,50 @@ interactions_from_settings(libconfig::Setting &setting, const InteractionFileDes
       // use zero based indexing
       J.basis_site_i = jams::read_integer_setting(setting[i][0], "basis site i") - 1;
       J.basis_site_j = jams::read_integer_setting(setting[i][1], "basis site j") - 1;
-    } else {
+      J.interaction_vector_cart = jams::read_vec_setting<double, 3>(
+          setting[i][kLegacyVectorSettingIndex],
+          "interaction vector");
+      if (desc.dimension == InteractionType::SCALAR) {
+        J.interaction_value_tensor = jams::read_numeric_setting<double>(
+            setting[i][kLegacyValueSettingIndex],
+            "interaction energy") * kIdentityMat3;
+      } else {
+        J.interaction_value_tensor = jams::read_mat_setting<double, 3, 3>(
+            setting[i][kLegacyValueSettingIndex],
+            "interaction tensor");
+      }
+    } else if (desc.type == InteractionFileFormat::JAMS) {
       J.type_i = jams::read_string_setting(setting[i][0], "interaction type i");
       J.type_j = jams::read_string_setting(setting[i][1], "interaction type j");
-    }
-
-    J.interaction_vector_cart = jams::read_vec_setting<double, 3>(setting[i][2], "interaction vector");
-
-    if (desc.dimension == InteractionType::SCALAR) {
-      J.interaction_value_tensor = jams::read_numeric_setting<double>(setting[i][3], "interaction energy") * kIdentityMat3;
-    } else {
-      J.interaction_value_tensor = jams::read_mat_setting<double, 3, 3>(setting[i][3], "interaction tensor");
+      J.interaction_vector_cart = jams::read_vec_setting<double, 3>(
+          setting[i][kLegacyVectorSettingIndex],
+          "interaction vector");
+      if (desc.dimension == InteractionType::SCALAR) {
+        J.interaction_value_tensor = jams::read_numeric_setting<double>(
+            setting[i][kLegacyValueSettingIndex],
+            "interaction energy") * kIdentityMat3;
+      } else {
+        J.interaction_value_tensor = jams::read_mat_setting<double, 3, 3>(
+            setting[i][kLegacyValueSettingIndex],
+            "interaction tensor");
+      }
+    } else if (desc.type == InteractionFileFormat::POSITIONAL_MATERIAL) {
+      J.basis_site_i = jams::read_integer_setting(setting[i][0], "basis site i") - 1;
+      J.basis_site_j = jams::read_integer_setting(setting[i][1], "basis site j") - 1;
+      J.type_i = jams::read_string_setting(setting[i][2], "interaction type i");
+      J.type_j = jams::read_string_setting(setting[i][3], "interaction type j");
+      J.interaction_vector_cart = jams::read_vec_setting<double, 3>(
+          setting[i][kPositionalMaterialVectorSettingIndex],
+          "interaction vector");
+      if (desc.dimension == InteractionType::SCALAR) {
+        J.interaction_value_tensor = jams::read_numeric_setting<double>(
+            setting[i][kPositionalMaterialValueSettingIndex],
+            "interaction energy") * kIdentityMat3;
+      } else {
+        J.interaction_value_tensor = jams::read_mat_setting<double, 3, 3>(
+            setting[i][kPositionalMaterialValueSettingIndex],
+            "interaction tensor");
+      }
     }
 
     interactions.push_back(J);
@@ -479,16 +560,6 @@ neighbour_list_from_interactions(const std::vector<InteractionData> &interaction
           }
           const int nbr_site = *nbr_site_optional;
 
-          if (nbr_list.contains({local_site, nbr_site})) {
-            auto r_ij = globals::lattice->displacement(nbr_site, local_site);
-            throw std::runtime_error(
-                "Multiple interactions for sites " + std::to_string(local_site) + " and " + std::to_string(nbr_site) + "\n"
-                + "i: motif pos: " + std::to_string(m + 1) + " unit cell indices: " + std::to_string(i) + ", " + std::to_string(j) + ", " + std::to_string(k) + "\n"
-                + "j: motif pos: " + std::to_string(I.basis_site_j + 1) + " unit cell indices: " + std::to_string(I.lattice_translation_vector[0]) + ", " + std::to_string(I.lattice_translation_vector[1]) + ", " + std::to_string(I.lattice_translation_vector[2]) + "\n"
-                + "interaction_vector_cart: " + std::to_string(r_ij[0]) + ", " + std::to_string(r_ij[1]) + ", " + std::to_string(r_ij[2])
-            );
-          }
-
           // catch if the site has a different material (presumably an impurity site)
           if (globals::lattice->lattice_site_material_name(local_site) != I.type_i || globals::lattice->lattice_site_material_name(nbr_site) != I.type_j) {
             std::ostringstream sample;
@@ -500,6 +571,16 @@ neighbour_list_from_interactions(const std::vector<InteractionData> &interaction
                    << " expected " << I.type_j;
             skip_diagnostics.material_mismatch.record(sample.str());
             continue;
+          }
+
+          if (nbr_list.contains({local_site, nbr_site})) {
+            auto r_ij = globals::lattice->displacement(nbr_site, local_site);
+            throw std::runtime_error(
+                "Multiple interactions for sites " + std::to_string(local_site) + " and " + std::to_string(nbr_site) + "\n"
+                + "i: motif pos: " + std::to_string(m + 1) + " unit cell indices: " + std::to_string(i) + ", " + std::to_string(j) + ", " + std::to_string(k) + "\n"
+                + "j: motif pos: " + std::to_string(I.basis_site_j + 1) + " unit cell indices: " + std::to_string(I.lattice_translation_vector[0]) + ", " + std::to_string(I.lattice_translation_vector[1]) + ", " + std::to_string(I.lattice_translation_vector[2]) + "\n"
+                + "interaction_vector_cart: " + std::to_string(r_ij[0]) + ", " + std::to_string(r_ij[1]) + ", " + std::to_string(r_ij[2])
+            );
           }
 
           nbr_list.insert({local_site, nbr_site}, I.interaction_value_tensor);

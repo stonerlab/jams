@@ -61,6 +61,8 @@ namespace jams {
         static bool has_gpu_device();
 
         #ifdef HAS_CUDA
+        static void reset_cuda_device();
+
         inline static CudaStream& cuda_master_stream() { return instance().cuda_master_stream_; }
 
         inline static cublasHandle_t cublas_handle() { return instance().cublas_handle_; }
@@ -70,6 +72,7 @@ namespace jams {
 
     private:
         void init_device_handles();
+        void release_device_handles();
         void make_output_dir();
 
         Mode mode_ = Mode::CPU;

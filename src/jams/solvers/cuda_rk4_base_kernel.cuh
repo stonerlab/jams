@@ -53,7 +53,8 @@ __global__ void cuda_spin_normalisation_kernel
       s[n] = s_old[3*idx + n] + dt * (k1_dev[3*idx + n] + 2*k2_dev[3*idx + n] + 2*k3_dev[3*idx + n] + k4_dev[3*idx + n]) / 6.0;
     }
 
-    double recip_snorm = rsqrt(s[0]*s[0] + s[1]*s[1] + s[2]*s[2]);
+    const double norm_sq = s[0]*s[0] + s[1]*s[1] + s[2]*s[2];
+    const double recip_snorm = norm_sq > 0.0 ? rsqrt(norm_sq) : 0.0;
 
     for (auto n = 0; n < 3; ++n) {
       s_dev[3*idx + n] = s[n] * recip_snorm;

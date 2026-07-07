@@ -25,8 +25,8 @@ CudaThermostatClassical::CudaThermostatClassical(const jams::Real &temperature, 
   std::cout << "\n  initialising classical-gpu thermostat\n";
 
   for(int i = 0; i < num_spins; ++i) {
-    sigma_spin_(i) = static_cast<jams::Real>(sqrt((2.0 * kBoltzmannIU * globals::alpha(i)) /
-                          (globals::mus(i) * globals::gyro(i) * timestep)));
+    sigma_spin_(i) = static_cast<jams::Real>(sqrt((2.0 * kBoltzmannIU * globals::alpha(i) * globals::inv_mus(i)) /
+                          (globals::gyro(i) * timestep)));
     for (int j = 0; j < 3; ++j) {
       sigma_(i, j) = sigma_spin_(i);
     }

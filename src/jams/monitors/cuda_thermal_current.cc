@@ -218,13 +218,13 @@ void CudaThermalCurrentMonitor::update(Solver& solver) {
   const auto& spins = globals::s;
   const auto& field = globals::h;
   const auto& gyro = globals::gyro;
-  const auto& mus = globals::mus;
+  const auto& inv_mus = globals::inv_mus;
   jams::Vec<double, 3> jE = execute_cuda_thermal_current_kernel(
       stream,
       spins,
       field,
       gyro,
-      mus,
+      inv_mus,
       energy_current_operator_rx_,
       energy_current_operator_ry_,
       energy_current_operator_rz_,

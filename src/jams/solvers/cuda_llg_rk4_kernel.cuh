@@ -16,7 +16,7 @@ __global__ void cuda_llg_rk4_kernel
   const jams::Real * h_dev,
   const jams::Real * noise_dev,
   const jams::Real * gyro_dev,
-  const jams::Real * mus_dev,
+  const jams::Real * inv_mus_dev,
   const jams::Real * alpha_dev,
   const unsigned dev_num_spins
 )
@@ -27,7 +27,7 @@ __global__ void cuda_llg_rk4_kernel
 
     double h[3];
     for (auto n = 0; n < 3; ++n) {
-      h[n] = ((h_dev[3*idx + n] / mus_dev[idx]) + noise_dev[3*idx + n]);
+      h[n] = ((h_dev[3*idx + n] * inv_mus_dev[idx]) + noise_dev[3*idx + n]);
     }
 
     double s[3];

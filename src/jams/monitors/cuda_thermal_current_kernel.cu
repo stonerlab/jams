@@ -13,14 +13,14 @@ __global__ void undamped_llg_spin_derivative_kernel
          const double *spins,
          const jams::Real *field,
          const jams::Real *gyro,
-         const jams::Real *mus,
+         const jams::Real *inv_mus,
          double *spin_derivative
         ) {
 
   const int i = blockIdx.x*blockDim.x+threadIdx.x;
 
   if (i < num_spins) {
-    if (mus[i] == jams::Real(0.0)) {
+    if (inv_mus[i] == jams::Real(0.0)) {
       for (int n = 0; n < 3; ++n) {
         spin_derivative[3*i + n] = 0.0;
       }
@@ -29,9 +29,9 @@ __global__ void undamped_llg_spin_derivative_kernel
 
     const double s_i[3] = {spins[3*i + 0], spins[3*i + 1], spins[3*i + 2]};
     const double h_i[3] = {
-        static_cast<double>(field[3*i + 0]) / static_cast<double>(mus[i]),
-        static_cast<double>(field[3*i + 1]) / static_cast<double>(mus[i]),
-        static_cast<double>(field[3*i + 2]) / static_cast<double>(mus[i])
+        static_cast<double>(field[3*i + 0]) * static_cast<double>(inv_mus[i]),
+        static_cast<double>(field[3*i + 1]) * static_cast<double>(inv_mus[i]),
+        static_cast<double>(field[3*i + 2]) * static_cast<double>(inv_mus[i])
     };
 
     double sxh[3];
@@ -125,7 +125,7 @@ jams::Vec<double, 3> execute_cuda_thermal_current_kernel(
     const jams::MultiArray<double, 2>& spins,
     const jams::MultiArray<jams::Real, 2>& field,
     const jams::MultiArray<jams::Real, 1>& gyro,
-    const jams::MultiArray<jams::Real, 1>& mus,
+    const jams::MultiArray<jams::Real, 1>& inv_mus,
     jams::SparseMatrix<double>& energy_current_operator_rx,
     jams::SparseMatrix<double>& energy_current_operator_ry,
     jams::SparseMatrix<double>& energy_current_operator_rz,
@@ -147,7 +147,7 @@ jams::Vec<double, 3> execute_cuda_thermal_current_kernel(
       spins.device_data(),
       field.device_data(),
       gyro.device_data(),
-      mus.device_data(),
+      inv_mus.device_data(),
       dev_spin_derivative.mutable_device_data());
   DEBUG_CHECK_CUDA_ASYNC_STATUS;
 

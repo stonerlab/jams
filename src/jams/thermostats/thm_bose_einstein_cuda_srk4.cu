@@ -48,7 +48,7 @@ jams::BoseEinsteinCudaSRK4Thermostat::BoseEinsteinCudaSRK4Thermostat(const doubl
    for (int i = 0; i < num_spins; ++i) {
      for (int j = 0; j < 3; ++j) {
        sigma_(i,j) = (kBoltzmannIU) * sqrt((2.0 * globals::alpha(i))
-           / (kHBarIU * globals::gyro(i) * globals::mus(i)));
+           * globals::inv_mus(i) / (kHBarIU * globals::gyro(i)));
      }
    }
 

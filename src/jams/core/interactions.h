@@ -26,6 +26,9 @@ class InteractionList;
 inline InteractionFileFormat interaction_file_format_from_string(const std::string s) {
   if (capitalize(s) == "JAMS") return InteractionFileFormat::JAMS;
   if (capitalize(s) == "KKR") return InteractionFileFormat::KKR;
+  if (capitalize(s) == "POSITIONAL_MATERIAL" || capitalize(s) == "POSITIONALMATERIAL") {
+    return InteractionFileFormat::POSITIONAL_MATERIAL;
+  }
   throw std::runtime_error("Unknown exchange file format");
 }
 
@@ -44,7 +47,7 @@ struct InteractionFileDescription {
     InteractionFileDescription(InteractionFileFormat t, InteractionType d)
       : type(t), dimension(d) {};
 
-    bool operator==(InteractionFileDescription rhs) {
+    bool operator==(InteractionFileDescription rhs) const {
       return rhs.type == type && rhs.dimension == dimension;
     }
 
@@ -65,8 +68,14 @@ struct InteractionData {
 InteractionFileDescription
 discover_interaction_file_format(std::ifstream &file);
 
+InteractionFileDescription
+discover_interaction_setting_format(libconfig::Setting& setting);
+
 std::vector<InteractionData>
 interactions_from_file(std::ifstream &file, const InteractionFileDescription& desc);
+
+std::vector<InteractionData>
+interactions_from_settings(libconfig::Setting &setting, const InteractionFileDescription& desc);
 
 std::vector<InteractionData>
 generate_interaction_data(std::ifstream &file,

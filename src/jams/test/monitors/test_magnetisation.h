@@ -18,6 +18,7 @@
 #include <jams/core/lattice.h>
 #include <jams/core/solver.h>
 #include <jams/helpers/output.h>
+#include <jams/helpers/utils.h>
 #include <jams/monitors/magnetisation.h>
 
 #if HAS_CUDA
@@ -25,6 +26,26 @@
 #endif
 
 namespace jams::testing {
+
+inline void reset_magnetisation_monitor_globals() {
+  globals::num_spins = 0;
+  globals::num_spins3 = 0;
+  jams::util::force_deallocation(globals::s);
+  jams::util::force_deallocation(globals::h);
+  jams::util::force_deallocation(globals::ds_dt);
+  jams::util::force_deallocation(globals::positions);
+  jams::util::force_deallocation(globals::alpha);
+  jams::util::force_deallocation(globals::mus);
+  jams::util::force_deallocation(globals::inv_mus);
+  globals::num_magnetic_spins = 0;
+  jams::util::force_deallocation(globals::gyro);
+  globals::solver = nullptr;
+  globals::config = nullptr;
+  if (globals::lattice != nullptr) {
+    delete globals::lattice;
+    globals::lattice = nullptr;
+  }
+}
 
 class MagnetisationStubSolver : public Solver {
 public:
@@ -48,7 +69,7 @@ inline bool magnetisation_cuda_device_available() {
 class MagnetisationMonitorTest : public ::testing::Test {
 protected:
   void SetUp() override {
-    globals::solver = nullptr;
+    reset_magnetisation_monitor_globals();
     output_dir_ = std::filesystem::temp_directory_path() / "jams_magnetisation_monitor_test";
     std::filesystem::remove_all(output_dir_);
     jams::Jams::set_output_dir(output_dir_.string());
@@ -58,15 +79,15 @@ protected:
   }
 
   void TearDown() override {
-    globals::solver = nullptr;
-    delete globals::lattice;
-    globals::lattice = nullptr;
-    globals::config = nullptr;
+    reset_magnetisation_monitor_globals();
     std::filesystem::remove_all(output_dir_);
   }
 
-  void initialise_lattice_with_monitor(const bool normalize) {
-    globals::config->readString(base_config(normalize));
+  void initialise_lattice_with_monitor(
+      const bool normalize,
+      const std::string& grouping = "none",
+      const double b_moment = 2.0) {
+    globals::config->readString(base_config(normalize, grouping, b_moment));
     globals::lattice->init_from_config(*globals::config);
 
     auto spins = globals::s.mutable_host_view();
@@ -108,8 +129,12 @@ protected:
     return values;
   }
 
-  static std::string base_config(const bool normalize) {
-    return std::string(R"(
+  static std::string base_config(
+      const bool normalize,
+      const std::string& grouping,
+      const double b_moment) {
+    std::ostringstream config;
+    config << R"(
       solver : {
         module = "llg-heun-cpu";
         t_step = 1.0e-16;
@@ -119,7 +144,7 @@ protected:
 
       materials = (
         { name = "A"; moment = 1.0; spin = [1.0, 0.0, 0.0]; },
-        { name = "B"; moment = 2.0; spin = [0.0, 1.0, 0.0]; }
+        { name = "B"; moment = )" << std::to_string(b_moment) << R"(; spin = [0.0, 1.0, 0.0]; }
       );
 
       unitcell : {
@@ -146,12 +171,13 @@ protected:
         {
           module = "magnetisation";
           output_steps = 1;
-          grouping = "none";
-          normalize = )") + (normalize ? "true" : "false") + R"(;
+          grouping = ")" << grouping << R"(";
+          normalize = )" << (normalize ? "true" : "false") << R"(;
           precision = 15;
         }
       );
     )";
+    return config.str();
   }
 
 private:
@@ -170,6 +196,20 @@ TEST_F(MagnetisationMonitorTest, CpuUpdateWritesExpectedNormalisedTotalMagnetisa
   EXPECT_TRUE(std::isfinite(values[2]));
   EXPECT_TRUE(std::isfinite(values[3]));
   EXPECT_NEAR(values[4], std::sqrt(values[1] * values[1] + values[2] * values[2] + values[3] * values[3]), 1.0e-14);
+}
+
+TEST_F(MagnetisationMonitorTest, NormalisedZeroMomentMaterialGroupWritesZeros) {
+  initialise_lattice_with_monitor(true, "materials", 0.0);
+
+  MagnetisationStubSolver solver;
+  const auto values = run_monitor_update(solver);
+
+  ASSERT_EQ(values.size(), 9u);
+  EXPECT_NEAR(values[0], 0.0, 1.0e-15);
+  EXPECT_EQ(values[5], 0.0);
+  EXPECT_EQ(values[6], 0.0);
+  EXPECT_EQ(values[7], 0.0);
+  EXPECT_EQ(values[8], 0.0);
 }
 
 #if HAS_CUDA

@@ -18,6 +18,7 @@
 #include "jams/helpers/output.h"
 
 #include "jams/monitors/hdf5.h"
+#include "jams/monitors/spin_output.h"
 
 namespace {
     const int h5_compression_chunk_size = 4095;
@@ -130,20 +131,13 @@ void Hdf5Monitor::write_spin_h5_file(const std::string &h5_file_name) {
 
   if (slice_.num_points() != 0) {
     const auto point_count = output_point_count();
-    jams::MultiArray<double, 2> spins(point_count, 3);
-    const auto spin_view = globals::s.host_view();
-    auto output_view = spins.mutable_host_view();
-
-    for (auto output_index = 0; output_index < point_count; ++output_index) {
-      const auto spin = source_spin_index(output_index);
-      for (auto component = 0; component < 3; ++component) {
-        output_view(output_index, component) = spin_view(spin, component);
-      }
-    }
-
+    const auto spins = jams::monitors::make_spin_output_array(
+        point_count,
+        [this](const int output_index) { return source_spin_index(output_index); });
     write_vector_field(spins, "/spins", file, compression_enabled_);
   } else {
-    write_vector_field(globals::s, "/spins", file, compression_enabled_);
+    const auto spins = jams::monitors::make_spin_output_array();
+    write_vector_field(spins, "/spins", file, compression_enabled_);
   }
 
   if (write_ds_dt_) {

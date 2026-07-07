@@ -9,7 +9,7 @@ __global__ void spin_current_kernel
         (const int num_spins,
          const double *spins,
          const jams::Real *gyro,
-         const jams::Real *mus,
+         const jams::Real *inv_mus,
          const double *Jrij,
          const int *col_pointers,
          const int *col_indicies,
@@ -42,7 +42,7 @@ __global__ void spin_current_kernel
       }
     }
 
-    const double prefactor = gyro[i] / mus[i];
+    const double prefactor = gyro[i] * inv_mus[i];
 
     spin_current_rx_z[i] = prefactor*js_z[0];
     spin_current_ry_z[i] = prefactor*js_z[1];
@@ -55,7 +55,7 @@ jams::Vec<double, 3> execute_cuda_spin_current_kernel(
         const int num_spins,
         const double *dev_spins,
         const jams::Real *dev_gyro,
-        const jams::Real *dev_mus,
+        const jams::Real *dev_inv_mus,
         const double *dev_Jrij,
         const int *dev_col_pointers,
         const int *dev_col_indicies,
@@ -72,7 +72,7 @@ jams::Vec<double, 3> execute_cuda_spin_current_kernel(
           num_spins,
           dev_spins,
           dev_gyro,
-          dev_mus,
+          dev_inv_mus,
           dev_Jrij,
           dev_col_pointers,
           dev_col_indicies,
@@ -87,4 +87,3 @@ jams::Vec<double, 3> execute_cuda_spin_current_kernel(
   
   return {j_rx_z, j_ry_z, j_rz_z};
 }
-

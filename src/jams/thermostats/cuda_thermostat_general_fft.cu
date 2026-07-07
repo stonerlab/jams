@@ -60,7 +60,9 @@ CudaThermostatGeneralFFT::CudaThermostatGeneralFFT(const jams::Real &temperature
   // that we convert here to get the scaling of the noice correct (i.e. it
   // converts Janet's equations into the JAMS convention).
 
-  double eta_G = globals::alpha(0) / (globals::mus(0) * globals::gyro(0));
+  const int first_spin = globals::first_magnetic_spin();
+  double eta_G = globals::alpha(first_spin) * globals::inv_mus(first_spin)
+      / globals::gyro(first_spin);
 
 
   // We store the temperature and check in update() that it doesn't change when

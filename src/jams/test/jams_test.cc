@@ -6,6 +6,7 @@
 #include "jams/test/containers/test_neartree.h"
 #include "jams/test/containers/test_cell.h"
 #include "jams/test/core/test_interactions.h"
+#include "jams/test/core/test_magnetic_moments.h"
 #include "jams/test/core/test_thermostat_temperature_profile.h"
 #include "jams/test/initializer/test_damping_regions_initializer.h"
 #include "jams/test/initializer/test_h5_initializer.h"

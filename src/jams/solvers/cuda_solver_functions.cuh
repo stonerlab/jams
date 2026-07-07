@@ -45,12 +45,12 @@ struct CudaUniformFieldScale {
 };
 
 struct CudaPerSpinFieldScale {
-  const jams::Real* mus;
+  const jams::Real* inv_mus;
 
   __host__ __device__ __forceinline__ jams::Real scale(
       const jams::Real field,
       const unsigned idx) const {
-    return field / mus[idx];
+    return field * inv_mus[idx];
   }
 };
 
@@ -79,14 +79,14 @@ inline CudaSpinParameterChoice cuda_spin_parameter_choice(
 }
 
 inline CudaFieldScaleChoice cuda_field_scale_choice(
-    const jams::MultiArray<jams::Real, 1>& mus)
+    const jams::MultiArray<jams::Real, 1>& inv_mus)
 {
-  const auto mus_choice = cuda_spin_parameter_choice(mus);
-  if (!mus_choice.is_uniform) {
+  const auto inv_mus_choice = cuda_spin_parameter_choice(inv_mus);
+  if (!inv_mus_choice.is_uniform) {
     return {};
   }
 
-  return {true, jams::Real{1.0} / mus_choice.uniform_value};
+  return {true, inv_mus_choice.uniform_value};
 }
 
 template <typename Function>
@@ -160,26 +160,26 @@ inline void dispatch_cuda_spin_parameters(
 template <typename Function>
 inline void dispatch_cuda_field_scale(
     const CudaFieldScaleChoice choice,
-    const jams::Real* mus,
+    const jams::Real* inv_mus,
     Function&& function)
 {
   if (choice.is_uniform) {
     function(CudaUniformFieldScale{choice.uniform_inv_mus});
   } else {
-    function(CudaPerSpinFieldScale{mus});
+    function(CudaPerSpinFieldScale{inv_mus});
   }
 }
 
 template <typename Function>
 inline void dispatch_cuda_field_scale(
     const CudaFieldScaleChoice choice,
-    const jams::MultiArray<jams::Real, 1>& mus,
+    const jams::MultiArray<jams::Real, 1>& inv_mus,
     Function&& function)
 {
   if (choice.is_uniform) {
     function(CudaUniformFieldScale{choice.uniform_inv_mus});
   } else {
-    function(CudaPerSpinFieldScale{mus.device_data()});
+    function(CudaPerSpinFieldScale{inv_mus.device_data()});
   }
 }
 
