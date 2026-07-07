@@ -136,8 +136,8 @@ jams::output::TsvWriter MagnetisationMonitor::make_tsv_writer(const libconfig::S
       const double group_moment =
           jams::scalar_field_indexed_reduce(globals::mus, group.indices_array());
       if (group_moment == 0.0) {
-        throw std::runtime_error(
-            "magnetisation monitor cannot normalize a group with zero total moment");
+        group_normalising_factors_.push_back(0.0);
+        continue;
       }
       group_normalising_factors_.push_back(1.0 / group_moment);
     } else {

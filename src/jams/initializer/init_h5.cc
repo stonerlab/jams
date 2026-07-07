@@ -3,9 +3,30 @@
 #include <jams/interface/config.h>
 #include <jams/core/globals.h>
 #include <jams/helpers/load.h>
+#include <jams/helpers/utils.h>
+#include <jams/interface/highfive.h>
 
 #include <string>
 
+namespace {
+
+std::string magnetic_moment_dataset_path(const std::string& file_name) {
+  if (file_extension(file_name) != "h5") {
+    return "/mus";
+  }
+
+  HighFive::File file(file_name, HighFive::File::ReadOnly);
+  if (file.exist("/mus")) {
+    return "/mus";
+  }
+  if (file.exist("/moments")) {
+    return "/moments";
+  }
+
+  return "/mus";
+}
+
+}  // namespace
 
 void jams::InitH5::execute(const libconfig::Setting &settings) {
   if (settings.exists("spins")) {
@@ -23,7 +44,7 @@ void jams::InitH5::execute(const libconfig::Setting &settings) {
   if (settings.exists("mus")) {
     std::string file_name = settings["mus"];
     std::cout << "reading mus data from file " << file_name << "\n";
-    load_array_from_file(file_name, "/mus", globals::mus);
+    load_array_from_file(file_name, magnetic_moment_dataset_path(file_name), globals::mus);
     globals::sync_magnetic_moment_data();
   }
 

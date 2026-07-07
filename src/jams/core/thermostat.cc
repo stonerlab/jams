@@ -18,6 +18,23 @@
 #include <stdexcept>
 #include <iostream>
 
+#if HAS_CUDA
+namespace {
+
+bool cuda_device_available_for_event_creation() {
+  int device_count = 0;
+  const auto status = cudaGetDeviceCount(&device_count);
+  if (status == cudaSuccess) {
+    return device_count > 0;
+  }
+
+  cudaGetLastError();
+  return false;
+}
+
+}  // namespace
+#endif
+
 Thermostat::Thermostat(const jams::Real &temperature,
                        const jams::Real &sigma,
                        const jams::Real timestep,
@@ -33,8 +50,10 @@ Thermostat::Thermostat(const jams::Real &temperature,
   noise_.zero();
 
 #if HAS_CUDA
-  cudaEventCreateWithFlags(&done_, cudaEventDisableTiming);
-  DEBUG_CHECK_CUDA_ASYNC_STATUS
+  if (cuda_device_available_for_event_creation()) {
+    cudaEventCreateWithFlags(&done_, cudaEventDisableTiming);
+    DEBUG_CHECK_CUDA_ASYNC_STATUS
+  }
 #endif
 }
 

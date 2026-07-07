@@ -961,13 +961,13 @@ void Lattice::generate_supercell(const libconfig::Setting &lattice_settings)
       spin = uniform_random_sphere<double>(rng);
     }
 
-    // lattice vacancies have a moment of zero and a spin vector of zero
+    // Lattice vacancies are serialized as zero vectors by monitor output. The
+    // global moment sync below repairs them to solver-safe unit vectors.
     if (material.moment == 0.0) {
       spin = jams::Vec<double, 3>{0.0, 0.0, 0.0};
     }
 
     if (normalise_spins) {
-      // ensure the spin is unit vector or a zero vector
       spin = jams::unit_vector(spin);
     }
 

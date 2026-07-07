@@ -13,6 +13,7 @@
 #include "jams/interface/config.h"
 
 #include "xyz.h"
+#include "jams/monitors/spin_output.h"
 #include <jams/helpers/exception.h>
 
 XyzMonitor::XyzMonitor(const libconfig::Setting &settings)
@@ -45,7 +46,6 @@ void XyzMonitor::update(Solver& solver) {
   if (solver.iteration()%output_step_freq_ == 0) {
     int outcount = solver.iteration()/output_step_freq_;  // int divisible by modulo above
 
-    const auto spins = globals::s.host_view();
     std::ofstream xyz_state_file(jams::output::monitor_filename_series(name(), "xyz", outcount));
 
     // file header
@@ -59,20 +59,25 @@ void XyzMonitor::update(Solver& solver) {
     xyz_state_file << std::setw(16) << "sz" << std::endl;
 
     if (!slice_spins.empty()) {
-      for (const auto n : slice_spins) {
+      const auto spin_output = jams::monitors::make_spin_output_array(
+          static_cast<int>(slice_spins.size()),
+          [this](const int output_index) { return slice_spins[output_index]; });
+      for (std::size_t output_index = 0; output_index < slice_spins.size(); ++output_index) {
+        const auto n = slice_spins[output_index];
         xyz_state_file << std::setw(9) << n;
         xyz_state_file << std::setw(16) << globals::lattice->lattice_site_position_cart(n)[0] << std::setw(16) << globals::lattice->lattice_site_position_cart(
             n)[1] << std::setw(16) << globals::lattice->lattice_site_position_cart(
             n)[2];
-        xyz_state_file << std::setw(16) << spins(n,0) << std::setw(16) << spins(n,1) << std::setw(16) <<  spins(n, 2) << "\n";
+        xyz_state_file << std::setw(16) << spin_output(output_index,0) << std::setw(16) << spin_output(output_index,1) << std::setw(16) <<  spin_output(output_index, 2) << "\n";
       }
     } else {
+      const auto spin_output = jams::monitors::make_spin_output_array();
       for (int n = 0; n < globals::num_spins; ++n) {
         xyz_state_file << std::setw(9) << n;
         xyz_state_file << std::setw(16) << globals::lattice->lattice_site_position_cart(n)[0] << std::setw(16) << globals::lattice->lattice_site_position_cart(
             n)[1] << std::setw(16) << globals::lattice->lattice_site_position_cart(
             n)[2];
-        xyz_state_file << std::setw(16) << spins(n,0) << std::setw(16) << spins(n,1) << std::setw(16) <<  spins(n, 2) << "\n";
+        xyz_state_file << std::setw(16) << spin_output(n,0) << std::setw(16) << spin_output(n,1) << std::setw(16) <<  spin_output(n, 2) << "\n";
       }
     }
     xyz_state_file.close();

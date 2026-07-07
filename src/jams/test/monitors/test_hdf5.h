@@ -128,6 +128,14 @@ class Hdf5MonitorTest : public ::testing::Test {
     return file.getDataSet(path).getDimensions();
   }
 
+  static jams::MultiArray<double, 2> read_time_spins() {
+    HighFive::File file(jams::output::monitor_filename_series("hdf5", "h5", 0),
+                        HighFive::File::ReadOnly);
+    jams::MultiArray<double, 2> spins;
+    file.getDataSet("/spins").read(spins);
+    return spins;
+  }
+
   static std::string base_config(const bool use_regions) {
     const std::string initializer = use_regions ? R"(
       initializer = {
@@ -320,6 +328,34 @@ TEST_F(Hdf5MonitorTest, SliceOutputUsesConsistentFieldDimensions) {
   EXPECT_NE(xdmf.find("DataItem Dimensions=\"2\" NumberType=\"Float\" Precision=\"" +
                       std::to_string(sizeof(jams::Real)) + "\" Format=\"HDF\""),
             std::string::npos);
+}
+
+TEST_F(Hdf5MonitorTest, SpinOutputMasksZeroMomentSitesAsZeroVectors) {
+  initialise(R"(
+    monitors = (
+      { module = "hdf5"; output_steps = 1; compressed = false; }
+    );
+  )", false);
+
+  globals::mus(1) = jams::Real{0.0};
+  globals::s(1, 0) = 1.0;
+  globals::s(1, 1) = 0.0;
+  globals::s(1, 2) = 0.0;
+  globals::sync_magnetic_moment_data();
+
+  ASSERT_EQ(globals::s(1, 0), 1.0);
+  ASSERT_EQ(globals::s(1, 1), 0.0);
+  ASSERT_EQ(globals::s(1, 2), 0.0);
+
+  run_monitor_once();
+
+  const auto spins = read_time_spins();
+  ASSERT_EQ(spins.extent(0), 4u);
+  ASSERT_EQ(spins.extent(1), 3u);
+  EXPECT_EQ(spins(1, 0), 0.0);
+  EXPECT_EQ(spins(1, 1), 0.0);
+  EXPECT_EQ(spins(1, 2), 0.0);
+  EXPECT_EQ(spins(0, 0), 1.0);
 }
 
 }  // namespace jams::testing

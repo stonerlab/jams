@@ -22,7 +22,7 @@ class MagneticMomentGlobalsTest : public ::testing::Test {
   }
 };
 
-TEST_F(MagneticMomentGlobalsTest, SyncBuildsInverseMomentsAndZerosVacancySpin) {
+TEST_F(MagneticMomentGlobalsTest, SyncBuildsInverseMomentsAndNormalisesVacancySpin) {
   globals::num_spins = 3;
   globals::num_spins3 = 9;
   globals::mus.resize(3);
@@ -34,7 +34,7 @@ TEST_F(MagneticMomentGlobalsTest, SyncBuildsInverseMomentsAndZerosVacancySpin) {
   globals::s(0, 1) = 0.0;
   globals::s(0, 2) = 0.0;
   globals::s(1, 0) = 0.0;
-  globals::s(1, 1) = 1.0;
+  globals::s(1, 1) = 2.0;
   globals::s(1, 2) = 0.0;
   globals::s(2, 0) = 0.0;
   globals::s(2, 1) = 0.0;
@@ -47,8 +47,27 @@ TEST_F(MagneticMomentGlobalsTest, SyncBuildsInverseMomentsAndZerosVacancySpin) {
   EXPECT_EQ(globals::inv_mus(1), jams::Real{0.0});
   EXPECT_EQ(globals::inv_mus(2), jams::Real{0.25});
   EXPECT_EQ(globals::s(1, 0), 0.0);
-  EXPECT_EQ(globals::s(1, 1), 0.0);
+  EXPECT_EQ(globals::s(1, 1), 1.0);
   EXPECT_EQ(globals::s(1, 2), 0.0);
+}
+
+TEST_F(MagneticMomentGlobalsTest, SyncRepairsZeroVectorVacancySpinToDefaultUnitVector) {
+  globals::num_spins = 1;
+  globals::num_spins3 = 3;
+  globals::mus.resize(1);
+  globals::mus(0) = jams::Real{0.0};
+  globals::s.resize(1, 3);
+  globals::s(0, 0) = 0.0;
+  globals::s(0, 1) = 0.0;
+  globals::s(0, 2) = 0.0;
+
+  globals::sync_magnetic_moment_data();
+
+  EXPECT_EQ(globals::num_magnetic_spins, 0);
+  EXPECT_EQ(globals::inv_mus(0), jams::Real{0.0});
+  EXPECT_EQ(globals::s(0, 0), 0.0);
+  EXPECT_EQ(globals::s(0, 1), 0.0);
+  EXPECT_EQ(globals::s(0, 2), 1.0);
 }
 
 TEST_F(MagneticMomentGlobalsTest, SyncRejectsNegativeMoment) {
