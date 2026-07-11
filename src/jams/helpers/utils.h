@@ -6,6 +6,7 @@
 #include <algorithm>
 #include <chrono>
 #include <cmath>
+#include <ctime>
 #include <functional>
 #include <iomanip>
 #include <locale>
@@ -47,12 +48,11 @@ inline double division_or_zero(const double nominator, const double denominator)
 }
 
 inline std::string get_date_string(std::chrono::time_point<std::chrono::system_clock> t) {
-  // https://stackoverflow.com/questions/34963738/c11-get-current-date-and-time-as-string
   auto as_time_t = std::chrono::system_clock::to_time_t(t);
   struct tm tm;
-  if (::gmtime_r(&as_time_t, &tm)) {
+  if (::localtime_r(&as_time_t, &tm)) {
     char timebuffer[80];
-    if (std::strftime(timebuffer, sizeof(timebuffer), "%Y-%m-%d %H:%M:%S", &tm)) {
+    if (std::strftime(timebuffer, sizeof(timebuffer), "%Y-%m-%d %H:%M:%S %Z %z", &tm)) {
       return std::string{timebuffer};
     }
   }
