@@ -12,8 +12,17 @@
 #include "jams/helpers/consts.h"
 #include <jams/helpers/exception.h>
 
+namespace {
+
+int checked_spin_count_for_cuda_quantum_spde(const int num_spins) {
+  (void)jams::quantum_spde_cuda_process_count(num_spins);
+  return num_spins;
+}
+
+}  // namespace
+
 CudaThermostatQuantumSpde::CudaThermostatQuantumSpde(const jams::Real &temperature, const jams::Real &sigma, const jams::Real timestep, const int num_spins)
-: Thermostat(temperature, sigma, timestep, num_spins)
+: Thermostat(temperature, sigma, timestep, checked_spin_count_for_cuda_quantum_spde(num_spins))
 {
   std::cout << "\n  initialising quantum-spde-gpu thermostat\n";
 
@@ -57,6 +66,8 @@ CudaThermostatQuantumSpde::CudaThermostatQuantumSpde(const jams::Real &temperatu
   std::cout << "    warmup " << std::boolalpha << do_warmup << "\n";
   std::cout << "    zero_point " << do_zero_point << "\n";
 
+  const int process_count = jams::quantum_spde_cuda_process_count(num_spins);
+
   for (int i = 0; i < num_spins; ++i) {
     for (int j = 0; j < 3; ++j) {
       sigma_(i,j) = static_cast<jams::Real>((kBoltzmannIU) * sqrt((2.0 * globals::alpha(i))
@@ -65,10 +76,10 @@ CudaThermostatQuantumSpde::CudaThermostatQuantumSpde(const jams::Real &temperatu
   }
 
   noise_generator_ = std::make_unique<jams::CudaQuantumSpdeNoiseGenerator>(
-      num_spins * 3, delta_tau, omega_max, do_zero_point, cuda_stream_);
+      process_count, delta_tau, omega_max, do_zero_point, cuda_stream_);
 
   if (has_per_spin_temperature()) {
-    process_temperature_.resize(num_spins * 3);
+    process_temperature_.resize(process_count);
     const auto& spin_temperature = temperature_profile().temperature();
     for (int i = 0; i < num_spins; ++i) {
       for (int j = 0; j < 3; ++j) {

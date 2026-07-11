@@ -4,6 +4,9 @@
 #if HAS_CUDA
 
 #include <cmath>
+#include <cstddef>
+#include <limits>
+#include <stdexcept>
 #include <utility>
 
 #include <cuda_runtime_api.h>
@@ -189,6 +192,38 @@ TEST(QuantumSpdeNoiseGeneratorTest, PrecomputedBoseUpdateMatchesExactHostUpdate)
   }
 }
 
+TEST(CudaQuantumSpdeNoiseGeneratorTest, CheckedSizingHelpersCoverLargeProcessCounts) {
+  constexpr int kMaxInt = std::numeric_limits<int>::max();
+  constexpr int kMaxSpinCount = kMaxInt / 3;
+
+  EXPECT_EQ(jams::quantum_spde_cuda_process_count(kMaxSpinCount),
+            kMaxSpinCount * 3);
+  EXPECT_THROW({
+    const auto process_count = jams::quantum_spde_cuda_process_count(kMaxSpinCount + 1);
+    (void)process_count;
+  }, std::overflow_error);
+  EXPECT_THROW({
+    const auto process_count = jams::quantum_spde_cuda_process_count(-1);
+    (void)process_count;
+  }, std::length_error);
+
+  EXPECT_EQ(jams::quantum_spde_cuda_curand_buffer_count(0), std::size_t{0});
+  EXPECT_EQ(jams::quantum_spde_cuda_curand_buffer_count(1), std::size_t{2});
+  EXPECT_EQ(jams::quantum_spde_cuda_curand_buffer_count(2), std::size_t{2});
+  EXPECT_EQ(jams::quantum_spde_cuda_curand_buffer_count(kMaxInt),
+            static_cast<std::size_t>(kMaxInt) + 1);
+
+  constexpr int kBlockSize = 128;
+  EXPECT_EQ(jams::quantum_spde_cuda_grid_size(0, kBlockSize), 1);
+  EXPECT_EQ(jams::quantum_spde_cuda_grid_size(kMaxInt, kBlockSize),
+            static_cast<int>((static_cast<std::size_t>(kMaxInt)
+                + kBlockSize - 1) / kBlockSize));
+  EXPECT_THROW({
+    const auto grid_size = jams::quantum_spde_cuda_grid_size(kMaxInt, 0);
+    (void)grid_size;
+  }, std::invalid_argument);
+}
+
 TEST(CudaQuantumSpdeNoiseGeneratorTest, StationaryInitializationSamplesTargetMoments_GPU) {
   if (!cuda_device_available()) {
     GTEST_SKIP() << "CUDA runtime is enabled but no CUDA device is available";
@@ -331,6 +366,40 @@ TEST(CudaQuantumSpdeNoiseGeneratorTest, ZeroTemperatureWithZeroPointProducesNois
   generator.initialize_stationary(jams::Real{0.0});
   generator.update(noise.mutable_device_data(), sigma.device_data(), jams::Real{0.0});
   generator.synchronize();
+
+  double variance = 0.0;
+  const auto* noise_host = noise.host_data();
+  for (auto i = 0; i < kProcessCount; ++i) {
+    variance += static_cast<double>(noise_host[i]) * static_cast<double>(noise_host[i]);
+  }
+  variance /= kProcessCount;
+  EXPECT_GT(variance, 1.0e-12);
+}
+
+TEST(CudaQuantumSpdeNoiseGeneratorTest, OddProcessCountWithZeroPointUsesPaddedCurandBuffers_GPU) {
+  if (!cuda_device_available()) {
+    GTEST_SKIP() << "CUDA runtime is enabled but no CUDA device is available";
+  }
+  initialize_cuda_for_quantum_spde_tests(314159ULL);
+
+  constexpr int kProcessCount = 4097;
+  constexpr double kTimestepPs = 1.0e-3;
+  constexpr double kDeltaTau = (kTimestepPs * kBoltzmannIU) / kHBarIU;
+  CudaStream stream(CudaStream::Priority::LOW);
+  jams::CudaQuantumSpdeNoiseGenerator generator(
+      kProcessCount, kDeltaTau, 25.0 * kTwoPi, true, stream);
+  jams::MultiArray<jams::Real, 1> sigma(kProcessCount);
+  jams::MultiArray<jams::Real, 1> noise(kProcessCount);
+  fill_sigma(sigma);
+
+  generator.initialize_stationary(jams::Real{0.0});
+  generator.update(noise.mutable_device_data(), sigma.device_data(), jams::Real{0.0});
+  generator.synchronize();
+
+  for (auto component = 0; component < 4; ++component) {
+    EXPECT_EQ(generator.zeta0_component(component).size(),
+              static_cast<std::size_t>(kProcessCount));
+  }
 
   double variance = 0.0;
   const auto* noise_host = noise.host_data();

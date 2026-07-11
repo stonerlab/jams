@@ -7,12 +7,19 @@
 
 #if HAS_CUDA
 
+#include <array>
+#include <cstddef>
+
 #include <curand.h>
 
 #include "jams/containers/multiarray.h"
 #include "jams/cuda/cuda_stream.h"
 
 namespace jams {
+
+[[nodiscard]] int quantum_spde_cuda_process_count(int spin_count);
+[[nodiscard]] std::size_t quantum_spde_cuda_curand_buffer_count(int process_count);
+[[nodiscard]] int quantum_spde_cuda_grid_size(int process_count, int block_size);
 
 class CudaQuantumSpdeNoiseGenerator {
  public:
@@ -46,7 +53,7 @@ class CudaQuantumSpdeNoiseGenerator {
   [[nodiscard]] int process_count() const { return process_count_; }
   [[nodiscard]] bool zero_point_enabled() const { return zero_point_; }
 
-  [[nodiscard]] const jams::MultiArray<double, 1>& zeta0() const { return zeta0_; }
+  [[nodiscard]] const jams::MultiArray<double, 1>& zeta0_component(int component) const;
   [[nodiscard]] const jams::MultiArray<double, 1>& zeta5() const { return zeta5_; }
   [[nodiscard]] const jams::MultiArray<double, 1>& zeta5p() const { return zeta5p_; }
   [[nodiscard]] const jams::MultiArray<double, 1>& zeta6() const { return zeta6_; }
@@ -60,6 +67,7 @@ class CudaQuantumSpdeNoiseGenerator {
   void zero_state();
 
   int process_count_ = 0;
+  std::size_t curand_buffer_count_ = 0;
   double delta_tau_ = 0.0;
   double omega_max_ = 0.0;
   bool zero_point_ = false;
@@ -83,15 +91,17 @@ class CudaQuantumSpdeNoiseGenerator {
   cudaEvent_t eta0a_reusable_{};
   cudaEvent_t eta0b_reusable_{};
 
-  jams::MultiArray<double, 1> zeta0_;
+  std::array<jams::MultiArray<double, 1>, 4> zeta0_;
   jams::MultiArray<double, 1> zeta5_;
   jams::MultiArray<double, 1> zeta5p_;
   jams::MultiArray<double, 1> zeta6_;
   jams::MultiArray<double, 1> zeta6p_;
-  jams::MultiArray<jams::Real, 1> eta0a_;
-  jams::MultiArray<jams::Real, 1> eta0b_;
-  jams::MultiArray<jams::Real, 1> eta1a_;
-  jams::MultiArray<jams::Real, 1> eta1b_;
+  std::array<jams::MultiArray<jams::Real, 1>, 4> eta0a_;
+  std::array<jams::MultiArray<jams::Real, 1>, 4> eta0b_;
+  jams::MultiArray<jams::Real, 1> eta5a_;
+  jams::MultiArray<jams::Real, 1> eta5b_;
+  jams::MultiArray<jams::Real, 1> eta6a_;
+  jams::MultiArray<jams::Real, 1> eta6b_;
 };
 
 }  // namespace jams

@@ -2,7 +2,12 @@
 
 #include "jams/thermostats/cuda_quantum_spde_noise.h"
 
+#include <array>
+#include <cstddef>
 #include <cstdint>
+#include <limits>
+#include <stdexcept>
+#include <utility>
 
 #include <jams/common.h>
 
@@ -13,6 +18,10 @@
 namespace {
 
 void generate_normal(curandGenerator_t generator, jams::MultiArray<jams::Real, 1>& data) {
+  if (data.empty()) {
+    return;
+  }
+
 #ifdef DO_MIXED_PRECISION
   CHECK_CURAND_STATUS(curandGenerateNormal(
       generator, data.mutable_device_data(), data.size(), 0.0, 1.0));
@@ -22,14 +31,77 @@ void generate_normal(curandGenerator_t generator, jams::MultiArray<jams::Real, 1
 #endif
 }
 
+void generate_normal(curandGenerator_t generator,
+                     std::array<jams::MultiArray<jams::Real, 1>, 4>& data) {
+  for (auto& buffer : data) {
+    generate_normal(generator, buffer);
+  }
+}
+
+std::size_t process_count_bytes(const int process_count) {
+  return static_cast<std::size_t>(process_count) * sizeof(jams::Real);
+}
+
 }  // namespace
 
 namespace jams {
+
+int quantum_spde_cuda_process_count(const int spin_count) {
+  if (spin_count < 0) {
+    throw std::length_error("quantum-spde-gpu spin count must be non-negative");
+  }
+
+  constexpr int max_spin_count = std::numeric_limits<int>::max() / 3;
+  if (spin_count > max_spin_count) {
+    throw std::overflow_error(
+        "quantum-spde-gpu spin-component count exceeds the int kernel limit");
+  }
+
+  return spin_count * 3;
+}
+
+std::size_t quantum_spde_cuda_curand_buffer_count(const int process_count) {
+  if (process_count < 0) {
+    throw std::length_error("quantum-spde-gpu process count must be non-negative");
+  }
+
+  const auto count = static_cast<std::size_t>(process_count);
+  return count + (count % 2);
+}
+
+int quantum_spde_cuda_grid_size(const int process_count, const int block_size) {
+  if (process_count < 0) {
+    throw std::length_error("quantum-spde-gpu process count must be non-negative");
+  }
+  if (block_size <= 0) {
+    throw std::invalid_argument("quantum-spde-gpu CUDA block size must be positive");
+  }
+  if (process_count == 0) {
+    return 1;
+  }
+
+  const auto count = static_cast<std::size_t>(process_count);
+  const auto block = static_cast<std::size_t>(block_size);
+  const auto grid = (count + block - 1) / block;
+  if (grid > static_cast<std::size_t>(std::numeric_limits<int>::max())) {
+    throw std::overflow_error("quantum-spde-gpu CUDA grid size exceeds int");
+  }
+  return static_cast<int>(grid);
+}
+
+const jams::MultiArray<double, 1>& CudaQuantumSpdeNoiseGenerator::zeta0_component(
+    const int component) const {
+  if (component < 0 || component >= static_cast<int>(zeta0_.size())) {
+    throw std::out_of_range("quantum SPDE zero-point component index out of range");
+  }
+  return zeta0_[static_cast<std::size_t>(component)];
+}
 
 CudaQuantumSpdeNoiseGenerator::CudaQuantumSpdeNoiseGenerator(
     const int process_count, const double delta_tau, const double omega_max,
     const bool zero_point, CudaStream& update_stream)
     : process_count_(process_count),
+      curand_buffer_count_(quantum_spde_cuda_curand_buffer_count(process_count)),
       delta_tau_(delta_tau),
       omega_max_(omega_max),
       zero_point_(zero_point),
@@ -61,14 +133,22 @@ CudaQuantumSpdeNoiseGenerator::CudaQuantumSpdeNoiseGenerator(
   zeta5p_.resize(process_count_).zero();
   zeta6_.resize(process_count_).zero();
   zeta6p_.resize(process_count_).zero();
-  eta1a_.resize(2 * process_count_).zero();
-  eta1b_.resize(2 * process_count_).zero();
+  eta5a_.resize(curand_buffer_count_).zero();
+  eta5b_.resize(curand_buffer_count_).zero();
+  eta6a_.resize(curand_buffer_count_).zero();
+  eta6b_.resize(curand_buffer_count_).zero();
 
   if (zero_point_) {
     zero_point_coefficients_ = quantum_spde_zero_point_update_coefficients(delta_tau_, omega_max_);
-    zeta0_.resize(4 * process_count_).zero();
-    eta0a_.resize(4 * process_count_).zero();
-    eta0b_.resize(4 * process_count_).zero();
+    for (auto& zeta : zeta0_) {
+      zeta.resize(process_count_).zero();
+    }
+    for (auto& eta : eta0a_) {
+      eta.resize(curand_buffer_count_).zero();
+    }
+    for (auto& eta : eta0b_) {
+      eta.resize(curand_buffer_count_).zero();
+    }
   }
 
   generate_random_buffers();
@@ -113,8 +193,10 @@ void CudaQuantumSpdeNoiseGenerator::generate_random_buffers() {
     generate_normal(curand_generator_, eta0a_);
     generate_normal(curand_generator_, eta0b_);
   }
-  generate_normal(curand_generator_, eta1a_);
-  generate_normal(curand_generator_, eta1b_);
+  generate_normal(curand_generator_, eta5a_);
+  generate_normal(curand_generator_, eta5b_);
+  generate_normal(curand_generator_, eta6a_);
+  generate_normal(curand_generator_, eta6b_);
 
   cudaEventRecord(curand_done_, curand_stream_.get());
   DEBUG_CHECK_CUDA_ASYNC_STATUS
@@ -139,7 +221,7 @@ void CudaQuantumSpdeNoiseGenerator::prepare_fixed_temperature_coefficients(
 
 void CudaQuantumSpdeNoiseGenerator::prepare_temperature_profile_coefficients(
     const jams::MultiArray<jams::Real, 1>& temperature) {
-  if (static_cast<int>(temperature.size()) != process_count_) {
+  if (temperature.size() != static_cast<std::size_t>(process_count_)) {
     throw std::runtime_error("quantum SPDE temperature profile size does not match process count");
   }
 
@@ -186,7 +268,9 @@ void CudaQuantumSpdeNoiseGenerator::zero_state() {
   zeta6_.zero();
   zeta6p_.zero();
   if (zero_point_) {
-    zeta0_.zero();
+    for (auto& zeta : zeta0_) {
+      zeta.zero();
+    }
   }
 }
 
@@ -218,8 +302,8 @@ void CudaQuantumSpdeNoiseGenerator::initialize(
 void CudaQuantumSpdeNoiseGenerator::initialize_stationary(const jams::Real temperature) {
   zero_state();
 
-  int block_size = 128;
-  int grid_size = (process_count_ + block_size - 1) / block_size;
+  const int block_size = 128;
+  const int grid_size = quantum_spde_cuda_grid_size(process_count_, block_size);
   bool consumed_random_numbers = false;
 
   cudaStreamWaitEvent(update_stream_.get(), curand_done_, 0);
@@ -232,7 +316,8 @@ void CudaQuantumSpdeNoiseGenerator::initialize_stationary(const jams::Real tempe
         kQuantumSpdeGamma6, kQuantumSpdeOmega6, reduced_delta_tau);
     cuda_thermostat_quantum_spde_stationary_no_zero_kernel <<< grid_size, block_size, 0, update_stream_.get() >>> (
         zeta5_.mutable_device_data(), zeta5p_.mutable_device_data(), zeta6_.mutable_device_data(),
-        zeta6p_.mutable_device_data(), eta1a_.device_data(), eta1b_.device_data(),
+        zeta6p_.mutable_device_data(), eta5a_.device_data(), eta5b_.device_data(),
+        eta6a_.device_data(), eta6b_.device_data(),
         factor5.l00, factor5.l10, factor5.l11, factor6.l00, factor6.l10, factor6.l11,
         process_count_);
     DEBUG_CHECK_CUDA_ASYNC_STATUS;
@@ -242,7 +327,11 @@ void CudaQuantumSpdeNoiseGenerator::initialize_stationary(const jams::Real tempe
   if (zero_point_) {
     const double zero_point_delta_tau = (kHBarIU * omega_max_ * delta_tau_) / kBoltzmannIU;
     cuda_thermostat_quantum_spde_stationary_zero_point_kernel <<< grid_size, block_size, 0, update_stream_.get() >>> (
-        zeta0_.mutable_device_data(), eta0a_.device_data(), static_cast<jams::Real>(zero_point_delta_tau),
+        zeta0_[0].mutable_device_data(), zeta0_[1].mutable_device_data(),
+        zeta0_[2].mutable_device_data(), zeta0_[3].mutable_device_data(),
+        eta0a_[0].device_data(), eta0a_[1].device_data(),
+        eta0a_[2].device_data(), eta0a_[3].device_data(),
+        static_cast<jams::Real>(zero_point_delta_tau),
         process_count_);
     DEBUG_CHECK_CUDA_ASYNC_STATUS;
     consumed_random_numbers = true;
@@ -261,8 +350,8 @@ void CudaQuantumSpdeNoiseGenerator::initialize_stationary(
   prepare_temperature_profile_coefficients(temperature);
   zero_state();
 
-  int block_size = 128;
-  int grid_size = (process_count_ + block_size - 1) / block_size;
+  const int block_size = 128;
+  const int grid_size = quantum_spde_cuda_grid_size(process_count_, block_size);
   bool consumed_random_numbers = false;
 
   cudaStreamWaitEvent(update_stream_.get(), curand_done_, 0);
@@ -270,7 +359,8 @@ void CudaQuantumSpdeNoiseGenerator::initialize_stationary(
   if (profile_has_positive_temperature_) {
     cuda_thermostat_quantum_spde_stationary_no_zero_profile_kernel <<< grid_size, block_size, 0, update_stream_.get() >>> (
         zeta5_.mutable_device_data(), zeta5p_.mutable_device_data(), zeta6_.mutable_device_data(),
-        zeta6p_.mutable_device_data(), eta1a_.device_data(), eta1b_.device_data(),
+        zeta6p_.mutable_device_data(), eta5a_.device_data(), eta5b_.device_data(),
+        eta6a_.device_data(), eta6b_.device_data(),
         profile_stationary_factor5_.device_data(), profile_stationary_factor6_.device_data(),
         process_count_);
     DEBUG_CHECK_CUDA_ASYNC_STATUS;
@@ -280,7 +370,11 @@ void CudaQuantumSpdeNoiseGenerator::initialize_stationary(
   if (zero_point_) {
     const double zero_point_delta_tau = (kHBarIU * omega_max_ * delta_tau_) / kBoltzmannIU;
     cuda_thermostat_quantum_spde_stationary_zero_point_kernel <<< grid_size, block_size, 0, update_stream_.get() >>> (
-        zeta0_.mutable_device_data(), eta0a_.device_data(), static_cast<jams::Real>(zero_point_delta_tau),
+        zeta0_[0].mutable_device_data(), zeta0_[1].mutable_device_data(),
+        zeta0_[2].mutable_device_data(), zeta0_[3].mutable_device_data(),
+        eta0a_[0].device_data(), eta0a_[1].device_data(),
+        eta0a_[2].device_data(), eta0a_[3].device_data(),
+        static_cast<jams::Real>(zero_point_delta_tau),
         process_count_);
     DEBUG_CHECK_CUDA_ASYNC_STATUS;
     consumed_random_numbers = true;
@@ -314,20 +408,25 @@ void CudaQuantumSpdeNoiseGenerator::warmup(
 void CudaQuantumSpdeNoiseGenerator::update(jams::Real* noise,
                                            const jams::Real* sigma,
                                            const jams::Real temperature) {
-  int block_size = 128;
-  int grid_size = (process_count_ + block_size - 1) / block_size;
+  const int block_size = 128;
+  const int grid_size = quantum_spde_cuda_grid_size(process_count_, block_size);
 
   if (temperature == 0) {
-    CHECK_CUDA_STATUS(cudaMemsetAsync(noise, 0, process_count_ * sizeof(jams::Real), update_stream_.get()));
+    CHECK_CUDA_STATUS(cudaMemsetAsync(noise, 0, process_count_bytes(process_count_), update_stream_.get()));
 
     if (zero_point_) {
-      swap(eta0a_, eta0b_);
+      std::swap(eta0a_, eta0b_);
       std::swap(eta0a_reusable_, eta0b_reusable_);
 
       cudaStreamWaitEvent(update_stream_.get(), curand_done_, 0);
       cudaStreamWaitEvent(curand_stream_.get(), eta0a_reusable_, 0);
       cuda_thermostat_quantum_spde_zero_point_fast_kernel <<< grid_size, block_size, 0, update_stream_.get() >>> (
-          noise, zeta0_.mutable_device_data(), eta0b_.device_data(), sigma, zero_point_coefficients_,
+          noise,
+          zeta0_[0].mutable_device_data(), zeta0_[1].mutable_device_data(),
+          zeta0_[2].mutable_device_data(), zeta0_[3].mutable_device_data(),
+          eta0b_[0].device_data(), eta0b_[1].device_data(),
+          eta0b_[2].device_data(), eta0b_[3].device_data(),
+          sigma, zero_point_coefficients_,
           process_count_);
       DEBUG_CHECK_CUDA_ASYNC_STATUS;
       cudaEventRecord(eta0b_reusable_, update_stream_.get());
@@ -346,9 +445,10 @@ void CudaQuantumSpdeNoiseGenerator::update(jams::Real* noise,
   const bool use_fast_no_zero = fast_coefficients_valid_ && temperature == fast_temperature_;
 
   // The refill target was used by an earlier update before the swap. Each
-  // buffer carries its own reusable event, so CURAND only waits for the buffer
-  // it is about to overwrite.
-  swap(eta1a_, eta1b_);
+  // buffer pair carries its own reusable event, so CURAND only waits for the
+  // pair it is about to overwrite.
+  swap(eta5a_, eta5b_);
+  swap(eta6a_, eta6b_);
   std::swap(eta1a_reusable_, eta1b_reusable_);
 
   cudaStreamWaitEvent(update_stream_.get(), curand_done_, 0);
@@ -356,12 +456,14 @@ void CudaQuantumSpdeNoiseGenerator::update(jams::Real* noise,
   if (use_fast_no_zero) {
     cuda_thermostat_quantum_spde_no_zero_fast_kernel<<<grid_size, block_size, 0, update_stream_.get() >>> (
       noise, zeta5_.mutable_device_data(), zeta5p_.mutable_device_data(), zeta6_.mutable_device_data(),
-      zeta6p_.mutable_device_data(), eta1b_.device_data(), sigma, fast_factor5_, fast_factor6_,
+      zeta6p_.mutable_device_data(), eta5b_.device_data(), eta6b_.device_data(),
+      sigma, fast_factor5_, fast_factor6_,
       temperature, process_count_);
   } else {
     cuda_thermostat_quantum_spde_no_zero_kernel<<<grid_size, block_size, 0, update_stream_.get() >>> (
       noise, zeta5_.mutable_device_data(), zeta5p_.mutable_device_data(), zeta6_.mutable_device_data(),
-      zeta6p_.mutable_device_data(), eta1b_.device_data(), sigma, reduced_delta_tau,
+      zeta6p_.mutable_device_data(), eta5b_.device_data(), eta6b_.device_data(),
+      sigma, reduced_delta_tau,
       temperature, process_count_);
     prepare_fixed_temperature_coefficients(temperature);
   }
@@ -369,15 +471,21 @@ void CudaQuantumSpdeNoiseGenerator::update(jams::Real* noise,
   cudaEventRecord(eta1b_reusable_, update_stream_.get());
   DEBUG_CHECK_CUDA_ASYNC_STATUS
 
-  generate_normal(curand_generator_, eta1a_);
+  generate_normal(curand_generator_, eta5a_);
+  generate_normal(curand_generator_, eta6a_);
 
   if (zero_point_) {
-    swap(eta0a_, eta0b_);
+    std::swap(eta0a_, eta0b_);
     std::swap(eta0a_reusable_, eta0b_reusable_);
     cudaStreamWaitEvent(curand_stream_.get(), eta0a_reusable_, 0);
 
     cuda_thermostat_quantum_spde_zero_point_fast_kernel <<< grid_size, block_size, 0, update_stream_.get() >>> (
-        noise, zeta0_.mutable_device_data(), eta0b_.device_data(), sigma, zero_point_coefficients_,
+        noise,
+        zeta0_[0].mutable_device_data(), zeta0_[1].mutable_device_data(),
+        zeta0_[2].mutable_device_data(), zeta0_[3].mutable_device_data(),
+        eta0b_[0].device_data(), eta0b_[1].device_data(),
+        eta0b_[2].device_data(), eta0b_[3].device_data(),
+        sigma, zero_point_coefficients_,
         process_count_);
     DEBUG_CHECK_CUDA_ASYNC_STATUS;
     cudaEventRecord(eta0b_reusable_, update_stream_.get());
@@ -394,36 +502,44 @@ void CudaQuantumSpdeNoiseGenerator::update(
     jams::Real* noise,
     const jams::Real* sigma,
     const jams::MultiArray<jams::Real, 1>& temperature) {
-  int block_size = 128;
-  int grid_size = (process_count_ + block_size - 1) / block_size;
+  const int block_size = 128;
+  const int grid_size = quantum_spde_cuda_grid_size(process_count_, block_size);
 
   if (!profile_has_positive_temperature_) {
-    CHECK_CUDA_STATUS(cudaMemsetAsync(noise, 0, process_count_ * sizeof(jams::Real), update_stream_.get()));
+    CHECK_CUDA_STATUS(cudaMemsetAsync(noise, 0, process_count_bytes(process_count_), update_stream_.get()));
   } else {
-    swap(eta1a_, eta1b_);
+    swap(eta5a_, eta5b_);
+    swap(eta6a_, eta6b_);
     std::swap(eta1a_reusable_, eta1b_reusable_);
 
     cudaStreamWaitEvent(update_stream_.get(), curand_done_, 0);
     cudaStreamWaitEvent(curand_stream_.get(), eta1a_reusable_, 0);
     cuda_thermostat_quantum_spde_no_zero_profile_fast_kernel<<<grid_size, block_size, 0, update_stream_.get() >>> (
       noise, zeta5_.mutable_device_data(), zeta5p_.mutable_device_data(), zeta6_.mutable_device_data(),
-      zeta6p_.mutable_device_data(), eta1b_.device_data(), sigma, profile_factor5_.device_data(),
+      zeta6p_.mutable_device_data(), eta5b_.device_data(), eta6b_.device_data(),
+      sigma, profile_factor5_.device_data(),
       profile_factor6_.device_data(), temperature.device_data(), process_count_);
     DEBUG_CHECK_CUDA_ASYNC_STATUS;
     cudaEventRecord(eta1b_reusable_, update_stream_.get());
     DEBUG_CHECK_CUDA_ASYNC_STATUS
 
-    generate_normal(curand_generator_, eta1a_);
+    generate_normal(curand_generator_, eta5a_);
+    generate_normal(curand_generator_, eta6a_);
   }
 
   if (zero_point_) {
-    swap(eta0a_, eta0b_);
+    std::swap(eta0a_, eta0b_);
     std::swap(eta0a_reusable_, eta0b_reusable_);
     cudaStreamWaitEvent(update_stream_.get(), curand_done_, 0);
     cudaStreamWaitEvent(curand_stream_.get(), eta0a_reusable_, 0);
 
     cuda_thermostat_quantum_spde_zero_point_fast_kernel <<< grid_size, block_size, 0, update_stream_.get() >>> (
-        noise, zeta0_.mutable_device_data(), eta0b_.device_data(), sigma, zero_point_coefficients_,
+        noise,
+        zeta0_[0].mutable_device_data(), zeta0_[1].mutable_device_data(),
+        zeta0_[2].mutable_device_data(), zeta0_[3].mutable_device_data(),
+        eta0b_[0].device_data(), eta0b_[1].device_data(),
+        eta0b_[2].device_data(), eta0b_[3].device_data(),
+        sigma, zero_point_coefficients_,
         process_count_);
     DEBUG_CHECK_CUDA_ASYNC_STATUS;
     cudaEventRecord(eta0b_reusable_, update_stream_.get());
