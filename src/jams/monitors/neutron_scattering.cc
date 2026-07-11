@@ -20,6 +20,10 @@
 #include "jams/helpers/neutrons.h"
 #include <jams/helpers/mixed_precision.h>
 
+namespace {
+constexpr const char* kNeutronCrossSectionUnits = "barn sr^-1 meV^-1 unitcell^-1";
+}
+
 NeutronScatteringMonitor::NeutronScatteringMonitor(const libconfig::Setting &settings)
 : SpectrumBaseMonitor(settings) {
 
@@ -98,6 +102,8 @@ void NeutronScatteringMonitor::accumulate_cross_sections_for_k(
   for (auto a = 0; a < num_sites; ++a) {
     for (auto b = 0; b < num_sites; ++b) {
       const auto ff = neutron_form_factors_(a, k_index) * neutron_form_factors_(b, k_index);
+      const auto spin_scale = basis_spin_length_(a) * basis_spin_length_(b);
+      const auto amplitude_scale = ff * spin_scale;
 
       for (auto freq = 0; freq < frequency_count; ++freq) {
         const auto f = keep_negative_frequencies() ? (freq_start + freq) % time_points : freq;
@@ -116,7 +122,7 @@ void NeutronScatteringMonitor::accumulate_cross_sections_for_k(
         for (auto i : {0, 1, 2}) {
           for (auto j : {0, 1, 2}) {
             total_unpolarized_neutron_cross_section_(f, k_index) +=
-                ff * (kronecker_delta(i, j) - Q[i] * Q[j]) * s_a[i] * s_b[j];
+                amplitude_scale * (kronecker_delta(i, j) - Q[i] * Q[j]) * s_a[i] * s_b[j];
           }
         }
 
@@ -125,12 +131,12 @@ void NeutronScatteringMonitor::accumulate_cross_sections_for_k(
           auto PxQ = jams::cross(P, Q);
 
           total_polarized_neutron_cross_sections_(p, f, k_index) +=
-              ff * kImagOne * jams::dot(P, jams::cross(s_a, s_b));
+              amplitude_scale * kImagOne * jams::dot(P, jams::cross(s_a, s_b));
 
           for (auto i : {0, 1, 2}) {
             for (auto j : {0, 1, 2}) {
               total_polarized_neutron_cross_sections_(p, f, k_index) +=
-                  kImagOne * ff * PxQ[i] * Q[j] * (s_a[i] * s_b[j] - s_a[j] * s_b[i]);
+                  kImagOne * amplitude_scale * PxQ[i] * Q[j] * (s_a[i] * s_b[j] - s_a[j] * s_b[i]);
             }
           }
         }
@@ -153,21 +159,21 @@ void NeutronScatteringMonitor::output_neutron_cross_section() {
         {"qz", "lattice constants^-1", jams::output::ColFmt::Fixed},
         {"freq_THz", "THz", jams::output::ColFmt::Fixed},
         {"energy_meV", "meV", jams::output::ColFmt::Fixed},
-        {"sigma_unpol_re", "barn sr^-1 J^-1 unitcell^-1"},
-        {"sigma_unpol_im", "barn sr^-1 J^-1 unitcell^-1"}};
+        {"sigma_unpol_re", kNeutronCrossSectionUnits},
+        {"sigma_unpol_im", kNeutronCrossSectionUnits}};
     for (auto k = 0; k < total_polarized_neutron_cross_sections_.extent(0); ++k) {
-      cols.push_back({"sigma_pol" + std::to_string(k) + "_re", "barn sr^-1 J^-1 unitcell^-1"});
-      cols.push_back({"sigma_pol" + std::to_string(k) + "_im", "barn sr^-1 J^-1 unitcell^-1"});
+      cols.push_back({"sigma_pol" + std::to_string(k) + "_re", kNeutronCrossSectionUnits});
+      cols.push_back({"sigma_pol" + std::to_string(k) + "_im", kNeutronCrossSectionUnits});
     }
     jams::output::TsvWriter tsv(
         jams::output::monitor_filename_series(name() + "_path", "tsv", n),
         std::move(cols));
 
-    // sample time is here because the fourier transform in time is not an integral
-    // but a discrete sum
-    auto prefactor = (sample_time_interval() / periodogram_window_count()) * (1.0 / (kTwoPi * kHBarIU))
-                     * pow2((0.5 * kNeutronGFactor * pow2(kElementaryCharge)) / (kElectronMass * pow2(kSpeedOfLight)));
-    auto barns_unitcell = prefactor / (1e-28 * globals::lattice->num_cells());
+    const auto barns_unitcell = jams::neutron_cross_section_barn_mev_scale(
+        sample_time_interval(),
+        periodogram_length(),
+        periodogram_window_count(),
+        static_cast<int>(globals::lattice->num_cells()));
     const auto time_points = periodogram_length();
     const auto freq_count = total_unpolarized_neutron_cross_section_.extent(0);
     const auto freq_start = (time_points % 2 == 0) ? (time_points / 2 + 1) : ((time_points + 1) / 2);
@@ -192,8 +198,7 @@ void NeutronScatteringMonitor::output_neutron_cross_section() {
         values.push_back(k_points_[j].xyz[1]);
         values.push_back(k_points_[j].xyz[2]);
         values.push_back(freq_thz);
-        values.push_back(freq_thz * 4.135668);
-        // cross section output units are Barns Steradian^-1 Joules^-1 unitcell^-1
+        values.push_back(freq_thz * kTHz2meV);
         values.push_back(barns_unitcell * total_unpolarized_neutron_cross_section_(f, j).real());
         values.push_back(barns_unitcell * total_unpolarized_neutron_cross_section_(f, j).imag());
         for (auto k = 0; k < total_polarized_neutron_cross_sections_.extent(0); ++k) {

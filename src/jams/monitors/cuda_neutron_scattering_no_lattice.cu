@@ -5,12 +5,18 @@
 #include "jams/core/globals.h"
 #include "jams/core/lattice.h"
 #include "jams/core/solver.h"
+#include "jams/helpers/consts.h"
+#include "jams/helpers/neutrons.h"
 #include "jams/helpers/output.h"
 #include "jams/cuda/cuda_minimum_image.h"
 #include <jams/cuda/cuda_common.h>
 
 #include <cuda_runtime.h>
 #include <fstream>
+
+namespace {
+constexpr const char* kNeutronCrossSectionUnits = "barn sr^-1 meV^-1 unitcell^-1";
+}
 
 CudaNeutronScatteringNoLatticeMonitor::CudaNeutronScatteringNoLatticeMonitor(const libconfig::Setting &settings)
     : Monitor(settings){
@@ -183,19 +189,21 @@ void CudaNeutronScatteringNoLatticeMonitor::output_spectrum() {
        {"q_A-1", "angstrom^-1", jams::output::ColFmt::Fixed},
        {"freq_THz", "THz", jams::output::ColFmt::Fixed},
        {"energy_meV", "meV", jams::output::ColFmt::Fixed},
-       {"sigma_unpol_re", "barn sr^-1 J^-1 unitcell^-1"},
-       {"sigma_unpol_im", "barn sr^-1 J^-1 unitcell^-1"}});
+       {"sigma_unpol_re", kNeutronCrossSectionUnits},
+       {"sigma_unpol_im", kNeutronCrossSectionUnits}});
 
-  // sample time is here because the fourier transform in time is not an integral
-  // but a discrete sum
-  auto prefactor = (periodogram_props_.sample_time / double(total_periods_)) * (1.0 / (kTwoPi * kHBarIU))
-                   * pow2((0.5 * kNeutronGFactor * pow2(kElementaryCharge)) / (kElectronMass * pow2(kSpeedOfLight)));
-  auto barns_unitcell = prefactor / (1e-28);
+  const auto barns_unitcell = jams::neutron_cross_section_barn_mev_scale(
+      periodogram_props_.sample_time,
+      periodogram_props_.length,
+      total_periods_,
+      static_cast<int>(globals::lattice->num_cells()));
+  const auto spin_scale = pow2(jams::spin_length_from_moment(globals::lattice->material(0).moment));
+  const auto fft_normalization = 1.0 / pow2(static_cast<double>(num_time_samples));
+  const auto output_scale = barns_unitcell * spin_scale * fft_normalization; // NOTE: currently only supports one material.
   auto freq_delta = 1.0 / (periodogram_props_.length * periodogram_props_.sample_time);
 
   for (auto w = 0; w <  num_time_samples / 2 + 1; ++w) {
     for (auto k = 0; k < kspace_path_.size(); ++k) {
-      // cross section output units are Barns Steradian^-1 Joules^-1 unitcell^-1
       fixed_tsv.write_row_values(
           k,
           kspace_path_(k)[0],
@@ -203,9 +211,9 @@ void CudaNeutronScatteringNoLatticeMonitor::output_spectrum() {
           kspace_path_(k)[2],
           kTwoPi * jams::norm(kspace_path_(k)) / (globals::lattice->parameter() * 1e10),
           w * freq_delta,
-          (w * freq_delta) * 4.135668,
-          barns_unitcell * total_unpolarized_neutron_cross_section_(k, w).real(),
-          barns_unitcell * total_unpolarized_neutron_cross_section_(k, w).imag());
+          (w * freq_delta) * kTHz2meV,
+          output_scale * total_unpolarized_neutron_cross_section_(k, w).real(),
+          output_scale * total_unpolarized_neutron_cross_section_(k, w).imag());
     }
   }
 

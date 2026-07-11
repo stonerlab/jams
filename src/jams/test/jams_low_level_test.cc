@@ -10,6 +10,7 @@
 #include "jams/test/containers/test_synced_memory.h"
 #include "jams/test/containers/test_vec3.h"
 #include "jams/test/containers/test_block_sparse_interaction_matrix.h"
+#include "jams/test/maths/test_neutrons.h"
 #include "jams/test/maths/test_tesseral_harmonics.h"
 
 int main(int argc, char **argv) {

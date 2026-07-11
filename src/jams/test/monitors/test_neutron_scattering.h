@@ -77,13 +77,15 @@ protected:
       const std::string& time_backend,
       const std::string& estimator = "welch",
       const std::string& direct_sum_config = "",
-      const bool include_outer_hkl_path = true) {
+      const bool include_outer_hkl_path = true,
+      const double material_moment = 1.0) {
     initialise_lattice(
         spatial_backend,
         time_backend,
         estimator,
         direct_sum_config,
-        include_outer_hkl_path);
+        include_outer_hkl_path,
+        material_moment);
 
     const auto run_dir = output_dir_ / run_name;
     std::filesystem::remove_all(run_dir);
@@ -132,13 +134,15 @@ protected:
       const std::string& time_backend,
       const std::string& estimator,
       const std::string& direct_sum_config = "",
-      const bool include_outer_hkl_path = true) {
+      const bool include_outer_hkl_path = true,
+      const double material_moment = 1.0) {
     initialise_lattice_from_config_string(config(
         spatial_backend,
         time_backend,
         estimator,
         direct_sum_config,
-        include_outer_hkl_path));
+        include_outer_hkl_path,
+        material_moment));
   }
 
   void initialise_lattice_from_config_string(const std::string& config_string) {
@@ -198,6 +202,15 @@ protected:
       }
     }
     return rows;
+  }
+
+  static std::string read_neutron_header_line() {
+    std::ifstream file(jams::output::monitor_filename_series("neutron-scattering_path", "tsv", 0));
+    EXPECT_TRUE(file.good());
+
+    std::string line;
+    std::getline(file, line);
+    return line;
   }
 
   static void expect_rows_finite(const NeutronRows& rows) {
@@ -274,7 +287,8 @@ protected:
       const std::string& time_backend,
       const std::string& estimator,
       const std::string& direct_sum_config,
-      const bool include_outer_hkl_path = true) {
+      const bool include_outer_hkl_path = true,
+      const double material_moment = 1.0) {
     const std::string outer_hkl_path = include_outer_hkl_path ? R"(
           hkl_path = (
             [0.25, 0.0, 0.0],
@@ -290,7 +304,7 @@ protected:
       };
 
       materials = (
-        { name = "A"; moment = 1.0; spin = [0.0, 0.0, 1.0]; }
+        { name = "A"; moment = )" + std::to_string(material_moment) + R"(; spin = [0.0, 0.0, 1.0]; }
       );
 
       unitcell : {
@@ -399,6 +413,57 @@ TEST_F(NeutronScatteringMonitorTest, NonNegativeFrequencyOutputUsesRetainedBinsO
   NeutronScatteringStubSolver solver;
   const auto rows = run_neutron(solver, "cpu_welch", "cpu", "cpu");
   expect_rows_finite(rows);
+}
+
+TEST_F(NeutronScatteringMonitorTest, OutputMetadataUsesBarnPerMeVPerUnitCell) {
+  NeutronScatteringStubSolver solver;
+  const auto rows = run_neutron(solver, "metadata_units", "cpu", "cpu");
+  expect_rows_finite(rows);
+
+  const auto header = read_neutron_header_line();
+  EXPECT_NE(header.find("\"sigma_unpol_re\": \"barn sr^-1 meV^-1 unitcell^-1\""), std::string::npos);
+  EXPECT_NE(header.find("\"sigma_unpol_im\": \"barn sr^-1 meV^-1 unitcell^-1\""), std::string::npos);
+  EXPECT_EQ(header.find("J^-1"), std::string::npos);
+}
+
+TEST_F(NeutronScatteringMonitorTest, OutputIntensityScalesWithMomentSquared) {
+  NeutronScatteringStubSolver moment_one_solver;
+  const auto moment_one_rows = run_neutron(
+      moment_one_solver,
+      "moment_one",
+      "cpu",
+      "cpu",
+      "welch",
+      "",
+      true,
+      1.0);
+
+  NeutronScatteringStubSolver moment_two_solver;
+  const auto moment_two_rows = run_neutron(
+      moment_two_solver,
+      "moment_two",
+      "cpu",
+      "cpu",
+      "welch",
+      "",
+      true,
+      2.0);
+
+  ASSERT_EQ(moment_one_rows.size(), moment_two_rows.size());
+  int checked_sigma_values = 0;
+  for (std::size_t row = 0; row < moment_one_rows.size(); ++row) {
+    ASSERT_EQ(moment_one_rows[row].size(), moment_two_rows[row].size());
+    for (const std::size_t col : {10u, 11u}) {
+      const double expected = 4.0 * moment_one_rows[row][col];
+      if (std::abs(expected) < 1.0e-14) {
+        continue;
+      }
+      ++checked_sigma_values;
+      EXPECT_NEAR(moment_two_rows[row][col], expected, 1.0e-12 + 2.0e-5 * std::abs(expected))
+          << "row " << row << " col " << col;
+    }
+  }
+  EXPECT_GT(checked_sigma_values, 0);
 }
 
 TEST_F(NeutronScatteringMonitorTest, DirectSumExactQPathIsNotClampedToFftGrid) {

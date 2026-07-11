@@ -19,6 +19,14 @@
 
 #include <utility>
 
+namespace {
+constexpr const char* kNeutronCrossSectionUnits = "barn sr^-1 meV^-1 unitcell^-1";
+
+double material_zero_spin_scale() {
+  return pow2(jams::spin_length_from_moment(globals::lattice->material(0).moment));
+}
+}
+
 NeutronScatteringNoLatticeMonitor::NeutronScatteringNoLatticeMonitor(const libconfig::Setting &settings)
 : Monitor(settings),
  neartree_(globals::lattice->get_supercell().a1(),
@@ -34,7 +42,7 @@ NeutronScatteringNoLatticeMonitor::NeutronScatteringNoLatticeMonitor(const libco
   std::cout << "rspace windowing: " << do_rspace_windowing_ << std::endl;
 
   // default to 1.0 in case no form factor is given in the settings
-  fill(neutron_form_factors_.resize(globals::lattice->num_materials(), num_k_), 1.0);
+  fill(neutron_form_factors_.resize(globals::lattice->num_materials(), kspace_path_.size()), 1.0);
   if (settings.exists("form_factor")) {
     configure_form_factors(settings["form_factor"]);
   }
@@ -114,13 +122,14 @@ NeutronScatteringNoLatticeMonitor::calculate_unpolarized_cross_section(const jam
   jams::MultiArray<jams::ComplexHi, 2> cross_section(num_freqencies, num_reciprocal_points);
   cross_section.zero();
 
+  const auto spin_scale = material_zero_spin_scale(); // NOTE: currently only supports one material
   for (auto f = 0; f < num_freqencies; ++f) {
     for (auto k = 0; k < num_reciprocal_points; ++k) {
           auto Q = jams::unit_vector(kspace_path_(k));
           auto s_a = jams::conj(spectrum(f, k));
           auto s_b = spectrum(f, k);
 
-          auto ff = pow2(neutron_form_factors_(0, k)); // NOTE: currently only supports one material
+          auto ff = spin_scale * pow2(neutron_form_factors_(0, k)); // NOTE: currently only supports one material
           for (auto i : {0, 1, 2}) {
             for (auto j : {0, 1, 2}) {
               cross_section(f, k) += ff * (kronecker_delta(i, j) - Q[i] * Q[j]) * (s_a[i] * s_b[j]);
@@ -140,12 +149,13 @@ NeutronScatteringNoLatticeMonitor::calculate_polarized_cross_sections(const jams
   jams::MultiArray<jams::ComplexHi, 3> convolved(polarizations.size(), num_freqencies, num_reciprocal_points);
   convolved.zero();
 
+  const auto spin_scale = material_zero_spin_scale(); // NOTE: currently only supports one material
   for (auto f = 0; f < num_freqencies; ++f) {
     for (auto k = 0; k < num_reciprocal_points; ++k) {
       auto Q = jams::unit_vector(kspace_path_(k));
       auto s_a = jams::conj(spectrum(f, k));
       auto s_b = spectrum(f, k);
-      auto ff = pow2(neutron_form_factors_(0, k)); // NOTE: currently only supports one material
+      auto ff = spin_scale * pow2(neutron_form_factors_(0, k)); // NOTE: currently only supports one material
 
       for (auto p = 0; p < polarizations.size(); ++p) {
         auto P = polarizations[p];
@@ -273,21 +283,21 @@ void NeutronScatteringNoLatticeMonitor::output_neutron_cross_section() {
         {"q_A-1", "angstrom^-1", jams::output::ColFmt::Fixed},
         {"freq_THz", "THz", jams::output::ColFmt::Fixed},
         {"energy_meV", "meV", jams::output::ColFmt::Fixed},
-        {"sigma_unpol_re", "barn sr^-1 J^-1 unitcell^-1"},
-        {"sigma_unpol_im", "barn sr^-1 J^-1 unitcell^-1"}};
+        {"sigma_unpol_re", kNeutronCrossSectionUnits},
+        {"sigma_unpol_im", kNeutronCrossSectionUnits}};
     for (auto k = 0; k < total_polarized_neutron_cross_sections_.extent(0); ++k) {
-      cols.push_back({"sigma_pol" + std::to_string(k) + "_re", "barn sr^-1 J^-1 unitcell^-1"});
-      cols.push_back({"sigma_pol" + std::to_string(k) + "_im", "barn sr^-1 J^-1 unitcell^-1"});
+      cols.push_back({"sigma_pol" + std::to_string(k) + "_re", kNeutronCrossSectionUnits});
+      cols.push_back({"sigma_pol" + std::to_string(k) + "_im", kNeutronCrossSectionUnits});
     }
     jams::output::TsvWriter tsv(
         jams::output::monitor_filename(name(), "tsv"),
         std::move(cols));
 
-    // sample time is here because the fourier transform in time is not an integral
-    // but a discrete sum
-    auto prefactor = (periodogram_props_.sample_time / double(total_periods_)) * (1.0 / (kTwoPi * kHBarIU))
-                     * pow2((0.5 * kNeutronGFactor * pow2(kElementaryCharge)) / (kElectronMass * pow2(kSpeedOfLight)));
-    auto barns_unitcell = prefactor / (1e-28);
+    const auto barns_unitcell = jams::neutron_cross_section_barn_mev_scale(
+        periodogram_props_.sample_time,
+        periodogram_props_.length,
+        total_periods_,
+        static_cast<int>(globals::lattice->num_cells()));
     auto time_points = total_unpolarized_neutron_cross_section_.extent(0);
     auto freq_delta = 1.0 / (periodogram_props_.length * periodogram_props_.sample_time);
 
@@ -302,8 +312,7 @@ void NeutronScatteringNoLatticeMonitor::output_neutron_cross_section() {
         values.push_back(kTwoPi * jams::norm(kspace_path_(j)) / (
             globals::lattice->parameter() * 1e10));
         values.push_back(i * freq_delta);
-        values.push_back((i * freq_delta) * 4.135668);
-        // cross section output units are Barns Steradian^-1 Joules^-1 unitcell^-1
+        values.push_back((i * freq_delta) * kTHz2meV);
         values.push_back(barns_unitcell * total_unpolarized_neutron_cross_section_(i, j).real());
         values.push_back(barns_unitcell * total_unpolarized_neutron_cross_section_(i, j).imag());
         for (auto k = 0; k < total_polarized_neutron_cross_sections_.extent(0); ++k) {
@@ -357,27 +366,12 @@ void NeutronScatteringNoLatticeMonitor::configure_periodogram(libconfig::Setting
 }
 
 void NeutronScatteringNoLatticeMonitor::configure_form_factors(libconfig::Setting &settings) {
-  auto gj = jams::read_form_factor_settings(settings);
-
   auto num_materials = globals::lattice->num_materials();
-
-  if (settings.getLength() != num_materials) {
-    throw std::runtime_error("NeutronScatteringMonitor:: there must be one form factor per material\"");
-  }
-
-  std::vector<jams::FormFactorG> g_params(num_materials);
-  std::vector<jams::FormFactorJ> j_params(num_materials);
-
-  for (auto i = 0; i < settings.getLength(); ++i) {
-    for (auto l : {0,2,4,6}) {
-      j_params[i][l] = jams::config_optional<jams::FormFactorCoeff>(settings[i], "j" + std::to_string(l), j_params[i][l]);
-    }
-    g_params[i] = jams::config_required<jams::FormFactorG>(settings[i], "g");
-  }
-
-  neutron_form_factors_.resize(num_materials, num_k_);
+  auto [g_params, j_params] = jams::read_form_factor_settings(settings);
+  const auto num_reciprocal_points = kspace_path_.size();
+  neutron_form_factors_.resize(num_materials, num_reciprocal_points);
   for (auto a = 0; a < num_materials; ++a) {
-    for (auto i = 0; i < num_k_; ++i) {
+    for (auto i = 0; i < num_reciprocal_points; ++i) {
       auto q = kspace_path_(i);
       neutron_form_factors_(a, i) = form_factor(q, kMeterToAngstroms * globals::lattice->parameter(), g_params[a], j_params[a]);
     }
@@ -550,19 +544,20 @@ void NeutronScatteringNoLatticeMonitor::output_fixed_spectrum() {
        {"q_A-1", "angstrom^-1", jams::output::ColFmt::Fixed},
        {"freq_THz", "THz", jams::output::ColFmt::Fixed},
        {"energy_meV", "meV", jams::output::ColFmt::Fixed},
-       {"sigma_unpol_re", "barn sr^-1 J^-1 unitcell^-1"},
-       {"sigma_unpol_im", "barn sr^-1 J^-1 unitcell^-1"}});
+       {"sigma_unpol_re", kNeutronCrossSectionUnits},
+       {"sigma_unpol_im", kNeutronCrossSectionUnits}});
 
-  // sample time is here because the fourier transform in time is not an integral
-  // but a discrete sum
-  auto prefactor = (periodogram_props_.sample_time / double(total_periods_)) * (1.0 / (kTwoPi * kHBarIU))
-                   * pow2((0.5 * kNeutronGFactor * pow2(kElementaryCharge)) / (kElectronMass * pow2(kSpeedOfLight)));
-  auto barns_unitcell = prefactor / (1e-28);
+  const auto barns_unitcell = jams::neutron_cross_section_barn_mev_scale(
+      periodogram_props_.sample_time,
+      periodogram_props_.length,
+      total_periods_,
+      static_cast<int>(globals::lattice->num_cells()));
+  const auto spin_scale = material_zero_spin_scale(); // NOTE: currently only supports one material
   auto freq_delta = 1.0 / (periodogram_props_.length * periodogram_props_.sample_time);
 
   for (auto w = 0; w <  num_time_samples / 2 + 1; ++w) {
     for (auto k = 0; k < kspace_path_.size(); ++k) {
-      // cross section output units are Barns Steradian^-1 Joules^-1 unitcell^-1
+      const auto form_spin_scale = spin_scale * pow2(neutron_form_factors_(0, k));
       fixed_tsv.write_row_values(
           k,
           kspace_path_(k)[0],
@@ -570,9 +565,9 @@ void NeutronScatteringNoLatticeMonitor::output_fixed_spectrum() {
           kspace_path_(k)[2],
           kTwoPi * jams::norm(kspace_path_(k)) / (globals::lattice->parameter() * 1e10),
           w * freq_delta,
-          (w * freq_delta) * 4.135668,
-          barns_unitcell * sqw(k, w).real(),
-          barns_unitcell * sqw(k, w).imag());
+          (w * freq_delta) * kTHz2meV,
+          barns_unitcell * form_spin_scale * sqw(k, w).real(),
+          barns_unitcell * form_spin_scale * sqw(k, w).imag());
     }
   }
 

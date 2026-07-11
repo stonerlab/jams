@@ -5,6 +5,16 @@ Calculates the magnetic neutron-scattering cross section on a reciprocal-space
 path. By default the monitor samples spatial Fourier components on the FFT grid
 defined by the simulation supercell.
 
+The ``sigma_*`` columns are reported as the magnetic double-differential cross
+section in ``barn sr^-1 meV^-1 unitcell^-1``. The monitor assumes
+``k_f / k_i = 1`` and converts the configured material moments to spin
+amplitudes using ``S = moment / (g_e mu_B)``.
+
+When magnetic form factors are configured, the monitor treats ``q.xyz`` as
+reciprocal-lattice Cartesian coordinates without the ``2*pi`` factor. For a
+lattice parameter ``a`` in Angstrom, the International Tables argument is
+``s = |Q| / (4*pi)`` with ``Q = 2*pi*q.xyz/a``, so ``s = |q.xyz|/(2*a)``.
+
 Exact-Q direct summation
 ^^^^^^^^^^^^^^^^^^^^^^^^
 

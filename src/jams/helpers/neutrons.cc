@@ -2,20 +2,9 @@
 #include "jams/core/globals.h"
 #include "jams/core/lattice.h"
 
-namespace jams {
-// Calculates the approximate neutron form factor at |q|
-// Approximation and constants from International Tables for Crystallography: Vol. C (pp. 454–461).
-    double form_factor(const jams::Vec<double, 3> &q, const double &lattice_parameter, FormFactorG &g, FormFactorJ &j) {
-      auto s_sq = pow2(jams::norm(q) / (4.0 * kPi * lattice_parameter));
-      auto ffq = 0.0;
-      for (auto l : {0, 2, 4, 6}) {
-        double p = (l == 0) ? 1.0 : s_sq;
-        ffq += g[l] * p *
-               (j[l].A * exp(-j[l].a * s_sq) + j[l].B * exp(-j[l].b * s_sq) + j[l].C * exp(-j[l].c * s_sq) + j[l].D);
-      }
-      return 0.5 * ffq;
-    }
+#include <stdexcept>
 
+namespace jams {
     std::pair<std::vector<FormFactorG>, std::vector<FormFactorJ>> read_form_factor_settings(libconfig::Setting &settings) {
       auto num_materials = globals::lattice->num_materials();
 

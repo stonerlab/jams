@@ -21,6 +21,8 @@ constexpr double kNeutronGFactor        = 3.82608545; //               || NIST (
 constexpr double kElementaryCharge      = 1.602176634e-19;  // C       || NIST (https://physics.nist.gov)
 constexpr double kElectronMass          = 9.1093837015e-31; // kg      || NIST (https://physics.nist.gov)
 constexpr double kSpeedOfLight          = 299792458.0;      // m s^-1  || NIST (https://physics.nist.gov)
+constexpr double kClassicalElectronRadiusMeter = 2.8179403262e-15; // m || NIST (https://physics.nist.gov)
+constexpr double kBarnSquareMeters      = 1e-28;           // m^2
 
 // IU - means internal units
 // time -> picoseconds (ps)
