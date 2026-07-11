@@ -15,6 +15,7 @@
 
 #include <array>
 #include <complex>
+#include <functional>
 #include <memory>
 #include <vector>
 
@@ -123,6 +124,7 @@ public:
   using CmplxStoredRingStorage = jams::RingStorage<CmplxStored, 4>;
   using CmplxMappedSpectrum = jams::MultiArray<jams::ComplexHi, 4>;  // (site, freq, k, channel)
   using CmplxMappedSlice = jams::MultiArray<jams::ComplexHi, 3>;     // (site, freq, channel)
+  using FrequencySpectrumCallback = std::function<void(const CmplxMappedSlice&, double)>;
 
 #if HAS_CUDA
   class CudaBackend {
@@ -205,6 +207,11 @@ public:
         int kpoint_index,
         bool use_multitaper,
         int multitaper_count) = 0;
+
+    virtual void compute_frequency_spectrum_at_k_window(
+        int kpoint_index,
+        bool use_multitaper,
+        int taper_index) = 0;
 
     virtual void copy_frequency_spectrum_slice_to_host(
         CmplxMappedSlice& spectrum) = 0;
@@ -323,6 +330,15 @@ protected:
   /// @param kpoint_index Index of the k-point in the stored k-space path.
   /// @return Reference to internal buffer containing S(k,ω) for this k-point.
   const CmplxMappedSlice& compute_frequency_spectrum_at_k(int kpoint_index);
+
+  /// @brief Iterate over the spectra used by the temporal estimator.
+  ///
+  /// Welch invokes @p callback once with weight 1.0. Multitaper invokes it once
+  /// per DPSS taper with the corresponding normalized taper weight. The slice
+  /// reference is only valid during the callback call.
+  void for_each_frequency_spectrum_at_k(
+      int kpoint_index,
+      const FrequencySpectrumCallback& callback);
 
   /// @brief Append one time sample of S(k) for all k-points on the configured path.
   ///

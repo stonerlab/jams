@@ -1240,6 +1240,53 @@ public:
     frequency_taper_power_sum_.release_stale_host();
   }
 
+  void compute_frequency_spectrum_at_k_window(
+      const int kpoint_index,
+      const bool use_multitaper,
+      const int taper_index) override
+  {
+    if (!time_configured_)
+    {
+      throw std::runtime_error("CUDA time FFT storage is not configured");
+    }
+    if (!frequency_slices_configured_)
+    {
+      throw std::runtime_error("CUDA frequency-slice output is not configured");
+    }
+    if (kpoint_index < 0 || kpoint_index >= num_k_points_)
+    {
+      throw std::runtime_error("CUDA frequency-slice k-point index is out of range");
+    }
+    if (use_multitaper
+        && (taper_index < 0 || taper_index >= multitaper_windows_.extent(0)))
+    {
+      throw std::runtime_error("CUDA multitaper frequency-slice taper index is out of range");
+    }
+
+    if (needs_local_frame_)
+    {
+      const dim3 block(128);
+      const dim3 grid((num_basis_ + block.x - 1) / block.x);
+      compute_rotations_kernel<<<grid, block, 0, stream_.get()>>>(
+          num_basis_,
+          periodogram_length_,
+          ring_offset_,
+          basis_mag_ring_.device_data(),
+          periodogram_window_.device_data(),
+          rotations_.mutable_device_data());
+      DEBUG_CHECK_CUDA_ASYNC_STATUS;
+      rotations_.release_stale_host();
+    }
+
+    const double* window = use_multitaper
+        ? multitaper_windows_.device_data() + taper_index * periodogram_length_
+        : periodogram_window_.device_data();
+    const dim3 prepare_block(128);
+    const dim3 prepare_grid((num_basis_ * output_channels_ + prepare_block.x - 1) / prepare_block.x);
+    run_one_time_fft(kpoint_index, window, prepare_grid, prepare_block);
+    stream_.synchronize();
+  }
+
   void copy_frequency_spectrum_slice_to_host(
       SpectrumBaseMonitor::CmplxMappedSlice& spectrum) override
   {

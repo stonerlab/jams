@@ -246,30 +246,33 @@ void MagnonSpectrumMonitor::accumulate_magnon_spectrum()
 
     for (auto k = 0; k < num_k_points(); ++k)
     {
-        const auto& sw = compute_frequency_spectrum_at_k(k);
-        const auto time_points = periodogram_length();
-        const auto freq_end = keep_negative_frequencies() ? time_points : (time_points / 2) + 1;
-        const auto freq_start = (time_points % 2 == 0) ? (time_points / 2 + 1) : ((time_points + 1) / 2);
+        for_each_frequency_spectrum_at_k(
+            k,
+            [this, k](const CmplxMappedSlice& sw, const double taper_weight) {
+                const auto time_points = periodogram_length();
+                const auto freq_end = keep_negative_frequencies() ? time_points : (time_points / 2) + 1;
+                const auto freq_start = (time_points % 2 == 0) ? (time_points / 2 + 1) : ((time_points + 1) / 2);
 
-        // Defensive: check that cumulative_magnon_spectrum_ is sized to hold freq_end and kpoints
-        assert(cumulative_magnon_spectrum_.extent(0) >= static_cast<std::size_t>(freq_end));
-        assert(cumulative_magnon_spectrum_.extent(1) >= static_cast<std::size_t>(num_k_points()));
+                // Defensive: check that cumulative_magnon_spectrum_ is sized to hold freq_end and kpoints
+                assert(cumulative_magnon_spectrum_.extent(0) >= static_cast<std::size_t>(freq_end));
+                assert(cumulative_magnon_spectrum_.extent(1) >= static_cast<std::size_t>(num_k_points()));
 
-        for (auto a = 0; a < num_basis_atoms(); ++a)
-        {
-            for (auto i = 0; i < freq_end; ++i)
-            {
-                const auto f = keep_negative_frequencies() ? (freq_start + i) % time_points : i;
+                for (auto a = 0; a < num_basis_atoms(); ++a)
+                {
+                    for (auto i = 0; i < freq_end; ++i)
+                    {
+                        const auto f = keep_negative_frequencies() ? (freq_start + i) % time_points : i;
 
-                // S+(q,w) S-(-q,-w) => S+(q,w) conj(S+(q,w))
-                cumulative_magnon_spectrum_(f, k)[0] += std::real(sw(a, f, 0) * conj(sw(a, f, 0)));
+                        // S+(q,w) S-(-q,-w) => S+(q,w) conj(S+(q,w))
+                        cumulative_magnon_spectrum_(f, k)[0] += taper_weight * std::norm(sw(a, f, 0));
 
-                // S-(q,w) S+(-q,-w) => S-(q,w) conj(S-(q,w))
-                cumulative_magnon_spectrum_(f, k)[1] += std::real(sw(a, f, 1) * conj(sw(a, f, 1)));
+                        // S-(q,w) S+(-q,-w) => S-(q,w) conj(S-(q,w))
+                        cumulative_magnon_spectrum_(f, k)[1] += taper_weight * std::norm(sw(a, f, 1));
 
-                // Sz(q,w) Sz(-q,-w) => Sz(q,w) conj(Sz(q,w))
-                cumulative_magnon_spectrum_(f, k)[2] += std::real(sw(a, f, 2) * conj(sw(a, f, 2)));
-            }
-        }
+                        // Sz(q,w) Sz(-q,-w) => Sz(q,w) conj(Sz(q,w))
+                        cumulative_magnon_spectrum_(f, k)[2] += taper_weight * std::norm(sw(a, f, 2));
+                    }
+                }
+            });
     }
 }

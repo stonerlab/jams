@@ -6,6 +6,7 @@
 #include <algorithm>
 #include <cctype>
 #include <cmath>
+#include <complex>
 #include <filesystem>
 #include <fstream>
 #include <memory>
@@ -20,6 +21,7 @@
 #include <jams/core/globals.h>
 #include <jams/core/lattice.h>
 #include <jams/core/solver.h>
+#include <jams/helpers/neutron_units.h>
 #include <jams/helpers/output.h>
 #include <jams/monitors/neutron_scattering.h>
 
@@ -49,6 +51,84 @@ inline bool neutron_scattering_cuda_device_available() {
   return cudaGetDeviceCount(&device_count) == cudaSuccess && device_count > 0;
 }
 #endif
+
+class FrequencySpectrumIterationProbeMonitor : public SpectrumBaseMonitor {
+public:
+  explicit FrequencySpectrumIterationProbeMonitor(const libconfig::Setting& settings)
+      : SpectrumBaseMonitor(settings) {}
+
+  void post_process() override {}
+  void update(Solver&) override {}
+
+  void store_sample(const jams::MultiArray<double, 2>& spin_state) {
+    store_sk_snapshot(spin_state);
+  }
+
+  std::vector<double> callback_weights(const int k_index) {
+    std::vector<double> weights;
+    for_each_frequency_spectrum_at_k(
+        k_index,
+        [&weights](const CmplxMappedSlice&, const double weight) {
+          weights.push_back(weight);
+        });
+    return weights;
+  }
+
+  std::vector<std::complex<double>> unpolarized_neutron_cross_section(const int k_index) {
+    std::vector<std::complex<double>> cross_section(static_cast<std::size_t>(periodogram_length()));
+    const auto time_points = periodogram_length();
+    const auto frequency_count = num_frequencies();
+    const auto freq_start = (time_points % 2 == 0) ? (time_points / 2 + 1) : ((time_points + 1) / 2);
+    const auto Q = jams::unit_vector(k_points_.at(static_cast<std::size_t>(k_index)).xyz);
+    const double spin_scale = pow2(basis_spin_length_(0));
+
+    for_each_frequency_spectrum_at_k(
+        k_index,
+        [&](const CmplxMappedSlice& spectrum, const double weight) {
+          for (auto freq = 0; freq < frequency_count; ++freq) {
+            const auto f = keep_negative_frequencies() ? (freq_start + freq) % time_points : freq;
+            for (auto i : {0, 1, 2}) {
+              for (auto j : {0, 1, 2}) {
+                const double projector = static_cast<double>(i == j) - Q[i] * Q[j];
+                cross_section[static_cast<std::size_t>(f)] +=
+                    weight * spin_scale * projector * std::conj(spectrum(0, f, i)) * spectrum(0, f, j);
+              }
+            }
+          }
+        });
+    return cross_section;
+  }
+
+  std::vector<std::complex<double>> legacy_unpolarized_neutron_cross_section(const int k_index) {
+    std::vector<std::complex<double>> cross_section(static_cast<std::size_t>(periodogram_length()));
+    const auto time_points = periodogram_length();
+    const auto frequency_count = num_frequencies();
+    const auto freq_start = (time_points % 2 == 0) ? (time_points / 2 + 1) : ((time_points + 1) / 2);
+    const auto Q = jams::unit_vector(k_points_.at(static_cast<std::size_t>(k_index)).xyz);
+    const double spin_scale = pow2(basis_spin_length_(0));
+    const auto& spectrum = compute_frequency_spectrum_at_k(k_index);
+
+    for (auto freq = 0; freq < frequency_count; ++freq) {
+      const auto f = keep_negative_frequencies() ? (freq_start + freq) % time_points : freq;
+      for (auto i : {0, 1, 2}) {
+        for (auto j : {0, 1, 2}) {
+          const double projector = static_cast<double>(i == j) - Q[i] * Q[j];
+          cross_section[static_cast<std::size_t>(f)] +=
+              spin_scale * projector * std::conj(spectrum(0, f, i)) * spectrum(0, f, j);
+        }
+      }
+    }
+    return cross_section;
+  }
+
+  double barn_scale() const {
+    return jams::neutron_cross_section_barn_mev_scale(
+        sample_time_interval(),
+        periodogram_length(),
+        periodogram_window_count(),
+        static_cast<int>(globals::lattice->num_cells()));
+  }
+};
 
 class NeutronScatteringMonitorTest : public ::testing::Test {
 protected:
@@ -464,6 +544,105 @@ TEST_F(NeutronScatteringMonitorTest, OutputIntensityScalesWithMomentSquared) {
     }
   }
   EXPECT_GT(checked_sigma_values, 0);
+}
+
+TEST_F(NeutronScatteringMonitorTest, FrequencySpectrumIteratorEmitsEstimatorWeights) {
+  NeutronScatteringStubSolver solver;
+
+  {
+    initialise_lattice("cpu", "cpu", "welch");
+    globals::solver = &solver;
+    FrequencySpectrumIterationProbeMonitor monitor(first_monitor_settings());
+    for (int t = 0; t < periodogram_length_; ++t) {
+      write_spin_state(t);
+      monitor.store_sample(globals::s);
+    }
+
+    const auto weights = monitor.callback_weights(0);
+    ASSERT_EQ(weights.size(), 1u);
+    EXPECT_NEAR(weights[0], 1.0, 1.0e-15);
+    globals::solver = nullptr;
+  }
+
+  {
+    initialise_lattice("cpu", "cpu", "multitaper");
+    globals::solver = &solver;
+    FrequencySpectrumIterationProbeMonitor monitor(first_monitor_settings());
+    for (int t = 0; t < periodogram_length_; ++t) {
+      write_spin_state(t);
+      monitor.store_sample(globals::s);
+    }
+
+    const auto weights = monitor.callback_weights(0);
+    ASSERT_EQ(weights.size(), 2u);
+    EXPECT_GT(weights[0], 0.0);
+    EXPECT_GT(weights[1], 0.0);
+    EXPECT_NEAR(weights[0] + weights[1], 1.0, 1.0e-15);
+    globals::solver = nullptr;
+  }
+}
+
+TEST_F(NeutronScatteringMonitorTest, MultitaperDirectSumAveragesCrossSpectraPerTaper) {
+  const std::string off_axis_direct_sum = R"(
+          direct_sum : {
+            enabled = true;
+            backend = "cpu";
+            hkl_path = (
+              [0.25, 0.25, 0.0]
+            );
+          };
+      )";
+
+  std::vector<std::complex<double>> expected_cross_section;
+  std::vector<std::complex<double>> legacy_cross_section;
+  double barn_scale = 0.0;
+  {
+    NeutronScatteringStubSolver expected_solver;
+    initialise_lattice("cpu", "cpu", "multitaper", off_axis_direct_sum, false);
+    globals::solver = &expected_solver;
+    FrequencySpectrumIterationProbeMonitor monitor(first_monitor_settings());
+    for (int t = 0; t < periodogram_length_; ++t) {
+      write_spin_state(t);
+      monitor.store_sample(globals::s);
+    }
+    expected_cross_section = monitor.unpolarized_neutron_cross_section(0);
+    legacy_cross_section = monitor.legacy_unpolarized_neutron_cross_section(0);
+    barn_scale = monitor.barn_scale();
+    globals::solver = nullptr;
+  }
+
+  ASSERT_EQ(legacy_cross_section.size(), expected_cross_section.size());
+  bool estimator_difference_exercised = false;
+  for (std::size_t row = 0; row < expected_cross_section.size(); ++row) {
+    const auto difference = barn_scale * (expected_cross_section[row] - legacy_cross_section[row]);
+    if (std::abs(difference) > 1.0e-10) {
+      estimator_difference_exercised = true;
+      break;
+    }
+  }
+  EXPECT_TRUE(estimator_difference_exercised);
+
+  NeutronScatteringStubSolver actual_solver;
+  const auto rows = run_neutron(
+      actual_solver,
+      "multitaper_direct_off_axis",
+      "cpu",
+      "cpu",
+      "multitaper",
+      off_axis_direct_sum,
+      false);
+
+  ASSERT_EQ(rows.size(), 5u);
+  ASSERT_GE(expected_cross_section.size(), rows.size());
+  for (std::size_t row = 0; row < rows.size(); ++row) {
+    ASSERT_EQ(rows[row].size(), 12u);
+    const double expected_re = barn_scale * expected_cross_section[row].real();
+    const double expected_im = barn_scale * expected_cross_section[row].imag();
+    EXPECT_NEAR(rows[row][10], expected_re, 1.0e-12 + 2.0e-5 * std::abs(expected_re))
+        << "row " << row;
+    EXPECT_NEAR(rows[row][11], expected_im, 1.0e-12 + 2.0e-5 * std::abs(expected_im))
+        << "row " << row;
+  }
 }
 
 TEST_F(NeutronScatteringMonitorTest, DirectSumExactQPathIsNotClampedToFftGrid) {

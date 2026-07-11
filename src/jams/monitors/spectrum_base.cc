@@ -1324,6 +1324,204 @@ const SpectrumBaseMonitor::CmplxMappedSlice& SpectrumBaseMonitor::compute_freque
   return frequency_scratch_;
 }
 
+void SpectrumBaseMonitor::for_each_frequency_spectrum_at_k(
+    const int kpoint_index,
+    const FrequencySpectrumCallback& callback)
+{
+  if (!callback)
+  {
+    return;
+  }
+
+  const int num_sites = num_basis_atoms();
+  const int num_time_samples = periodogram_length();
+  const int channels = num_channels();
+  const bool use_local_frame = needs_local_frame_mapping_();
+
+  prepare_frequency_windows_();
+
+  if (use_cuda_time_fft_())
+  {
+#if HAS_CUDA
+    if (!cuda_time_fft_needs_frequency_slices_)
+    {
+      throw std::runtime_error("CUDA frequency-slice time FFT is not enabled for this monitor");
+    }
+    assert(cuda_backend_);
+    if (frequency_scratch_.extent(0) != num_sites
+        || frequency_scratch_.extent(1) != num_time_samples
+        || frequency_scratch_.extent(2) != channels)
+    {
+      frequency_scratch_.resize(num_sites, num_time_samples, channels);
+    }
+    cuda_backend_->configure_frequency_inputs(
+        periodogram_window_,
+        multitaper_windows_,
+        multitaper_weights_,
+        channel_transform_);
+
+    if (temporal_estimator_ == TemporalEstimator::Welch)
+    {
+      cuda_backend_->compute_frequency_spectrum_at_k_window(kpoint_index, false, 0);
+      cuda_backend_->copy_frequency_spectrum_slice_to_host(frequency_scratch_);
+      callback(frequency_scratch_, 1.0);
+      return;
+    }
+
+    for (auto taper = 0; taper < multitaper_count_; ++taper)
+    {
+      cuda_backend_->compute_frequency_spectrum_at_k_window(kpoint_index, true, taper);
+      cuda_backend_->copy_frequency_spectrum_slice_to_host(frequency_scratch_);
+      callback(frequency_scratch_, multitaper_weights_(taper));
+    }
+    return;
+#else
+    throw std::runtime_error("CUDA time FFT backend selected in a non-CUDA build");
+#endif
+  }
+
+  if (!sk_time_fft_plan_
+      || frequency_scratch_.extent(0) != num_sites
+      || frequency_scratch_.extent(1) != num_time_samples
+      || frequency_scratch_.extent(2) != channels)
+  {
+    if (sk_time_fft_plan_)
+    {
+      fftw_destroy_plan(sk_time_fft_plan_);
+      sk_time_fft_plan_ = nullptr;
+    }
+
+    frequency_scratch_.resize(num_sites, num_time_samples, channels);
+
+    const int n[1] = {num_time_samples};
+    const int howmany = channels;
+    const int istride = channels;
+    const int ostride = channels;
+    const int idist = 1;
+    const int odist = 1;
+
+    auto* dummy = FFTW_COMPLEX_CAST(&frequency_scratch_(0, 0, 0));
+
+#if JAMS_HAS_FFTW_THREADS
+    if (fftw_threads_enabled_)
+    {
+      std::lock_guard<std::mutex> guard(fftw_threads_mutex());
+      fftw_plan_with_nthreads(fftw_thread_count_);
+    }
+#endif
+    sk_time_fft_plan_ = fftw_plan_many_dft(
+        1,
+        n,
+        howmany,
+        dummy,
+        nullptr,
+        istride,
+        idist,
+        dummy,
+        nullptr,
+        ostride,
+        odist,
+        FFTW_FORWARD,
+        FFTW_ESTIMATE);
+
+    assert(sk_time_fft_plan_);
+  }
+
+  if (frequency_accum_.extent(0) != num_sites
+      || frequency_accum_.extent(1) != num_time_samples
+      || frequency_accum_.extent(2) != channels)
+  {
+    frequency_accum_.resize(num_sites, num_time_samples, channels);
+  }
+
+  const auto rotations = use_local_frame
+      ? generate_sublattice_rotations_()
+      : jams::MultiArray<jams::Mat<double, 3, 3>, 1>{};
+  const auto* rotations_ptr = use_local_frame ? &rotations : nullptr;
+
+  for (auto a = 0; a < num_sites; ++a)
+  {
+    for (auto t = 0; t < num_time_samples; ++t)
+    {
+      if (use_local_frame)
+      {
+        const jams::Vec<std::complex<double>, 3> spin_xyz = read_cartesian_spin_(a, t, kpoint_index);
+        for (auto c = 0; c < channels; ++c)
+        {
+          frequency_scratch_(a, t, c) = map_spin_component_(a, c, spin_xyz, rotations_ptr);
+        }
+      }
+      else
+      {
+        for (auto c = 0; c < channels; ++c)
+        {
+          const auto s = sk_time_series_(t, a, kpoint_index, c);
+          frequency_scratch_(a, t, c) = jams::ComplexHi{s.real(), s.imag()};
+        }
+      }
+    }
+  }
+
+  const double time_norm = 1.0 / static_cast<double>(num_time_samples);
+
+  for (auto a = 0; a < num_sites; ++a)
+  {
+    std::vector<jams::ComplexHi> sk0(channels, jams::ComplexHi{0.0, 0.0});
+
+    for (auto t = 0; t < num_time_samples; ++t)
+    {
+      for (auto c = 0; c < channels; ++c)
+      {
+        sk0[c] += time_norm * frequency_scratch_(a, t, c);
+      }
+    }
+
+    for (auto t = 0; t < num_time_samples; ++t)
+    {
+      for (auto c = 0; c < channels; ++c)
+      {
+        frequency_accum_(a, t, c) = time_norm * (frequency_scratch_(a, t, c) - sk0[c]);
+      }
+    }
+  }
+
+  if (temporal_estimator_ == TemporalEstimator::Welch)
+  {
+    for (auto a = 0; a < num_sites; ++a)
+    {
+      for (auto t = 0; t < num_time_samples; ++t)
+      {
+        for (auto c = 0; c < channels; ++c)
+        {
+          frequency_scratch_(a, t, c) = periodogram_window_(t) * frequency_accum_(a, t, c);
+        }
+      }
+      auto* ptr = FFTW_COMPLEX_CAST(&frequency_scratch_(a, 0, 0));
+      fftw_execute_dft(sk_time_fft_plan_, ptr, ptr);
+    }
+    callback(frequency_scratch_, 1.0);
+    return;
+  }
+
+  for (auto taper = 0; taper < multitaper_count_; ++taper)
+  {
+    for (auto a = 0; a < num_sites; ++a)
+    {
+      for (auto t = 0; t < num_time_samples; ++t)
+      {
+        for (auto c = 0; c < channels; ++c)
+        {
+          frequency_scratch_(a, t, c) = multitaper_windows_(taper, t) * frequency_accum_(a, t, c);
+        }
+      }
+
+      auto* ptr = FFTW_COMPLEX_CAST(&frequency_scratch_(a, 0, 0));
+      fftw_execute_dft(sk_time_fft_plan_, ptr, ptr);
+    }
+    callback(frequency_scratch_, multitaper_weights_(taper));
+  }
+}
+
 bool SpectrumBaseMonitor::periodogram_window_complete() const
 {
   return periodogram_sample_index_ >= periodogram_props_.length && periodogram_props_.length > 0;

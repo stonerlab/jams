@@ -74,7 +74,11 @@ void NeutronScatteringMonitor::update(Solver& solver) {
 
   if (periodogram_window_complete()) {
     for (auto k = 0; k < num_k_points(); ++k) {
-      accumulate_cross_sections_for_k(k, compute_frequency_spectrum_at_k(k));
+      for_each_frequency_spectrum_at_k(
+          k,
+          [this, k](const CmplxMappedSlice& spectrum, const double taper_weight) {
+            accumulate_cross_sections_for_k(k, spectrum, taper_weight);
+          });
     }
 
     output_neutron_cross_section();
@@ -84,7 +88,8 @@ void NeutronScatteringMonitor::update(Solver& solver) {
 
 void NeutronScatteringMonitor::accumulate_cross_sections_for_k(
     const int k_index,
-    const CmplxMappedSlice& spectrum) {
+    const CmplxMappedSlice& spectrum,
+    const double taper_weight) {
   const auto num_sites = spectrum.extent(0);
   if (spectrum.extent(2) < 3) {
     throw std::runtime_error("NeutronScatteringMonitor requires at least 3 channels");
@@ -103,7 +108,7 @@ void NeutronScatteringMonitor::accumulate_cross_sections_for_k(
     for (auto b = 0; b < num_sites; ++b) {
       const auto ff = neutron_form_factors_(a, k_index) * neutron_form_factors_(b, k_index);
       const auto spin_scale = basis_spin_length_(a) * basis_spin_length_(b);
-      const auto amplitude_scale = ff * spin_scale;
+      const auto amplitude_scale = taper_weight * ff * spin_scale;
 
       for (auto freq = 0; freq < frequency_count; ++freq) {
         const auto f = keep_negative_frequencies() ? (freq_start + freq) % time_points : freq;

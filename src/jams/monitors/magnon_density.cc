@@ -96,18 +96,21 @@ void MagnonDensityMonitor::accumulate_magnon_density()
 
     for (auto k = 0; k < num_k_points(); ++k)
     {
-        const auto& sw = compute_frequency_spectrum_at_k(k);
-        const auto time_points = periodogram_length();
+        for_each_frequency_spectrum_at_k(
+            k,
+            [this](const CmplxMappedSlice& sw, const double taper_weight) {
+                const auto time_points = periodogram_length();
 
-        assert(cumulative_magnon_density_.size() >= static_cast<std::size_t>(time_points));
+                assert(cumulative_magnon_density_.size() >= static_cast<std::size_t>(time_points));
 
-        for (auto a = 0; a < num_basis_atoms(); ++a)
-        {
-            const double inv_spin_length = 1.0 / basis_spin_length_(a);
-            for (auto f = 0; f < time_points; ++f)
-            {
-                cumulative_magnon_density_(f) += inv_spin_length * std::norm(sw(a, f, 0));
-            }
-        }
+                for (auto a = 0; a < num_basis_atoms(); ++a)
+                {
+                    const double inv_spin_length = 1.0 / basis_spin_length_(a);
+                    for (auto f = 0; f < time_points; ++f)
+                    {
+                        cumulative_magnon_density_(f) += taper_weight * inv_spin_length * std::norm(sw(a, f, 0));
+                    }
+                }
+            });
     }
 }
