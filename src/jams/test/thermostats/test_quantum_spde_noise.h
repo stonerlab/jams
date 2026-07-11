@@ -98,6 +98,7 @@ class QuantumSpdeThermostatFactoryCpuTest : public ::testing::Test {
     globals::alpha.resize(globals::num_spins).fill(jams::Real{0.1});
     globals::mus.resize(globals::num_spins).fill(jams::Real{1.0});
     globals::gyro.resize(globals::num_spins).fill(jams::Real{1.0});
+    globals::sync_magnetic_moment_data();
     globals::config = std::make_unique<libconfig::Config>();
     globals::config->readString(R"(
       physics = {
@@ -113,6 +114,8 @@ class QuantumSpdeThermostatFactoryCpuTest : public ::testing::Test {
   void TearDown() override {
     globals::alpha.clear();
     globals::mus.clear();
+    globals::inv_mus.clear();
+    globals::num_magnetic_spins = 0;
     globals::gyro.clear();
     globals::num_spins = 0;
     globals::num_spins3 = 0;

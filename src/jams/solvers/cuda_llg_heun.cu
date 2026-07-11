@@ -76,7 +76,7 @@ void CUDAHeunLLGSolver::run()
   cuda_heun_llg_kernelA<<<grid_size, block_size, 0, jams::instance().cuda_master_stream().get()>>>
     (globals::s.mutable_device_data(), globals::ds_dt.mutable_device_data(), s_old_.device_data(),
      globals::h.device_data(), thermostat_->device_data(),
-     gyro_eff_.device_data(), globals::mus.device_data(), globals::alpha.device_data(),
+     gyro_eff_.device_data(), globals::inv_mus.device_data(), globals::alpha.device_data(),
        step_size_, globals::num_spins);
     DEBUG_CHECK_CUDA_ASYNC_STATUS
   record_spin_barrier_event();
@@ -90,7 +90,7 @@ void CUDAHeunLLGSolver::run()
   cuda_heun_llg_kernelB<<<grid_size, block_size, 0, jams::instance().cuda_master_stream().get()>>>
     (globals::s.mutable_device_data(), globals::ds_dt.mutable_device_data(), s_old_.device_data(),
       globals::h.device_data(), thermostat_->device_data(),
-      gyro_eff_.device_data(), globals::mus.device_data(), globals::alpha.device_data(),
+      gyro_eff_.device_data(), globals::inv_mus.device_data(), globals::alpha.device_data(),
       step_size_, globals::num_spins);
     DEBUG_CHECK_CUDA_ASYNC_STATUS
   record_spin_barrier_event();

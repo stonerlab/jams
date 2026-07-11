@@ -65,6 +65,14 @@ namespace globals {
   /// - site_index: enumerates sites in the whole lattice
   GLOBAL jams::MultiArray<jams::Real, 1> mus;
 
+  /// @brief global reciprocal magnetic moment data in Tesla/Joules
+  ///
+  /// @details Zero-moment vacancy sites have reciprocal moment zero.
+  GLOBAL jams::MultiArray<jams::Real, 1> inv_mus;
+
+  /// @brief number of sites with a non-zero magnetic moment
+  GLOBAL int num_magnetic_spins;
+
   /// @brief global gyromagnetic moment data in units of gyromagnetic ratios
   ///
   /// @details positions(site_index)
@@ -75,6 +83,9 @@ namespace globals {
   GLOBAL Lattice *lattice;
   GLOBAL std::unique_ptr<libconfig::Config> config;
   GLOBAL std::string simulation_name;
+
+  void sync_magnetic_moment_data();
+  int first_magnetic_spin();
 }  // namespace globals
 #undef GLOBAL
 #endif  // JAMS_CORE_GLOBALS_H

@@ -28,6 +28,8 @@ void reset_h5_initializer_globals() {
   jams::util::force_deallocation(globals::positions);
   jams::util::force_deallocation(globals::alpha);
   jams::util::force_deallocation(globals::mus);
+  jams::util::force_deallocation(globals::inv_mus);
+  globals::num_magnetic_spins = 0;
   jams::util::force_deallocation(globals::gyro);
   globals::config = nullptr;
   globals::solver = nullptr;
@@ -58,7 +60,10 @@ class H5InitializerTest : public ::testing::Test {
   }
 
   template <typename T>
-  std::filesystem::path write_profile_file(const std::string& filename) const {
+  std::filesystem::path write_profile_file(
+      const std::string& filename,
+      const std::string& moment_dataset_path = "/mus",
+      const bool zero_second_moment = false) const {
     const auto path = output_dir_ / filename;
     HighFive::File file(path.string(),
                         HighFive::File::ReadWrite | HighFive::File::Create | HighFive::File::Truncate);
@@ -68,7 +73,7 @@ class H5InitializerTest : public ::testing::Test {
     spins(0, 1) = static_cast<T>(0.0);
     spins(0, 2) = static_cast<T>(0.0);
     spins(1, 0) = static_cast<T>(0.0);
-    spins(1, 1) = static_cast<T>(1.0);
+    spins(1, 1) = zero_second_moment ? static_cast<T>(0.0) : static_cast<T>(1.0);
     spins(1, 2) = static_cast<T>(0.0);
 
     jams::MultiArray<T, 1> alpha(2);
@@ -77,7 +82,7 @@ class H5InitializerTest : public ::testing::Test {
 
     jams::MultiArray<T, 1> mus(2);
     mus(0) = static_cast<T>(1.5);
-    mus(1) = static_cast<T>(2.5);
+    mus(1) = zero_second_moment ? static_cast<T>(0.0) : static_cast<T>(2.5);
 
     jams::MultiArray<T, 1> gyro(2);
     gyro(0) = static_cast<T>(3.5);
@@ -85,7 +90,7 @@ class H5InitializerTest : public ::testing::Test {
 
     file.createDataSet<T>("/spins", HighFive::DataSpace({2, 3})).write(spins);
     file.createDataSet<T>("/alpha", HighFive::DataSpace({2})).write(alpha);
-    file.createDataSet<T>("/mus", HighFive::DataSpace({2})).write(mus);
+    file.createDataSet<T>(moment_dataset_path, HighFive::DataSpace({2})).write(mus);
     file.createDataSet<T>("/gyro", HighFive::DataSpace({2})).write(gyro);
 
     return path;
@@ -155,6 +160,8 @@ class H5InitializerTest : public ::testing::Test {
   }
 
   static void resize_targets() {
+    globals::num_spins = 2;
+    globals::num_spins3 = 6;
     globals::s.resize(2, 3);
     globals::alpha.resize(2);
     globals::mus.resize(2);
@@ -174,6 +181,8 @@ TEST_F(H5InitializerTest, LoadsFloatDatasetsIntoCurrentPrecision) {
   EXPECT_NEAR(static_cast<double>(globals::alpha(0)), 0.125, 1.0e-7);
   EXPECT_NEAR(static_cast<double>(globals::alpha(1)), 0.25, 1.0e-7);
   EXPECT_NEAR(static_cast<double>(globals::mus(0)), 1.5, 1.0e-7);
+  EXPECT_EQ(globals::num_magnetic_spins, 2);
+  EXPECT_NEAR(static_cast<double>(globals::inv_mus(0)), 1.0 / 1.5, 1.0e-7);
   EXPECT_NEAR(static_cast<double>(globals::gyro(1)), 4.5, 1.0e-7);
 }
 
@@ -187,7 +196,24 @@ TEST_F(H5InitializerTest, LoadsDoubleDatasetsIntoCurrentPrecision) {
   EXPECT_NEAR(static_cast<double>(globals::alpha(0)), 0.125, 1.0e-7);
   EXPECT_NEAR(static_cast<double>(globals::alpha(1)), 0.25, 1.0e-7);
   EXPECT_NEAR(static_cast<double>(globals::mus(0)), 1.5, 1.0e-7);
+  EXPECT_EQ(globals::num_magnetic_spins, 2);
+  EXPECT_NEAR(static_cast<double>(globals::inv_mus(0)), 1.0 / 1.5, 1.0e-12);
   EXPECT_NEAR(static_cast<double>(globals::gyro(1)), 4.5, 1.0e-7);
+}
+
+TEST_F(H5InitializerTest, LoadsMonitorMomentDatasetAndRepairsZeroMomentSpin) {
+  const auto path = write_profile_file<double>("monitor_profile.h5", "/moments", true);
+
+  execute_initializer_for(path);
+
+  EXPECT_NEAR(static_cast<double>(globals::mus(0)), 1.5, 1.0e-12);
+  EXPECT_EQ(static_cast<double>(globals::mus(1)), 0.0);
+  EXPECT_EQ(globals::num_magnetic_spins, 1);
+  EXPECT_NEAR(static_cast<double>(globals::inv_mus(0)), 1.0 / 1.5, 1.0e-12);
+  EXPECT_EQ(static_cast<double>(globals::inv_mus(1)), 0.0);
+  EXPECT_EQ(globals::s(1, 0), 0.0);
+  EXPECT_EQ(globals::s(1, 1), 0.0);
+  EXPECT_EQ(globals::s(1, 2), 1.0);
 }
 
 TEST_F(H5InitializerTest, RejectsIntegerDatasetsForFloatingPointTargets) {

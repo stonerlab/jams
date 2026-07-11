@@ -8,7 +8,8 @@ __global__ void cuda_normalise_spins_kernel(double * spins, const unsigned size)
   if (idx < size) {
     double s[3] = {spins[3*idx + 0], spins[3*idx + 1], spins[3*idx + 2]};
 
-    double recip_snorm = rsqrt(s[0]*s[0] + s[1]*s[1] + s[2]*s[2]);
+    const double norm_sq = s[0]*s[0] + s[1]*s[1] + s[2]*s[2];
+    const double recip_snorm = norm_sq > 0.0 ? rsqrt(norm_sq) : 0.0;
 
     for (auto n = 0; n < 3; ++n) {
       spins[3*idx + n] = s[n] * recip_snorm;

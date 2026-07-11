@@ -24,19 +24,19 @@ ThermostatClassical::ThermostatClassical(const jams::Real& temperature,
 
   auto sigma_spin_view = sigma_spin_.mutable_host_view();
   auto alpha_view = globals::alpha.host_view();
-  auto mu_view = globals::mus.host_view();
+  auto inv_mu_view = globals::inv_mus.host_view();
   auto gyro_view = globals::gyro.host_view();
   auto* sigma_spin_values = sigma_spin_view.data();
   const auto* alpha_values = alpha_view.data();
-  const auto* mu_values = mu_view.data();
+  const auto* inv_mu_values = inv_mu_view.data();
   const auto* gyro_values = gyro_view.data();
 #if HAS_OMP
 #pragma omp parallel for schedule(static)
 #endif
   for (int i = 0; i < num_spins; ++i) {
     sigma_spin_values[i] = static_cast<jams::Real>(
-        std::sqrt((2.0 * kBoltzmannIU * alpha_values[i]) /
-                  (mu_values[i] * gyro_values[i] * timestep)));
+        std::sqrt((2.0 * kBoltzmannIU * alpha_values[i] * inv_mu_values[i]) /
+                  (gyro_values[i] * timestep)));
   }
 }
 

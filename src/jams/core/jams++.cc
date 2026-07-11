@@ -822,6 +822,7 @@ std::string choose_simulation_name(const jams::ProgramArgs &program_args) {
 
         if (::globals::config->exists("initializer")) {
           jams::InitializerDispatcher::execute(::globals::config->lookup("initializer"));
+          globals::sync_magnetic_moment_data();
         }
 
         std::cout << jams::section("init solver") << std::endl;

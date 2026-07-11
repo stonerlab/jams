@@ -6,11 +6,13 @@
 #include <array>
 #include <memory>
 
+#include "jams/common.h"
 #include "jams/core/globals.h"
 #include "jams/core/lattice.h"
 #include "jams/core/physics.h"
 #include "jams/core/solver.h"
 #include "jams/containers/sparse_matrix_builder.h"
+#include "jams/helpers/exception.h"
 #include "jams/helpers/utils.h"
 #include "jams/hamiltonian/energy_current_interaction.h"
 #include "jams/hamiltonian/dipole_bruteforce.h"
@@ -239,6 +241,8 @@ public:
       jams::util::force_deallocation(globals::positions);
       jams::util::force_deallocation(globals::alpha);
       jams::util::force_deallocation(globals::mus);
+      jams::util::force_deallocation(globals::inv_mus);
+      globals::num_magnetic_spins = 0;
       jams::util::force_deallocation(globals::gyro);
 
       if (::globals::solver) {
@@ -387,7 +391,7 @@ template<typename T>
 class DipoleHamiltonianGPUTests : public DipoleHamiltonianTests<T> {
 public:
     void SetUp(const std::string &config_string) override {
-      cudaDeviceReset();
+      jams::Jams::reset_cuda_device();
       DipoleHamiltonianTests<T>::SetUp(config_string);
     }
 
@@ -416,6 +420,8 @@ protected:
       jams::util::force_deallocation(globals::positions);
       jams::util::force_deallocation(globals::alpha);
       jams::util::force_deallocation(globals::mus);
+      jams::util::force_deallocation(globals::inv_mus);
+      globals::num_magnetic_spins = 0;
       jams::util::force_deallocation(globals::gyro);
 
       globals::config = nullptr;
@@ -476,13 +482,34 @@ TEST_F(CroppedDipoleFFTHamiltonianTest, CpuFftMatchesBruteforceForCroppedTopMoti
       1.0e-5);
 }
 
+TEST_F(CroppedDipoleFFTHamiltonianTest, CpuFftRejectsImpurities) {
+  using namespace jams::testing::dipole;
+  initialise(
+      config_basic_cpu
+      + config_unitcell_sc_2_atom
+      + R"(
+        lattice : {
+          size = [2, 2, 2];
+          periodic = [true, true, true];
+          impurities_seed = 1;
+          impurities = (
+            ("FeA", "FeB", 0.50)
+          );
+        };
+      )"
+      + config_dipole("dipole-fft", 1.1));
+
+  const auto& settings = globals::config->lookup("hamiltonians.[0]");
+  EXPECT_THROW(DipoleFFTHamiltonian(settings, globals::num_spins), jams::ConfigException);
+}
+
 #ifdef HAS_CUDA
 TEST_F(CroppedDipoleFFTHamiltonianTest, CudaFftMatchesBruteforceForCroppedTopMotif) {
   using namespace jams::testing::dipole;
   if (!cuda_device_is_available()) {
     GTEST_SKIP() << "CUDA device is not available";
   }
-  cudaDeviceReset();
+  jams::Jams::reset_cuda_device();
   initialise(
       config_basic_gpu
       + config_unitcell_sc_z_2_atom
@@ -516,12 +543,33 @@ TEST_F(CroppedDipoleFFTHamiltonianTest, CudaFftMatchesBruteforceForCroppedTopMot
   }
 }
 
+TEST_F(CroppedDipoleFFTHamiltonianTest, CudaFftRejectsImpurities) {
+  using namespace jams::testing::dipole;
+  initialise(
+      config_basic_gpu
+      + config_unitcell_sc_2_atom
+      + R"(
+        lattice : {
+          size = [2, 2, 2];
+          periodic = [true, true, true];
+          impurities_seed = 1;
+          impurities = (
+            ("FeA", "FeB", 0.50)
+          );
+        };
+      )"
+      + config_dipole("dipole-fft", 1.1));
+
+  const auto& settings = globals::config->lookup("hamiltonians.[0]");
+  EXPECT_THROW(CudaDipoleFFTHamiltonian(settings, globals::num_spins), jams::ConfigException);
+}
+
 TEST_F(CroppedDipoleFFTHamiltonianTest, CudaFftEnergyCurrentMatchesSparseForPeriodicOneBasis) {
   using namespace jams::testing::dipole;
   if (!cuda_device_is_available()) {
     GTEST_SKIP() << "CUDA device is not available";
   }
-  cudaDeviceReset();
+  jams::Jams::reset_cuda_device();
   initialise(
       config_basic_gpu
       + config_unitcell_sc
@@ -540,7 +588,7 @@ TEST_F(CroppedDipoleFFTHamiltonianTest, CudaFftEnergyCurrentMatchesSparseForPeri
   if (!cuda_device_is_available()) {
     GTEST_SKIP() << "CUDA device is not available";
   }
-  cudaDeviceReset();
+  jams::Jams::reset_cuda_device();
   initialise(
       config_basic_gpu
       + config_unitcell_sc_2_atom
@@ -559,7 +607,7 @@ TEST_F(CroppedDipoleFFTHamiltonianTest, CudaFftEnergyCurrentMatchesSparseForCrop
   if (!cuda_device_is_available()) {
     GTEST_SKIP() << "CUDA device is not available";
   }
-  cudaDeviceReset();
+  jams::Jams::reset_cuda_device();
   initialise(
       config_basic_gpu
       + config_unitcell_sc_z_2_atom

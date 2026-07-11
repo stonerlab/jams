@@ -23,6 +23,7 @@
 #include <jams/core/solver.h>
 #include <jams/helpers/consts.h>
 #include <jams/helpers/output.h>
+#include <jams/helpers/utils.h>
 #include <jams/interface/fft.h>
 #include <jams/monitors/magnon_density.h>
 #include <jams/monitors/magnon_spectrum.h>
@@ -33,6 +34,26 @@
 #endif
 
 namespace jams::testing {
+
+inline void reset_magnon_spectrum_monitor_globals() {
+  globals::num_spins = 0;
+  globals::num_spins3 = 0;
+  jams::util::force_deallocation(globals::s);
+  jams::util::force_deallocation(globals::h);
+  jams::util::force_deallocation(globals::ds_dt);
+  jams::util::force_deallocation(globals::positions);
+  jams::util::force_deallocation(globals::alpha);
+  jams::util::force_deallocation(globals::mus);
+  jams::util::force_deallocation(globals::inv_mus);
+  globals::num_magnetic_spins = 0;
+  jams::util::force_deallocation(globals::gyro);
+  globals::solver = nullptr;
+  globals::config = nullptr;
+  if (globals::lattice != nullptr) {
+    delete globals::lattice;
+    globals::lattice = nullptr;
+  }
+}
 
 class MagnonSpectrumStubSolver : public Solver {
 public:
@@ -154,18 +175,14 @@ protected:
   };
 
   void SetUp() override {
-    globals::solver = nullptr;
-    globals::lattice = nullptr;
+    reset_magnon_spectrum_monitor_globals();
     output_dir_ = std::filesystem::temp_directory_path()
         / ("jams_magnon_spectrum_monitor_test_" + current_test_id());
     std::filesystem::remove_all(output_dir_);
   }
 
   void TearDown() override {
-    globals::solver = nullptr;
-    delete globals::lattice;
-    globals::lattice = nullptr;
-    globals::config = nullptr;
+    reset_magnon_spectrum_monitor_globals();
     std::filesystem::remove_all(output_dir_);
   }
 

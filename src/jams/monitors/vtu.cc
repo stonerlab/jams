@@ -15,6 +15,7 @@
 #include "jams/interface/config.h"
 
 #include "vtu.h"
+#include "jams/monitors/spin_output.h"
 #include <jams/helpers/exception.h>
 
 #define QUOTEME_(x) #x
@@ -80,7 +81,6 @@ void VtuMonitor::update(Solver& solver) {
   if (solver.iteration()%output_step_freq_ == 0) {
     int outcount = solver.iteration()/output_step_freq_;  // int divisible by modulo above
 
-    const auto spins = globals::s.host_view();
     std::ofstream vtkfile(jams::output::monitor_filename_series(name(), "vtu", outcount));
 
     uint32_t header_bytesize, types_bytesize, points_bytesize, spins_bytesize, num_points;
@@ -97,12 +97,14 @@ void VtuMonitor::update(Solver& solver) {
         types_bytesize  = num_slice_points*sizeof(int32_t);
         points_bytesize = 3*num_slice_points*sizeof(float);
         spins_bytesize  = 3*num_slice_points*sizeof(double);
-        for (int i = 0; i < num_slice_points; ++i) {
-            for (int j = 0; j < 3; ++j) {
-                spins_binary_data(i,j) = spins(slice_spins[i],j);
-            }
-        }
+        spins_binary_data = jams::monitors::make_spin_output_array(
+            num_slice_points,
+            [this](const int output_index) { return slice_spins[output_index]; });
     }
+
+    const auto spin_output = num_slice_points == 0
+        ? jams::monitors::make_spin_output_array()
+        : jams::MultiArray<double, 2>{};
 
     vtkfile << "<?xml version=\"1.0\"?>" << "\n";
     // header info
@@ -146,7 +148,7 @@ void VtuMonitor::update(Solver& solver) {
     vtkfile.write(reinterpret_cast<char*>(types_binary_data.data()), types_bytesize);
     vtkfile.write(reinterpret_cast<char*>(&spins_bytesize), header_bytesize);
     if (num_slice_points == 0) {
-        vtkfile.write(reinterpret_cast<const char*>(spins.data()), spins_bytesize);
+        vtkfile.write(reinterpret_cast<const char*>(spin_output.data()), spins_bytesize);
     } else {
         vtkfile.write(reinterpret_cast<char*>(spins_binary_data.data()), spins_bytesize);
     }

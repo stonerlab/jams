@@ -86,7 +86,7 @@ void rkmk2_step_1(const double dt,
                   const jams::MultiArray<jams::Real, 1>& gyro_eff,
                   const bool in_parallel = false) {
   const jams::Real* field_values = nullptr;
-  const jams::Real* mu_values = nullptr;
+  const jams::Real* inv_mu_values = nullptr;
   const jams::Real* alpha_values = nullptr;
   const jams::Real* gyro_eff_values = nullptr;
   double* spin_values = nullptr;
@@ -95,10 +95,10 @@ void rkmk2_step_1(const double dt,
 
 #if HAS_OMP
   if (in_parallel) {
-#pragma omp single copyprivate(field_values, mu_values, alpha_values, gyro_eff_values, spin_values, s_init_values, phi_values)
+#pragma omp single copyprivate(field_values, inv_mu_values, alpha_values, gyro_eff_values, spin_values, s_init_values, phi_values)
     {
       field_values = globals::h.host_data();
-      mu_values = globals::mus.host_data();
+      inv_mu_values = globals::inv_mus.host_data();
       alpha_values = globals::alpha.host_data();
       gyro_eff_values = gyro_eff.host_data();
       spin_values = globals::s.data();
@@ -109,7 +109,7 @@ void rkmk2_step_1(const double dt,
 #endif
   {
     const auto field_view = globals::h.host_view();
-    const auto mu_view = globals::mus.host_view();
+    const auto inv_mu_view = globals::inv_mus.host_view();
     const auto alpha_view = globals::alpha.host_view();
     const auto gyro_eff_view = gyro_eff.host_view();
     auto spin_view = globals::s.mutable_host_view();
@@ -117,7 +117,7 @@ void rkmk2_step_1(const double dt,
     auto phi_view = phi.mutable_host_view();
 
     field_values = field_view.data();
-    mu_values = mu_view.data();
+    inv_mu_values = inv_mu_view.data();
     alpha_values = alpha_view.data();
     gyro_eff_values = gyro_eff_view.data();
     spin_values = spin_view.data();
@@ -127,7 +127,7 @@ void rkmk2_step_1(const double dt,
 
   const auto update_spin = [&](const int i) {
       const int offset = 3 * i;
-      const double inv_mu = 1.0 / static_cast<double>(mu_values[i]);
+      const double inv_mu = static_cast<double>(inv_mu_values[i]);
       const double h[3] = {
           static_cast<double>(field_values[offset]) * inv_mu,
           static_cast<double>(field_values[offset + 1]) * inv_mu,
@@ -184,7 +184,7 @@ void rkmk2_step_2(const double dt,
                   const jams::Real* const noise_values,
                   const bool in_parallel = false) {
   const jams::Real* field_values = nullptr;
-  const jams::Real* mu_values = nullptr;
+  const jams::Real* inv_mu_values = nullptr;
   const jams::Real* alpha_values = nullptr;
   const jams::Real* gyro_eff_values = nullptr;
   const double* s_init_values = nullptr;
@@ -193,10 +193,10 @@ void rkmk2_step_2(const double dt,
 
 #if HAS_OMP
   if (in_parallel) {
-#pragma omp single copyprivate(field_values, mu_values, alpha_values, gyro_eff_values, s_init_values, phi_values, spin_values)
+#pragma omp single copyprivate(field_values, inv_mu_values, alpha_values, gyro_eff_values, s_init_values, phi_values, spin_values)
     {
       field_values = globals::h.host_data();
-      mu_values = globals::mus.host_data();
+      inv_mu_values = globals::inv_mus.host_data();
       alpha_values = globals::alpha.host_data();
       gyro_eff_values = gyro_eff.host_data();
       s_init_values = s_init.host_data();
@@ -207,7 +207,7 @@ void rkmk2_step_2(const double dt,
 #endif
   {
     const auto field_view = globals::h.host_view();
-    const auto mu_view = globals::mus.host_view();
+    const auto inv_mu_view = globals::inv_mus.host_view();
     const auto alpha_view = globals::alpha.host_view();
     const auto gyro_eff_view = gyro_eff.host_view();
     const auto s_init_view = s_init.host_view();
@@ -215,7 +215,7 @@ void rkmk2_step_2(const double dt,
     auto spin_view = globals::s.mutable_host_view();
 
     field_values = field_view.data();
-    mu_values = mu_view.data();
+    inv_mu_values = inv_mu_view.data();
     alpha_values = alpha_view.data();
     gyro_eff_values = gyro_eff_view.data();
     s_init_values = s_init_view.data();
@@ -225,7 +225,7 @@ void rkmk2_step_2(const double dt,
 
   const auto update_spin = [&](const int i) {
       const int offset = 3 * i;
-      const double inv_mu = 1.0 / static_cast<double>(mu_values[i]);
+      const double inv_mu = static_cast<double>(inv_mu_values[i]);
       const double h[3] = {
           static_cast<double>(field_values[offset]) * inv_mu,
           static_cast<double>(field_values[offset + 1]) * inv_mu,
@@ -293,7 +293,7 @@ void rkmk4_step_1(const double dt,
                   jams::MultiArray<double, 2>& k1,
                   const jams::MultiArray<jams::Real, 1>& gyro_eff) {
   const auto field_view = globals::h.host_view();
-  const auto mu_view = globals::mus.host_view();
+  const auto inv_mu_view = globals::inv_mus.host_view();
   const auto alpha_view = globals::alpha.host_view();
   const auto gyro_eff_view = gyro_eff.host_view();
   auto spin_view = globals::s.mutable_host_view();
@@ -301,7 +301,7 @@ void rkmk4_step_1(const double dt,
   auto k1_view = k1.mutable_host_view();
 
   const auto* field_values = field_view.data();
-  const auto* mu_values = mu_view.data();
+  const auto* inv_mu_values = inv_mu_view.data();
   const auto* alpha_values = alpha_view.data();
   const auto* gyro_eff_values = gyro_eff_view.data();
   auto* spin_values = spin_view.data();
@@ -313,7 +313,7 @@ void rkmk4_step_1(const double dt,
 #endif
   for (int i = 0; i < globals::num_spins; ++i) {
     const int offset = 3 * i;
-    const double inv_mu = 1.0 / static_cast<double>(mu_values[i]);
+    const double inv_mu = static_cast<double>(inv_mu_values[i]);
     const double h[3] = {
         static_cast<double>(field_values[offset]) * inv_mu,
         static_cast<double>(field_values[offset + 1]) * inv_mu,
@@ -352,7 +352,7 @@ void rkmk4_step_2(const double dt,
                   jams::MultiArray<double, 2>& k2,
                   const jams::MultiArray<jams::Real, 1>& gyro_eff) {
   const auto field_view = globals::h.host_view();
-  const auto mu_view = globals::mus.host_view();
+  const auto inv_mu_view = globals::inv_mus.host_view();
   const auto alpha_view = globals::alpha.host_view();
   const auto gyro_eff_view = gyro_eff.host_view();
   const auto s_init_view = s_init.host_view();
@@ -361,7 +361,7 @@ void rkmk4_step_2(const double dt,
   auto spin_view = globals::s.mutable_host_view();
 
   const auto* field_values = field_view.data();
-  const auto* mu_values = mu_view.data();
+  const auto* inv_mu_values = inv_mu_view.data();
   const auto* alpha_values = alpha_view.data();
   const auto* gyro_eff_values = gyro_eff_view.data();
   const auto* s_init_values = s_init_view.data();
@@ -374,7 +374,7 @@ void rkmk4_step_2(const double dt,
 #endif
   for (int i = 0; i < globals::num_spins; ++i) {
     const int offset = 3 * i;
-    const double inv_mu = 1.0 / static_cast<double>(mu_values[i]);
+    const double inv_mu = static_cast<double>(inv_mu_values[i]);
     const double h[3] = {
         static_cast<double>(field_values[offset]) * inv_mu,
         static_cast<double>(field_values[offset + 1]) * inv_mu,
@@ -419,7 +419,7 @@ void rkmk4_step_3(const double dt,
                   jams::MultiArray<double, 2>& k3,
                   const jams::MultiArray<jams::Real, 1>& gyro_eff) {
   const auto field_view = globals::h.host_view();
-  const auto mu_view = globals::mus.host_view();
+  const auto inv_mu_view = globals::inv_mus.host_view();
   const auto alpha_view = globals::alpha.host_view();
   const auto gyro_eff_view = gyro_eff.host_view();
   const auto s_init_view = s_init.host_view();
@@ -428,7 +428,7 @@ void rkmk4_step_3(const double dt,
   auto spin_view = globals::s.mutable_host_view();
 
   const auto* field_values = field_view.data();
-  const auto* mu_values = mu_view.data();
+  const auto* inv_mu_values = inv_mu_view.data();
   const auto* alpha_values = alpha_view.data();
   const auto* gyro_eff_values = gyro_eff_view.data();
   const auto* s_init_values = s_init_view.data();
@@ -441,7 +441,7 @@ void rkmk4_step_3(const double dt,
 #endif
   for (int i = 0; i < globals::num_spins; ++i) {
     const int offset = 3 * i;
-    const double inv_mu = 1.0 / static_cast<double>(mu_values[i]);
+    const double inv_mu = static_cast<double>(inv_mu_values[i]);
     const double h[3] = {
         static_cast<double>(field_values[offset]) * inv_mu,
         static_cast<double>(field_values[offset + 1]) * inv_mu,
@@ -488,7 +488,7 @@ void rkmk4_step_4(const double dt,
                   const jams::MultiArray<jams::Real, 1>& gyro_eff,
                   const jams::Real* const noise_values) {
   const auto field_view = globals::h.host_view();
-  const auto mu_view = globals::mus.host_view();
+  const auto inv_mu_view = globals::inv_mus.host_view();
   const auto alpha_view = globals::alpha.host_view();
   const auto gyro_eff_view = gyro_eff.host_view();
   const auto s_init_view = s_init.host_view();
@@ -498,7 +498,7 @@ void rkmk4_step_4(const double dt,
   auto spin_view = globals::s.mutable_host_view();
 
   const auto* field_values = field_view.data();
-  const auto* mu_values = mu_view.data();
+  const auto* inv_mu_values = inv_mu_view.data();
   const auto* alpha_values = alpha_view.data();
   const auto* gyro_eff_values = gyro_eff_view.data();
   const auto* s_init_values = s_init_view.data();
@@ -512,7 +512,7 @@ void rkmk4_step_4(const double dt,
 #endif
   for (int i = 0; i < globals::num_spins; ++i) {
     const int offset = 3 * i;
-    const double inv_mu = 1.0 / static_cast<double>(mu_values[i]);
+    const double inv_mu = static_cast<double>(inv_mu_values[i]);
     const double h[3] = {
         static_cast<double>(field_values[offset]) * inv_mu,
         static_cast<double>(field_values[offset + 1]) * inv_mu,

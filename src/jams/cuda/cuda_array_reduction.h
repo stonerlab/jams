@@ -42,6 +42,8 @@ namespace jams {
 
         CUDA_ONLY_IMPLEMENTATION(
                 double scalar_field_reduce_cuda(const jams::MultiArray<double, 1> &x, cudaStream_t stream = nullptr));
+
+        void release_cuda_array_reduction_buffers();
 #endif
 }
 

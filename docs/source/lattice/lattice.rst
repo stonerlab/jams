@@ -29,7 +29,13 @@ Rotating the system
 Adding impurities
 #################
 
-.. describe:: inpurities
+.. describe:: impurities
+
+    List of exact-concentration material substitutions. Each entry has the form
+    ``("SourceMaterial", "TargetMaterial", fraction)``. The fraction is applied
+    to the number of realised source-material sites in the lattice, rounded to
+    the nearest integer count. The selected sites are chosen randomly using
+    ``impurities_seed``.
 
 .. describe:: impurities_seed (optional)
 
@@ -37,6 +43,12 @@ Adding impurities
 
 .. code-block:: none
 
-    inpurities = (
-        ("MaterialA", "MaterialB", 0.5)
+    impurities_seed = 1234;
+    impurities = (
+        ("MaterialA", "MaterialB", 0.5),
+        ("MaterialA", "MaterialC", 0.25)
     );
+
+Multiple target materials can be substituted from the same source material. The
+fractions for one source material must sum to no more than ``1.0``. Newly
+substituted sites are not substituted again by later entries.

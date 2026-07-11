@@ -1,6 +1,7 @@
 // Copyright 2014 Joseph Barker. All rights reserved.
 
 #include <string>
+#include <stdexcept>
 #include <utility>
 #include <vector>
 
@@ -19,7 +20,11 @@ FieldMonitor::FieldMonitor(const libconfig::Setting &settings)
 {}
 
 void FieldMonitor::update(Solver& solver) {
-  const auto moments = globals::mus.host_view();
+  if (globals::num_magnetic_spins == 0) {
+    throw std::runtime_error("field monitor requires at least one magnetic spin");
+  }
+
+  const auto inv_moments = globals::inv_mus.host_view();
   const auto& field_spins = solver.spin_array_for_fields();
 
   std::vector<jams::Vec<double, 3>> total_field;
@@ -28,10 +33,13 @@ void FieldMonitor::update(Solver& solver) {
 
     jams::Vec<double, 3> field = {0.0, 0.0, 0.0};
     for (auto i = 0; i < globals::num_spins; ++i) {
-      field += jams::Vec<double, 3>{hamiltonian->field(i, 0), hamiltonian->field(i, 1), hamiltonian->field(i, 2)} / moments(i);
+      field += jams::Vec<double, 3>{
+          hamiltonian->field(i, 0),
+          hamiltonian->field(i, 1),
+          hamiltonian->field(i, 2)} * inv_moments(i);
     }
 
-    total_field.push_back(field / static_cast<double>(globals::num_spins));
+    total_field.push_back(field / static_cast<double>(globals::num_magnetic_spins));
   }
 
   std::vector<double> values;

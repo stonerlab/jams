@@ -60,7 +60,7 @@ CudaThermostatQuantumSpde::CudaThermostatQuantumSpde(const jams::Real &temperatu
   for (int i = 0; i < num_spins; ++i) {
     for (int j = 0; j < 3; ++j) {
       sigma_(i,j) = static_cast<jams::Real>((kBoltzmannIU) * sqrt((2.0 * globals::alpha(i))
-                                          / (kHBarIU * globals::gyro(i) * globals::mus(i))));
+                                          * globals::inv_mus(i) / (kHBarIU * globals::gyro(i))));
     }
   }
 

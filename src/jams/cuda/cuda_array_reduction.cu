@@ -9,6 +9,31 @@
 
 #define MAX_THREADS 256
 
+namespace {
+
+jams::MultiArray<double, 2>& vector_field_reduce_block_sums() {
+  static jams::MultiArray<double, 2> block_sums;
+  return block_sums;
+}
+
+jams::MultiArray<double, 2>& vector_field_indexed_reduce_block_sums() {
+  static jams::MultiArray<double, 2> block_sums;
+  return block_sums;
+}
+
+jams::MultiArray<double, 2>& vector_field_scale_and_reduce_block_sums() {
+  static jams::MultiArray<double, 2> block_sums;
+  return block_sums;
+}
+
+template <typename X, typename S>
+jams::MultiArray<X, 2>& vector_field_indexed_scale_and_reduce_block_sums() {
+  static jams::MultiArray<X, 2> block_sums;
+  return block_sums;
+}
+
+}  // namespace
+
 unsigned int next_pow2(unsigned int x)
 {
   --x;
@@ -244,9 +269,8 @@ jams::Vec<double, 3> jams::vector_field_reduce_cuda(const jams::MultiArray<doubl
   int threads = (size < MAX_THREADS*2) ? next_pow2((size + 1)/ 2) : MAX_THREADS;
   int blocks = (size + (threads * 2 - 1)) / (threads * 2);
 
-  // This is a static buffer so that we don't have to keep reallocating every
-  // call. THIS IS NOT THREAD SAFE
-  static jams::MultiArray<double, 2> block_sums;
+  // Static buffer avoids reallocating every call. THIS IS NOT THREAD SAFE.
+  auto& block_sums = vector_field_reduce_block_sums();
 
   if (block_sums.extent(0) < blocks) {
     block_sums.resize(blocks, 3);
@@ -313,9 +337,8 @@ jams::Vec<double, 3> jams::vector_field_indexed_reduce_cuda(const jams::MultiArr
   int threads = (size < MAX_THREADS*2) ? next_pow2((size + 1)/ 2) : MAX_THREADS;
   int blocks = (size + (threads * 2 - 1)) / (threads * 2);
 
-  // This is a static buffer so that we don't have to keep reallocating every
-  // call. THIS IS NOT THREAD SAFE
-  static jams::MultiArray<double, 2> block_sums;
+  // Static buffer avoids reallocating every call. THIS IS NOT THREAD SAFE.
+  auto& block_sums = vector_field_indexed_reduce_block_sums();
 
   if (block_sums.extent(0) < blocks) {
     block_sums.resize(blocks, 3);
@@ -383,9 +406,8 @@ jams::Vec<double, 3> jams::vector_field_scale_and_reduce_cuda(const jams::MultiA
   int threads = (size < MAX_THREADS*2) ? next_pow2((size + 1)/ 2) : MAX_THREADS;
   int blocks = (size + (threads * 2 - 1)) / (threads * 2);
 
-  // This is a static buffer so that we don't have to keep reallocating every
-  // call. THIS IS NOT THREAD SAFE
-  static jams::MultiArray<double, 2> block_sums;
+  // Static buffer avoids reallocating every call. THIS IS NOT THREAD SAFE.
+  auto& block_sums = vector_field_scale_and_reduce_block_sums();
 
   if (block_sums.extent(0) < blocks) {
     block_sums.resize(blocks, 3);
@@ -456,9 +478,8 @@ std::array<X,3> jams::vector_field_indexed_scale_and_reduce_cuda(const jams::Mul
   int threads = (size < MAX_THREADS*2) ? next_pow2((size + 1)/ 2) : MAX_THREADS;
   int blocks = (size + (threads * 2 - 1)) / (threads * 2);
 
-  // This is a static buffer so that we don't have to keep reallocating every
-  // call. THIS IS NOT THREAD SAFE
-  static jams::MultiArray<X, 2> block_sums;
+  // Static buffer avoids reallocating every call. THIS IS NOT THREAD SAFE.
+  auto& block_sums = vector_field_indexed_scale_and_reduce_block_sums<X, S>();
 
   if (block_sums.extent(0) < blocks) {
     block_sums.resize(blocks, 3);
@@ -530,6 +551,16 @@ float jams::scalar_field_reduce_cuda(const jams::MultiArray<float, 1> &x, cudaSt
 
 double jams::scalar_field_reduce_cuda(const jams::MultiArray<double, 1> &x, cudaStream_t stream) {
   return thrust::reduce(thrust::cuda::par.on(stream), thrust::device_ptr<const double>(x.device_data()), thrust::device_ptr<const double>(x.device_data() + x.elements()), double(0), jams::cuda_compat::plus<double>());
+}
+
+
+void jams::release_cuda_array_reduction_buffers() {
+  vector_field_reduce_block_sums().clear();
+  vector_field_indexed_reduce_block_sums().clear();
+  vector_field_scale_and_reduce_block_sums().clear();
+  vector_field_indexed_scale_and_reduce_block_sums<double, float>().clear();
+  vector_field_indexed_scale_and_reduce_block_sums<float, float>().clear();
+  vector_field_indexed_scale_and_reduce_block_sums<double, double>().clear();
 }
 
 

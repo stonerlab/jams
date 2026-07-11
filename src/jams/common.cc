@@ -10,6 +10,9 @@
 #include <cuda_runtime_api.h>
 #endif
 
+#if HAS_CUDA
+#include "jams/cuda/cuda_array_reduction.h"
+#endif
 #include "jams/cuda/cuda_common.h"
 #include "jams/helpers/random.h"
 
@@ -45,21 +48,7 @@ namespace jams {
     }
 
     Jams::~Jams() {
-      if (cublas_handle_ != nullptr) {
-        cublasDestroy(cublas_handle_);
-        cublas_handle_ = nullptr;
-      }
-
-      if (cusparse_handle_ != nullptr) {
-        cusparseDestroy(cusparse_handle_);
-        cusparse_handle_ = nullptr;
-      }
-
-      if (curand_generator_ != nullptr) {
-        curandDestroyGenerator(curand_generator_);
-        curand_generator_ = nullptr;
-      }
-
+      release_device_handles();
     }
 
     bool Jams::has_gpu_device() {
@@ -69,11 +58,22 @@ namespace jams {
     }
 
     void Jams::set_mode(Mode mode) {
-      jams::instance().mode_ = mode;
+      auto& self = jams::instance();
+      self.mode_ = mode;
 
       if (mode == Mode::GPU) {
-        jams::instance().init_device_handles();
+        self.init_device_handles();
+      } else {
+        self.release_device_handles();
       }
+    }
+
+    void Jams::reset_cuda_device() {
+      auto& self = jams::instance();
+      release_cuda_array_reduction_buffers();
+      self.release_device_handles();
+      CHECK_CUDA_STATUS(cudaDeviceReset());
+      self.mode_ = Mode::CPU;
     }
 
     void Jams::init_device_handles() {
@@ -94,6 +94,25 @@ namespace jams {
         CHECK_CURAND_STATUS(curandSetPseudoRandomGeneratorSeed(curand_generator_, dev_rng_seed));
         CHECK_CURAND_STATUS(curandGenerateSeeds(curand_generator_));
       }
+    }
+
+    void Jams::release_device_handles() {
+      if (cublas_handle_ != nullptr) {
+        cublasDestroy(cublas_handle_);
+        cublas_handle_ = nullptr;
+      }
+
+      if (cusparse_handle_ != nullptr) {
+        cusparseDestroy(cusparse_handle_);
+        cusparse_handle_ = nullptr;
+      }
+
+      if (curand_generator_ != nullptr) {
+        curandDestroyGenerator(curand_generator_);
+        curand_generator_ = nullptr;
+      }
+
+      cuda_master_stream_.reset();
     }
 
 

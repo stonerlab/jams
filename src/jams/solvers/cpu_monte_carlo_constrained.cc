@@ -151,8 +151,12 @@ unsigned ConstrainedMCSolver::AsselinAlgorithm(const std::function<jams::Vec<dou
     jams::Vec<double, 3> s2_initial         = jams::montecarlo::get_spin(s2);
     jams::Vec<double, 3> s2_initial_rotated = rotate_cartesian_to_constraint(s2, s2_initial);
 
+    if (globals::inv_mus(s1) == 0.0 || globals::inv_mus(s2) == 0.0) {
+      continue;
+    }
+
     // calculate new spin based on contraint mx = my = 0 in the constraint vector reference frame
-    jams::Vec<double, 3> s2_trial_rotated   = s2_initial_rotated + (s1_initial_rotated - s1_trial_rotated ) * (globals::mus(s1) / globals::mus(s2)) ;
+    jams::Vec<double, 3> s2_trial_rotated   = s2_initial_rotated + (s1_initial_rotated - s1_trial_rotated ) * (globals::mus(s1) * globals::inv_mus(s2)) ;
 
     double ss2 = s2_trial_rotated[0] * s2_trial_rotated[0] + s2_trial_rotated[1] * s2_trial_rotated[1];
     if (ss2 > 1.0) {
