@@ -219,8 +219,9 @@ protected:
       const std::string& estimator,
       const std::string& spatial_backend,
       const std::string& time_backend,
-      const int cuda_memory_limit_mib = 0) {
-    initialise_density_lattice(estimator, spatial_backend, time_backend, cuda_memory_limit_mib);
+      const int cuda_memory_limit_mib = 0,
+      const std::string& circular_channels = "") {
+    initialise_density_lattice(estimator, spatial_backend, time_backend, cuda_memory_limit_mib, circular_channels);
 
     const auto run_dir = output_dir_ / run_name;
     std::filesystem::remove_all(run_dir);
@@ -240,8 +241,11 @@ protected:
     return read_density_rows();
   }
 
-  DensityTable run_one_basis_density(Solver& solver, const std::string& run_name) {
-    initialise_one_basis_density_lattice();
+  DensityTable run_one_basis_density(
+      Solver& solver,
+      const std::string& run_name,
+      const std::string& circular_channels = "") {
+    initialise_one_basis_density_lattice(circular_channels);
 
     const auto run_dir = output_dir_ / run_name;
     std::filesystem::remove_all(run_dir);
@@ -328,7 +332,8 @@ protected:
       const std::string& estimator,
       const std::string& spatial_backend,
       const std::string& time_backend,
-      const int cuda_memory_limit_mib = 0) {
+      const int cuda_memory_limit_mib = 0,
+      const std::string& circular_channels = "") {
     delete globals::lattice;
     globals::lattice = new Lattice();
     globals::config = std::make_unique<libconfig::Config>();
@@ -336,15 +341,16 @@ protected:
         estimator,
         spatial_backend,
         time_backend,
-        cuda_memory_limit_mib));
+        cuda_memory_limit_mib,
+        circular_channels));
     globals::lattice->init_from_config(*globals::config);
   }
 
-  void initialise_one_basis_density_lattice() {
+  void initialise_one_basis_density_lattice(const std::string& circular_channels = "") {
     delete globals::lattice;
     globals::lattice = new Lattice();
     globals::config = std::make_unique<libconfig::Config>();
-    globals::config->readString(one_basis_density_config());
+    globals::config->readString(one_basis_density_config(circular_channels));
     globals::lattice->init_from_config(*globals::config);
   }
 
@@ -431,6 +437,27 @@ protected:
     return rows;
   }
 
+  static std::vector<std::string> read_density_header() {
+    std::ifstream file(jams::output::monitor_filename("magnon-density", "tsv"));
+    EXPECT_TRUE(file.good());
+
+    std::string line;
+    while (std::getline(file, line)) {
+      if (line.empty() || line[0] == '#') {
+        continue;
+      }
+
+      std::istringstream stream(line);
+      std::vector<std::string> columns;
+      std::string column;
+      while (stream >> column) {
+        columns.push_back(std::move(column));
+      }
+      return columns;
+    }
+    return {};
+  }
+
   static void expect_spectra_near(
       const SpectrumTable& actual,
       const SpectrumTable& expected,
@@ -457,13 +484,56 @@ protected:
     }
   }
 
-  static void expect_finite_density(const DensityTable& rows) {
+  static void expect_finite_density(const DensityTable& rows, const std::size_t expected_columns = 4) {
     ASSERT_FALSE(rows.empty());
     for (const auto& row : rows) {
-      ASSERT_EQ(row.size(), 4u);
+      ASSERT_EQ(row.size(), expected_columns);
       for (const double value : row) {
         EXPECT_TRUE(std::isfinite(value));
       }
+    }
+  }
+
+  static void expect_density_header_equals(const std::vector<std::string>& actual,
+                                           const std::vector<std::string>& expected) {
+    ASSERT_EQ(actual.size(), expected.size());
+    for (std::size_t i = 0; i < expected.size(); ++i) {
+      EXPECT_EQ(actual[i], expected[i]) << "column " << i;
+    }
+  }
+
+  static void expect_density_folded_columns(
+      const DensityTable& rows,
+      const int two_sided_column,
+      const int folded_column,
+      const double df) {
+    for (const auto& row : rows) {
+      const int freq_bin = static_cast<int>(std::llround(row[0] / df));
+      if (freq_bin < 0) {
+        EXPECT_NEAR(row[folded_column], 0.0, 1.0e-12);
+        continue;
+      }
+
+      if (freq_bin == 0 || (periodogram_length_ % 2 == 0 && freq_bin == periodogram_length_ / 2)) {
+        EXPECT_NEAR(
+            row[folded_column],
+            row[two_sided_column],
+            std::max(1.0, std::abs(row[two_sided_column])) * 1.0e-8);
+        continue;
+      }
+
+      const auto negative = std::find_if(
+          rows.begin(),
+          rows.end(),
+          [&](const auto& candidate) {
+            return static_cast<int>(std::llround(candidate[0] / df)) == -freq_bin;
+          });
+      ASSERT_NE(negative, rows.end());
+      const double expected_folded = row[two_sided_column] + (*negative)[two_sided_column];
+      EXPECT_NEAR(
+          row[folded_column],
+          expected_folded,
+          std::max(1.0, std::abs(expected_folded)) * 1.0e-8);
     }
   }
 
@@ -504,24 +574,28 @@ protected:
   }
 
   static double one_basis_known_y(const int time_index) {
-    (void)time_index;
-    return 0.0;
+    const double centre = static_cast<double>(time_index) - 0.5 * (periodogram_length_ - 1);
+    const double half_width = 0.5 * (periodogram_length_ - 1);
+    return one_basis_transverse_scale_ * 0.35 * centre * centre * centre / (half_width * half_width);
   }
 
-  static std::vector<double> expected_one_basis_density_two_sided(const double dt_ps) {
+  static std::vector<double> expected_one_basis_density_two_sided(
+      const double dt_ps,
+      const int circular_channel) {
     const int N = periodogram_length_;
     const double spin_length =
         (one_basis_moment_mu_b_ * kBohrMagnetonIU) / (kElectronGFactor * kBohrMagnetonIU);
 
-    std::vector<std::complex<double>> splus(static_cast<std::size_t>(N));
+    std::vector<std::complex<double>> circular_samples(static_cast<std::size_t>(N));
     std::complex<double> mean = 0.0;
     for (int t = 0; t < N; ++t) {
+      const double y = (circular_channel == 0) ? one_basis_known_y(t) : -one_basis_known_y(t);
       const std::complex<double> sample =
-          spin_length * kInvSqrtTwo * std::complex<double>(one_basis_known_x(t), one_basis_known_y(t));
-      splus[static_cast<std::size_t>(t)] = {
+          spin_length * kInvSqrtTwo * std::complex<double>(one_basis_known_x(t), y);
+      circular_samples[static_cast<std::size_t>(t)] = {
           static_cast<float>(sample.real()),
           static_cast<float>(sample.imag())};
-      mean += splus[static_cast<std::size_t>(t)];
+      mean += circular_samples[static_cast<std::size_t>(t)];
     }
     mean /= static_cast<double>(N);
 
@@ -544,7 +618,7 @@ protected:
     for (int f = 0; f < N; ++f) {
       std::complex<double> spectrum = 0.0;
       for (int t = 0; t < N; ++t) {
-        const auto centred = (splus[static_cast<std::size_t>(t)] - mean) / static_cast<double>(N);
+        const auto centred = (circular_samples[static_cast<std::size_t>(t)] - mean) / static_cast<double>(N);
         const auto windowed = window[static_cast<std::size_t>(t)] * centred;
         const double phase = -kTwoPi * static_cast<double>(f * t) / static_cast<double>(N);
         spectrum += windowed * std::exp(std::complex<double>(0.0, phase));
@@ -621,7 +695,8 @@ protected:
       const std::string& estimator,
       const std::string& spatial_backend,
       const std::string& time_backend,
-      const int cuda_memory_limit_mib) {
+      const int cuda_memory_limit_mib,
+      const std::string& circular_channels) {
     return std::string(R"(
       solver : {
         module = "llg-heun-cpu";
@@ -658,6 +733,7 @@ protected:
         {
           module = "magnon-density";
           output_steps = 1;
+      )") + circular_channels_config(circular_channels) + std::string(R"(
           keep_negative_frequencies = false;
           fftw_threads = 1;
           sk_time_series_backend = "memory";
@@ -674,7 +750,7 @@ protected:
     )";
   }
 
-  static std::string one_basis_density_config() {
+  static std::string one_basis_density_config(const std::string& circular_channels) {
     return std::string(R"(
       solver : {
         module = "llg-heun-cpu";
@@ -709,6 +785,7 @@ protected:
         {
           module = "magnon-density";
           output_steps = 1;
+      )" + circular_channels_config(circular_channels) + R"(
           keep_negative_frequencies = false;
           fftw_threads = 1;
           sk_time_series_backend = "memory";
@@ -722,6 +799,13 @@ protected:
         }
       );
     )";
+  }
+
+  static std::string circular_channels_config(const std::string& circular_channels) {
+    if (circular_channels.empty()) {
+      return "";
+    }
+    return "          circular_channels = \"" + circular_channels + "\";\n";
   }
 
   static std::string cartesian_probe_config(
@@ -815,32 +899,56 @@ TEST_F(MagnonSpectrumCudaMonitorTest, RejectsExplicitCudaSpatialWithoutCudaSolve
 TEST_F(MagnonSpectrumCudaMonitorTest, MagnonDensityWritesTwoSidedAndFoldedRows) {
   MagnonSpectrumStubSolver solver;
   const auto rows = run_density(solver, "density_cpu_welch", "welch", "cpu", "cpu");
+  expect_density_header_equals(
+      read_density_header(),
+      {"f_THz",
+       "E_meV",
+       "magnon_density_two_sided_meV^-1_m^-3",
+       "magnon_density_positive_folded_meV^-1_m^-3"});
   expect_finite_density(rows);
   ASSERT_EQ(rows.size(), static_cast<std::size_t>(periodogram_length_));
 
   const double df = 1.0 / (static_cast<double>(periodogram_length_) * solver.time_step());
+  expect_density_folded_columns(rows, 2, 3, df);
+}
+
+TEST_F(MagnonSpectrumCudaMonitorTest, MagnonDensityExplicitPlusMatchesDefaultRows) {
+  MagnonSpectrumStubSolver default_solver;
+  const auto default_rows = run_density(default_solver, "density_default_plus", "welch", "cpu", "cpu");
+  const auto default_header = read_density_header();
+
+  MagnonSpectrumStubSolver explicit_solver;
+  const auto explicit_rows = run_density(explicit_solver, "density_explicit_plus", "welch", "cpu", "cpu", 0, "plus");
+  const auto explicit_header = read_density_header();
+
+  expect_density_header_equals(explicit_header, default_header);
+  expect_spectra_near(explicit_rows, default_rows);
+}
+
+TEST_F(MagnonSpectrumCudaMonitorTest, MagnonDensityBothCircularChannelsWritesTwoSidedAndFoldedRows) {
+  MagnonSpectrumStubSolver solver;
+  const auto rows = run_density(solver, "density_cpu_both_welch", "welch", "cpu", "cpu", 0, "both");
+  expect_density_header_equals(
+      read_density_header(),
+      {"f_THz",
+       "E_meV",
+       "magnon_density_S+_two_sided_meV^-1_m^-3",
+       "magnon_density_S-_two_sided_meV^-1_m^-3",
+       "magnon_density_S+_positive_folded_meV^-1_m^-3",
+       "magnon_density_S-_positive_folded_meV^-1_m^-3"});
+  expect_finite_density(rows, 6);
+  ASSERT_EQ(rows.size(), static_cast<std::size_t>(periodogram_length_));
+
+  const double df = 1.0 / (static_cast<double>(periodogram_length_) * solver.time_step());
+  expect_density_folded_columns(rows, 2, 4, df);
+  expect_density_folded_columns(rows, 3, 5, df);
+
+  bool found_distinct_channels = false;
   for (const auto& row : rows) {
-    const int freq_bin = static_cast<int>(std::llround(row[0] / df));
-    if (freq_bin < 0) {
-      EXPECT_NEAR(row[3], 0.0, 1.0e-12);
-      continue;
-    }
-
-    if (freq_bin == 0 || (periodogram_length_ % 2 == 0 && freq_bin == periodogram_length_ / 2)) {
-      EXPECT_NEAR(row[3], row[2], std::max(1.0, std::abs(row[2])) * 1.0e-8);
-      continue;
-    }
-
-    const auto negative = std::find_if(
-        rows.begin(),
-        rows.end(),
-        [&](const auto& candidate) {
-          return static_cast<int>(std::llround(candidate[0] / df)) == -freq_bin;
-        });
-    ASSERT_NE(negative, rows.end());
-    const double expected_folded = row[2] + (*negative)[2];
-    EXPECT_NEAR(row[3], expected_folded, std::max(1.0, std::abs(expected_folded)) * 1.0e-8);
+    const double scale = std::max({1.0, std::abs(row[2]), std::abs(row[3])});
+    found_distinct_channels = found_distinct_channels || std::abs(row[2] - row[3]) > 1.0e-10 * scale;
   }
+  EXPECT_TRUE(found_distinct_channels);
 }
 
 TEST_F(MagnonSpectrumCudaMonitorTest, MagnonDensityUsesDimensionlessPerBasisSpinLength) {
@@ -880,7 +988,7 @@ TEST_F(MagnonSpectrumCudaMonitorTest, MagnonDensityOneBasisMatchesHandComputedDe
   ASSERT_EQ(rows.size(), static_cast<std::size_t>(periodogram_length_));
 
   const double df = 1.0 / (static_cast<double>(periodogram_length_) * solver.time_step());
-  const auto expected = expected_one_basis_density_two_sided(solver.time_step());
+  const auto expected = expected_one_basis_density_two_sided(solver.time_step(), 0);
   for (const auto& row : rows) {
     const int freq_bin = static_cast<int>(std::llround(row[0] / df));
     const int f = (freq_bin >= 0) ? freq_bin : periodogram_length_ + freq_bin;
@@ -898,6 +1006,42 @@ TEST_F(MagnonSpectrumCudaMonitorTest, MagnonDensityOneBasisMatchesHandComputedDe
           + expected[static_cast<std::size_t>(periodogram_length_ - f)];
     }
     EXPECT_NEAR(row[3], expected_folded, std::max(1.0, std::abs(expected_folded)) * 1.0e-5);
+  }
+}
+
+TEST_F(MagnonSpectrumCudaMonitorTest, MagnonDensityBothChannelsOneBasisMatchesHandComputedDensity) {
+  MagnonSpectrumStubSolver solver;
+  const auto rows = run_one_basis_density(solver, "density_one_basis_both_hand_computed", "both");
+  expect_finite_density(rows, 6);
+  ASSERT_EQ(rows.size(), static_cast<std::size_t>(periodogram_length_));
+
+  const double df = 1.0 / (static_cast<double>(periodogram_length_) * solver.time_step());
+  const auto expected_plus = expected_one_basis_density_two_sided(solver.time_step(), 0);
+  const auto expected_minus = expected_one_basis_density_two_sided(solver.time_step(), 1);
+  for (const auto& row : rows) {
+    const int freq_bin = static_cast<int>(std::llround(row[0] / df));
+    const int f = (freq_bin >= 0) ? freq_bin : periodogram_length_ + freq_bin;
+    ASSERT_GE(f, 0);
+    ASSERT_LT(f, periodogram_length_);
+
+    const double expected_plus_two_sided = expected_plus[static_cast<std::size_t>(f)];
+    const double expected_minus_two_sided = expected_minus[static_cast<std::size_t>(f)];
+    EXPECT_NEAR(row[2], expected_plus_two_sided, std::max(1.0, std::abs(expected_plus_two_sided)) * 1.0e-5);
+    EXPECT_NEAR(row[3], expected_minus_two_sided, std::max(1.0, std::abs(expected_minus_two_sided)) * 1.0e-5);
+
+    double expected_plus_folded = 0.0;
+    double expected_minus_folded = 0.0;
+    if (freq_bin == 0 || (periodogram_length_ % 2 == 0 && f == periodogram_length_ / 2)) {
+      expected_plus_folded = expected_plus_two_sided;
+      expected_minus_folded = expected_minus_two_sided;
+    } else if (freq_bin > 0) {
+      expected_plus_folded = expected_plus[static_cast<std::size_t>(f)]
+          + expected_plus[static_cast<std::size_t>(periodogram_length_ - f)];
+      expected_minus_folded = expected_minus[static_cast<std::size_t>(f)]
+          + expected_minus[static_cast<std::size_t>(periodogram_length_ - f)];
+    }
+    EXPECT_NEAR(row[4], expected_plus_folded, std::max(1.0, std::abs(expected_plus_folded)) * 1.0e-5);
+    EXPECT_NEAR(row[5], expected_minus_folded, std::max(1.0, std::abs(expected_minus_folded)) * 1.0e-5);
   }
 }
 
@@ -1000,6 +1144,20 @@ TEST_F(MagnonSpectrumCudaMonitorTest, CudaSpatialCudaTimeMatchesCpuWelchMagnonDe
   expect_spectra_near(cuda_rows, cpu_rows);
 }
 
+TEST_F(MagnonSpectrumCudaMonitorTest, CudaSpatialCudaTimeMatchesCpuWelchBothChannelMagnonDensity) {
+  if (!magnon_spectrum_cuda_device_available()) {
+    GTEST_SKIP() << "CUDA runtime is enabled but no CUDA device is available";
+  }
+
+  MagnonSpectrumStubSolver cpu_solver;
+  const auto cpu_rows = run_density(cpu_solver, "density_cpu_both_welch_cuda_ref", "welch", "cpu", "cpu", 0, "both");
+
+  MagnonSpectrumCudaStubSolver cuda_solver;
+  const auto cuda_rows = run_density(cuda_solver, "density_cuda_both_welch", "welch", "cuda", "cuda", 0, "both");
+
+  expect_spectra_near(cuda_rows, cpu_rows);
+}
+
 TEST_F(MagnonSpectrumCudaMonitorTest, CudaSpatialCpuTimeMatchesCpuMultitaperSpectrum) {
   if (!magnon_spectrum_cuda_device_available()) {
     GTEST_SKIP() << "CUDA runtime is enabled but no CUDA device is available";
@@ -1038,6 +1196,22 @@ TEST_F(MagnonSpectrumCudaMonitorTest, CudaSpatialCudaTimeMatchesCpuMultitaperMag
 
   MagnonSpectrumCudaStubSolver cuda_solver;
   const auto cuda_rows = run_density(cuda_solver, "density_cuda_multitaper", "multitaper", "cuda", "cuda");
+
+  expect_spectra_near(cuda_rows, cpu_rows);
+}
+
+TEST_F(MagnonSpectrumCudaMonitorTest, CudaSpatialCudaTimeMatchesCpuMultitaperBothChannelMagnonDensity) {
+  if (!magnon_spectrum_cuda_device_available()) {
+    GTEST_SKIP() << "CUDA runtime is enabled but no CUDA device is available";
+  }
+
+  MagnonSpectrumStubSolver cpu_solver;
+  const auto cpu_rows =
+      run_density(cpu_solver, "density_cpu_both_multitaper_cuda_ref", "multitaper", "cpu", "cpu", 0, "both");
+
+  MagnonSpectrumCudaStubSolver cuda_solver;
+  const auto cuda_rows =
+      run_density(cuda_solver, "density_cuda_both_multitaper", "multitaper", "cuda", "cuda", 0, "both");
 
   expect_spectra_near(cuda_rows, cpu_rows);
 }

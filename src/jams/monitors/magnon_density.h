@@ -23,8 +23,8 @@ private:
     void output_magnon_density();
     void accumulate_magnon_density();
 
-    // cumulative_magnon_density_(frequency_index)
-    jams::MultiArray<double,1> cumulative_magnon_density_;
+    // cumulative_magnon_density_(frequency_index, circular_channel_index)
+    jams::MultiArray<double,2> cumulative_magnon_density_;
 };
 
 #endif //JAMS_MAGNON_DENSITY_H

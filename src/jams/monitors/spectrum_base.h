@@ -201,7 +201,7 @@ public:
         int multitaper_count) = 0;
 
     virtual void copy_magnon_density_to_host(
-        jams::MultiArray<double, 1>& cumulative) = 0;
+        jams::MultiArray<double, 2>& cumulative) = 0;
 
     virtual void compute_frequency_spectrum_at_k(
         int kpoint_index,
@@ -316,7 +316,7 @@ protected:
   /// synchronized back to host for output; false if the caller should use the
   /// CPU frequency path.
   bool accumulate_magnon_spectrum_cuda(jams::MultiArray<jams::Vec<double, 3>, 2>& cumulative);
-  bool accumulate_magnon_density_cuda(jams::MultiArray<double, 1>& cumulative);
+  bool accumulate_magnon_density_cuda(jams::MultiArray<double, 2>& cumulative);
 
   const CmplxMappedSpectrum& finalise_periodogram_spectrum();
 

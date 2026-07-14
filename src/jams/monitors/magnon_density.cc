@@ -6,8 +6,12 @@
 
 #include <jams/helpers/output.h>
 #include "jams/core/globals.h"
+#include "jams/interface/config.h"
 
 #include <cmath>
+#include <stdexcept>
+#include <string>
+#include <vector>
 
 #include "jams/core/lattice.h"
 
@@ -18,12 +22,25 @@ MagnonDensityMonitor::MagnonDensityMonitor(const libconfig::Setting& settings)
     require_negative_frequencies_();
     validate_cuda_time_fft_backend_support_();
 
-    const int time_points = periodogram_length();
-    zero(cumulative_magnon_density_.resize(time_points));
-
+    const auto circular_channels = lowercase(
+        jams::config_optional<std::string>(settings, "circular_channels", "plus"));
     auto channel_map = raise_lower_channel_map();
-    channel_map.output_channels = 1; // S+ only
+    if (circular_channels == "plus")
+    {
+        channel_map.output_channels = 1; // S+ only
+    }
+    else if (circular_channels == "both")
+    {
+        channel_map.output_channels = 2; // S+, S-
+    }
+    else
+    {
+        throw std::runtime_error("magnon-density circular_channels must be one of: plus, both");
+    }
     set_channel_map(channel_map);
+
+    const int time_points = periodogram_length();
+    zero(cumulative_magnon_density_.resize(time_points, num_channels()));
 
     print_info();
 }
@@ -43,12 +60,23 @@ void MagnonDensityMonitor::update(Solver& solver)
 
 void MagnonDensityMonitor::output_magnon_density()
 {
-    jams::output::TsvWriter tsv(
-        jams::output::monitor_filename(name(), "tsv"),
-        {{"f_THz", "THz", jams::output::ColFmt::Fixed},
-         {"E_meV", "meV", jams::output::ColFmt::Fixed},
-         {"magnon_density_two_sided_meV^-1_m^-3", "meV^-1 m^-3"},
-         {"magnon_density_positive_folded_meV^-1_m^-3", "meV^-1 m^-3"}});
+    const bool output_both_channels = num_channels() == 2;
+    std::vector<jams::output::ColDef> columns{
+        {"f_THz", "THz", jams::output::ColFmt::Fixed},
+        {"E_meV", "meV", jams::output::ColFmt::Fixed}};
+    if (output_both_channels)
+    {
+        columns.push_back({"magnon_density_S+_two_sided_meV^-1_m^-3", "meV^-1 m^-3"});
+        columns.push_back({"magnon_density_S-_two_sided_meV^-1_m^-3", "meV^-1 m^-3"});
+        columns.push_back({"magnon_density_S+_positive_folded_meV^-1_m^-3", "meV^-1 m^-3"});
+        columns.push_back({"magnon_density_S-_positive_folded_meV^-1_m^-3", "meV^-1 m^-3"});
+    }
+    else
+    {
+        columns.push_back({"magnon_density_two_sided_meV^-1_m^-3", "meV^-1 m^-3"});
+        columns.push_back({"magnon_density_positive_folded_meV^-1_m^-3", "meV^-1 m^-3"});
+    }
+    jams::output::TsvWriter tsv(jams::output::monitor_filename(name(), "tsv"), columns);
 
     const int time_points = periodogram_length();
 
@@ -56,34 +84,56 @@ void MagnonDensityMonitor::output_magnon_density()
     const double v = volume(globals::lattice->get_supercell()) * pow3(globals::lattice->parameter());
     const double prefactor = 1.0 / (v * periodogram_window_count() * df_thz * kTHz2meV);
     const auto freq_start = (time_points % 2 == 0) ? (time_points / 2 + 1) : ((time_points + 1) / 2);
-    assert(cumulative_magnon_density_.size() >= static_cast<std::size_t>(time_points));
+    assert(cumulative_magnon_density_.extent(0) >= static_cast<std::size_t>(time_points));
+    assert(cumulative_magnon_density_.extent(1) >= static_cast<std::size_t>(num_channels()));
+
+    const auto two_sided_density = [this, prefactor](const std::size_t f, const std::size_t c) {
+        return prefactor * cumulative_magnon_density_(f, c);
+    };
+    const auto folded_density = [this, prefactor, time_points](
+        const std::size_t f,
+        const int freq_index,
+        const std::size_t c) {
+        if (freq_index == 0
+            || ((time_points % 2) == 0 && f == static_cast<std::size_t>(time_points / 2)))
+        {
+            return prefactor * cumulative_magnon_density_(f, c);
+        }
+        if (freq_index > 0)
+        {
+            const auto negative_f = static_cast<std::size_t>(time_points) - f;
+            return prefactor * (cumulative_magnon_density_(f, c)
+                + cumulative_magnon_density_(negative_f, c));
+        }
+        return 0.0;
+    };
+
     for (auto i = 0; i < time_points; ++i)
     {
         const auto f = (freq_start + i) % time_points;
         const auto freq_index = (f <= time_points / 2) ? static_cast<int>(f)
                                                        : static_cast<int>(f) - static_cast<int>(time_points);
         const auto freq_thz = static_cast<double>(freq_index) * frequency_resolution_thz();
-        const double two_sided_density = prefactor * cumulative_magnon_density_(static_cast<std::size_t>(f));
+        const auto f_index = static_cast<std::size_t>(f);
 
-        double folded_density = 0.0;
-        if (freq_index == 0
-            || ((time_points % 2) == 0 && f == time_points / 2))
+        if (output_both_channels)
         {
-            folded_density = two_sided_density;
+            tsv.write_row_values(
+                freq_thz,
+                freq_thz * kTHz2meV,
+                two_sided_density(f_index, 0),
+                two_sided_density(f_index, 1),
+                folded_density(f_index, freq_index, 0),
+                folded_density(f_index, freq_index, 1));
         }
-        else if (freq_index > 0)
+        else
         {
-            const auto negative_f = static_cast<std::size_t>(time_points - f);
-            folded_density = prefactor
-                * (cumulative_magnon_density_(static_cast<std::size_t>(f))
-                   + cumulative_magnon_density_(negative_f));
+            tsv.write_row_values(
+                freq_thz,
+                freq_thz * kTHz2meV,
+                two_sided_density(f_index, 0),
+                folded_density(f_index, freq_index, 0));
         }
-
-        tsv.write_row_values(
-            freq_thz,
-            freq_thz * kTHz2meV,
-            two_sided_density,
-            folded_density);
     }
 }
 
@@ -101,14 +151,19 @@ void MagnonDensityMonitor::accumulate_magnon_density()
             [this](const CmplxMappedSlice& sw, const double taper_weight) {
                 const auto time_points = periodogram_length();
 
-                assert(cumulative_magnon_density_.size() >= static_cast<std::size_t>(time_points));
+                assert(cumulative_magnon_density_.extent(0) >= static_cast<std::size_t>(time_points));
+                assert(cumulative_magnon_density_.extent(1) >= static_cast<std::size_t>(num_channels()));
 
                 for (auto a = 0; a < num_basis_atoms(); ++a)
                 {
                     const double inv_spin_length = 1.0 / basis_spin_length_(a);
                     for (auto f = 0; f < time_points; ++f)
                     {
-                        cumulative_magnon_density_(f) += taper_weight * inv_spin_length * std::norm(sw(a, f, 0));
+                        for (auto c = 0; c < num_channels(); ++c)
+                        {
+                            cumulative_magnon_density_(f, c) +=
+                                taper_weight * inv_spin_length * std::norm(sw(a, f, c));
+                        }
                     }
                 }
             });

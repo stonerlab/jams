@@ -1561,7 +1561,7 @@ bool SpectrumBaseMonitor::accumulate_magnon_spectrum_cuda(
 }
 
 bool SpectrumBaseMonitor::accumulate_magnon_density_cuda(
-    jams::MultiArray<double, 1>& cumulative)
+    jams::MultiArray<double, 2>& cumulative)
 {
   if (!use_cuda_time_fft_())
   {

@@ -466,19 +466,22 @@ __global__ void accumulate_magnon_density_kernel(
     const double* basis_spin_lengths,
     double* cumulative)
 {
-  const int f = blockIdx.x * blockDim.x + threadIdx.x;
-  if (f >= num_frequencies)
+  const int idx = blockIdx.x * blockDim.x + threadIdx.x;
+  const int total = num_frequencies * output_channels;
+  if (idx >= total)
   {
     return;
   }
 
+  const int c = idx % output_channels;
+  const int f = idx / output_channels;
   double sum = 0.0;
   for (int a = 0; a < num_basis; ++a)
   {
     const double spin_length = basis_spin_lengths[a];
-    sum += norm_z(scratch[(a * output_channels) * periodogram_length + f]) / spin_length;
+    sum += norm_z(scratch[(a * output_channels + c) * periodogram_length + f]) / spin_length;
   }
-  cumulative[(f * num_k + kpoint_index) * 3] += taper_weight * sum;
+  cumulative[(f * num_k + kpoint_index) * 3 + c] += taper_weight * sum;
 }
 
 __global__ void accumulate_tapered_spectrum_kernel(
@@ -1082,7 +1085,7 @@ public:
     const dim3 prepare_block(128);
     const dim3 prepare_grid((num_basis_ * output_channels_ + prepare_block.x - 1) / prepare_block.x);
     const dim3 accum_block(128);
-    const dim3 accum_grid((freq_count + accum_block.x - 1) / accum_block.x);
+    const dim3 accum_grid((freq_count * output_channels_ + accum_block.x - 1) / accum_block.x);
 
     for (int k = 0; k < num_k_points_; ++k)
     {
@@ -1128,17 +1131,20 @@ public:
   }
 
   void copy_magnon_density_to_host(
-      jams::MultiArray<double, 1>& cumulative) override
+      jams::MultiArray<double, 2>& cumulative) override
   {
     const auto host = cumulative_magnon_.host_view();
     for (int f = 0; f < cumulative_magnon_.extent(0); ++f)
     {
-      double sum = 0.0;
-      for (int k = 0; k < cumulative_magnon_.extent(1); ++k)
+      for (int c = 0; c < output_channels_; ++c)
       {
-        sum += host(f, k, 0);
+        double sum = 0.0;
+        for (int k = 0; k < cumulative_magnon_.extent(1); ++k)
+        {
+          sum += host(f, k, c);
+        }
+        cumulative(f, c) = sum;
       }
-      cumulative(f) = sum;
     }
     cumulative_magnon_.release_stale_host();
   }
