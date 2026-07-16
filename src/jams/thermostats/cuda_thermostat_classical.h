@@ -15,6 +15,8 @@ class CudaThermostatClassical : public Thermostat {
 
   void update();
 
+  cudaStream_t& get_stream() override;
+
   const jams::Real* device_data() override { return noise_.device_data(); }
 
 

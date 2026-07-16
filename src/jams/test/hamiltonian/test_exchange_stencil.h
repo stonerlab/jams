@@ -2,6 +2,7 @@
 #define JAMS_TEST_HAMILTONIAN_TEST_EXCHANGE_STENCIL_H
 
 #include <algorithm>
+#include <array>
 #include <cmath>
 #include <cstdio>
 #include <fstream>
@@ -19,6 +20,10 @@
 #include "jams/helpers/output.h"
 #include "jams/helpers/utils.h"
 #include "jams/test/output.h"
+
+#ifndef JAMS_DIAGNOSTIC_EXCHANGE_REALHI_ACCUMULATION
+#define JAMS_DIAGNOSTIC_EXCHANGE_REALHI_ACCUMULATION 0
+#endif
 
 namespace jams::testing::exchange_stencil {
 
@@ -190,7 +195,14 @@ inline jams::MultiArray<jams::Real, 2> make_spins() {
 
 inline void assert_near_scaled(const double expected, const double actual, const double tolerance) {
   const auto scale = std::max(1.0, std::max(std::abs(expected), std::abs(actual)));
-  ASSERT_NEAR(expected, actual, tolerance * scale);
+#if DO_MIXED_PRECISION
+  // Sparse and stencil backends may accumulate equal Real (binary32) terms in
+  // different orders.  Do not apply a binary64 tolerance to that comparison.
+  const auto effective_tolerance = std::max(tolerance, 5.0e-7);
+#else
+  const auto effective_tolerance = tolerance;
+#endif
+  ASSERT_NEAR(expected, actual, effective_tolerance * scale);
 }
 
 inline void compare_hamiltonian_outputs(
@@ -377,6 +389,77 @@ TEST_F(ExchangeStencilHamiltonianTest, MatchesSparseForSymopsGeneratedExchange) 
       "",
       "[4, 4, 4]"));
   compare_to_sparse_exchange(globals::config->lookup("hamiltonians"), 1.0e-8);
+}
+
+TEST_F(ExchangeStencilHamiltonianTest, SimpleCubicSixNeighbourFieldErrorIsBounded) {
+  using namespace jams::testing::exchange_stencil;
+  constexpr int kSize = 16;
+  constexpr double kExchangeMeV = 20.0;
+  SetUp(make_config(
+      "[true, true, true]",
+      single_basis_positions(),
+      single_material(),
+      R"(
+        ("A", "A", [1.0, 0.0, 0.0], 20.0)
+      )",
+      "true",
+      "",
+      R"(
+        energy_units = "meV";
+      )",
+      "",
+      "[16, 16, 16]"));
+
+  ExchangeHamiltonian candidate(
+      globals::config->lookup("hamiltonians.[1]"), globals::num_spins, false);
+  ASSERT_EQ(candidate.active_backend(), ExchangeBackend::Stencil);
+  auto spins = make_spins();
+  candidate.calculate_fields(0.0, spins);
+
+  const auto wrap = [](const int value) {
+    return value < 0 ? value + kSize : (value >= kSize ? value - kSize : value);
+  };
+  const auto site = [](const int x, const int y, const int z) {
+    return (x * kSize + y) * kSize + z;
+  };
+
+  double max_abs_error = 0.0;
+  double squared_error = 0.0;
+  for (auto x = 0; x < kSize; ++x) {
+    for (auto y = 0; y < kSize; ++y) {
+      for (auto z = 0; z < kSize; ++z) {
+        const std::array<int, 6> neighbours = {
+            site(wrap(x + 1), y, z),
+            site(wrap(x - 1), y, z),
+            site(x, wrap(y + 1), z),
+            site(x, wrap(y - 1), z),
+            site(x, y, wrap(z + 1)),
+            site(x, y, wrap(z - 1))};
+        const int source = site(x, y, z);
+        for (auto component = 0; component < 3; ++component) {
+          double expected = 0.0;
+          for (const int neighbour : neighbours) {
+            expected += kExchangeMeV * static_cast<double>(spins(neighbour, component));
+          }
+          const double error = static_cast<double>(candidate.field(source, component)) - expected;
+          max_abs_error = std::max(max_abs_error, std::abs(error));
+          squared_error += error * error;
+        }
+      }
+    }
+  }
+  const double rms_error = std::sqrt(squared_error / static_cast<double>(globals::num_spins3));
+
+#if DO_MIXED_PRECISION && JAMS_DIAGNOSTIC_EXCHANGE_REALHI_ACCUMULATION
+  EXPECT_LE(max_abs_error, 5.0e-6) << "RMS error: " << rms_error;
+  EXPECT_LE(rms_error, 1.5e-6);
+#elif DO_MIXED_PRECISION
+  EXPECT_LE(max_abs_error, 1.1e-5) << "RMS error: " << rms_error;
+  EXPECT_LE(rms_error, 2.2e-6);
+#else
+  EXPECT_LE(max_abs_error, 1.0e-12) << "RMS error: " << rms_error;
+  EXPECT_LE(rms_error, 1.0e-13);
+#endif
 }
 
 TEST_F(ExchangeStencilHamiltonianTest, MatchesSparseForExchangeFileInput) {

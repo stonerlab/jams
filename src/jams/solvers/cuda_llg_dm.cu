@@ -223,6 +223,7 @@ void CUDALLGDMSolver::run_with_parameters(
     alpha,
     globals::num_spins, half_dt);
   DEBUG_CHECK_CUDA_ASYNC_STATUS
+  thermostat_->record_consumed(jams::instance().cuda_master_stream().get());
   record_spin_barrier_event();
 
   // snapshot S_n
@@ -290,6 +291,7 @@ void CUDALLGDMSolver::run_with_parameters(
     alpha,
     globals::num_spins, half_dt);
   DEBUG_CHECK_CUDA_ASYNC_STATUS
+  thermostat_->record_consumed(jams::instance().cuda_master_stream().get());
   record_spin_barrier_event();
 
   iteration_++;

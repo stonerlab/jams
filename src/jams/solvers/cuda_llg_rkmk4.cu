@@ -9,6 +9,91 @@
 #include "jams/cuda/cuda_device_vector_ops.h"
 #include "jams/solvers/cuda_solver_functions.cuh"
 
+#ifndef JAMS_DIAGNOSTIC_RKMK4_REALHI_FIELD_SCALE
+#define JAMS_DIAGNOSTIC_RKMK4_REALHI_FIELD_SCALE 0
+#endif
+
+#ifndef JAMS_DIAGNOSTIC_RKMK4_EXPLICIT_SYNC
+#define JAMS_DIAGNOSTIC_RKMK4_EXPLICIT_SYNC 0
+#endif
+
+#ifndef JAMS_DIAGNOSTIC_EXCHANGE_REALHI_ACCUMULATION
+#define JAMS_DIAGNOSTIC_EXCHANGE_REALHI_ACCUMULATION 0
+#endif
+
+#ifndef JAMS_DIAGNOSTIC_REPORT_BUILD
+#define JAMS_DIAGNOSTIC_REPORT_BUILD 0
+#endif
+
+namespace {
+
+inline void rkmk4_diagnostic_sync(const cudaStream_t stream) {
+#if JAMS_DIAGNOSTIC_RKMK4_EXPLICIT_SYNC
+  CHECK_CUDA_STATUS(cudaStreamSynchronize(stream));
+#else
+  (void)stream;
+#endif
+}
+
+#if JAMS_DIAGNOSTIC_RKMK4_REALHI_FIELD_SCALE
+using Rkmk4FieldReal = jams::RealHi;
+
+__device__ __forceinline__ Rkmk4FieldReal rkmk4_scale_field(
+    const CudaUniformFieldScale field_scale,
+    const jams::Real field,
+    const unsigned) {
+  return static_cast<jams::RealHi>(field)
+      * static_cast<jams::RealHi>(field_scale.inv_mus);
+}
+
+__device__ __forceinline__ Rkmk4FieldReal rkmk4_scale_field(
+    const CudaPerSpinFieldScale field_scale,
+    const jams::Real field,
+    const unsigned idx) {
+  return static_cast<jams::RealHi>(field)
+      * static_cast<jams::RealHi>(field_scale.inv_mus[idx]);
+}
+
+template <typename GyroParam, typename AlphaParam>
+__device__ __forceinline__ void rkmk4_omega_llg(
+    const double s[3],
+    const Rkmk4FieldReal h[3],
+    const GyroParam gyro,
+    const AlphaParam alpha,
+    const unsigned idx,
+    double omega[3]) {
+  jams::solvers::rkmk::omega_llg(
+      s,
+      h,
+      static_cast<jams::RealHi>(gyro.get(idx)),
+      static_cast<jams::RealHi>(alpha.get(idx)),
+      omega);
+}
+#else
+using Rkmk4FieldReal = jams::Real;
+
+template <typename FieldScaleParam>
+__device__ __forceinline__ Rkmk4FieldReal rkmk4_scale_field(
+    const FieldScaleParam field_scale,
+    const jams::Real field,
+    const unsigned idx) {
+  return field_scale.scale(field, idx);
+}
+
+template <typename GyroParam, typename AlphaParam>
+__device__ __forceinline__ void rkmk4_omega_llg(
+    const double s[3],
+    const Rkmk4FieldReal h[3],
+    const GyroParam gyro,
+    const AlphaParam alpha,
+    const unsigned idx,
+    double omega[3]) {
+  omega_llg(s, h, gyro.get(idx), alpha.get(idx), omega);
+}
+#endif
+
+}  // namespace
+
 template <typename GyroParam, typename AlphaParam, typename FieldScaleParam>
 __global__ void cuda_llg_rkmk4_kernel_step_1
 (
@@ -30,9 +115,9 @@ __global__ void cuda_llg_rkmk4_kernel_step_1
 
   const unsigned int base = 3u * idx;
 
-  jams::Real h[3];
+  Rkmk4FieldReal h[3];
   for (auto n = 0; n < 3; ++n) {
-    h[n] = field_scale.scale(h_step_dev[base + n], idx);
+    h[n] = rkmk4_scale_field(field_scale, h_step_dev[base + n], idx);
   }
 
   double s[3];
@@ -42,7 +127,7 @@ __global__ void cuda_llg_rkmk4_kernel_step_1
   }
 
   double omega[3];
-  omega_llg(s, h, gyro.get(idx), alpha.get(idx), omega);
+  rkmk4_omega_llg(s, h, gyro, alpha, idx, omega);
 
   double k1[3];
   for (auto n = 0; n < 3; ++n) {
@@ -82,9 +167,9 @@ __global__ void cuda_llg_rkmk4_kernel_step_2
 
   const unsigned int base = 3u * idx;
 
-  jams::Real h[3];
+  Rkmk4FieldReal h[3];
   for (auto n = 0; n < 3; ++n) {
-    h[n] = field_scale.scale(h_step_dev[base + n], idx);
+    h[n] = rkmk4_scale_field(field_scale, h_step_dev[base + n], idx);
   }
 
   double s[3];
@@ -93,7 +178,7 @@ __global__ void cuda_llg_rkmk4_kernel_step_2
   }
 
   double omega[3];
-  omega_llg(s, h, gyro.get(idx), alpha.get(idx), omega);
+  rkmk4_omega_llg(s, h, gyro, alpha, idx, omega);
 
   double v2[3];
   for (auto n = 0; n < 3; ++n) {
@@ -149,9 +234,9 @@ __global__ void cuda_llg_rkmk4_kernel_step_3
 
   const unsigned int base = 3u * idx;
 
-  jams::Real h[3];
+  Rkmk4FieldReal h[3];
   for (auto n = 0; n < 3; ++n) {
-    h[n] = field_scale.scale(h_step_dev[base + n], idx);
+    h[n] = rkmk4_scale_field(field_scale, h_step_dev[base + n], idx);
   }
 
   double s[3];
@@ -160,7 +245,7 @@ __global__ void cuda_llg_rkmk4_kernel_step_3
   }
 
   double omega[3];
-  omega_llg(s, h, gyro.get(idx), alpha.get(idx), omega);
+  rkmk4_omega_llg(s, h, gyro, alpha, idx, omega);
 
   double v3[3];
   for (auto n = 0; n < 3; ++n) {
@@ -214,9 +299,9 @@ __global__ void cuda_llg_rkmk4_kernel_step_4
 
   const unsigned int base = 3u * idx;
 
-  jams::Real h[3];
+  Rkmk4FieldReal h[3];
   for (auto n = 0; n < 3; ++n) {
-    h[n] = field_scale.scale(h_step_dev[base + n], idx);
+    h[n] = rkmk4_scale_field(field_scale, h_step_dev[base + n], idx);
   }
 
   double s[3];
@@ -225,7 +310,7 @@ __global__ void cuda_llg_rkmk4_kernel_step_4
   }
 
   double omega[3];
-  omega_llg(s, h, gyro.get(idx), alpha.get(idx), omega);
+  rkmk4_omega_llg(s, h, gyro, alpha, idx, omega);
 
   double v4[3];
   for (auto n = 0; n < 3; ++n) {
@@ -278,6 +363,21 @@ void CUDALLGRKMK4Solver::initialize(const libconfig::Setting& settings)
   register_thermostat(Thermostat::create(thermostat_name, 0.5 * this->time_step()));
 
   std::cout << "  thermostat " << thermostat_name.c_str() << "\n";
+#if JAMS_DIAGNOSTIC_REPORT_BUILD
+  std::cout << "  diagnostic build flags:\n"
+            << "    exchange_realhi_accumulation = "
+            << JAMS_DIAGNOSTIC_EXCHANGE_REALHI_ACCUMULATION << "\n"
+            << "    rkmk4_realhi_field_scale = "
+            << JAMS_DIAGNOSTIC_RKMK4_REALHI_FIELD_SCALE << "\n"
+            << "    rkmk4_explicit_sync = "
+            << JAMS_DIAGNOSTIC_RKMK4_EXPLICIT_SYNC << "\n";
+#endif
+#if JAMS_DIAGNOSTIC_RKMK4_REALHI_FIELD_SCALE
+  std::cout << "  RKMK4 diagnostic: RealHi deterministic field scaling\n";
+#endif
+#if JAMS_DIAGNOSTIC_RKMK4_EXPLICIT_SYNC
+  std::cout << "  RKMK4 diagnostic: explicit synchronization after every stage\n";
+#endif
   std::cout << "done\n";
 
   initialize_gyro_eff(settings, gyro_eff_);
@@ -323,6 +423,8 @@ void CUDALLGRKMK4Solver::run_with_parameters(
     alpha,
     globals::num_spins, half_dt);
   DEBUG_CHECK_CUDA_ASYNC_STATUS
+  thermostat_->record_consumed(jams::instance().cuda_master_stream().get());
+  rkmk4_diagnostic_sync(jams::instance().cuda_master_stream().get());
   record_spin_and_field_cache_barrier_event();
 
   compute_fields();
@@ -339,6 +441,7 @@ void CUDALLGRKMK4Solver::run_with_parameters(
     alpha,
     globals::num_spins, step_size_);
   DEBUG_CHECK_CUDA_ASYNC_STATUS
+  rkmk4_diagnostic_sync(jams::instance().cuda_master_stream().get());
   record_spin_and_field_cache_barrier_event();
 
   time_ = t0 + half_dt;
@@ -358,6 +461,7 @@ void CUDALLGRKMK4Solver::run_with_parameters(
     alpha,
     globals::num_spins, step_size_);
   DEBUG_CHECK_CUDA_ASYNC_STATUS
+  rkmk4_diagnostic_sync(jams::instance().cuda_master_stream().get());
   record_spin_and_field_cache_barrier_event();
 
 
@@ -376,6 +480,7 @@ void CUDALLGRKMK4Solver::run_with_parameters(
     alpha,
     globals::num_spins, step_size_);
   DEBUG_CHECK_CUDA_ASYNC_STATUS
+  rkmk4_diagnostic_sync(jams::instance().cuda_master_stream().get());
   record_spin_and_field_cache_barrier_event();
 
   time_ = t0 + step_size_;
@@ -401,6 +506,8 @@ void CUDALLGRKMK4Solver::run_with_parameters(
     alpha,
     globals::num_spins, step_size_, half_dt);
   DEBUG_CHECK_CUDA_ASYNC_STATUS
+  thermostat_->record_consumed(jams::instance().cuda_master_stream().get());
+  rkmk4_diagnostic_sync(jams::instance().cuda_master_stream().get());
   record_spin_and_field_cache_barrier_event();
 
   iteration_++;

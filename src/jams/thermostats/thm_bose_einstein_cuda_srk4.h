@@ -58,6 +58,8 @@ public:
 
     void update() override;
 
+    cudaStream_t& get_stream() override { return dev_stream5_.get(); }
+
 private:
     void warmup(const unsigned steps);
 

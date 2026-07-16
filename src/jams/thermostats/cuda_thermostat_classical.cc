@@ -43,6 +43,10 @@ CudaThermostatClassical::CudaThermostatClassical(const jams::Real &temperature, 
   std::cout << "  done\n\n";
 }
 
+cudaStream_t& CudaThermostatClassical::get_stream() {
+  return jams::instance().cuda_master_stream().get();
+}
+
 void CudaThermostatClassical::update() {
   if (has_uniform_temperature() && this->temperature() == 0) {
     CHECK_CUDA_STATUS(cudaMemsetAsync(noise_.mutable_device_data(), 0, noise_.bytes(),jams::instance().cuda_master_stream().get()));

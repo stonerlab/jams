@@ -19,7 +19,7 @@ class Thermostat {
  public:
   Thermostat(const jams::Real &temperature, const jams::Real &sigma, const jams::Real timestep, const int num_spins);
 
-  virtual ~Thermostat() = default;
+  virtual ~Thermostat();
   virtual void update() = 0;
   virtual bool supports_update_in_parallel() const { return false; }
   virtual void update_in_parallel();
@@ -42,21 +42,39 @@ class Thermostat {
 
 
 #if HAS_CUDA
-    cudaStream_t& get_stream()
+  virtual cudaStream_t& get_stream()
   {
-      return cuda_stream_.get();
+    return cuda_stream_.get();
   }
 
   // Call after enqueueing work to update the completion marker.
   void record_done()
   {
-    cudaEventRecord(done_, cuda_stream_.get());
+    cudaEventRecord(done_, get_stream());
     DEBUG_CHECK_CUDA_ASYNC_STATUS
   }
 
   // Make an external stream wait for this Hamiltonian's work.
   void wait_on(cudaStream_t external) const {
     cudaStreamWaitEvent(external, done_, 0);
+    DEBUG_CHECK_CUDA_ASYNC_STATUS
+  }
+
+  // Return ownership of the noise buffer after an external stream has
+  // finished reading it. The next update waits for this marker before it may
+  // overwrite noise_.
+  void record_consumed(cudaStream_t external)
+  {
+    cudaEventRecord(consumed_, external);
+    has_pending_consumer_ = true;
+    DEBUG_CHECK_CUDA_ASYNC_STATUS
+  }
+
+  void wait_for_consumed()
+  {
+    if (!has_pending_consumer_) return;
+    cudaStreamWaitEvent(get_stream(), consumed_, 0);
+    has_pending_consumer_ = false;
     DEBUG_CHECK_CUDA_ASYNC_STATUS
   }
 
@@ -75,6 +93,8 @@ class Thermostat {
 #if HAS_CUDA
   CudaStream cuda_stream_ {};
   cudaEvent_t  done_{};
+  cudaEvent_t  consumed_{};
+  bool has_pending_consumer_ = false;
 #endif
 };
 

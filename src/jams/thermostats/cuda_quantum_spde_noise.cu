@@ -554,6 +554,33 @@ void CudaQuantumSpdeNoiseGenerator::update(
   }
 }
 
+void CudaQuantumSpdeNoiseGenerator::update_with_gaussian_replay(
+    jams::Real* noise, const jams::Real* sigma, const jams::Real temperature,
+    const jams::Real* eta5, const jams::Real* eta6) {
+  if (temperature <= jams::Real{0.0}) {
+    throw std::invalid_argument(
+        "quantum SPDE Gaussian replay requires a positive temperature");
+  }
+  if (zero_point_) {
+    throw std::invalid_argument(
+        "quantum SPDE Gaussian replay does not include zero-point noise");
+  }
+  if (noise == nullptr || sigma == nullptr || eta5 == nullptr || eta6 == nullptr) {
+    throw std::invalid_argument(
+        "quantum SPDE Gaussian replay requires non-null device arrays");
+  }
+
+  prepare_fixed_temperature_coefficients(temperature);
+  const int block_size = 128;
+  const int grid_size = quantum_spde_cuda_grid_size(process_count_, block_size);
+  cuda_thermostat_quantum_spde_no_zero_fast_kernel<<<
+      grid_size, block_size, 0, update_stream_.get()>>>(
+      noise, zeta5_.mutable_device_data(), zeta5p_.mutable_device_data(),
+      zeta6_.mutable_device_data(), zeta6p_.mutable_device_data(), eta5, eta6,
+      sigma, fast_factor5_, fast_factor6_, temperature, process_count_);
+  DEBUG_CHECK_CUDA_ASYNC_STATUS
+}
+
 void CudaQuantumSpdeNoiseGenerator::synchronize() {
   update_stream_.synchronize();
   curand_stream_.synchronize();

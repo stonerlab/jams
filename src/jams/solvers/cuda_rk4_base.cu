@@ -104,6 +104,9 @@ void CudaRK4BaseSolver::run()
 
   record_spin_barrier_event();
   function_kernel(globals::s, k4_);
+  // Derived RK4 function kernels currently launch their noise consumers on
+  // the legacy default stream.
+  thermostat_->record_consumed(nullptr);
 
 
   // NOTE: this does NOT normalise the spins. This must be done in the post_step

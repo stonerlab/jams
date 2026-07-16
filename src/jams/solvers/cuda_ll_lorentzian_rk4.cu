@@ -218,6 +218,8 @@ void CUDALLLorentzianRK4Solver::run()
       lorentzian_omega_, lorentzian_gamma_, lorentzian_A_,
       globals::num_spins);
   DEBUG_CHECK_CUDA_ASYNC_STATUS
+  // This solver's RK4 kernels use the legacy default stream.
+  thermostat_->record_consumed(nullptr);
 
   cuda_ll_lorentzian_rk4_combination_normalize_kernel<<<grid_size, block_size>>>
       (globals::s.mutable_device_data(), s_old_.device_data(),

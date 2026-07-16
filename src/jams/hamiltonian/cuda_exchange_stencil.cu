@@ -18,6 +18,21 @@
 
 namespace {
 
+#ifndef JAMS_DIAGNOSTIC_EXCHANGE_REALHI_ACCUMULATION
+#define JAMS_DIAGNOSTIC_EXCHANGE_REALHI_ACCUMULATION 0
+#endif
+
+#if JAMS_DIAGNOSTIC_EXCHANGE_REALHI_ACCUMULATION
+using ExchangeAccumulator = jams::RealHi;
+#else
+using ExchangeAccumulator = jams::Real;
+#endif
+
+__device__ __forceinline__ ExchangeAccumulator exchange_accumulator(
+    const jams::Real value) {
+  return static_cast<ExchangeAccumulator>(value);
+}
+
 template <int Storage>
 __device__ __forceinline__ constexpr int tensor_component_count() {
   if constexpr (Storage == static_cast<int>(jams::InteractionTensorStorage::Isotropic)) {
@@ -36,33 +51,45 @@ __device__ __forceinline__ constexpr int tensor_component_count() {
 template <int Storage>
 __device__ __forceinline__ void accumulate_tensor_field(
     const jams::Real* __restrict__ values,
-    const jams::Real sx,
-    const jams::Real sy,
-    const jams::Real sz,
-    jams::Real& hx,
-    jams::Real& hy,
-    jams::Real& hz) {
+    const ExchangeAccumulator sx,
+    const ExchangeAccumulator sy,
+    const ExchangeAccumulator sz,
+    ExchangeAccumulator& hx,
+    ExchangeAccumulator& hy,
+    ExchangeAccumulator& hz) {
   if constexpr (Storage == static_cast<int>(jams::InteractionTensorStorage::Isotropic)) {
-    const jams::Real j0 = values[0];
+    const ExchangeAccumulator j0 = exchange_accumulator(values[0]);
     hx += j0 * sx;
     hy += j0 * sy;
     hz += j0 * sz;
   } else if constexpr (Storage == static_cast<int>(jams::InteractionTensorStorage::Anisotropic)) {
-    hx += values[0] * sx;
-    hy += values[1] * sy;
-    hz += values[2] * sz;
+    hx += exchange_accumulator(values[0]) * sx;
+    hy += exchange_accumulator(values[1]) * sy;
+    hz += exchange_accumulator(values[2]) * sz;
   } else if constexpr (Storage == static_cast<int>(jams::InteractionTensorStorage::Symmetric)) {
-    hx += values[0] * sx + values[1] * sy + values[2] * sz;
-    hy += values[1] * sx + values[3] * sy + values[4] * sz;
-    hz += values[2] * sx + values[4] * sy + values[5] * sz;
+    hx += exchange_accumulator(values[0]) * sx
+        + exchange_accumulator(values[1]) * sy
+        + exchange_accumulator(values[2]) * sz;
+    hy += exchange_accumulator(values[1]) * sx
+        + exchange_accumulator(values[3]) * sy
+        + exchange_accumulator(values[4]) * sz;
+    hz += exchange_accumulator(values[2]) * sx
+        + exchange_accumulator(values[4]) * sy
+        + exchange_accumulator(values[5]) * sz;
   } else if constexpr (Storage == static_cast<int>(jams::InteractionTensorStorage::Antisymmetric)) {
-    hx += values[0] * sy + values[1] * sz;
-    hy += -values[0] * sx + values[2] * sz;
-    hz += -values[1] * sx - values[2] * sy;
+    hx += exchange_accumulator(values[0]) * sy + exchange_accumulator(values[1]) * sz;
+    hy += -exchange_accumulator(values[0]) * sx + exchange_accumulator(values[2]) * sz;
+    hz += -exchange_accumulator(values[1]) * sx - exchange_accumulator(values[2]) * sy;
   } else {
-    hx += values[0] * sx + values[1] * sy + values[2] * sz;
-    hy += values[3] * sx + values[4] * sy + values[5] * sz;
-    hz += values[6] * sx + values[7] * sy + values[8] * sz;
+    hx += exchange_accumulator(values[0]) * sx
+        + exchange_accumulator(values[1]) * sy
+        + exchange_accumulator(values[2]) * sz;
+    hy += exchange_accumulator(values[3]) * sx
+        + exchange_accumulator(values[4]) * sy
+        + exchange_accumulator(values[5]) * sz;
+    hz += exchange_accumulator(values[6]) * sx
+        + exchange_accumulator(values[7]) * sy
+        + exchange_accumulator(values[8]) * sz;
   }
 }
 
@@ -101,9 +128,9 @@ __global__ void cuda_exchange_stencil_mapped_grouped_field_kernel(
   const int basis = site % num_basis_sites;
   const int cell = site / num_basis_sites;
 
-  jams::Real hx = 0;
-  jams::Real hy = 0;
-  jams::Real hz = 0;
+  ExchangeAccumulator hx = 0;
+  ExchangeAccumulator hy = 0;
+  ExchangeAccumulator hz = 0;
 
   for (int group = group_offsets[basis]; group < group_offsets[basis + 1]; ++group) {
     const int target_cell = translation_target_cells[group_translation_ids[group] * num_cells + cell];
@@ -131,9 +158,9 @@ __global__ void cuda_exchange_stencil_mapped_grouped_field_kernel(
   }
 
   const int field_base = 3 * site;
-  field[field_base + 0] = hx;
-  field[field_base + 1] = hy;
-  field[field_base + 2] = hz;
+  field[field_base + 0] = static_cast<jams::Real>(hx);
+  field[field_base + 1] = static_cast<jams::Real>(hy);
+  field[field_base + 2] = static_cast<jams::Real>(hz);
 }
 
 __device__ __forceinline__ int wrap_periodic_axis_fast(
@@ -181,9 +208,9 @@ __global__ void cuda_exchange_stencil_periodic_direct_flat_field_kernel(
   const int cell_y = cell % ny;
   const int cell_x = cell / ny;
 
-  jams::Real hx = 0;
-  jams::Real hy = 0;
-  jams::Real hz = 0;
+  ExchangeAccumulator hx = 0;
+  ExchangeAccumulator hy = 0;
+  ExchangeAccumulator hz = 0;
 
   for (int entry = entry_offsets[basis]; entry < entry_offsets[basis + 1]; ++entry) {
     const int target_x = wrap_periodic_axis_fast(cell_x + entry_dx[entry], nx);
@@ -206,9 +233,9 @@ __global__ void cuda_exchange_stencil_periodic_direct_flat_field_kernel(
   }
 
   const int field_base = 3 * site;
-  field[field_base + 0] = hx;
-  field[field_base + 1] = hy;
-  field[field_base + 2] = hz;
+  field[field_base + 0] = static_cast<jams::Real>(hx);
+  field[field_base + 1] = static_cast<jams::Real>(hy);
+  field[field_base + 2] = static_cast<jams::Real>(hz);
 }
 
 template <int Storage>
@@ -536,6 +563,9 @@ void CudaExchangeStencilBackend::upload_stencil_to_device() {
   std::cout << "    cuda stencil field kernel: "
             << (use_direct_periodic_kernel_ ? "direct-periodic" : "mapped") << "\n";
   std::cout << "    cuda stencil field kernel block size: " << field_kernel_block_size_ << "\n";
+#if JAMS_DIAGNOSTIC_EXCHANGE_REALHI_ACCUMULATION
+  std::cout << "    cuda stencil diagnostic: RealHi products and accumulation\n";
+#endif
 
   // Ensure device copies are materialized before the first field kernel.
   if (use_direct_periodic_kernel_) {

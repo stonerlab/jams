@@ -139,6 +139,8 @@ public:
 
     void update();
 
+    cudaStream_t& get_stream() override { return dev_stream_; }
+
     // override the base class implementation
     const jams::Real* device_data() { return noise_.device_data(); }
 

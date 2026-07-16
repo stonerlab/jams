@@ -240,6 +240,12 @@ void Solver::register_thermostat(Thermostat* thermostat) {
 
 
 void Solver::update_thermostat() {
+#if HAS_CUDA
+  // A CUDA thermostat owns a reusable noise buffer. Its update stream must
+  // not overwrite that buffer until the solver stream has finished consuming
+  // the previous sample.
+  thermostat_->wait_for_consumed();
+#endif
   if (thermostat_->has_uniform_temperature()) {
     thermostat_->set_temperature(physics_module_->temperature());
   }

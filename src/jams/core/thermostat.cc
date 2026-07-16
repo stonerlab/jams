@@ -52,7 +52,19 @@ Thermostat::Thermostat(const jams::Real &temperature,
 #if HAS_CUDA
   if (cuda_device_available_for_event_creation()) {
     cudaEventCreateWithFlags(&done_, cudaEventDisableTiming);
+    cudaEventCreateWithFlags(&consumed_, cudaEventDisableTiming);
     DEBUG_CHECK_CUDA_ASYNC_STATUS
+  }
+#endif
+}
+
+Thermostat::~Thermostat() {
+#if HAS_CUDA
+  if (done_) {
+    cudaEventDestroy(done_);
+  }
+  if (consumed_) {
+    cudaEventDestroy(consumed_);
   }
 #endif
 }

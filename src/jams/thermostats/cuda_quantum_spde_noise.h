@@ -48,6 +48,14 @@ class CudaQuantumSpdeNoiseGenerator {
   void update(jams::Real* noise, const jams::Real* sigma, jams::Real temperature);
   void update(jams::Real* noise, const jams::Real* sigma,
               const jams::MultiArray<jams::Real, 1>& temperature);
+
+  // Diagnostic path for comparing arithmetic with caller-supplied Gaussian
+  // variates. This bypasses CURAND only; it uses the production Bose update
+  // kernel and update stream.
+  void update_with_gaussian_replay(jams::Real* noise, const jams::Real* sigma,
+                                   jams::Real temperature,
+                                   const jams::Real* eta5,
+                                   const jams::Real* eta6);
   void synchronize();
 
   [[nodiscard]] int process_count() const { return process_count_; }

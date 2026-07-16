@@ -93,6 +93,7 @@ void CUDAHeunLLGSolver::run()
       gyro_eff_.device_data(), globals::inv_mus.device_data(), globals::alpha.device_data(),
       step_size_, globals::num_spins);
     DEBUG_CHECK_CUDA_ASYNC_STATUS
+  thermostat_->record_consumed(jams::instance().cuda_master_stream().get());
   record_spin_barrier_event();
 
   iteration_++;

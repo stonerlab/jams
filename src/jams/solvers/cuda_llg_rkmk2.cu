@@ -194,6 +194,7 @@ void CUDALLGRKMK2Solver::run_with_parameters(
     alpha,
     globals::num_spins, half_dt);
   DEBUG_CHECK_CUDA_ASYNC_STATUS
+  thermostat_->record_consumed(jams::instance().cuda_master_stream().get());
   record_spin_and_field_cache_barrier_event();
 
   compute_fields(); // uses cuda_master_stream internally to synchronise
@@ -236,6 +237,7 @@ void CUDALLGRKMK2Solver::run_with_parameters(
     globals::num_spins, step_size_, half_dt
     );
   DEBUG_CHECK_CUDA_ASYNC_STATUS
+  thermostat_->record_consumed(jams::instance().cuda_master_stream().get());
   record_spin_and_field_cache_barrier_event();
 
   iteration_++;

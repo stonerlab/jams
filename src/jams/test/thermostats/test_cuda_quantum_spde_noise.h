@@ -3,20 +3,32 @@
 
 #if HAS_CUDA
 
+#include <atomic>
+#include <chrono>
 #include <cmath>
 #include <cstddef>
+#include <cstdint>
+#include <cstdlib>
+#include <fstream>
+#include <iomanip>
 #include <limits>
+#include <memory>
 #include <stdexcept>
+#include <thread>
 #include <utility>
+#include <vector>
 
 #include <cuda_runtime_api.h>
 #include <curand.h>
 #include <gtest/gtest.h>
+#include <libconfig.h++>
 
 #include "jams/common.h"
 #include "jams/containers/multiarray.h"
+#include "jams/core/globals.h"
 #include "jams/helpers/consts.h"
 #include "jams/thermostats/cuda_quantum_spde_noise.h"
+#include "jams/thermostats/cuda_thermostat_quantum_spde.h"
 
 namespace {
 
@@ -113,7 +125,62 @@ void generate_global_normal(jams::MultiArray<jams::Real, 1>& data) {
 #endif
 }
 
+void fill_deterministic_gaussian_pair(jams::MultiArray<jams::Real, 1>& eta5,
+                                      jams::MultiArray<jams::Real, 1>& eta6) {
+  constexpr double kInvUint32Range = 1.0 / 4294967296.0;
+  std::uint32_t state = 0x9e3779b9U;
+  auto next_uniform = [&state]() {
+    state = 1664525U * state + 1013904223U;
+    return (static_cast<double>(state) + 0.5) * kInvUint32Range;
+  };
+
+  for (std::size_t i = 0; i < eta5.size(); ++i) {
+    const double radius = std::sqrt(-2.0 * std::log(next_uniform()));
+    const double angle = kTwoPi * next_uniform();
+    eta5(i) = static_cast<jams::Real>(radius * std::cos(angle));
+    eta6(i) = static_cast<jams::Real>(radius * std::sin(angle));
+  }
+}
+
 }  // namespace
+
+class CudaQuantumSpdeThermostatCompletionTest : public ::testing::Test {
+ protected:
+  void SetUp() override {
+    if (!cuda_device_available()) {
+      return;
+    }
+    initialize_cuda_for_quantum_spde_tests(11235813ULL);
+    globals::num_spins = kSpinCount;
+    globals::num_spins3 = 3 * kSpinCount;
+    globals::alpha.resize(kSpinCount).fill(jams::Real{0.1});
+    globals::mus.resize(kSpinCount).fill(jams::Real{1.0});
+    globals::gyro.resize(kSpinCount).fill(jams::Real{1.0});
+    globals::sync_magnetic_moment_data();
+    globals::config = std::make_unique<libconfig::Config>();
+    globals::config->readString(R"(
+      physics = { temperature = 300.0; };
+      thermostat = {
+        initialization = "stationary";
+        warmup = false;
+        zero_point = false;
+      };
+    )");
+  }
+
+  void TearDown() override {
+    globals::alpha.clear();
+    globals::mus.clear();
+    globals::inv_mus.clear();
+    globals::gyro.clear();
+    globals::num_magnetic_spins = 0;
+    globals::num_spins = 0;
+    globals::num_spins3 = 0;
+    globals::config = nullptr;
+  }
+
+  static constexpr int kSpinCount = 8192;
+};
 
 TEST(QuantumSpdeNoiseGeneratorTest, StationaryCovarianceSolvesDiscreteLyapunov) {
   constexpr double kGamma5 = 5.0142;
@@ -286,6 +353,99 @@ TEST(CudaQuantumSpdeNoiseGeneratorTest, StationaryStateSurvivesBackToBackUpdates
       stationary_covariance(3.2974, 1.2223, h));
 }
 
+TEST(CudaQuantumSpdeNoiseGeneratorTest, ReplayedGaussianNoiseConvergesToTargetCovariance_GPU) {
+  if (!cuda_device_available()) {
+    GTEST_SKIP() << "CUDA runtime is enabled but no CUDA device is available";
+  }
+  initialize_cuda_for_quantum_spde_tests(16180339ULL);
+
+  constexpr int kProcessCount = 1 << 15;
+  constexpr int kStepCount = 256;
+  constexpr double kTimestepPs = 1.0e-3;
+  constexpr double kTemperature = 300.0;
+  constexpr double kDeltaTau = (kTimestepPs * kBoltzmannIU) / kHBarIU;
+  CudaStream stream(CudaStream::Priority::LOW);
+  jams::CudaQuantumSpdeNoiseGenerator generator(
+      kProcessCount, kDeltaTau, 25.0 * kTwoPi, false, stream);
+  jams::MultiArray<jams::Real, 1> sigma(kProcessCount);
+  jams::MultiArray<jams::Real, 1> noise(kProcessCount);
+  jams::MultiArray<jams::Real, 1> eta5(kStepCount * kProcessCount);
+  jams::MultiArray<jams::Real, 1> eta6(kStepCount * kProcessCount);
+  fill_sigma(sigma);
+  fill_deterministic_gaussian_pair(eta5, eta6);
+
+  generator.initialize(jams::CudaQuantumSpdeNoiseGenerator::Initialization::Zero,
+                       kTemperature);
+  const auto* eta5_device = eta5.device_data();
+  const auto* eta6_device = eta6.device_data();
+  for (auto step = 0; step < kStepCount; ++step) {
+    const auto offset = static_cast<std::size_t>(step) * kProcessCount;
+    generator.update_with_gaussian_replay(
+        noise.mutable_device_data(), sigma.device_data(), kTemperature,
+        eta5_device + offset, eta6_device + offset);
+  }
+  generator.synchronize();
+
+  const double h = kDeltaTau * kTemperature;
+  expect_moments_near_target(
+      pair_moments(generator.zeta5().host_data(), generator.zeta5p().host_data(),
+                   kProcessCount),
+      stationary_covariance(5.0142, 2.7189, h));
+  expect_moments_near_target(
+      pair_moments(generator.zeta6().host_data(), generator.zeta6p().host_data(),
+                   kProcessCount),
+      stationary_covariance(3.2974, 1.2223, h));
+}
+
+TEST(CudaQuantumSpdeNoiseGeneratorTest, ExportTemporalSeriesWhenRequested_GPU) {
+  const char* output_path = std::getenv("JAMS_SPDE_DIAGNOSTIC_CSV");
+  if (output_path == nullptr || output_path[0] == '\0') {
+    GTEST_SKIP() << "set JAMS_SPDE_DIAGNOSTIC_CSV to export a temporal series";
+  }
+  if (!cuda_device_available()) {
+    GTEST_SKIP() << "CUDA runtime is enabled but no CUDA device is available";
+  }
+  initialize_cuda_for_quantum_spde_tests(27182818ULL);
+
+  constexpr int kProcessCount = 16;
+  constexpr int kStepCount = 1 << 16;
+  constexpr double kTimestepPs = 1.0e-3;
+  constexpr double kTemperature = 300.0;
+  constexpr double kDeltaTau = (kTimestepPs * kBoltzmannIU) / kHBarIU;
+  CudaStream stream(CudaStream::Priority::LOW);
+  jams::CudaQuantumSpdeNoiseGenerator generator(
+      kProcessCount, kDeltaTau, 25.0 * kTwoPi, false, stream);
+  jams::MultiArray<jams::Real, 1> sigma(kProcessCount);
+  jams::MultiArray<jams::Real, 1> noise_series(kStepCount * kProcessCount);
+  fill_sigma(sigma);
+  generator.initialize_stationary(kTemperature);
+
+  auto* noise_device = noise_series.mutable_device_data();
+  const auto* sigma_device = sigma.device_data();
+  for (auto step = 0; step < kStepCount; ++step) {
+    generator.update(noise_device + static_cast<std::size_t>(step) * kProcessCount,
+                     sigma_device, kTemperature);
+  }
+  generator.synchronize();
+
+  std::ofstream output(output_path);
+  ASSERT_TRUE(output.good()) << "cannot open " << output_path;
+  output << "time_ps";
+  for (auto process = 0; process < kProcessCount; ++process) {
+    output << ",noise_" << process;
+  }
+  output << '\n' << std::setprecision(17);
+  const auto* samples = noise_series.host_data();
+  for (auto step = 0; step < kStepCount; ++step) {
+    output << step * kTimestepPs;
+    for (auto process = 0; process < kProcessCount; ++process) {
+      output << ',' << samples[static_cast<std::size_t>(step) * kProcessCount + process];
+    }
+    output << '\n';
+  }
+  ASSERT_TRUE(output.good()) << "failed while writing " << output_path;
+}
+
 TEST(CudaQuantumSpdeNoiseGeneratorTest, ZeroInitializationConvergesTowardStationarity_GPU) {
   if (!cuda_device_available()) {
     GTEST_SKIP() << "CUDA runtime is enabled but no CUDA device is available";
@@ -444,6 +604,81 @@ TEST(CudaQuantumSpdeNoiseGeneratorTest, InternalGeneratorDoesNotAdvanceGlobalCur
   for (auto i = 0; i < kGlobalSampleCount; ++i) {
     EXPECT_EQ(actual_host[i], reference_host[i]);
   }
+}
+
+TEST_F(CudaQuantumSpdeThermostatCompletionTest,
+       CompletionEventOrdersExternalNoiseConsumer_GPU) {
+  if (!cuda_device_available()) {
+    GTEST_SKIP() << "CUDA runtime is enabled but no CUDA device is available";
+  }
+
+  constexpr double kTimestepPs = 1.0e-3;
+  CudaThermostatQuantumSpde thermostat(
+      jams::Real{300.0}, jams::Real{0.0}, jams::Real{kTimestepPs}, kSpinCount);
+  thermostat.update();
+  thermostat.record_done();
+
+  CudaStream consumer(CudaStream::Priority::LOW);
+  thermostat.wait_on(consumer.get());
+  std::vector<jams::Real> noise(3 * kSpinCount);
+  ASSERT_EQ(cudaMemcpyAsync(
+                noise.data(), thermostat.device_data(),
+                noise.size() * sizeof(jams::Real), cudaMemcpyDeviceToHost,
+                consumer.get()),
+            cudaSuccess);
+  consumer.synchronize();
+
+  double sum = 0.0;
+  double sum_squares = 0.0;
+  for (const auto value : noise) {
+    ASSERT_TRUE(std::isfinite(static_cast<double>(value)));
+    sum += static_cast<double>(value);
+    sum_squares += static_cast<double>(value) * static_cast<double>(value);
+  }
+  const double mean = sum / noise.size();
+  const double variance = sum_squares / noise.size() - mean * mean;
+  EXPECT_GT(variance, 0.0);
+}
+
+TEST_F(CudaQuantumSpdeThermostatCompletionTest,
+       ConsumerCompletionEventOrdersNextThermostatWork_GPU) {
+  if (!cuda_device_available()) {
+    GTEST_SKIP() << "CUDA runtime is enabled but no CUDA device is available";
+  }
+
+  CudaThermostatQuantumSpde thermostat(
+      jams::Real{300.0}, jams::Real{0.0}, jams::Real{1.0e-3}, kSpinCount);
+  thermostat.update();
+  thermostat.record_done();
+
+  CudaStream consumer(CudaStream::Priority::LOW);
+  thermostat.wait_on(consumer.get());
+  std::vector<jams::Real> first_noise(3 * kSpinCount);
+  ASSERT_EQ(cudaMemcpyAsync(
+                first_noise.data(), thermostat.device_data(),
+                first_noise.size() * sizeof(jams::Real), cudaMemcpyDeviceToHost,
+                consumer.get()),
+            cudaSuccess);
+
+  std::atomic<bool> consumer_finished{false};
+  ASSERT_EQ(cudaLaunchHostFunc(
+                consumer.get(),
+                [](void* data) {
+                  std::this_thread::sleep_for(std::chrono::milliseconds(100));
+                  static_cast<std::atomic<bool>*>(data)->store(
+                      true, std::memory_order_release);
+                },
+                &consumer_finished),
+            cudaSuccess);
+  thermostat.record_consumed(consumer.get());
+
+  // This immediate second update must wait for the delayed external consumer
+  // to return ownership of the reusable noise buffer.
+  thermostat.wait_for_consumed();
+  thermostat.update();
+  thermostat.record_done();
+  thermostat.synchronize_done();
+  EXPECT_TRUE(consumer_finished.load(std::memory_order_acquire));
 }
 
 #endif  // HAS_CUDA

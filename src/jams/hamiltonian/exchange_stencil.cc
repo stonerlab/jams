@@ -21,6 +21,20 @@
 
 namespace {
 
+#ifndef JAMS_DIAGNOSTIC_EXCHANGE_REALHI_ACCUMULATION
+#define JAMS_DIAGNOSTIC_EXCHANGE_REALHI_ACCUMULATION 0
+#endif
+
+#if JAMS_DIAGNOSTIC_EXCHANGE_REALHI_ACCUMULATION
+using ExchangeAccumulator = jams::RealHi;
+#else
+using ExchangeAccumulator = jams::Real;
+#endif
+
+constexpr ExchangeAccumulator exchange_accumulator(const jams::Real value) {
+  return static_cast<ExchangeAccumulator>(value);
+}
+
 jams::Mat<jams::Real, 3, 3> transpose_tensor(const jams::Mat<jams::Real, 3, 3>& tensor) {
   return transpose(tensor);
 }
@@ -93,33 +107,45 @@ constexpr int storage_component_count() {
 template <jams::InteractionTensorStorage Storage>
 void accumulate_tensor_field(
     const jams::Real* values,
-    const jams::Real sx,
-    const jams::Real sy,
-    const jams::Real sz,
-    jams::Real& hx,
-    jams::Real& hy,
-    jams::Real& hz) {
+    const ExchangeAccumulator sx,
+    const ExchangeAccumulator sy,
+    const ExchangeAccumulator sz,
+    ExchangeAccumulator& hx,
+    ExchangeAccumulator& hy,
+    ExchangeAccumulator& hz) {
   if constexpr (Storage == jams::InteractionTensorStorage::Isotropic) {
-    const jams::Real j0 = values[0];
+    const ExchangeAccumulator j0 = exchange_accumulator(values[0]);
     hx += j0 * sx;
     hy += j0 * sy;
     hz += j0 * sz;
   } else if constexpr (Storage == jams::InteractionTensorStorage::Anisotropic) {
-    hx += values[0] * sx;
-    hy += values[1] * sy;
-    hz += values[2] * sz;
+    hx += exchange_accumulator(values[0]) * sx;
+    hy += exchange_accumulator(values[1]) * sy;
+    hz += exchange_accumulator(values[2]) * sz;
   } else if constexpr (Storage == jams::InteractionTensorStorage::Symmetric) {
-    hx += values[0] * sx + values[1] * sy + values[2] * sz;
-    hy += values[1] * sx + values[3] * sy + values[4] * sz;
-    hz += values[2] * sx + values[4] * sy + values[5] * sz;
+    hx += exchange_accumulator(values[0]) * sx
+        + exchange_accumulator(values[1]) * sy
+        + exchange_accumulator(values[2]) * sz;
+    hy += exchange_accumulator(values[1]) * sx
+        + exchange_accumulator(values[3]) * sy
+        + exchange_accumulator(values[4]) * sz;
+    hz += exchange_accumulator(values[2]) * sx
+        + exchange_accumulator(values[4]) * sy
+        + exchange_accumulator(values[5]) * sz;
   } else if constexpr (Storage == jams::InteractionTensorStorage::Antisymmetric) {
-    hx += values[0] * sy + values[1] * sz;
-    hy += -values[0] * sx + values[2] * sz;
-    hz += -values[1] * sx - values[2] * sy;
+    hx += exchange_accumulator(values[0]) * sy + exchange_accumulator(values[1]) * sz;
+    hy += -exchange_accumulator(values[0]) * sx + exchange_accumulator(values[2]) * sz;
+    hz += -exchange_accumulator(values[1]) * sx - exchange_accumulator(values[2]) * sy;
   } else {
-    hx += values[0] * sx + values[1] * sy + values[2] * sz;
-    hy += values[3] * sx + values[4] * sy + values[5] * sz;
-    hz += values[6] * sx + values[7] * sy + values[8] * sz;
+    hx += exchange_accumulator(values[0]) * sx
+        + exchange_accumulator(values[1]) * sy
+        + exchange_accumulator(values[2]) * sz;
+    hy += exchange_accumulator(values[3]) * sx
+        + exchange_accumulator(values[4]) * sy
+        + exchange_accumulator(values[5]) * sz;
+    hz += exchange_accumulator(values[6]) * sx
+        + exchange_accumulator(values[7]) * sy
+        + exchange_accumulator(values[8]) * sz;
   }
 }
 
@@ -388,6 +414,9 @@ void ExchangeStencilBackend::build_runtime_entries() {
   std::cout << "    stencil tensor storage: " << jams::to_string(tensor_storage_) << "\n";
   std::cout << "    stencil cell translations: " << num_cell_translations_ << "\n";
   std::cout << "    stencil field path: mapped\n";
+#if JAMS_DIAGNOSTIC_EXCHANGE_REALHI_ACCUMULATION
+  std::cout << "    stencil diagnostic: RealHi products and accumulation\n";
+#endif
 }
 
 bool ExchangeStencilBackend::stencil_entries_match_dense_materials(
@@ -592,9 +621,9 @@ jams::Vec<jams::Real, 3> ExchangeStencilBackend::calculate_stencil_field_for_sit
   const auto* tensor_values = runtime_values_.data();
   constexpr int kComponents = storage_component_count<Storage>();
 
-  jams::Real hx = 0;
-  jams::Real hy = 0;
-  jams::Real hz = 0;
+  ExchangeAccumulator hx = 0;
+  ExchangeAccumulator hy = 0;
+  ExchangeAccumulator hz = 0;
 
   for (auto group = runtime_group_offsets_[basis]; group < runtime_group_offsets_[basis + 1]; ++group) {
     const int target_cell = target_cell_by_translation_[runtime_group_target_cell_offsets_[group] + source_cell];
@@ -618,7 +647,10 @@ jams::Vec<jams::Real, 3> ExchangeStencilBackend::calculate_stencil_field_for_sit
     }
   }
 
-  return {hx, hy, hz};
+  return {
+      static_cast<jams::Real>(hx),
+      static_cast<jams::Real>(hy),
+      static_cast<jams::Real>(hz)};
 }
 
 template <jams::InteractionTensorStorage Storage, bool FullyPeriodic>
@@ -637,9 +669,9 @@ void ExchangeStencilBackend::calculate_fields_storage(const SpinHostView& spins,
     const int site_base = source_cell * num_basis;
     int field_offset = 3 * site_base;
     for (int basis = 0; basis < num_basis; ++basis, field_offset += 3) {
-      jams::Real hx = 0;
-      jams::Real hy = 0;
-      jams::Real hz = 0;
+      ExchangeAccumulator hx = 0;
+      ExchangeAccumulator hy = 0;
+      ExchangeAccumulator hz = 0;
 
       for (auto group = runtime_group_offsets_[basis]; group < runtime_group_offsets_[basis + 1]; ++group) {
         const int target_cell = target_cell_by_translation_[runtime_group_target_cell_offsets_[group] + source_cell];
@@ -663,9 +695,9 @@ void ExchangeStencilBackend::calculate_fields_storage(const SpinHostView& spins,
         }
       }
 
-      field_values[field_offset] = hx;
-      field_values[field_offset + 1] = hy;
-      field_values[field_offset + 2] = hz;
+      field_values[field_offset] = static_cast<jams::Real>(hx);
+      field_values[field_offset + 1] = static_cast<jams::Real>(hy);
+      field_values[field_offset + 2] = static_cast<jams::Real>(hz);
     }
   }
 }
@@ -697,9 +729,9 @@ void ExchangeStencilBackend::calculate_fields_storage_in_parallel(
     const int site_base = source_cell * num_basis;
     int field_offset = 3 * site_base;
     for (int basis = 0; basis < num_basis; ++basis, field_offset += 3) {
-      jams::Real hx = 0;
-      jams::Real hy = 0;
-      jams::Real hz = 0;
+      ExchangeAccumulator hx = 0;
+      ExchangeAccumulator hy = 0;
+      ExchangeAccumulator hz = 0;
 
       for (auto group = runtime_group_offsets_[basis]; group < runtime_group_offsets_[basis + 1]; ++group) {
         const int target_cell = target_cell_by_translation_[runtime_group_target_cell_offsets_[group] + source_cell];
@@ -723,9 +755,9 @@ void ExchangeStencilBackend::calculate_fields_storage_in_parallel(
         }
       }
 
-      field_values[field_offset] = hx;
-      field_values[field_offset + 1] = hy;
-      field_values[field_offset + 2] = hz;
+      field_values[field_offset] = static_cast<jams::Real>(hx);
+      field_values[field_offset + 1] = static_cast<jams::Real>(hy);
+      field_values[field_offset + 2] = static_cast<jams::Real>(hz);
     }
   }
 }
