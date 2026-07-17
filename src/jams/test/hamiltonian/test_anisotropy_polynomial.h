@@ -8,15 +8,20 @@
 #include <string>
 #include <vector>
 
-#include <cuda_runtime.h>
 #include <libconfig.h++>
+
+#ifdef HAS_CUDA
+#include <cuda_runtime.h>
+#endif
 
 #include "jams/common.h"
 #include "jams/core/globals.h"
 #include "jams/core/hamiltonian.h"
 #include "jams/core/lattice.h"
 #include "jams/hamiltonian/anisotropy_polynomial.h"
+#ifdef HAS_CUDA
 #include "jams/hamiltonian/cuda_anisotropy_polynomial.h"
+#endif
 #include "jams/helpers/exception.h"
 #include "jams/helpers/utils.h"
 #include "jams/test/output.h"
@@ -51,7 +56,9 @@ class CudaAnisotropyPolynomialHamiltonianTests : public ::testing::Test {
 public:
     void SetUp() override
     {
+#ifdef HAS_CUDA
         jams::Jams::reset_cuda_device();
+#endif
         jams::testing::toggle_cout();
 
         globals::lattice = new Lattice();
@@ -62,9 +69,11 @@ public:
         cpu_hamiltonian_ = std::make_unique<AnisotropyPolynomialHamiltonian>(
             globals::config->lookup("hamiltonians.[0]"),
             globals::num_spins);
+#ifdef HAS_CUDA
         cuda_hamiltonian_ = std::make_unique<CudaAnisotropyPolynomialHamiltonian>(
             globals::config->lookup("hamiltonians.[0]"),
             globals::num_spins);
+#endif
 
         jams::testing::toggle_cout();
     }
@@ -72,7 +81,9 @@ public:
     void TearDown() override
     {
         cpu_hamiltonian_ = nullptr;
+#ifdef HAS_CUDA
         cuda_hamiltonian_ = nullptr;
+#endif
 
         globals::num_spins = 0;
         globals::num_spins3 = 0;
@@ -184,6 +195,21 @@ protected:
         )";
     }
 
+    static std::string prefactor_config_string(const std::string& prefactor_setting)
+    {
+        return R"(
+            hamiltonian = {
+              module = "anisotropy-polynomial";
+              energy_units = "meV";
+              normalisation = "racah";
+        )" + prefactor_setting + R"(
+              anisotropies = (
+                ("A", (2, 0, 0.7), (2, 2, -0.3))
+              );
+            };
+        )";
+    }
+
     void set_test_spins()
     {
         const double inv_sqrt_3 = 1.0 / std::sqrt(3.0);
@@ -216,9 +242,12 @@ protected:
     }
 
     std::unique_ptr<AnisotropyPolynomialHamiltonian> cpu_hamiltonian_;
+#ifdef HAS_CUDA
     std::unique_ptr<CudaAnisotropyPolynomialHamiltonian> cuda_hamiltonian_;
+#endif
 };
 
+#ifdef HAS_CUDA
 TEST_F(CudaAnisotropyPolynomialHamiltonianTests, factory_selects_cuda_variant)
 {
     std::unique_ptr<Hamiltonian> hamiltonian(
@@ -226,6 +255,7 @@ TEST_F(CudaAnisotropyPolynomialHamiltonianTests, factory_selects_cuda_variant)
 
     ASSERT_NE(dynamic_cast<CudaAnisotropyPolynomialHamiltonian*>(hamiltonian.get()), nullptr);
 }
+#endif
 
 TEST_F(CudaAnisotropyPolynomialHamiltonianTests, non_unit_integer_axes_are_not_misread_as_coefficients)
 {
@@ -377,6 +407,88 @@ TEST_F(CudaAnisotropyPolynomialHamiltonianTests, crystal_field_normalisation_ali
             ASSERT_DOUBLE_EQ(crystal_field[j], racah[j]);
         }
     }
+}
+
+TEST_F(CudaAnisotropyPolynomialHamiltonianTests, prefactor_scales_energies_and_fields)
+{
+    set_test_spins();
+    constexpr double prefactor = -2.0;
+
+    libconfig::Config default_config;
+    default_config.readString(prefactor_config_string(""));
+    AnisotropyPolynomialHamiltonianTestAccess default_hamiltonian(
+        default_config.lookup("hamiltonian"),
+        globals::num_spins);
+
+    libconfig::Config unit_config;
+    unit_config.readString(prefactor_config_string("prefactor = 1.0;"));
+    AnisotropyPolynomialHamiltonianTestAccess unit_hamiltonian(
+        unit_config.lookup("hamiltonian"),
+        globals::num_spins);
+
+    libconfig::Config scaled_config;
+    scaled_config.readString(prefactor_config_string("prefactor = -2.0;"));
+    AnisotropyPolynomialHamiltonianTestAccess scaled_hamiltonian(
+        scaled_config.lookup("hamiltonian"),
+        globals::num_spins);
+#ifdef HAS_CUDA
+    CudaAnisotropyPolynomialHamiltonian scaled_cuda_hamiltonian(
+        scaled_config.lookup("hamiltonian"),
+        globals::num_spins);
+#endif
+
+    const auto spins = current_test_spins();
+    default_hamiltonian.calculate_energies(0.0, spins);
+    default_hamiltonian.calculate_fields(0.0, spins);
+    unit_hamiltonian.calculate_energies(0.0, spins);
+    unit_hamiltonian.calculate_fields(0.0, spins);
+    scaled_hamiltonian.calculate_energies(0.0, spins);
+    scaled_hamiltonian.calculate_fields(0.0, spins);
+#ifdef HAS_CUDA
+    scaled_cuda_hamiltonian.calculate_energies(0.0, spins);
+    scaled_cuda_hamiltonian.calculate_fields(0.0, spins);
+#endif
+
+    constexpr double tolerance = 5e-6;
+    for (auto i = 0; i < globals::num_spins; ++i) {
+        ASSERT_NEAR(unit_hamiltonian.energy(i), default_hamiltonian.energy(i), tolerance);
+        ASSERT_NEAR(
+            scaled_hamiltonian.energy(i),
+            prefactor * default_hamiltonian.energy(i),
+            tolerance);
+#ifdef HAS_CUDA
+        ASSERT_NEAR(
+            scaled_cuda_hamiltonian.energy(i),
+            scaled_hamiltonian.energy(i),
+            tolerance);
+#endif
+
+        for (auto j = 0; j < 3; ++j) {
+            ASSERT_NEAR(unit_hamiltonian.field(i, j), default_hamiltonian.field(i, j), tolerance);
+            ASSERT_NEAR(
+                scaled_hamiltonian.field(i, j),
+                prefactor * default_hamiltonian.field(i, j),
+                tolerance);
+#ifdef HAS_CUDA
+            ASSERT_NEAR(
+                scaled_cuda_hamiltonian.field(i, j),
+                scaled_hamiltonian.field(i, j),
+                tolerance);
+#endif
+        }
+    }
+}
+
+TEST_F(CudaAnisotropyPolynomialHamiltonianTests, zero_prefactor_deactivates_all_terms)
+{
+    libconfig::Config config;
+    config.readString(prefactor_config_string("prefactor = 0.0;"));
+    AnisotropyPolynomialHamiltonianTestAccess hamiltonian(
+        config.lookup("hamiltonian"),
+        globals::num_spins);
+
+    ASSERT_EQ(hamiltonian.active_spin_count(), 0);
+    ASSERT_EQ(hamiltonian.total_terms(), 0);
 }
 
 TEST_F(CudaAnisotropyPolynomialHamiltonianTests, empty_anisotropies_are_rejected)
@@ -551,6 +663,7 @@ TEST_F(CudaAnisotropyPolynomialHamiltonianTests, omitted_axes_inherit_explicit_a
     }
 }
 
+#ifdef HAS_CUDA
 TEST_F(CudaAnisotropyPolynomialHamiltonianTests, energies_and_fields_match_cpu)
 {
     set_test_spins();
@@ -577,6 +690,7 @@ TEST_F(CudaAnisotropyPolynomialHamiltonianTests, energies_and_fields_match_cpu)
         }
     }
 }
+#endif
 
 TEST_F(CudaAnisotropyPolynomialHamiltonianTests, cpu_field_is_negative_energy_gradient)
 {

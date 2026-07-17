@@ -93,6 +93,12 @@ Settings
 
     Remove any exchange interactions where abs(Jij) < energy_cutoff.
 
+.. describe:: interaction_prefactor = 1.0
+
+    General multiplier applied to every exchange interaction. The setting name
+    :code:`prefactor` is accepted as an alias. The two names are mutually
+    exclusive.
+
 .. describe:: radius_cutoff = 100.0
 
     Remove any exchange interactions where norm(rij) > radius_cutoff (in units of lattice parameters).

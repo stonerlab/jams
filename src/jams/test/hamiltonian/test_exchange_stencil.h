@@ -341,6 +341,70 @@ TEST_F(ExchangeStencilHamiltonianTest, MatchesSparseForPeriodicScalarExchange) {
   compare_to_sparse_exchange(globals::config->lookup("hamiltonians"), 1.0e-8);
 }
 
+TEST_F(ExchangeStencilHamiltonianTest, PrefactorAliasMatchesInteractionPrefactor) {
+  using namespace jams::testing::exchange_stencil;
+  SetUp(make_config(
+      "[true, true, true]",
+      single_basis_positions(),
+      single_material(),
+      scalar_interactions(),
+      "false"));
+
+  libconfig::Config config;
+  config.readString(std::string(R"(
+    settings = (
+      {
+        interaction_prefactor = -2.0;
+        symops = false;
+        interactions = (
+  )") + scalar_interactions() + R"(
+        );
+      },
+      {
+        prefactor = -2.0;
+        symops = false;
+        interactions = (
+  )" + scalar_interactions() + R"(
+        );
+      }
+    );
+  )");
+
+  const ExchangeInteractionSetup legacy(
+      config.lookup("settings.[0]"), 1.0, false, "exchange");
+  const ExchangeInteractionSetup alias(
+      config.lookup("settings.[1]"), 1.0, false, "exchange");
+
+  EXPECT_DOUBLE_EQ(alias.interaction_prefactor(), legacy.interaction_prefactor());
+  EXPECT_DOUBLE_EQ(alias.interaction_prefactor(), -2.0);
+}
+
+TEST_F(ExchangeStencilHamiltonianTest, PrefactorNamesAreMutuallyExclusive) {
+  using namespace jams::testing::exchange_stencil;
+  SetUp(make_config(
+      "[true, true, true]",
+      single_basis_positions(),
+      single_material(),
+      scalar_interactions(),
+      "false"));
+
+  libconfig::Config config;
+  config.readString(std::string(R"(
+    settings = {
+      prefactor = 2.0;
+      interaction_prefactor = 3.0;
+      symops = false;
+      interactions = (
+  )") + scalar_interactions() + R"(
+      );
+    };
+  )");
+
+  ASSERT_THROW(
+      ExchangeInteractionSetup(config.lookup("settings"), 1.0, false, "exchange"),
+      jams::ConfigException);
+}
+
 TEST_F(ExchangeStencilHamiltonianTest, MatchesSparseForMixedOpenBoundaries) {
   using namespace jams::testing::exchange_stencil;
   SetUp(make_config(

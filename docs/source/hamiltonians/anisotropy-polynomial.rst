@@ -108,6 +108,21 @@ Settings
     Energy units of the coefficients. If omitted, JAMS uses the default energy
     unit.
 
+.. describe:: prefactor (optional | number)
+
+    General multiplier applied to every anisotropy coefficient. The default is
+    :code:`1.0`; zero and negative values are allowed. The stored coefficient is
+
+    .. math::
+
+        C_{l,m}^{\mathrm{stored}} =
+            \mathrm{prefactor}\,
+            a_{l,m}^{N}\,
+            C_{l,m}^{N},
+
+    together with the conversion from :code:`energy_units` into JAMS internal
+    units.
+
 .. describe:: normalisation (optional | string)
 
     Normalisation convention used by the input coefficients. The American
@@ -231,13 +246,15 @@ This example applies an axial :math:`l=2,m=0` anisotropy to material
       {
         module = "anisotropy-polynomial";
         energy_units = "meV";
+        prefactor = 0.5;
         anisotropies = (
           ("A", [0.0, 0.0, 1.0], (2, 0, 1.0))
         );
       }
     );
 
-Since only :math:`m=0` is used, only the axial :code:`w` axis is needed.
+Since only :math:`m=0` is used, only the axial :code:`w` axis is needed. The
+prefactor makes the effective coefficient :math:`0.5\,\mathrm{meV}`.
 
 
 Axial fourth- and sixth-order terms

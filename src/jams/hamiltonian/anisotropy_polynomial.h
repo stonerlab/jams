@@ -27,6 +27,10 @@
 ///     Energy units of the anisotropy coefficients in one of the JAMS supported
 ///     units.
 ///
+/// prefactor: 1.0 (optional | number)
+///     General multiplier applied to every anisotropy coefficient after input.
+///     Zero and negative values are allowed.
+///
 /// normalisation: monic (optional | string)
 ///     Normalisation convention used by the coefficients in the input file.
 ///     The American spelling "normalization" is also accepted. The selected
@@ -107,8 +111,9 @@
 ///
 /// The fundamental internal basis is the monic tesseral polynomial basis. Input
 /// normalisation conventions are converted once, during construction, by
-/// multiplying the user coefficient by the scale factor needed to obtain the
-/// corresponding monic polynomial. This keeps the runtime CPU and CUDA
+/// multiplying the user coefficient by the general prefactor, energy-unit
+/// conversion and scale factor needed to obtain the corresponding monic
+/// polynomial. This keeps the runtime CPU and CUDA
 /// evaluators independent of the input convention, avoids duplicating Racah,
 /// Stevens or Condon-Shortley factors in kernels, and gives the evaluator a
 /// small set of explicit polynomial functions with simple rational

@@ -100,7 +100,10 @@ ExchangeInteractionSetup::ExchangeInteractionSetup(
       settings, "distance_tolerance", jams::defaults::lattice_tolerance);
   std::cout << "    distance_tolerance " << distance_tolerance_ << "\n";
 
-  interaction_prefactor_ = jams::config_optional<double>(settings, "interaction_prefactor", 1.0);
+  jams::require_mutually_exclusive_settings(settings, {"prefactor", "interaction_prefactor"});
+  interaction_prefactor_ = settings.exists("prefactor")
+      ? jams::config_required<double>(settings, "prefactor")
+      : jams::config_optional<double>(settings, "interaction_prefactor", 1.0);
   std::cout << "    interaction_prefactor " << interaction_prefactor_ << "\n";
 
   safety_check_distance_tolerance(distance_tolerance_);

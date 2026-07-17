@@ -138,6 +138,7 @@ bool coefficients_are_axial(const AnisotropyPolynomialHamiltonian::TesseralKeyCo
 std::pair<int, jams::Real> read_coefficient_setting(
     const Setting& setting,
     const double energy_unit_conversion,
+    const double prefactor,
     const jams::TesseralHarmonicNormalisation normalisation)
 {
     if (!setting.isList() || setting.getLength() != 3) {
@@ -154,27 +155,30 @@ std::pair<int, jams::Real> read_coefficient_setting(
         normalisation, l, m);
     return {jams::tesseral_key(l, m),
             jams::read_numeric_setting<jams::Real>(setting[2], "anisotropy coefficient")
-                * jams::Real(energy_unit_conversion) * normalisation_scale};
+                * jams::Real(prefactor) * jams::Real(energy_unit_conversion) * normalisation_scale};
 }
 
 void read_coefficient_settings(std::vector<std::pair<int, jams::Real>>& coefficients,
                                const Setting& setting,
                                const double energy_unit_conversion,
+                               const double prefactor,
                                const jams::TesseralHarmonicNormalisation normalisation)
 {
     if (setting.isList() && setting.getLength() > 0 && setting[0].isList()) {
         for (auto i = 0; i < setting.getLength(); ++i) {
-            coefficients.push_back(read_coefficient_setting(setting[i], energy_unit_conversion, normalisation));
+            coefficients.push_back(read_coefficient_setting(
+                setting[i], energy_unit_conversion, prefactor, normalisation));
         }
         return;
     }
 
-    coefficients.push_back(read_coefficient_setting(setting, energy_unit_conversion, normalisation));
+    coefficients.push_back(read_coefficient_setting(setting, energy_unit_conversion, prefactor, normalisation));
 }
 
 AnisotropyPolynomialSetting read_anisotropy_setting(
     const Setting& setting,
     const double energy_unit_conversion,
+    const double prefactor,
     const jams::TesseralHarmonicNormalisation normalisation)
 {
     if (!setting.isList()) {
@@ -231,7 +235,8 @@ AnisotropyPolynomialSetting read_anisotropy_setting(
     }
 
     for (auto i = coefficient_start; i < length; ++i) {
-        read_coefficient_settings(result.coefficients, setting[i], energy_unit_conversion, normalisation);
+        read_coefficient_settings(
+            result.coefficients, setting[i], energy_unit_conversion, prefactor, normalisation);
     }
 
     if (result.coefficients.empty()) {
@@ -398,6 +403,8 @@ AnisotropyPolynomialHamiltonian::AnisotropyPolynomialHamiltonian(const libconfig
     }
 
     const auto normalisation = read_tesseral_normalisation(settings);
+    const auto prefactor = jams::config_optional<double>(settings, "prefactor", 1.0);
+    std::cout << "    prefactor " << prefactor << "\n";
 
     const auto& anisotropy_settings = settings["anisotropies"];
     if (!anisotropy_settings.isList()) {
@@ -416,7 +423,7 @@ AnisotropyPolynomialHamiltonian::AnisotropyPolynomialHamiltonian(const libconfig
     for (auto n = 0; n < anisotropy_settings.getLength(); ++n) {
         const auto& anisotropy_setting = anisotropy_settings[n];
         const auto anisotropy = read_anisotropy_setting(
-            anisotropy_setting, input_energy_unit_conversion_, normalisation);
+            anisotropy_setting, input_energy_unit_conversion_, prefactor, normalisation);
 
         for (auto i = 0u; i < size; ++i) {
             if (!applies_to_spin(anisotropy, int(i))) {
