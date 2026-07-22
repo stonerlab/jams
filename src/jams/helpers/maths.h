@@ -53,6 +53,16 @@ inline constexpr bool approximately_equal(const T& a, const T& b, const T& epsil
   return std::abs(a - b) <= (std::max(std::abs(a), std::abs(b)) * epsilon);
 }
 
+// Compares values on a periodic interval using the shortest distance between
+// them. The tolerance semantics match approximately_equal above.
+template <typename T>
+inline bool approximately_equal_periodic(const T& a, const T& b, const T& period, const T& epsilon) {
+  const T difference = std::abs(std::remainder(a - b, period));
+  if (difference <= epsilon) return true;
+
+  return difference <= (std::max(std::abs(a), std::abs(b)) * epsilon);
+}
+
 template <typename T>
 inline constexpr bool approximately_zero(const T& a, const T& epsilon) {
   return std::abs(a) <= epsilon;

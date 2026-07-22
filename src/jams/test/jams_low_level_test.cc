@@ -11,6 +11,7 @@
 #include "jams/test/containers/test_vec3.h"
 #include "jams/test/containers/test_block_sparse_interaction_matrix.h"
 #include "jams/test/helpers/test_utils.h"
+#include "jams/test/maths/test_angles.h"
 #include "jams/test/maths/test_neutrons.h"
 #include "jams/test/maths/test_tesseral_harmonics.h"
 

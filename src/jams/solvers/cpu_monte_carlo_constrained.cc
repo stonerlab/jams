@@ -335,10 +335,12 @@ void ConstrainedMCSolver::validate_constraint() const {
   // theta is ~0 or 180 (i.e. it is at a pole) then the phi angle is undefined
   const bool at_pole = approximately_zero(constraint_theta_, DBL_EPSILON) || approximately_equal(constraint_theta_, 180.0, DBL_EPSILON);
   if (!at_pole) {
-    if (!approximately_equal(actual_phi, constraint_phi_, jams::defaults::solver_monte_carlo_constraint_tolerance)) {
+    if (!approximately_equal_periodic(actual_phi, constraint_phi_, 360.0, jams::defaults::solver_monte_carlo_constraint_tolerance)) {
+      const double phi_error = std::remainder(actual_phi - constraint_phi_, 360.0);
       std::stringstream ss;
       ss << "ConstrainedMCSolver -- phi constraint (" << jams::fmt::decimal << constraint_phi_ << ") violated ("
-         << std::setprecision(10) << std::setw(12) << rad_to_deg(jams::azimuthal_angle(m_total)) << " deg)";
+         << std::setprecision(10) << std::setw(12) << actual_phi << " deg; shortest angular difference "
+         << phi_error << " deg)";
       throw std::runtime_error(ss.str());
     }
   }
