@@ -9,6 +9,7 @@
 #include <jams/common.h>
 #include "jams/core/jams++.h"
 #include "jams/helpers/error.h"
+#include "jams/helpers/exception.h"
 #include "jams/helpers/utils.h"
 #include "jams/helpers/consts.h"
 #include "jams/helpers/maths.h"
@@ -30,6 +31,18 @@ namespace {
 
 void ConstrainedMCSolver::initialize(const libconfig::Setting& settings) {
   do_spin_initial_alignment_ = jams::config_optional(settings, "auto_align", do_spin_initial_alignment_);
+
+  const auto constraint_type_name = lowercase(jams::config_optional<std::string>(
+      settings, "cmc_constraint_type", "material_transform"));
+  if (constraint_type_name == "magnetisation") {
+    constraint_type_ = ConstraintType::Magnetisation;
+  } else if (constraint_type_name == "material_transform") {
+    constraint_type_ = ConstraintType::MaterialTransform;
+  } else {
+    throw jams::ConfigException(
+        settings["cmc_constraint_type"],
+        "must be either 'magnetisation' or 'material_transform'");
+  }
 
   max_steps_ = jams::config_required<int>(settings, "max_steps");
   min_steps_ = jams::config_optional<int>(settings, "min_steps", jams::defaults::solver_min_steps);
@@ -63,10 +76,12 @@ void ConstrainedMCSolver::initialize(const libconfig::Setting& settings) {
     move_fraction_reflection_  /= move_fraction_sum;
   }
 
-  spin_transformations_.resize(globals::num_spins);
+  constraint_transformations_.assign(globals::num_spins, kIdentityMat3);
   for (int i = 0; i < globals::num_spins; ++i) {
-    spin_transformations_[i] = globals::lattice->material(
-        globals::lattice->lattice_site_material_id(i)).transform;
+    if (constraint_type_ == ConstraintType::MaterialTransform) {
+      constraint_transformations_[i] = globals::lattice->material(
+          globals::lattice->lattice_site_material_id(i)).transform;
+    }
   }
 
   output_initialization_info(std::cout);
@@ -127,7 +142,7 @@ unsigned ConstrainedMCSolver::AsselinAlgorithm(const std::function<jams::Vec<dou
   std::uniform_real_distribution<> uniform_distribution;
 
   const double temperature = physics_module_->temperature();
-  jams::Vec<double, 3> magnetisation = total_transformed_magnetization();
+  jams::Vec<double, 3> order_parameter = total_constraint_vector();
 
   unsigned moves_accepted = 0;
 
@@ -168,16 +183,18 @@ unsigned ConstrainedMCSolver::AsselinAlgorithm(const std::function<jams::Vec<dou
 
     jams::Vec<double, 3> s2_trial = rotate_constraint_to_cartesian(s2, s2_trial_rotated);
 
-    jams::Vec<double, 3> delta_m = magnetization_difference(s1, s1_initial, s1_trial, s2, s2_initial, s2_trial);
+    jams::Vec<double, 3> delta_order_parameter = constraint_vector_difference(
+        s1, s1_initial, s1_trial, s2, s2_initial, s2_trial);
 
-    jams::Vec<double, 3> m_trial_rotated = rotation_matrix_ * (magnetisation + delta_m);
+    jams::Vec<double, 3> trial_order_parameter_rotated =
+        rotation_matrix_ * (order_parameter + delta_order_parameter);
 
-    if (m_trial_rotated[2] < 0.0) {
-      // The new magnetization is in the opposite sense - revert s1, reject move
+    if (trial_order_parameter_rotated[2] < 0.0) {
+      // The new order parameter is in the opposite sense - reject the move.
       continue;
     }
 
-    jams::Vec<double, 3> m_initial_rotated = rotation_matrix_ * (magnetisation);
+    jams::Vec<double, 3> initial_order_parameter_rotated = rotation_matrix_ * order_parameter;
 
     // calculate the Boltzmann weighted probability including the Jacobian factors (see paper)
     double delta_e = energy_difference(s1, s1_initial, s1_trial, s2, s2_initial, s2_trial);
@@ -189,7 +206,8 @@ unsigned ConstrainedMCSolver::AsselinAlgorithm(const std::function<jams::Vec<dou
       }
     } else {
       const double beta = 1.0 / (temperature * kBoltzmannIU);
-      double jacobian_factor = pow2(m_trial_rotated[2] / m_initial_rotated[2]) * abs(s2_initial_rotated[2] / s2_trial_rotated[2]);
+      double jacobian_factor = pow2(trial_order_parameter_rotated[2] / initial_order_parameter_rotated[2])
+          * abs(s2_initial_rotated[2] / s2_trial_rotated[2]);
       double probability = std::min(1.0, exp(-delta_e * beta) * jacobian_factor);
 
       if (uniform_distribution(jams::instance().random_generator()) > probability) {
@@ -202,7 +220,7 @@ unsigned ConstrainedMCSolver::AsselinAlgorithm(const std::function<jams::Vec<dou
     jams::montecarlo::set_spin(s1, s1_trial);
     jams::montecarlo::set_spin(s2, s2_trial);
 
-    magnetisation += delta_m;
+    order_parameter += delta_order_parameter;
 
     moves_accepted++;
   }
@@ -229,32 +247,50 @@ double ConstrainedMCSolver::energy_difference(const int &s1, const jams::Vec<dou
   return delta_energy1 + delta_energy2;
 }
 
-jams::Vec<double, 3> ConstrainedMCSolver::magnetization_difference(const int &s1, const jams::Vec<double, 3> &s1_initial, const jams::Vec<double, 3> &s1_trial,
+jams::Vec<double, 3> ConstrainedMCSolver::constraint_vector_difference(const int &s1, const jams::Vec<double, 3> &s1_initial, const jams::Vec<double, 3> &s1_trial,
                                                    const int &s2, const jams::Vec<double, 3> &s2_initial, const jams::Vec<double, 3> &s2_trial) const {
-  return globals::mus(s1) * (spin_transformations_[s1] * (s1_trial - s1_initial))
-  + globals::mus(s2) * (spin_transformations_[s2] * (s2_trial - s2_initial));
+  return globals::mus(s1) * spin_to_order_parameter(s1, s1_trial - s1_initial)
+      + globals::mus(s2) * spin_to_order_parameter(s2, s2_trial - s2_initial);
 }
 
-jams::Vec<double, 3> ConstrainedMCSolver::total_transformed_magnetization() const {
-  jams::Vec<double, 3> m_total = {0.0, 0.0, 0.0};
+jams::Vec<double, 3> ConstrainedMCSolver::total_constraint_vector() const {
+  jams::Vec<double, 3> total = {0.0, 0.0, 0.0};
 
   for (auto i = 0; i < globals::num_spins; ++i) {
-    m_total += globals::mus(i) * (spin_transformations_[i] *
-        jams::montecarlo::get_spin(i));
+    total += globals::mus(i) * spin_to_order_parameter(i, jams::montecarlo::get_spin(i));
   }
 
-  return m_total;
+  return total;
+}
+
+jams::Vec<double, 3> ConstrainedMCSolver::spin_to_order_parameter(const int &i, const jams::Vec<double, 3> &spin) const {
+  return constraint_transformations_[i] * spin;
+}
+
+jams::Vec<double, 3> ConstrainedMCSolver::order_parameter_to_spin(const int &i, const jams::Vec<double, 3> &spin) const {
+  return transpose(constraint_transformations_[i]) * spin;
 }
 
 jams::Vec<double, 3> ConstrainedMCSolver::rotate_cartesian_to_constraint(const int &i, const jams::Vec<double, 3> &spin) const {
-  return rotation_matrix_ * (spin_transformations_[i] * spin);
+  return rotation_matrix_ * spin_to_order_parameter(i, spin);
 }
 
 jams::Vec<double, 3> ConstrainedMCSolver::rotate_constraint_to_cartesian(const int &i, const jams::Vec<double, 3> &spin) const {
-  return transpose(spin_transformations_[i]) * (inverse_rotation_matrix_ * spin);
+  return order_parameter_to_spin(i, inverse_rotation_matrix_ * spin);
+}
+
+const char* ConstrainedMCSolver::constraint_type_name() const {
+  switch (constraint_type_) {
+    case ConstraintType::Magnetisation:
+      return "magnetisation";
+    case ConstraintType::MaterialTransform:
+      return "material_transform";
+  }
+  return "unknown";
 }
 
 void ConstrainedMCSolver::output_initialization_info(std::ostream &os) {
+  os << "    constraint type " << constraint_type_name() << "\n";
   os << "    constraint angle theta (deg) " << constraint_theta_ << "\n";
   os << "    constraint angle phi (deg) " << constraint_phi_ << "\n";
   os << "    constraint vector " << constraint_vector_[0] << " " << constraint_vector_[1] << " " << constraint_vector_[2] << "\n";
@@ -321,14 +357,14 @@ void ConstrainedMCSolver::output_running_stats_info(std::ostream &os) {
 
 
 void ConstrainedMCSolver::validate_constraint() const {
-  jams::Vec<double, 3> m_total = total_transformed_magnetization();
+  jams::Vec<double, 3> order_parameter = total_constraint_vector();
 
-  const double actual_theta = rad_to_deg(jams::polar_angle(m_total));
-  const double actual_phi = rad_to_deg(jams::azimuthal_angle(m_total));
+  const double actual_theta = rad_to_deg(jams::polar_angle(order_parameter));
+  const double actual_phi = rad_to_deg(jams::azimuthal_angle(order_parameter));
 
   if (!approximately_equal(actual_theta, constraint_theta_, jams::defaults::solver_monte_carlo_constraint_tolerance)) {
     std::stringstream ss;
-    ss << "ConstrainedMCSolver -- theta constraint (" << jams::fmt::decimal << constraint_theta_ << ") violated (" << std::setprecision(10) << std::setw(12) << rad_to_deg(jams::polar_angle(m_total)) << " deg)";
+    ss << "ConstrainedMCSolver -- theta constraint (" << jams::fmt::decimal << constraint_theta_ << ") violated (" << std::setprecision(10) << std::setw(12) << actual_theta << " deg)";
     throw std::runtime_error(ss.str());
   }
 
@@ -385,14 +421,16 @@ void ConstrainedMCSolver::sum_running_acceptance_statistics() {
 }
 
 void ConstrainedMCSolver::align_spins_to_constraint() const {
-  auto M = total_transformed_magnetization();
+  const auto order_parameter = total_constraint_vector();
 
-  auto rotation = rotation_matrix_between_vectors(M, constraint_vector_);
+  const auto rotation = rotation_matrix_between_vectors(order_parameter, constraint_vector_);
 
   for (auto i = 0; i < globals::num_spins; ++i) {
-    jams::Vec<double, 3> snew = rotation * jams::montecarlo::get_spin(i);
+    const auto spin = jams::montecarlo::get_spin(i);
+    const auto aligned_order_parameter_spin = rotation * spin_to_order_parameter(i, spin);
+    const auto aligned_spin = order_parameter_to_spin(i, aligned_order_parameter_spin);
     for (auto j : {0, 1, 2}) {
-      globals::s(i, j) = snew[j];
+      globals::s(i, j) = aligned_spin[j];
     }
   }
 }
