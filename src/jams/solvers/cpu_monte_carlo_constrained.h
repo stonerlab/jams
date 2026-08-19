@@ -8,6 +8,7 @@
 
 #include <jams/core/types.h>
 #include "jams/core/solver.h"
+#include "jams/helpers/defaults.h"
 #include "jams/helpers/montecarlo.h"
 
 #include "pcg_random.hpp"
@@ -66,6 +67,8 @@ class ConstrainedMCSolver : public Solver {
 
     double constraint_theta_   = 0.0;
     double constraint_phi_     = 0.0;
+    double constraint_tolerance_degrees_ =
+        jams::defaults::solver_monte_carlo_constraint_angular_tolerance_degrees;
     jams::Vec<double, 3>   constraint_vector_  = {{0.0, 0.0, 1.0}};
 
     jams::Mat<double, 3, 3> rotation_matrix_         = kIdentityMat3;

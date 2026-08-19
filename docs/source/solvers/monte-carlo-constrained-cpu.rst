@@ -78,6 +78,18 @@ or explicitly select the material transforms with
 
     cmc_constraint_type = "material_transform";
 
+.. describe:: cmc_constraint_tolerance = 1e-6
+
+Maximum permitted angular separation, in degrees, between the requested
+constraint direction and the measured collective-vector direction during the
+solver's periodic constraint validation. The value must be finite and satisfy
+``0 < cmc_constraint_tolerance <= 180``.
+
+This setting controls only the threshold at which validation stops the solver;
+it does not alter or relax the constrained Monte Carlo trial moves themselves.
+The geometric direction comparison is independent of the azimuthal branch cut
+and remains well-defined at the polar directions.
+
 .. describe:: min_steps = 0
 
 Minimum number of Monte Carlo steps to solve (in case a monitor can stop
