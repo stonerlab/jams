@@ -8,16 +8,25 @@ the order parameter to a given angle. The length of the order parameter is
 free to vary. Usually this solver is used in combination with the
 :ref:`torque monitor <torque-monitor>` to calculate free energy barriers.
 
-The constraint angles are applied to the order parameter vector
+The constraint angles can be applied to either the total magnetisation
 
 .. math::
-    \vec{N} = \sum_{i} \mu_{s,i} \left( \mathbb{T}_{i} \cdot \vec{S}_{i} \right)
+    \vec{M} = \sum_i \mu_{s,i} \vec{S}_i,
 
-where :math:`\mu_{s,i}` and :math:`\mathbb{T}_{i}` are the magnetic moment and
-the spin transform matrix of the :math:`i`-th spins as defined for each material
-(see :ref:`materials`). The transformation matrix allows Constrained Monte Carlo
-to be used for example with ferrimagnets and antiferrimagnets by use of the Neel
-vector rather than the magnetisation.
+or a material-transformed order parameter
+
+.. math::
+    \vec{N} = \sum_i \mu_{s,i} \left(\mathbb{T}_i \cdot \vec{S}_i\right).
+
+Here :math:`\mu_{s,i}` and :math:`\mathbb{T}_i` are the magnetic-moment
+magnitude and spin transform matrix of spin :math:`i`, as defined for its
+material (see :ref:`materials`). The sum includes every spin in the simulated
+supercell. Use the magnetisation constraint for a conventional ferro- or
+ferrimagnet when the direction of its physical total moment is required. Use
+the material-transformed constraint, for example, to flip one sublattice and
+constrain a Neel vector in an antiferromagnet or a transformed ferrimagnetic
+order parameter. The material-transformed definition is the default for
+backward compatibility.
 
 This Monte Carlo solver moves **two** spins for every trial. We define One Monte
 Carlo step as one trial move of every spin on average. Therefore `num_spins/2`
@@ -50,6 +59,24 @@ Azimuthal (in :math:`xy`-plane)  constraint angle in degrees.
 
 Optional settings
 ^^^^^^^^^^^^^^^^^
+
+.. describe:: cmc_constraint_type = "material_transform"
+
+Selects the collective vector whose direction is constrained. Valid values are
+``"magnetisation"`` for :math:`\vec{M}` and ``"material_transform"`` for
+:math:`\vec{N}`. Values are case-insensitive.
+
+For example, constrain the physical total magnetisation with
+
+.. code-block:: cfg
+
+    cmc_constraint_type = "magnetisation";
+
+or explicitly select the material transforms with
+
+.. code-block:: cfg
+
+    cmc_constraint_type = "material_transform";
 
 .. describe:: min_steps = 0
 

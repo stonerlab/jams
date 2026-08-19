@@ -29,8 +29,15 @@ class ConstrainedMCSolver : public Solver {
   std::string name() const override { return "monte-carlo-constrained-cpu"; }
 
  private:
+    enum class ConstraintType {
+      Magnetisation,
+      MaterialTransform
+    };
+
     void output_initialization_info(std::ostream &os);
     void output_running_stats_info(std::ostream &os);
+
+    const char* constraint_type_name() const;
 
     void validate_angles() const;
     void validate_rotation_matricies() const;
@@ -44,14 +51,18 @@ class ConstrainedMCSolver : public Solver {
 
     unsigned AsselinAlgorithm(const std::function<jams::Vec<double, 3>(jams::Vec<double, 3>)>&  trial_spin_move);
 
+    jams::Vec<double, 3>     spin_to_order_parameter(const int &i, const jams::Vec<double, 3> &spin) const;
+    jams::Vec<double, 3>     order_parameter_to_spin(const int &i, const jams::Vec<double, 3> &spin) const;
     jams::Vec<double, 3>     rotate_cartesian_to_constraint(const int &i, const jams::Vec<double, 3> &spin) const;
     jams::Vec<double, 3>     rotate_constraint_to_cartesian(const int &i, const jams::Vec<double, 3> &spin) const;
-    jams::Vec<double, 3>     total_transformed_magnetization() const;
+    jams::Vec<double, 3>     total_constraint_vector() const;
 
     double   energy_difference(const int &s1, const jams::Vec<double, 3> &s1_initial, const jams::Vec<double, 3> &s1_trial, const int &s2, const jams::Vec<double, 3> &s2_initial, const jams::Vec<double, 3> &s2_trial) const;
-    jams::Vec<double, 3>     magnetization_difference(const int &s1, const jams::Vec<double, 3> &s1_initial, const jams::Vec<double, 3> &s1_trial, const int &s2, const jams::Vec<double, 3> &s2_initial, const jams::Vec<double, 3> &s2_trial) const;
+    jams::Vec<double, 3>     constraint_vector_difference(const int &s1, const jams::Vec<double, 3> &s1_initial, const jams::Vec<double, 3> &s1_trial, const int &s2, const jams::Vec<double, 3> &s2_initial, const jams::Vec<double, 3> &s2_trial) const;
 
     bool do_spin_initial_alignment_ = true;
+
+    ConstraintType constraint_type_ = ConstraintType::MaterialTransform;
 
     double constraint_theta_   = 0.0;
     double constraint_phi_     = 0.0;
@@ -60,7 +71,7 @@ class ConstrainedMCSolver : public Solver {
     jams::Mat<double, 3, 3> rotation_matrix_         = kIdentityMat3;
     jams::Mat<double, 3, 3> inverse_rotation_matrix_ = kIdentityMat3;
 
-    std::vector<jams::Mat<double, 3, 3>> spin_transformations_;
+    std::vector<jams::Mat<double, 3, 3>> constraint_transformations_;
 
     int output_write_steps_ = 100;
 
