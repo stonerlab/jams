@@ -31,6 +31,7 @@ namespace jams {
         constexpr int    solver_min_steps = 0;
         constexpr double solver_monte_carlo_move_sigma = 0.5;
         constexpr double solver_monte_carlo_constraint_tolerance = 1e-8;
+        constexpr double solver_monte_carlo_constraint_angular_tolerance_degrees = 1e-6;
         constexpr auto   solver_gpu_thermostat = "langevin-white-gpu";
 
         constexpr double material_gyro = 1.0;

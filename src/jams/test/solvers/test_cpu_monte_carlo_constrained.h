@@ -2,8 +2,11 @@
 #define JAMS_TEST_SOLVERS_TEST_CPU_MONTE_CARLO_CONSTRAINED_H
 
 #include <cmath>
+#include <functional>
 #include <iomanip>
+#include <limits>
 #include <memory>
+#include <optional>
 #include <sstream>
 #include <string>
 
@@ -157,12 +160,21 @@ class ConstrainedMCSolverConstraintTest : public ::testing::Test {
       const std::string& constraint_type,
       const double theta,
       const double phi,
-      const bool auto_align) {
+      const bool auto_align,
+      const std::optional<double> constraint_tolerance = std::nullopt,
+      const std::function<void()>& prepare_spins = {}) {
     globals::config = std::make_unique<libconfig::Config>();
     const auto config_text = constrained_mc_config(constraint_type, theta, phi, auto_align);
     globals::config->readString(config_text.c_str());
+    if (constraint_tolerance.has_value()) {
+      globals::config->lookup("solver")
+          .add("cmc_constraint_tolerance", libconfig::Setting::TypeFloat) = *constraint_tolerance;
+    }
     globals::lattice = new Lattice();
     globals::lattice->init_from_config(*globals::config);
+    if (prepare_spins) {
+      prepare_spins();
+    }
     return std::make_unique<ConstrainedMCSolver>(globals::config->lookup("solver"));
   }
 
@@ -222,6 +234,104 @@ TEST_F(ConstrainedMCSolverConstraintTest, ModesRejectTheOtherCollectiveVectorDir
 
 TEST_F(ConstrainedMCSolverConstraintTest, RejectsUnknownConstraintType) {
   EXPECT_THROW(make_solver("sublattice", 90.0, 0.0, false), jams::ConfigException);
+}
+
+TEST_F(ConstrainedMCSolverConstraintTest, DefaultToleranceAcceptsRoundoffScaleDirectionalErrors) {
+  for (const auto angular_error_degrees : {1.2e-8, 5.0e-7}) {
+    SCOPED_TRACE(angular_error_degrees);
+    reset_constrained_mc_globals();
+    EXPECT_NO_THROW(make_solver(
+        "material_transform", 90.0, angular_error_degrees, false));
+  }
+}
+
+TEST_F(ConstrainedMCSolverConstraintTest, DefaultToleranceRejectsLargerDirectionalError) {
+  try {
+    auto solver = make_solver("material_transform", 90.0, 2.0e-6, false);
+    FAIL() << "expected constraint validation to fail";
+  } catch (const std::runtime_error& error) {
+    const std::string message = error.what();
+    EXPECT_NE(message.find("angular difference"), std::string::npos);
+    EXPECT_NE(message.find("exceeds tolerance"), std::string::npos);
+  }
+}
+
+TEST_F(ConstrainedMCSolverConstraintTest, ConfiguredLooseToleranceAcceptsLargerDirectionalError) {
+  EXPECT_NO_THROW(make_solver(
+      "material_transform", 90.0, 5.0e-5, false, 1.0e-4));
+}
+
+TEST_F(ConstrainedMCSolverConstraintTest, ConfiguredStrictToleranceRejectsSmallDirectionalError) {
+  EXPECT_THROW(
+      make_solver("material_transform", 90.0, 5.0e-7, false, 1.0e-8),
+      std::runtime_error);
+}
+
+TEST_F(ConstrainedMCSolverConstraintTest, RejectsInvalidConstraintTolerances) {
+  const double infinity = std::numeric_limits<double>::infinity();
+  const double nan = std::numeric_limits<double>::quiet_NaN();
+  for (const auto invalid_tolerance : {0.0, -1.0, 180.000001, infinity, nan}) {
+    SCOPED_TRACE(invalid_tolerance);
+    reset_constrained_mc_globals();
+    EXPECT_THROW(
+        make_solver("material_transform", 90.0, 0.0, false, invalid_tolerance),
+        jams::ConfigException);
+  }
+}
+
+TEST_F(ConstrainedMCSolverConstraintTest, AcceptsEquivalentDirectionAtAzimuthBranchCut) {
+  auto solver = make_solver("material_transform", 90.0, -180.0, true);
+  expect_direction(constrained_mc_total(true), {-1.0, 0.0, 0.0});
+}
+
+TEST_F(ConstrainedMCSolverConstraintTest, PolarDirectionDoesNotDependOnAzimuth) {
+  auto solver = make_solver("material_transform", 0.0, 123.0, true);
+  expect_direction(constrained_mc_total(true), {0.0, 0.0, 1.0});
+}
+
+TEST_F(ConstrainedMCSolverConstraintTest, RejectsZeroLengthConstraintVector) {
+  const auto make_transformed_total_zero = [] {
+    globals::mus(0) = 1.0;
+    globals::inv_mus(0) = 1.0;
+    globals::mus(1) = 1.0;
+    globals::inv_mus(1) = 1.0;
+  };
+
+  try {
+    auto solver = make_solver(
+        "material_transform",
+        90.0,
+        0.0,
+        false,
+        std::nullopt,
+        make_transformed_total_zero);
+    FAIL() << "expected an undefined constraint direction";
+  } catch (const std::runtime_error& error) {
+    EXPECT_NE(
+        std::string(error.what()).find("constraint direction is undefined"),
+        std::string::npos);
+  }
+}
+
+TEST_F(ConstrainedMCSolverConstraintTest, RejectsNonFiniteConstraintVector) {
+  const auto make_total_non_finite = [] {
+    globals::s(0, 0) = std::numeric_limits<double>::infinity();
+  };
+
+  try {
+    auto solver = make_solver(
+        "material_transform",
+        90.0,
+        0.0,
+        false,
+        std::nullopt,
+        make_total_non_finite);
+    FAIL() << "expected an undefined constraint direction";
+  } catch (const std::runtime_error& error) {
+    EXPECT_NE(
+        std::string(error.what()).find("constraint direction is undefined"),
+        std::string::npos);
+  }
 }
 
 TEST_F(ConstrainedMCSolverConstraintTest, MaterialTransformAlignmentOccursInOrderParameterSpace) {

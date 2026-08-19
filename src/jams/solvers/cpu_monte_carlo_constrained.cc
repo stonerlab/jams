@@ -1,8 +1,8 @@
 // Copyright 2014 Joseph Barker. All rights reserved.
+#include <cmath>
 #include <iomanip>
 
 #include <libconfig.h++>
-#include "jams/helpers/output.h"
 
 #include "cpu_monte_carlo_constrained.h"
 
@@ -52,6 +52,18 @@ void ConstrainedMCSolver::initialize(const libconfig::Setting& settings) {
   // phi is angle in the x-y plane from 0 to 360
   constraint_phi_ = jams::config_required<double>(settings, "cmc_constraint_phi");
   constraint_phi_ = remap_azimuthal_angle_degrees(constraint_phi_);
+
+  constraint_tolerance_degrees_ = jams::config_optional<double>(
+      settings,
+      "cmc_constraint_tolerance",
+      jams::defaults::solver_monte_carlo_constraint_angular_tolerance_degrees);
+  if (!std::isfinite(constraint_tolerance_degrees_)
+      || constraint_tolerance_degrees_ <= 0.0
+      || constraint_tolerance_degrees_ > 180.0) {
+    throw jams::ConfigException(
+        settings["cmc_constraint_tolerance"],
+        "must be finite and in the range 0 < cmc_constraint_tolerance <= 180 degrees");
+  }
 
   move_angle_sigma_        = jams::config_optional<double>(settings, "move_angle_sigma", jams::defaults::solver_monte_carlo_move_sigma);
   output_write_steps_      = jams::config_optional<int>(settings, "output_write_steps",  jams::defaults::monitor_output_steps);
@@ -293,6 +305,7 @@ void ConstrainedMCSolver::output_initialization_info(std::ostream &os) {
   os << "    constraint type " << constraint_type_name() << "\n";
   os << "    constraint angle theta (deg) " << constraint_theta_ << "\n";
   os << "    constraint angle phi (deg) " << constraint_phi_ << "\n";
+  os << "    constraint angular tolerance (deg) " << constraint_tolerance_degrees_ << "\n";
   os << "    constraint vector " << constraint_vector_[0] << " " << constraint_vector_[1] << " " << constraint_vector_[2] << "\n";
   os << "    move_fraction_uniform " << move_fraction_uniform_ << "\n";
   os << "    move_fraction_angle " << move_fraction_angle_ << "\n";
@@ -357,38 +370,50 @@ void ConstrainedMCSolver::output_running_stats_info(std::ostream &os) {
 
 
 void ConstrainedMCSolver::validate_constraint() const {
-  jams::Vec<double, 3> order_parameter = total_constraint_vector();
+  const auto order_parameter = total_constraint_vector();
+  const double order_parameter_norm = jams::norm(order_parameter);
 
-  const double actual_theta = rad_to_deg(jams::polar_angle(order_parameter));
-  const double actual_phi = rad_to_deg(jams::azimuthal_angle(order_parameter));
-
-  if (!approximately_equal(actual_theta, constraint_theta_, jams::defaults::solver_monte_carlo_constraint_tolerance)) {
+  if (!std::isfinite(order_parameter[0])
+      || !std::isfinite(order_parameter[1])
+      || !std::isfinite(order_parameter[2])
+      || !std::isfinite(order_parameter_norm)
+      || order_parameter_norm == 0.0) {
     std::stringstream ss;
-    ss << "ConstrainedMCSolver -- theta constraint (" << jams::fmt::decimal << constraint_theta_ << ") violated (" << std::setprecision(10) << std::setw(12) << actual_theta << " deg)";
+    ss << "ConstrainedMCSolver -- constraint direction is undefined because the total constraint vector is zero or non-finite ("
+       << std::scientific << std::setprecision(12)
+       << order_parameter[0] << ", " << order_parameter[1] << ", " << order_parameter[2] << ")";
     throw std::runtime_error(ss.str());
   }
 
-  // theta is ~0 or 180 (i.e. it is at a pole) then the phi angle is undefined
-  const bool at_pole = approximately_zero(constraint_theta_, DBL_EPSILON) || approximately_equal(constraint_theta_, 180.0, DBL_EPSILON);
-  if (!at_pole) {
-    if (!approximately_equal_periodic(actual_phi, constraint_phi_, 360.0, jams::defaults::solver_monte_carlo_constraint_tolerance)) {
-      const double phi_error = std::remainder(actual_phi - constraint_phi_, 360.0);
-      std::stringstream ss;
-      ss << "ConstrainedMCSolver -- phi constraint (" << jams::fmt::decimal << constraint_phi_ << ") violated ("
-         << std::setprecision(10) << std::setw(12) << actual_phi << " deg; shortest angular difference "
-         << phi_error << " deg)";
-      throw std::runtime_error(ss.str());
-    }
+  const double angular_error_degrees = rad_to_deg(std::atan2(
+      jams::norm(jams::cross(order_parameter, constraint_vector_)),
+      jams::dot(order_parameter, constraint_vector_)));
+  if (!std::isfinite(angular_error_degrees)) {
+    throw std::runtime_error(
+        "ConstrainedMCSolver -- constraint direction is undefined because its angular difference is non-finite");
+  }
+
+  if (angular_error_degrees > constraint_tolerance_degrees_) {
+    const double actual_theta = rad_to_deg(jams::polar_angle(order_parameter));
+    const double actual_phi = rad_to_deg(jams::azimuthal_angle(order_parameter));
+    std::stringstream ss;
+    ss << "ConstrainedMCSolver -- constraint direction violated (requested theta "
+       << std::fixed << std::setprecision(10) << constraint_theta_ << " deg, phi "
+       << constraint_phi_ << " deg; actual theta " << actual_theta << " deg, phi "
+       << actual_phi << " deg; angular difference "
+       << std::scientific << std::setprecision(12) << angular_error_degrees
+       << " deg exceeds tolerance " << constraint_tolerance_degrees_ << " deg)";
+    throw std::runtime_error(ss.str());
   }
 }
 
 void ConstrainedMCSolver::validate_angles() const {
-  if (constraint_theta_ < 0 || constraint_theta_ > 180.0) {
+  if (!std::isfinite(constraint_theta_) || constraint_theta_ < 0 || constraint_theta_ > 180.0) {
     throw std::runtime_error(
         "ConstrainedMCSolver -- theta ( " + std::to_string(constraint_theta_) + " ) is out of range (0 <= theta <= 180)");
   }
 
-  if ( constraint_phi_ <= -180.0 || constraint_phi_ > 180.0) {
+  if (!std::isfinite(constraint_phi_) || constraint_phi_ <= -180.0 || constraint_phi_ > 180.0) {
     throw std::runtime_error(
         "ConstrainedMCSolver -- phi ( " + std::to_string(constraint_phi_) + " ) is out of range (-180 <= phi <= 180)");
   }
