@@ -5,6 +5,7 @@
 
 #include <random>
 #include <fstream>
+#include <vector>
 
 #include <jams/core/types.h>
 #include "jams/core/solver.h"
@@ -35,15 +36,36 @@ class ConstrainedMCSolver : public Solver {
       MaterialTransform
     };
 
+    enum class ConstraintMode {
+      Global,
+      SpinSpiral
+    };
+
+    struct ConstraintPlane {
+      int coordinate = 0;
+      jams::Vec<double, 3> target_direction = {{0.0, 0.0, 1.0}};
+      jams::Mat<double, 3, 3> rotation_matrix = kIdentityMat3;
+      jams::Mat<double, 3, 3> inverse_rotation_matrix = kIdentityMat3;
+      std::vector<int> spins;
+      std::vector<int> magnetic_spins;
+    };
+
     void output_initialization_info(std::ostream &os);
     void output_running_stats_info(std::ostream &os);
 
     const char* constraint_type_name() const;
+    const char* constraint_mode_name() const;
+
+    void initialize_spin_spiral(const libconfig::Setting& settings);
 
     void validate_angles() const;
     void validate_rotation_matricies() const;
     void validate_moves() const;
     void validate_constraint() const;
+    void validate_constraint_vector(
+        const jams::Vec<double, 3>& order_parameter,
+        const jams::Vec<double, 3>& target_direction,
+        const std::string& description) const;
 
     void sum_running_acceptance_statistics();
     void reset_running_statistics();
@@ -57,6 +79,11 @@ class ConstrainedMCSolver : public Solver {
     jams::Vec<double, 3>     rotate_cartesian_to_constraint(const int &i, const jams::Vec<double, 3> &spin) const;
     jams::Vec<double, 3>     rotate_constraint_to_cartesian(const int &i, const jams::Vec<double, 3> &spin) const;
     jams::Vec<double, 3>     total_constraint_vector() const;
+    std::vector<jams::Vec<double, 3>> constraint_vectors() const;
+    int constraint_group_index(int spin_index) const;
+    const jams::Vec<double, 3>& target_direction(int group_index) const;
+    const jams::Mat<double, 3, 3>& rotation_matrix(int group_index) const;
+    const jams::Mat<double, 3, 3>& inverse_rotation_matrix(int group_index) const;
 
     double   energy_difference(const int &s1, const jams::Vec<double, 3> &s1_initial, const jams::Vec<double, 3> &s1_trial, const int &s2, const jams::Vec<double, 3> &s2_initial, const jams::Vec<double, 3> &s2_trial) const;
     jams::Vec<double, 3>     constraint_vector_difference(const int &s1, const jams::Vec<double, 3> &s1_initial, const jams::Vec<double, 3> &s1_trial, const int &s2, const jams::Vec<double, 3> &s2_initial, const jams::Vec<double, 3> &s2_trial) const;
@@ -64,6 +91,7 @@ class ConstrainedMCSolver : public Solver {
     bool do_spin_initial_alignment_ = true;
 
     ConstraintType constraint_type_ = ConstraintType::MaterialTransform;
+    ConstraintMode constraint_mode_ = ConstraintMode::Global;
 
     double constraint_theta_   = 0.0;
     double constraint_phi_     = 0.0;
@@ -75,6 +103,12 @@ class ConstrainedMCSolver : public Solver {
     jams::Mat<double, 3, 3> inverse_rotation_matrix_ = kIdentityMat3;
 
     std::vector<jams::Mat<double, 3, 3>> constraint_transformations_;
+
+    jams::Vec<double, 3> spiral_wavevector_ = {{0.0, 0.0, 0.0}};
+    jams::Vec<double, 3> spiral_axis_ = {{0.0, 0.0, 1.0}};
+    int spiral_propagation_direction_ = -1;
+    std::vector<ConstraintPlane> constraint_planes_;
+    std::vector<int> spin_constraint_group_;
 
     int output_write_steps_ = 100;
 

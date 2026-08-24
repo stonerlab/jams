@@ -8,7 +8,7 @@ the order parameter to a given angle. The length of the order parameter is
 free to vary. Usually this solver is used in combination with the
 :ref:`torque monitor <torque-monitor>` to calculate free energy barriers.
 
-The constraint angles can be applied to either the total magnetisation
+The constrained collective vector can be either the total magnetisation
 
 .. math::
     \vec{M} = \sum_i \mu_{s,i} \vec{S}_i,
@@ -28,13 +28,52 @@ constrain a Neel vector in an antiferromagnet or a transformed ferrimagnetic
 order parameter. The material-transformed definition is the default for
 backward compatibility.
 
+Two spatial constraint modes are available. The default ``"global"`` mode
+uses the sums above over every spin in the simulated supercell. The
+``"spin_spiral"`` mode instead partitions the supercell into unit-cell planes
+normal to one reciprocal-lattice direction. For each plane :math:`p`, it
+constrains either
+
+.. math::
+    \vec{M}_p = \sum_{i\in p} \mu_{s,i}\vec{S}_i
+
+or
+
+.. math::
+    \vec{N}_p = \sum_{i\in p} \mu_{s,i}
+    \left(\mathbb{T}_i\cdot\vec{S}_i\right).
+
+The magnitude of every constrained vector remains free. Individual unit-cell
+vectors within a plane are not constrained and may fluctuate away from the
+plane direction.
+
+For an axis-aligned reciprocal wavevector with nonzero component :math:`q_d`,
+the target direction of the plane at integer unit-cell coordinate :math:`n_d`
+is
+
+.. math::
+    \hat{\vec{c}}_{n_d} =
+    R_{\hat{\vec{a}}}\!\left(2\pi q_d n_d\right)\hat{\vec{c}}_0,
+
+where :math:`\hat{\vec{a}}` is the Cartesian spin-rotation axis and
+
+.. math::
+    \hat{\vec{c}}_0 =
+    (\sin\theta\cos\phi,\sin\theta\sin\phi,\cos\theta).
+
+The wavevector is specified in cycles per unit cell, so the factor
+:math:`2\pi` is applied by the solver. Planes are grouped by their integer
+unit-cell coordinate, not merely by target direction: planes separated by a
+full turn remain independent constraints.
+
 This Monte Carlo solver moves **two** spins for every trial. We define One Monte
 Carlo step as one trial move of every spin on average. Therefore `num_spins/2`
 trial moves of pairs of spins are made for each Monte Carlo step.
 
-Trial spins are always chosen at random, both for the initial and second
-(compensation) spin in the pair. No consideration is given for whether the
-second spin is from the same material or unit cell position.
+In global mode both trial spins are selected globally as before. In
+spin-spiral mode the first spin is selected globally and the second
+(compensation) spin is selected uniformly from the other nonzero-moment spins
+in the same plane. It may belong to any unit cell or material in that plane.
 
 .. note::
     The solver will periodically check the constraint is being correctly maintained.
@@ -60,6 +99,12 @@ Azimuthal (in :math:`xy`-plane)  constraint angle in degrees.
 Optional settings
 ^^^^^^^^^^^^^^^^^
 
+.. describe:: cmc_constraint_mode = "global"
+
+Selects the spatial collective vectors whose directions are constrained.
+Valid, case-insensitive values are ``"global"`` for one supercell-wide vector
+and ``"spin_spiral"`` for one vector per unit-cell plane.
+
 .. describe:: cmc_constraint_type = "material_transform"
 
 Selects the collective vector whose direction is constrained. Valid values are
@@ -77,6 +122,43 @@ or explicitly select the material transforms with
 .. code-block:: cfg
 
     cmc_constraint_type = "material_transform";
+
+.. describe:: cmc_spiral_wavevector
+
+Required only when ``cmc_constraint_mode = "spin_spiral"``. A three-component
+reciprocal-lattice vector in cycles per unit cell. Exactly one component must
+be finite and nonzero; oblique and zero wavevectors are rejected.
+
+If propagation direction :math:`d` is periodic and contains :math:`L_d` unit
+cells, the spiral must satisfy
+
+.. math::
+    q_d L_d \in \mathbb{Z}.
+
+The numerical distance from :math:`q_dL_d` to the nearest integer may not
+exceed :math:`10^{-8}`. An arbitrary wavelength is allowed when the
+propagation direction has open boundaries.
+
+.. describe:: cmc_spiral_axis
+
+Required only when ``cmc_constraint_mode = "spin_spiral"``. A finite,
+nonzero Cartesian vector defining the spin-space rotation axis
+:math:`\hat{\vec{a}}`. It is normalised internally.
+
+For example, a planar spiral making one turn over four periodic unit cells in
+the :math:`a` direction is configured with
+
+.. code-block:: cfg
+
+    cmc_constraint_mode = "spin_spiral";
+    cmc_constraint_type = "magnetisation";
+    cmc_constraint_theta = 90.0;
+    cmc_constraint_phi = 0.0;
+    cmc_spiral_wavevector = [0.25, 0.0, 0.0];
+    cmc_spiral_axis = [0.0, 0.0, 1.0];
+
+Every constrained plane must contain at least two nonzero-moment spins so that
+a compensation spin is available.
 
 .. describe:: cmc_constraint_tolerance = 1e-6
 
