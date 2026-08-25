@@ -226,6 +226,13 @@ struct config_required_impl<InteractionFileFormat, void> {
       }
     }
 
+    // Throws for the first named setting that does not exist. The setting name
+    // is followed by the caller-provided error message.
+    void require_settings(
+        const libconfig::Setting& setting,
+        std::initializer_list<std::string_view> names,
+        std::string_view error_message);
+
     // Returns true if the setting is an integer type
     inline bool is_integer_setting(const libconfig::Setting& setting)
     {
@@ -283,6 +290,29 @@ struct config_required_impl<InteractionFileFormat, void> {
       }
 
       return int(setting);
+    }
+
+    // Returns an integer setting value within the inclusive range [minimum, maximum].
+    inline int read_integer_in_range(
+        const libconfig::Setting& setting,
+        const char* name,
+        const int minimum,
+        const int maximum)
+    {
+      if (!is_integer_setting(setting)) {
+        throw jams::ConfigException(setting, name, " must be an integer");
+      }
+
+      const auto value = setting.getType() == libconfig::Setting::TypeInt64
+          ? static_cast<int64_t>(setting)
+          : static_cast<int64_t>(int(setting));
+      if (value < minimum || value > maximum) {
+        throw jams::ConfigException(
+            setting, name, " must be an integer in the range ", minimum,
+            " to ", maximum);
+      }
+
+      return static_cast<int>(value);
     }
 
     // Returns a numeric setting value converted to T.

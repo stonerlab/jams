@@ -1,6 +1,7 @@
 // Copyright 2014 Joseph Barker. All rights reserved.
 #include <cmath>
 #include <iomanip>
+#include <limits>
 #include <map>
 #include <sstream>
 
@@ -30,12 +31,6 @@ namespace {
       // this matches the mapping expected for atan2 but avoids the ambiguity
       // of -180.0 == 180.0 which can cause issues for rotation matricies
       return (x = fmod(x + 360.0, 360.0)) > 180.0 ? x - 360.0 : x;
-    }
-
-    bool is_finite(const jams::Vec<double, 3>& vector) {
-      return std::isfinite(vector[0])
-          && std::isfinite(vector[1])
-          && std::isfinite(vector[2]);
     }
 
     jams::Mat<double, 3, 3> rotation_to_z(const jams::Vec<double, 3>& direction) {
@@ -74,11 +69,15 @@ void ConstrainedMCSolver::initialize(const libconfig::Setting& settings) {
 
   const bool has_spiral_wavevector = settings.exists("cmc_spiral_wavevector");
   const bool has_spiral_axis = settings.exists("cmc_spiral_axis");
+  const bool has_spiral_propagation_direction =
+      settings.exists("cmc_spiral_propagation_direction");
   if (constraint_mode_ == ConstraintMode::Global
-      && (has_spiral_wavevector || has_spiral_axis)) {
+      && (has_spiral_wavevector || has_spiral_axis
+          || has_spiral_propagation_direction)) {
     throw jams::ConfigException(
         settings,
-        "cmc_spiral_wavevector and cmc_spiral_axis are only valid when "
+        "cmc_spiral_wavevector, cmc_spiral_axis, and "
+        "cmc_spiral_propagation_direction are only valid when "
         "cmc_constraint_mode is 'spin_spiral'");
   }
   if (constraint_mode_ == ConstraintMode::SpinSpiral
@@ -132,6 +131,8 @@ void ConstrainedMCSolver::initialize(const libconfig::Setting& settings) {
     move_fraction_reflection_  /= move_fraction_sum;
   }
 
+  initialize_move_angle_adaptation(settings);
+
   constraint_transformations_.assign(globals::num_spins, kIdentityMat3);
   for (int i = 0; i < globals::num_spins; ++i) {
     if (constraint_type_ == ConstraintType::MaterialTransform) {
@@ -156,32 +157,174 @@ void ConstrainedMCSolver::initialize(const libconfig::Setting& settings) {
   validate_constraint();
 }
 
+void ConstrainedMCSolver::initialize_move_angle_adaptation(
+    const libconfig::Setting& settings) {
+  if (!settings.exists("move_angle_adaptation")) {
+    return;
+  }
+
+  const auto& adaptation = settings["move_angle_adaptation"];
+  if (!adaptation.isGroup()) {
+    throw jams::ConfigException(
+        adaptation, "move_angle_adaptation must be a group");
+  }
+
+  if (adaptation.exists("enabled")) {
+    if (adaptation["enabled"].getType() != libconfig::Setting::TypeBoolean) {
+      throw jams::ConfigException(
+          adaptation["enabled"], "move_angle_adaptation.enabled must be boolean");
+    }
+    move_angle_adaptation_enabled_ = bool(adaptation["enabled"]);
+  }
+  if (!move_angle_adaptation_enabled_) {
+    return;
+  }
+
+  jams::require_settings(
+      adaptation,
+      {"target_acceptance", "interval_steps", "gain", "min_sigma", "max_sigma"},
+      " is required when move_angle_adaptation.enabled = true");
+
+  move_angle_target_acceptance_ = jams::read_numeric_setting<double>(
+      adaptation["target_acceptance"], "move_angle_adaptation.target_acceptance");
+  if (!std::isfinite(move_angle_target_acceptance_)
+      || move_angle_target_acceptance_ <= 0.0
+      || move_angle_target_acceptance_ >= 1.0) {
+    throw jams::ConfigException(
+        adaptation["target_acceptance"],
+        "move_angle_adaptation.target_acceptance must be finite and in the range 0 < target_acceptance < 1");
+  }
+
+  move_angle_adaptation_interval_steps_ = jams::read_integer_in_range(
+      adaptation["interval_steps"], "move_angle_adaptation.interval_steps",
+      1, std::numeric_limits<int>::max());
+
+  move_angle_adaptation_gain_ = jams::read_numeric_setting<double>(
+      adaptation["gain"], "move_angle_adaptation.gain");
+  if (!std::isfinite(move_angle_adaptation_gain_)
+      || move_angle_adaptation_gain_ <= 0.0) {
+    throw jams::ConfigException(
+        adaptation["gain"],
+        "move_angle_adaptation.gain must be finite and positive");
+  }
+
+  move_angle_min_sigma_ = jams::read_numeric_setting<double>(
+      adaptation["min_sigma"], "move_angle_adaptation.min_sigma");
+  if (!std::isfinite(move_angle_min_sigma_) || move_angle_min_sigma_ <= 0.0) {
+    throw jams::ConfigException(
+        adaptation["min_sigma"],
+        "move_angle_adaptation.min_sigma must be finite and positive");
+  }
+
+  move_angle_max_sigma_ = jams::read_numeric_setting<double>(
+      adaptation["max_sigma"], "move_angle_adaptation.max_sigma");
+  if (!std::isfinite(move_angle_max_sigma_) || move_angle_max_sigma_ <= 0.0) {
+    throw jams::ConfigException(
+        adaptation["max_sigma"],
+        "move_angle_adaptation.max_sigma must be finite and positive");
+  }
+  if (move_angle_min_sigma_ > move_angle_max_sigma_) {
+    throw jams::ConfigException(
+        adaptation["max_sigma"],
+        "move_angle_adaptation bounds must satisfy min_sigma <= max_sigma");
+  }
+  if (!std::isfinite(move_angle_sigma_)
+      || move_angle_sigma_ < move_angle_min_sigma_
+      || move_angle_sigma_ > move_angle_max_sigma_) {
+    throw jams::ConfigException(
+        settings,
+        "move_angle_sigma must be finite and satisfy move_angle_adaptation.min_sigma <= move_angle_sigma <= move_angle_adaptation.max_sigma");
+  }
+
+  if (adaptation.exists("burn_in_steps")) {
+    const auto burn_in_steps = jams::read_integer_in_range(
+        adaptation["burn_in_steps"], "move_angle_adaptation.burn_in_steps",
+        1, std::numeric_limits<int>::max());
+    if (burn_in_steps > max_steps_) {
+      throw jams::ConfigException(
+          adaptation["burn_in_steps"],
+          "move_angle_adaptation.burn_in_steps must be less than or equal to max_steps (",
+          max_steps_, ")");
+    }
+    move_angle_burn_in_steps_ = burn_in_steps;
+  }
+
+  if (!(move_fraction_angle_ > 0.0)) {
+    throw jams::ConfigException(
+        adaptation,
+        "move_angle_adaptation cannot be enabled when move_fraction_angle is zero");
+  }
+
+  if (!move_angle_burn_in_steps_.has_value()
+      && globals::config != nullptr
+      && globals::config->exists("physics.temperature")) {
+    const auto configured_temperature = jams::read_numeric_setting<double>(
+        globals::config->lookup("physics.temperature"), "physics.temperature");
+    if (configured_temperature != 0.0) {
+      throw jams::ConfigException(
+          adaptation,
+          "move_angle_adaptation.burn_in_steps is required when the simulation temperature is nonzero");
+    }
+  }
+}
+
 void ConstrainedMCSolver::initialize_spin_spiral(const libconfig::Setting& settings) {
   spiral_wavevector_ = jams::read_vec_setting<double, 3>(
       settings["cmc_spiral_wavevector"], "cmc_spiral_wavevector");
   spiral_axis_ = jams::read_vec_setting<double, 3>(
       settings["cmc_spiral_axis"], "cmc_spiral_axis");
 
-  if (!is_finite(spiral_wavevector_)) {
+  if (!jams::is_finite(spiral_wavevector_)) {
     throw jams::ConfigException(
         settings["cmc_spiral_wavevector"],
         "cmc_spiral_wavevector components must be finite");
   }
 
   int nonzero_wavevector_components = 0;
+  int inferred_propagation_direction = -1;
   for (auto direction = 0; direction < 3; ++direction) {
     if (spiral_wavevector_[direction] != 0.0) {
       ++nonzero_wavevector_components;
-      spiral_propagation_direction_ = direction;
+      inferred_propagation_direction = direction;
     }
   }
-  if (nonzero_wavevector_components != 1) {
+  if (nonzero_wavevector_components > 1) {
     throw jams::ConfigException(
         settings["cmc_spiral_wavevector"],
-        "cmc_spiral_wavevector must have exactly one non-zero component");
+        "cmc_spiral_wavevector must have at most one non-zero component");
   }
 
-  if (!is_finite(spiral_axis_)) {
+  const bool has_explicit_propagation_direction =
+      settings.exists("cmc_spiral_propagation_direction");
+  int explicit_propagation_direction = -1;
+  if (has_explicit_propagation_direction) {
+    const auto& direction_setting = settings["cmc_spiral_propagation_direction"];
+    explicit_propagation_direction = jams::read_integer_in_range(
+        direction_setting, "cmc_spiral_propagation_direction", 0, 2);
+  }
+
+  zero_wavevector_plane_constraint_ = nonzero_wavevector_components == 0;
+  if (zero_wavevector_plane_constraint_) {
+    if (!has_explicit_propagation_direction) {
+      throw jams::ConfigException(
+          settings["cmc_spiral_wavevector"],
+          "a zero cmc_spiral_wavevector requires "
+          "cmc_spiral_propagation_direction = 0, 1, or 2");
+    }
+    spiral_propagation_direction_ = explicit_propagation_direction;
+  } else {
+    spiral_propagation_direction_ = inferred_propagation_direction;
+    if (has_explicit_propagation_direction
+        && explicit_propagation_direction != inferred_propagation_direction) {
+      throw jams::ConfigException(
+          settings["cmc_spiral_propagation_direction"],
+          "cmc_spiral_propagation_direction = ", explicit_propagation_direction,
+          " conflicts with non-zero cmc_spiral_wavevector component ",
+          inferred_propagation_direction);
+    }
+  }
+
+  if (!jams::is_finite(spiral_axis_)) {
     throw jams::ConfigException(
         settings["cmc_spiral_axis"],
         "cmc_spiral_axis components must be finite");
@@ -263,6 +406,10 @@ void ConstrainedMCSolver::run() {
   // energy or with a Boltzmann thermal weighting.
   std::uniform_real_distribution<> uniform_distribution;
 
+  if (is_unrestricted_move_angle_adaptation_active()) {
+    validate_move_angle_adaptation_temperature(physics_module_->temperature());
+  }
+
   jams::montecarlo::MonteCarloUniformMove<jams::RandomGeneratorType> uniform_move(&jams::instance().random_generator());
   jams::montecarlo::MonteCarloAngleMove<jams::RandomGeneratorType>   angle_move(&jams::instance().random_generator(), move_angle_sigma_);
   jams::montecarlo::MonteCarloReflectionMove           reflection_move;
@@ -272,8 +419,15 @@ void ConstrainedMCSolver::run() {
     move_running_acceptance_count_uniform_ += AsselinAlgorithm(uniform_move);
     run_count_uniform_++;
   } else if (uniform_random_number < (move_fraction_uniform_ + move_fraction_angle_)) {
-    move_running_acceptance_count_angle_ += AsselinAlgorithm(angle_move);
+    unsigned attempted_angle_moves = 0;
+    const auto accepted_angle_moves = AsselinAlgorithm(
+        angle_move, &attempted_angle_moves);
+    move_running_acceptance_count_angle_ += accepted_angle_moves;
     run_count_angle_++;
+    if (move_angle_adaptation_enabled_ && !move_angle_adaptation_frozen_) {
+      move_angle_adaptation_attempted_ += attempted_angle_moves;
+      move_angle_adaptation_accepted_ += accepted_angle_moves;
+    }
   } else {
     move_running_acceptance_count_reflection_ += AsselinAlgorithm(reflection_move);
     run_count_reflection_++;
@@ -281,6 +435,8 @@ void ConstrainedMCSolver::run() {
 
   iteration_++;
   time_ = iteration_;
+
+  update_move_angle_adaptation(std::cout);
 
   if (iteration_ % output_write_steps_ == 0) {
     validate_constraint();
@@ -291,6 +447,86 @@ void ConstrainedMCSolver::run() {
   }
 }
 
+bool ConstrainedMCSolver::is_unrestricted_move_angle_adaptation_active() const {
+  return move_angle_adaptation_enabled_
+      && !move_angle_adaptation_frozen_
+      && !move_angle_burn_in_steps_.has_value();
+}
+
+void ConstrainedMCSolver::validate_move_angle_adaptation_temperature(
+    const double temperature) const {
+  if (is_unrestricted_move_angle_adaptation_active() && temperature != 0.0) {
+    throw std::runtime_error(
+        "ConstrainedMCSolver -- move_angle_adaptation.burn_in_steps is required "
+        "before unrestricted adaptation can run at nonzero temperature");
+  }
+}
+
+void ConstrainedMCSolver::update_move_angle_adaptation(std::ostream& os) {
+  if (!move_angle_adaptation_enabled_ || move_angle_adaptation_frozen_) {
+    return;
+  }
+
+  const bool interval_boundary =
+      iteration_ % move_angle_adaptation_interval_steps_ == 0;
+  const bool burn_in_boundary = move_angle_burn_in_steps_.has_value()
+      && iteration_ == *move_angle_burn_in_steps_;
+  if (!interval_boundary && !burn_in_boundary) {
+    return;
+  }
+
+  const auto original_flags = os.flags();
+  const auto original_precision = os.precision();
+  os << std::scientific << std::setprecision(8);
+
+  const double previous_sigma = move_angle_sigma_;
+  if (move_angle_adaptation_attempted_ == 0) {
+    os << "move_angle_adaptation: step " << iteration_
+       << ", attempted 0, accepted 0, acceptance n/a, previous sigma "
+       << previous_sigma << ", updated sigma " << move_angle_sigma_
+       << ", bound none, update skipped (no angle moves attempted)\n";
+  } else {
+    const double acceptance = static_cast<double>(move_angle_adaptation_accepted_)
+        / static_cast<double>(move_angle_adaptation_attempted_);
+    const double proposed_log_sigma = std::log(previous_sigma)
+        + move_angle_adaptation_gain_
+            * (acceptance - move_angle_target_acceptance_);
+    const double min_log_sigma = std::log(move_angle_min_sigma_);
+    const double max_log_sigma = std::log(move_angle_max_sigma_);
+
+    const char* bound = "none";
+    if (proposed_log_sigma <= min_log_sigma) {
+      move_angle_sigma_ = move_angle_min_sigma_;
+      bound = "minimum";
+    } else if (proposed_log_sigma >= max_log_sigma) {
+      move_angle_sigma_ = move_angle_max_sigma_;
+      bound = "maximum";
+    } else {
+      move_angle_sigma_ = std::exp(proposed_log_sigma);
+    }
+
+    os << "move_angle_adaptation: step " << iteration_
+       << ", attempted " << move_angle_adaptation_attempted_
+       << ", accepted " << move_angle_adaptation_accepted_
+       << ", acceptance " << acceptance
+       << ", previous sigma " << previous_sigma
+       << ", updated sigma " << move_angle_sigma_
+       << ", bound " << bound << "\n";
+  }
+
+  move_angle_adaptation_attempted_ = 0;
+  move_angle_adaptation_accepted_ = 0;
+
+  if (burn_in_boundary) {
+    move_angle_adaptation_frozen_ = true;
+    os << "move_angle_adaptation: burn-in complete at step " << iteration_
+       << "; frozen production sigma " << move_angle_sigma_ << "\n";
+  }
+
+  os.flags(original_flags);
+  os.precision(original_precision);
+}
+
 std::vector<jams::output::ColDef> ConstrainedMCSolver::monitor_coordinate_columns() const {
   return {{"step", "steps", jams::output::ColFmt::Integer}};
 }
@@ -299,7 +535,9 @@ void ConstrainedMCSolver::append_monitor_coordinates(std::vector<double>& values
   values.push_back(iteration());
 }
 
-unsigned ConstrainedMCSolver::AsselinAlgorithm(const std::function<jams::Vec<double, 3>(jams::Vec<double, 3>)>& trial_spin_move) {
+unsigned ConstrainedMCSolver::AsselinAlgorithm(
+    const std::function<jams::Vec<double, 3>(jams::Vec<double, 3>)>& trial_spin_move,
+    unsigned* moves_attempted) {
   std::uniform_real_distribution<> uniform_distribution;
 
   const double temperature = physics_module_->temperature();
@@ -335,6 +573,9 @@ unsigned ConstrainedMCSolver::AsselinAlgorithm(const std::function<jams::Vec<dou
     jams::Vec<double, 3> s1_initial_rotated = rotate_cartesian_to_constraint(s1, s1_initial);
 
     jams::Vec<double, 3> s1_trial           = trial_spin_move(s1_initial);
+    if (moves_attempted != nullptr) {
+      ++(*moves_attempted);
+    }
     jams::Vec<double, 3> s1_trial_rotated   = rotate_cartesian_to_constraint(s1, s1_trial);
 
     jams::Vec<double, 3> s2_initial         = jams::montecarlo::get_spin(s2);
@@ -532,6 +773,8 @@ void ConstrainedMCSolver::output_initialization_info(std::ostream &os) {
      << constraint_vector_[2] << "\n";
   if (constraint_mode_ == ConstraintMode::SpinSpiral) {
     os << "    spiral wavevector " << spiral_wavevector_ << " (cycles per unit cell)\n";
+    os << "    zero-wavevector plane constraint "
+       << (zero_wavevector_plane_constraint_ ? "yes" : "no") << "\n";
     os << "    spiral rotation axis " << spiral_axis_ << "\n";
     os << "    spiral propagation lattice direction " << spiral_propagation_direction_ << "\n";
     os << "    constrained planes " << constraint_planes_.size() << "\n";
@@ -544,6 +787,26 @@ void ConstrainedMCSolver::output_initialization_info(std::ostream &os) {
   os << "    move_fraction_angle " << move_fraction_angle_ << "\n";
   os << "    move_fraction_reflection " << move_fraction_reflection_ << "\n";
   os << "    move_angle_sigma " << move_angle_sigma_ << "\n";
+  os << "    move angle adaptation "
+     << (move_angle_adaptation_enabled_ ? "enabled" : "disabled") << "\n";
+  if (move_angle_adaptation_enabled_) {
+    const auto original_flags = os.flags();
+    const auto original_precision = os.precision();
+    os << std::scientific << std::setprecision(8);
+    os << "      initial sigma " << move_angle_sigma_ << "\n";
+    os << "      target acceptance " << move_angle_target_acceptance_ << "\n";
+    os << "      interval steps " << move_angle_adaptation_interval_steps_ << "\n";
+    os << "      gain " << move_angle_adaptation_gain_ << "\n";
+    os << "      sigma bounds " << move_angle_min_sigma_ << " "
+       << move_angle_max_sigma_ << "\n";
+    if (move_angle_burn_in_steps_.has_value()) {
+      os << "      burn-in steps " << *move_angle_burn_in_steps_ << "\n";
+    } else {
+      os << "      burn-in steps unrestricted (zero-temperature run only)\n";
+    }
+    os.flags(original_flags);
+    os.precision(original_precision);
+  }
   os << "    output_write_steps " << output_write_steps_ << "\n";
   if (constraint_mode_ == ConstraintMode::Global) {
     os << "    rotation matrix m -> mz\n";
@@ -639,7 +902,7 @@ void ConstrainedMCSolver::validate_constraint_vector(
     const std::string& description) const {
   const double order_parameter_norm = jams::norm(order_parameter);
 
-  if (!is_finite(order_parameter)
+  if (!jams::is_finite(order_parameter)
       || !std::isfinite(order_parameter_norm)
       || order_parameter_norm == 0.0) {
     std::stringstream ss;
@@ -719,7 +982,7 @@ void ConstrainedMCSolver::align_spins_to_constraint() const {
       const jams::Vec<double, 3>& vector,
       const std::string& description) {
     const double vector_norm = jams::norm(vector);
-    if (!is_finite(vector) || !std::isfinite(vector_norm) || vector_norm == 0.0) {
+    if (!jams::is_finite(vector) || !std::isfinite(vector_norm) || vector_norm == 0.0) {
       std::stringstream ss;
       ss << "ConstrainedMCSolver -- constraint direction is undefined for "
          << description << " because its vector is zero or non-finite ("

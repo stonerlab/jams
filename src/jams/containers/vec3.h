@@ -40,6 +40,15 @@ inline constexpr bool vec_dot_is_zero(const T& value) {
 
 } // namespace detail
 
+/// Returns true if every component of a floating-point Vec is finite.
+template <typename T, std::size_t N>
+inline std::enable_if_t<std::is_floating_point_v<T>, bool>
+is_finite(const jams::Vec<T, N>& vector) {
+  return std::all_of(
+      vector.begin(), vector.end(),
+      [](const T value) { return std::isfinite(value); });
+}
+
 /// Returns the fused-multiply-add operation elementwise on the vectors a,b and c.
 /// x_k = (a_k * b_k) + c_k
 template <typename T1>

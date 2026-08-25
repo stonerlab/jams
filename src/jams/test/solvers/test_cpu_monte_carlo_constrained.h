@@ -283,20 +283,165 @@ class ConstrainedMCSolverConstraintTest : public ::testing::Test {
 
   std::unique_ptr<ConstrainedMCSolver> make_programmatic_spiral_solver(
       const jams::Vec<double, 3>& wavevector,
-      const jams::Vec<double, 3>& axis) {
+      const jams::Vec<double, 3>& axis,
+      const std::optional<int> propagation_direction = std::nullopt,
+      const jams::Vec<int, 3>& lattice_size = {4, 2, 1}) {
     globals::config = std::make_unique<libconfig::Config>();
     const auto config_text = constrained_mc_config(
         "magnetisation", 90.0, 0.0, true, "", std::nullopt, std::nullopt,
-        {4, 2, 1}, {true, true, true});
+        lattice_size, {true, true, true});
     globals::config->readString(config_text.c_str());
     auto& solver_settings = globals::config->lookup("solver");
     solver_settings.add("cmc_constraint_mode", libconfig::Setting::TypeString)
         = "spin_spiral";
     add_vec_setting(solver_settings, "cmc_spiral_wavevector", wavevector);
     add_vec_setting(solver_settings, "cmc_spiral_axis", axis);
+    if (propagation_direction.has_value()) {
+      solver_settings.add(
+          "cmc_spiral_propagation_direction", libconfig::Setting::TypeInt)
+          = *propagation_direction;
+    }
     globals::lattice = new Lattice();
     globals::lattice->init_from_config(*globals::config);
     return std::make_unique<ConstrainedMCSolver>(solver_settings);
+  }
+
+  std::unique_ptr<ConstrainedMCSolver> make_configured_solver(
+      const double temperature,
+      const std::function<void(libconfig::Setting&)>& configure_solver,
+      const bool register_physics = true) {
+    globals::config = std::make_unique<libconfig::Config>();
+    globals::config->readString(
+        constrained_mc_config("magnetisation", 90.0, 0.0, true).c_str());
+    globals::config->lookup("physics.temperature") = temperature;
+    auto& solver_settings = globals::config->lookup("solver");
+    configure_solver(solver_settings);
+    globals::lattice = new Lattice();
+    globals::lattice->init_from_config(*globals::config);
+    auto solver = std::make_unique<ConstrainedMCSolver>(solver_settings);
+    if (register_physics) {
+      solver->register_physics_module(
+          Physics::create(globals::config->lookup("physics")));
+    }
+    return solver;
+  }
+
+  void add_move_angle_adaptation(
+      libconfig::Setting& solver_settings,
+      const std::optional<double> target_acceptance = 0.1,
+      const std::optional<int> interval_steps = 10,
+      const std::optional<double> gain = 0.5,
+      const std::optional<double> min_sigma = 1.0e-6,
+      const std::optional<double> max_sigma = 0.1,
+      const std::optional<int> burn_in_steps = std::nullopt,
+      const bool enabled = true) {
+    auto& adaptation = solver_settings.add(
+        "move_angle_adaptation", libconfig::Setting::TypeGroup);
+    adaptation.add("enabled", libconfig::Setting::TypeBoolean) = enabled;
+    if (target_acceptance.has_value()) {
+      adaptation.add("target_acceptance", libconfig::Setting::TypeFloat)
+          = *target_acceptance;
+    }
+    if (interval_steps.has_value()) {
+      adaptation.add("interval_steps", libconfig::Setting::TypeInt)
+          = *interval_steps;
+    }
+    if (gain.has_value()) {
+      adaptation.add("gain", libconfig::Setting::TypeFloat) = *gain;
+    }
+    if (min_sigma.has_value()) {
+      adaptation.add("min_sigma", libconfig::Setting::TypeFloat) = *min_sigma;
+    }
+    if (max_sigma.has_value()) {
+      adaptation.add("max_sigma", libconfig::Setting::TypeFloat) = *max_sigma;
+    }
+    if (burn_in_steps.has_value()) {
+      adaptation.add("burn_in_steps", libconfig::Setting::TypeInt)
+          = *burn_in_steps;
+    }
+  }
+
+  std::string perform_adaptation_update(
+      ConstrainedMCSolver& solver,
+      const int step,
+      const unsigned long long attempted,
+      const unsigned long long accepted) {
+    solver.iteration_ = step;
+    solver.move_angle_adaptation_attempted_ = attempted;
+    solver.move_angle_adaptation_accepted_ = accepted;
+    std::ostringstream output;
+    solver.update_move_angle_adaptation(output);
+    return output.str();
+  }
+
+  std::size_t constraint_plane_count(const ConstrainedMCSolver& solver) const {
+    return solver.constraint_planes_.size();
+  }
+
+  int constraint_plane_coordinate(
+      const ConstrainedMCSolver& solver, const std::size_t plane) const {
+    return solver.constraint_planes_[plane].coordinate;
+  }
+
+  const std::vector<int>& constraint_plane_spins(
+      const ConstrainedMCSolver& solver, const std::size_t plane) const {
+    return solver.constraint_planes_[plane].spins;
+  }
+
+  jams::Vec<double, 3> constraint_plane_target(
+      const ConstrainedMCSolver& solver, const std::size_t plane) const {
+    return solver.constraint_planes_[plane].target_direction;
+  }
+
+  int spin_constraint_group(
+      const ConstrainedMCSolver& solver, const int spin) const {
+    return solver.spin_constraint_group_[spin];
+  }
+
+  double move_angle_sigma(const ConstrainedMCSolver& solver) const {
+    return solver.move_angle_sigma_;
+  }
+
+  bool move_angle_adaptation_frozen(const ConstrainedMCSolver& solver) const {
+    return solver.move_angle_adaptation_frozen_;
+  }
+
+  std::pair<unsigned long long, unsigned long long> adaptation_counters(
+      const ConstrainedMCSolver& solver) const {
+    return {solver.move_angle_adaptation_attempted_,
+            solver.move_angle_adaptation_accepted_};
+  }
+
+  void set_non_angle_statistics(
+      ConstrainedMCSolver& solver,
+      const unsigned long long uniform,
+      const unsigned long long reflection) {
+    solver.move_running_acceptance_count_uniform_ = uniform;
+    solver.move_running_acceptance_count_reflection_ = reflection;
+  }
+
+  void set_solver_temperature(ConstrainedMCSolver& solver, const double temperature) {
+    solver.physics_module_->set_temperature(temperature);
+  }
+
+  std::string initialization_output(ConstrainedMCSolver& solver) {
+    std::ostringstream output;
+    solver.output_initialization_info(output);
+    return output.str();
+  }
+
+  std::vector<jams::Vec<double, 3>> run_seeded_solver(
+      ConstrainedMCSolver& solver,
+      const unsigned seed,
+      const int steps) {
+    jams::instance().random_generator().seed(seed);
+    std::vector<jams::Vec<double, 3>> trajectory;
+    trajectory.reserve(steps);
+    for (auto step = 0; step < steps; ++step) {
+      solver.run();
+      trajectory.push_back(jams::montecarlo::get_spin(0));
+    }
+    return trajectory;
   }
 
   void exercise_pair_moves(const std::string& constraint_type, const bool transformed) {
@@ -430,20 +575,149 @@ TEST_F(ConstrainedMCSolverConstraintTest, GlobalModeRejectsSpiralSettings) {
 }
 
 TEST_F(ConstrainedMCSolverConstraintTest, RejectsInvalidSpinSpiralVectors) {
-  for (const auto wavevector : {
-           jams::Vec<double, 3>{0.0, 0.0, 0.0},
-           jams::Vec<double, 3>{0.25, 0.25, 0.0}}) {
-    SCOPED_TRACE(wavevector);
+  EXPECT_THROW(
+      make_spiral_solver(
+          "magnetisation", 90.0, 0.0, true,
+          {0.25, 0.25, 0.0}, {0.0, 0.0, 1.0}),
+      jams::ConfigException);
+
+  reset_constrained_mc_globals();
+  EXPECT_THROW(
+      make_spiral_solver(
+          "magnetisation", 90.0, 0.0, true, {0.25, 0.0, 0.0}, {0.0, 0.0, 0.0}),
+      jams::ConfigException);
+}
+
+TEST_F(ConstrainedMCSolverConstraintTest, ZeroWavevectorRequiresPropagationDirection) {
+  EXPECT_THROW(
+      make_programmatic_spiral_solver(
+          {0.0, 0.0, 0.0}, {0.0, 0.0, 1.0}),
+      jams::ConfigException);
+}
+
+TEST_F(ConstrainedMCSolverConstraintTest, ZeroWavevectorAcceptsEveryPropagationDirection) {
+  const jams::Vec<int, 3> lattice_size = {2, 3, 4};
+  for (auto direction = 0; direction < 3; ++direction) {
+    SCOPED_TRACE(direction);
+    auto solver = make_programmatic_spiral_solver(
+        {0.0, 0.0, 0.0}, {0.0, 0.0, 2.0}, direction, lattice_size);
+
+    ASSERT_EQ(constraint_plane_count(*solver), lattice_size[direction]);
+    const auto spins_per_plane =
+        2 * lattice_size[(direction + 1) % 3]
+          * lattice_size[(direction + 2) % 3];
+    for (auto plane = 0; plane < constraint_plane_count(*solver); ++plane) {
+      const auto coordinate = constraint_plane_coordinate(*solver, plane);
+      const auto& spins = constraint_plane_spins(*solver, plane);
+      EXPECT_EQ(spins.size(), spins_per_plane);
+      for (const auto spin : spins) {
+        EXPECT_EQ(
+            globals::lattice->cell_offset(spin)[direction], coordinate);
+        EXPECT_EQ(spin_constraint_group(*solver, spin), plane);
+      }
+      expect_direction(
+          constraint_plane_target(*solver, plane), {1.0, 0.0, 0.0});
+    }
+
+    solver.reset();
+    reset_constrained_mc_globals();
+  }
+}
+
+TEST_F(ConstrainedMCSolverConstraintTest, ZeroWavevectorPartnersPreserveEveryPlaneConstraint) {
+  auto solver = make_programmatic_spiral_solver(
+      {0.0, 0.0, 0.0}, {0.0, 0.0, 1.0}, 0, {4, 2, 1});
+  solver->register_physics_module(
+      Physics::create(globals::config->lookup("physics")));
+
+  jams::instance().random_generator().seed(97531u);
+  for (auto step = 0; step < 128; ++step) {
+    ASSERT_NO_THROW(solver->run());
+  }
+
+  for (auto plane = 0; plane < 4; ++plane) {
+    expect_direction(
+        constrained_mc_plane_total(0, plane, false), {1.0, 0.0, 0.0});
+  }
+}
+
+TEST_F(ConstrainedMCSolverConstraintTest, ZeroWavevectorMatchesReciprocalLatticeVectorWorkaround) {
+  const auto run_case = [this](const double wavevector_component) {
+    auto solver = make_programmatic_spiral_solver(
+        {wavevector_component, 0.0, 0.0}, {0.0, 0.0, 1.0}, 0, {4, 2, 1});
+    solver->register_physics_module(
+        Physics::create(globals::config->lookup("physics")));
+    jams::instance().random_generator().seed(86420u);
+    for (auto step = 0; step < 64; ++step) {
+      solver->run();
+    }
+    std::vector<jams::Vec<double, 3>> spins(globals::num_spins);
+    for (auto spin = 0; spin < globals::num_spins; ++spin) {
+      spins[spin] = jams::montecarlo::get_spin(spin);
+    }
+    solver.reset();
+    reset_constrained_mc_globals();
+    return spins;
+  };
+
+  const auto zero_wavevector_spins = run_case(0.0);
+  const auto reciprocal_wavevector_spins = run_case(1.0);
+  ASSERT_EQ(zero_wavevector_spins.size(), reciprocal_wavevector_spins.size());
+  for (auto spin = 0; spin < zero_wavevector_spins.size(); ++spin) {
+    for (auto component = 0; component < 3; ++component) {
+      EXPECT_NEAR(
+          zero_wavevector_spins[spin][component],
+          reciprocal_wavevector_spins[spin][component], 1.0e-10);
+    }
+  }
+}
+
+TEST_F(ConstrainedMCSolverConstraintTest, NonzeroWavevectorAcceptsAbsentOrMatchingDirection) {
+  EXPECT_NO_THROW(make_programmatic_spiral_solver(
+      {0.0, 0.5, 0.0}, {0.0, 0.0, 1.0}));
+
+  reset_constrained_mc_globals();
+  EXPECT_NO_THROW(make_programmatic_spiral_solver(
+      {0.0, 0.5, 0.0}, {0.0, 0.0, 1.0}, 1));
+}
+
+TEST_F(ConstrainedMCSolverConstraintTest, NonzeroWavevectorRejectsConflictingDirection) {
+  EXPECT_THROW(
+      make_programmatic_spiral_solver(
+          {0.0, 0.5, 0.0}, {0.0, 0.0, 1.0}, 2),
+      jams::ConfigException);
+}
+
+TEST_F(ConstrainedMCSolverConstraintTest, RejectsInvalidPropagationDirections) {
+  for (const auto direction : {-1, 3}) {
+    SCOPED_TRACE(direction);
     EXPECT_THROW(
-        make_spiral_solver(
-            "magnetisation", 90.0, 0.0, true, wavevector, {0.0, 0.0, 1.0}),
+        make_programmatic_spiral_solver(
+            {0.0, 0.0, 0.0}, {0.0, 0.0, 1.0}, direction),
         jams::ConfigException);
     reset_constrained_mc_globals();
   }
 
   EXPECT_THROW(
-      make_spiral_solver(
-          "magnetisation", 90.0, 0.0, true, {0.25, 0.0, 0.0}, {0.0, 0.0, 0.0}),
+      make_configured_solver(0.0, [](libconfig::Setting& settings) {
+        settings.add("cmc_constraint_mode", libconfig::Setting::TypeString)
+            = "spin_spiral";
+        add_vec_setting(
+            settings, "cmc_spiral_wavevector", {0.0, 0.0, 0.0});
+        add_vec_setting(settings, "cmc_spiral_axis", {0.0, 0.0, 1.0});
+        settings.add(
+            "cmc_spiral_propagation_direction", libconfig::Setting::TypeFloat)
+            = 1.0;
+      }),
+      jams::ConfigException);
+}
+
+TEST_F(ConstrainedMCSolverConstraintTest, GlobalModeRejectsPropagationDirection) {
+  EXPECT_THROW(
+      make_configured_solver(0.0, [](libconfig::Setting& settings) {
+        settings.add(
+            "cmc_spiral_propagation_direction", libconfig::Setting::TypeInt) = 0;
+      }),
       jams::ConfigException);
 }
 
@@ -732,6 +1006,300 @@ TEST_F(ConstrainedMCSolverConstraintTest, PairMovesPreserveSpinSpiralPlaneMagnet
 
 TEST_F(ConstrainedMCSolverConstraintTest, PairMovesPreserveSpinSpiralPlaneTransformedMoments) {
   exercise_spiral_pair_moves("material_transform", true);
+}
+
+TEST_F(ConstrainedMCSolverConstraintTest, DisabledAdaptationPreservesSeededTrajectory) {
+  const auto run_case = [this](const bool add_disabled_block) {
+    auto solver = make_configured_solver(
+        1000000.0, [this, add_disabled_block](libconfig::Setting& settings) {
+          settings["output_write_steps"] = 7;
+          if (add_disabled_block) {
+            add_move_angle_adaptation(
+                settings, std::nullopt, std::nullopt, std::nullopt,
+                std::nullopt, std::nullopt, std::nullopt, false);
+          }
+        });
+    const auto trajectory = run_seeded_solver(*solver, 112233u, 32);
+    solver.reset();
+    reset_constrained_mc_globals();
+    return trajectory;
+  };
+
+  const auto legacy_trajectory = run_case(false);
+  const auto disabled_trajectory = run_case(true);
+  ASSERT_EQ(legacy_trajectory.size(), disabled_trajectory.size());
+  for (auto step = 0; step < legacy_trajectory.size(); ++step) {
+    EXPECT_EQ(legacy_trajectory[step], disabled_trajectory[step]);
+  }
+}
+
+TEST_F(ConstrainedMCSolverConstraintTest, AdaptationRespondsToAngleAcceptance) {
+  auto make_adaptive_solver = [this] {
+    return make_configured_solver(0.0, [this](libconfig::Setting& settings) {
+      add_move_angle_adaptation(settings, 0.1, 10, 0.5, 1.0e-6, 0.1);
+    });
+  };
+
+  auto solver = make_adaptive_solver();
+  const auto initial_sigma = move_angle_sigma(*solver);
+  perform_adaptation_update(*solver, 10, 100, 0);
+  EXPECT_LT(move_angle_sigma(*solver), initial_sigma);
+
+  solver.reset();
+  reset_constrained_mc_globals();
+  solver = make_adaptive_solver();
+  perform_adaptation_update(*solver, 10, 100, 100);
+  EXPECT_GT(move_angle_sigma(*solver), initial_sigma);
+
+  solver.reset();
+  reset_constrained_mc_globals();
+  solver = make_adaptive_solver();
+  perform_adaptation_update(*solver, 10, 100, 10);
+  EXPECT_DOUBLE_EQ(move_angle_sigma(*solver), initial_sigma);
+}
+
+TEST_F(ConstrainedMCSolverConstraintTest, AdaptationClampsSigmaAtBothBounds) {
+  auto make_adaptive_solver = [this](const double target_acceptance) {
+    return make_configured_solver(0.0, [this, target_acceptance](libconfig::Setting& settings) {
+      add_move_angle_adaptation(
+          settings, target_acceptance, 10, 100.0, 0.01, 0.1);
+    });
+  };
+
+  auto solver = make_adaptive_solver(0.9);
+  const auto minimum_output = perform_adaptation_update(*solver, 10, 100, 0);
+  EXPECT_DOUBLE_EQ(move_angle_sigma(*solver), 0.01);
+  EXPECT_NE(minimum_output.find("bound minimum"), std::string::npos);
+
+  solver.reset();
+  reset_constrained_mc_globals();
+  solver = make_adaptive_solver(0.1);
+  const auto maximum_output = perform_adaptation_update(*solver, 10, 100, 100);
+  EXPECT_DOUBLE_EQ(move_angle_sigma(*solver), 0.1);
+  EXPECT_NE(maximum_output.find("bound maximum"), std::string::npos);
+}
+
+TEST_F(ConstrainedMCSolverConstraintTest, AdaptationUsesOnlyAngleMoveStatistics) {
+  auto solver = make_configured_solver(0.0, [this](libconfig::Setting& settings) {
+    add_move_angle_adaptation(settings, 0.5, 10, 1.0, 1.0e-6, 0.1);
+  });
+  const auto initial_sigma = move_angle_sigma(*solver);
+  set_non_angle_statistics(*solver, 1000000, 1000000);
+  perform_adaptation_update(*solver, 10, 100, 0);
+  EXPECT_LT(move_angle_sigma(*solver), initial_sigma);
+}
+
+TEST_F(ConstrainedMCSolverConstraintTest, AdaptationResetsItsIntervalCounters) {
+  auto solver = make_configured_solver(0.0, [this](libconfig::Setting& settings) {
+    add_move_angle_adaptation(settings, 0.1, 10, 0.5, 1.0e-6, 0.1);
+  });
+  perform_adaptation_update(*solver, 10, 100, 25);
+  EXPECT_EQ(adaptation_counters(*solver), std::make_pair(0ULL, 0ULL));
+}
+
+TEST_F(ConstrainedMCSolverConstraintTest, AdaptationSkipsIntervalsWithoutAngleMoves) {
+  auto solver = make_configured_solver(0.0, [this](libconfig::Setting& settings) {
+    add_move_angle_adaptation(settings, 0.1, 10, 0.5, 1.0e-6, 0.1);
+  });
+  const auto initial_sigma = move_angle_sigma(*solver);
+  const auto output = perform_adaptation_update(*solver, 10, 0, 0);
+  EXPECT_DOUBLE_EQ(move_angle_sigma(*solver), initial_sigma);
+  EXPECT_NE(output.find("update skipped (no angle moves attempted)"), std::string::npos);
+  EXPECT_EQ(adaptation_counters(*solver), std::make_pair(0ULL, 0ULL));
+}
+
+TEST_F(ConstrainedMCSolverConstraintTest, ZeroTemperatureAdaptationAllowsNoBurnIn) {
+  EXPECT_NO_THROW(make_configured_solver(0.0, [this](libconfig::Setting& settings) {
+    add_move_angle_adaptation(settings, 0.1, 10, 0.5, 1.0e-6, 0.1);
+  }));
+}
+
+TEST_F(ConstrainedMCSolverConstraintTest, OptionalZeroTemperatureBurnInFreezesSigma) {
+  auto solver = make_configured_solver(0.0, [this](libconfig::Setting& settings) {
+    settings["output_write_steps"] = 7;
+    add_move_angle_adaptation(settings, 0.1, 10, 0.5, 1.0e-6, 0.1, 3);
+  });
+  const auto initial_sigma = move_angle_sigma(*solver);
+  for (auto step = 0; step < 3; ++step) {
+    solver->run();
+  }
+  const auto frozen_sigma = move_angle_sigma(*solver);
+  EXPECT_LT(frozen_sigma, initial_sigma);
+  EXPECT_TRUE(move_angle_adaptation_frozen(*solver));
+  for (auto step = 0; step < 10; ++step) {
+    solver->run();
+    EXPECT_DOUBLE_EQ(move_angle_sigma(*solver), frozen_sigma);
+  }
+}
+
+TEST_F(ConstrainedMCSolverConstraintTest, NonzeroTemperatureAdaptationRequiresBurnIn) {
+  try {
+    auto solver = make_configured_solver(
+        300.0, [this](libconfig::Setting& settings) {
+          add_move_angle_adaptation(settings, 0.1, 10, 0.5, 1.0e-6, 0.1);
+        });
+    FAIL() << "expected missing finite-temperature burn-in to fail";
+  } catch (const jams::ConfigException& error) {
+    EXPECT_NE(
+        std::string(error.what()).find("move_angle_adaptation.burn_in_steps"),
+        std::string::npos);
+  }
+}
+
+TEST_F(ConstrainedMCSolverConstraintTest, FiniteTemperatureBurnInFreezesProductionSigma) {
+  auto solver = make_configured_solver(300.0, [this](libconfig::Setting& settings) {
+    settings["output_write_steps"] = 7;
+    add_move_angle_adaptation(settings, 0.1, 2, 0.5, 1.0e-6, 0.1, 3);
+  });
+  const auto initial_sigma = move_angle_sigma(*solver);
+  for (auto step = 0; step < 3; ++step) {
+    solver->run();
+  }
+  const auto frozen_sigma = move_angle_sigma(*solver);
+  EXPECT_NE(frozen_sigma, initial_sigma);
+  EXPECT_TRUE(move_angle_adaptation_frozen(*solver));
+  for (auto step = 0; step < 12; ++step) {
+    solver->run();
+    EXPECT_DOUBLE_EQ(move_angle_sigma(*solver), frozen_sigma);
+  }
+}
+
+TEST_F(ConstrainedMCSolverConstraintTest, UnrestrictedAdaptationGuardsTemperatureChanges) {
+  auto solver = make_configured_solver(0.0, [this](libconfig::Setting& settings) {
+    add_move_angle_adaptation(settings, 0.1, 10, 0.5, 1.0e-6, 0.1);
+  });
+  EXPECT_NO_THROW(solver->run());
+  set_solver_temperature(*solver, 1.0);
+  EXPECT_THROW(solver->run(), std::runtime_error);
+}
+
+TEST_F(ConstrainedMCSolverConstraintTest, AdaptationIntervalIsIndependentOfOutputInterval) {
+  auto solver = make_configured_solver(0.0, [this](libconfig::Setting& settings) {
+    settings["output_write_steps"] = 7;
+    add_move_angle_adaptation(settings, 0.1, 2, 0.5, 1.0e-6, 0.1);
+  });
+  const auto initial_sigma = move_angle_sigma(*solver);
+  solver->run();
+  EXPECT_DOUBLE_EQ(move_angle_sigma(*solver), initial_sigma);
+  solver->run();
+  EXPECT_LT(move_angle_sigma(*solver), initial_sigma);
+}
+
+TEST_F(ConstrainedMCSolverConstraintTest, RejectsInvalidAdaptationSettings) {
+  struct InvalidCase {
+    std::string setting;
+    std::function<void(libconfig::Setting&)> configure;
+  };
+  const std::vector<InvalidCase> invalid_cases = {
+      {"target_acceptance", [this](auto& settings) {
+         add_move_angle_adaptation(settings, 0.0, 10, 0.5, 1.0e-6, 0.1);
+       }},
+      {"interval_steps", [this](auto& settings) {
+         add_move_angle_adaptation(settings, 0.1, 0, 0.5, 1.0e-6, 0.1);
+       }},
+      {"gain", [this](auto& settings) {
+         add_move_angle_adaptation(settings, 0.1, 10, 0.0, 1.0e-6, 0.1);
+       }},
+      {"min_sigma", [this](auto& settings) {
+         add_move_angle_adaptation(settings, 0.1, 10, 0.5, 0.0, 0.1);
+       }},
+      {"max_sigma", [this](auto& settings) {
+         add_move_angle_adaptation(settings, 0.1, 10, 0.5, 0.1, 0.01);
+       }},
+      {"move_angle_sigma", [this](auto& settings) {
+         settings["move_angle_sigma"] = 0.2;
+         add_move_angle_adaptation(settings, 0.1, 10, 0.5, 1.0e-6, 0.1);
+       }},
+      {"burn_in_steps", [this](auto& settings) {
+         add_move_angle_adaptation(settings, 0.1, 10, 0.5, 1.0e-6, 0.1, 101);
+       }},
+  };
+
+  for (const auto& invalid_case : invalid_cases) {
+    SCOPED_TRACE(invalid_case.setting);
+    try {
+      auto solver = make_configured_solver(0.0, invalid_case.configure);
+      FAIL() << "expected invalid adaptation setting to fail";
+    } catch (const jams::ConfigException& error) {
+      EXPECT_NE(
+          std::string(error.what()).find(invalid_case.setting),
+          std::string::npos);
+    }
+    reset_constrained_mc_globals();
+  }
+}
+
+TEST_F(ConstrainedMCSolverConstraintTest, AdaptationRequiresEveryEnabledSetting) {
+  for (const auto& missing : {
+           std::string("target_acceptance"), std::string("interval_steps"),
+           std::string("gain"), std::string("min_sigma"), std::string("max_sigma")}) {
+    SCOPED_TRACE(missing);
+    try {
+      auto solver = make_configured_solver(
+          0.0, [this, &missing](libconfig::Setting& settings) {
+            add_move_angle_adaptation(
+                settings,
+                missing == "target_acceptance" ? std::nullopt
+                                                : std::optional<double>(0.1),
+                missing == "interval_steps" ? std::nullopt
+                                             : std::optional<int>(10),
+                missing == "gain" ? std::nullopt
+                                   : std::optional<double>(0.5),
+                missing == "min_sigma" ? std::nullopt
+                                        : std::optional<double>(1.0e-6),
+                missing == "max_sigma" ? std::nullopt
+                                        : std::optional<double>(0.1));
+          });
+      FAIL() << "expected missing adaptation setting to fail";
+    } catch (const jams::ConfigException& error) {
+      EXPECT_NE(std::string(error.what()).find(missing), std::string::npos);
+    }
+    reset_constrained_mc_globals();
+  }
+}
+
+TEST_F(ConstrainedMCSolverConstraintTest, AdaptationRejectsZeroAngleMoveFraction) {
+  EXPECT_THROW(
+      make_configured_solver(0.0, [this](libconfig::Setting& settings) {
+        settings.add("move_fraction_uniform", libconfig::Setting::TypeFloat) = 1.0;
+        settings.add("move_fraction_angle", libconfig::Setting::TypeFloat) = 0.0;
+        settings.add("move_fraction_reflection", libconfig::Setting::TypeFloat) = 0.0;
+        add_move_angle_adaptation(settings, 0.1, 10, 0.5, 1.0e-6, 0.1);
+      }),
+      jams::ConfigException);
+}
+
+TEST_F(ConstrainedMCSolverConstraintTest, AdaptationLogsInitialUpdatedBoundedAndFrozenStates) {
+  auto solver = make_configured_solver(0.0, [this](libconfig::Setting& settings) {
+    add_move_angle_adaptation(settings, 0.9, 10, 100.0, 0.01, 0.1, 10);
+  });
+  auto output = initialization_output(*solver);
+  output += perform_adaptation_update(*solver, 10, 100, 0);
+  EXPECT_NE(output.find("move angle adaptation enabled"), std::string::npos);
+  EXPECT_NE(output.find("initial sigma"), std::string::npos);
+  EXPECT_NE(output.find("attempted 100, accepted 0"), std::string::npos);
+  EXPECT_NE(output.find("bound minimum"), std::string::npos);
+  EXPECT_NE(output.find("frozen production sigma"), std::string::npos);
+}
+
+TEST_F(ConstrainedMCSolverConstraintTest, AdaptiveTrajectoriesAreSeedDeterministic) {
+  const auto run_case = [this] {
+    auto solver = make_configured_solver(300.0, [this](libconfig::Setting& settings) {
+      settings["output_write_steps"] = 7;
+      add_move_angle_adaptation(settings, 0.1, 2, 0.5, 1.0e-6, 0.1, 8);
+    });
+    jams::instance().random_generator().seed(445566u);
+    std::vector<double> sigmas;
+    for (auto step = 0; step < 12; ++step) {
+      solver->run();
+      sigmas.push_back(move_angle_sigma(*solver));
+    }
+    solver.reset();
+    reset_constrained_mc_globals();
+    return sigmas;
+  };
+
+  EXPECT_EQ(run_case(), run_case());
 }
 
 #endif  // JAMS_TEST_SOLVERS_TEST_CPU_MONTE_CARLO_CONSTRAINED_H

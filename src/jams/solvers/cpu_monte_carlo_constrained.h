@@ -5,6 +5,7 @@
 
 #include <random>
 #include <fstream>
+#include <optional>
 #include <vector>
 
 #include <jams/core/types.h>
@@ -31,6 +32,8 @@ class ConstrainedMCSolver : public Solver {
   std::string name() const override { return "monte-carlo-constrained-cpu"; }
 
  private:
+    friend class ConstrainedMCSolverConstraintTest;
+
     enum class ConstraintType {
       Magnetisation,
       MaterialTransform
@@ -57,6 +60,10 @@ class ConstrainedMCSolver : public Solver {
     const char* constraint_mode_name() const;
 
     void initialize_spin_spiral(const libconfig::Setting& settings);
+    void initialize_move_angle_adaptation(const libconfig::Setting& settings);
+    bool is_unrestricted_move_angle_adaptation_active() const;
+    void update_move_angle_adaptation(std::ostream& os);
+    void validate_move_angle_adaptation_temperature(double temperature) const;
 
     void validate_angles() const;
     void validate_rotation_matricies() const;
@@ -72,7 +79,9 @@ class ConstrainedMCSolver : public Solver {
 
     void align_spins_to_constraint() const;
 
-    unsigned AsselinAlgorithm(const std::function<jams::Vec<double, 3>(jams::Vec<double, 3>)>&  trial_spin_move);
+    unsigned AsselinAlgorithm(
+        const std::function<jams::Vec<double, 3>(jams::Vec<double, 3>)>& trial_spin_move,
+        unsigned* moves_attempted = nullptr);
 
     jams::Vec<double, 3>     spin_to_order_parameter(const int &i, const jams::Vec<double, 3> &spin) const;
     jams::Vec<double, 3>     order_parameter_to_spin(const int &i, const jams::Vec<double, 3> &spin) const;
@@ -107,6 +116,7 @@ class ConstrainedMCSolver : public Solver {
     jams::Vec<double, 3> spiral_wavevector_ = {{0.0, 0.0, 0.0}};
     jams::Vec<double, 3> spiral_axis_ = {{0.0, 0.0, 1.0}};
     int spiral_propagation_direction_ = -1;
+    bool zero_wavevector_plane_constraint_ = false;
     std::vector<ConstraintPlane> constraint_planes_;
     std::vector<int> spin_constraint_group_;
 
@@ -117,6 +127,17 @@ class ConstrainedMCSolver : public Solver {
     double move_fraction_reflection_  = 0.0;
 
     double move_angle_sigma_ = 0.5;
+
+    bool move_angle_adaptation_enabled_ = false;
+    bool move_angle_adaptation_frozen_ = false;
+    double move_angle_target_acceptance_ = 0.0;
+    int move_angle_adaptation_interval_steps_ = 0;
+    double move_angle_adaptation_gain_ = 0.0;
+    double move_angle_min_sigma_ = 0.0;
+    double move_angle_max_sigma_ = 0.0;
+    std::optional<int> move_angle_burn_in_steps_;
+    unsigned long long move_angle_adaptation_attempted_ = 0;
+    unsigned long long move_angle_adaptation_accepted_ = 0;
 
     unsigned run_count_uniform_    = 0;
     unsigned run_count_angle_      = 0;
