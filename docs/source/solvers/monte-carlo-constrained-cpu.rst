@@ -66,6 +66,15 @@ The wavevector is specified in cycles per unit cell, so the factor
 unit-cell coordinate, not merely by target direction: planes separated by a
 full turn remain independent constraints.
 
+The same plane grouping is also available at :math:`Q=0`. In this case every
+plane has target direction :math:`\hat{\vec{c}}_0`, but each plane remains a
+separate constrained collective vector and compensation spins are still
+selected from that plane. This is deliberately different from ``"global"``
+mode, which constrains only the collective vector summed over the complete
+supercell. Use the plane-constrained :math:`Q=0` form when a zero-wavevector
+reference must have the same constrained degrees of freedom as finite-
+:math:`Q` spin-spiral calculations.
+
 This Monte Carlo solver moves **two** spins for every trial. We define One Monte
 Carlo step as one trial move of every spin on average. Therefore `num_spins/2`
 trial moves of pairs of spins are made for each Monte Carlo step.
@@ -126,8 +135,14 @@ or explicitly select the material transforms with
 .. describe:: cmc_spiral_wavevector
 
 Required only when ``cmc_constraint_mode = "spin_spiral"``. A three-component
-reciprocal-lattice vector in cycles per unit cell. Exactly one component must
-be finite and nonzero; oblique and zero wavevectors are rejected.
+reciprocal-lattice vector in cycles per unit cell. Every component must be
+finite and at most one component may be nonzero; oblique wavevectors are
+rejected.
+
+For a nonzero wavevector, the propagation direction is inferred from its
+nonzero component as before. For a zero wavevector,
+``cmc_spiral_propagation_direction`` is required so that the solver knows how
+to construct the constraint planes. A zero wavevector is always commensurate.
 
 If propagation direction :math:`d` is periodic and contains :math:`L_d` unit
 cells, the spiral must satisfy
@@ -138,6 +153,15 @@ cells, the spiral must satisfy
 The numerical distance from :math:`q_dL_d` to the nearest integer may not
 exceed :math:`10^{-8}`. An arbitrary wavelength is allowed when the
 propagation direction has open boundaries.
+
+.. describe:: cmc_spiral_propagation_direction
+
+An integer selecting the lattice direction normal to the constraint planes:
+``0`` for :math:`a`, ``1`` for :math:`b`, or ``2`` for :math:`c`. This setting
+is mandatory when ``cmc_spiral_wavevector = [0.0, 0.0, 0.0]``.
+
+For a nonzero wavevector this setting is optional. If supplied, it must agree
+with the direction inferred from the nonzero wavevector component.
 
 .. describe:: cmc_spiral_axis
 
@@ -159,6 +183,35 @@ the :math:`a` direction is configured with
 
 Every constrained plane must contain at least two nonzero-moment spins so that
 a compensation spin is available.
+
+For example, the following configurations produce plane-constrained
+:math:`Q=0` references normal to the :math:`a`, :math:`b`, and :math:`c`
+directions, respectively:
+
+.. code-block:: cfg
+
+    cmc_constraint_mode = "spin_spiral";
+    cmc_spiral_wavevector = [0.0, 0.0, 0.0];
+    cmc_spiral_axis = [0.0, 0.0, 1.0];
+    cmc_spiral_propagation_direction = 0; // a planes
+
+.. code-block:: cfg
+
+    cmc_constraint_mode = "spin_spiral";
+    cmc_spiral_wavevector = [0.0, 0.0, 0.0];
+    cmc_spiral_axis = [0.0, 0.0, 1.0];
+    cmc_spiral_propagation_direction = 1; // b planes
+
+.. code-block:: cfg
+
+    cmc_constraint_mode = "spin_spiral";
+    cmc_spiral_wavevector = [0.0, 0.0, 0.0];
+    cmc_spiral_axis = [0.0, 0.0, 1.0];
+    cmc_spiral_propagation_direction = 2; // c planes
+
+The spiral axis is still required, finite, nonzero, and normalised internally
+at :math:`Q=0`, even though it has no numerical effect when every phase is
+zero.
 
 .. describe:: cmc_constraint_tolerance = 1e-6
 
@@ -210,10 +263,92 @@ The size of the angle is controlled by  :code:`move_angle_sigma`.
 
 .. describe:: move_angle_sigma = 0.5
 
-The size of :math:`\sigma` in :code:`move_fraction_angle`.
+The initial dimensionless size :math:`\sigma` in
+:code:`move_fraction_angle`. It controls the angular extent of the proposal
+but is not itself an angle in degrees or radians.
 
 .. math::
 	  (S_x, S_y, S_z) \rightarrow (S_x, S_y, S_z) + \sigma(\sin\theta\cos\phi, \sin\theta\sin\phi, \cos\theta) \quad \mathrm{where}\quad \theta\sim[0,\pi],\phi\sim[0,2\pi)
+
+Adaptive angle moves
+""""""""""""""""""""
+
+Angle-move adaptation is disabled by default. Enable it with a nested block:
+
+.. code-block:: cfg
+
+    move_angle_sigma = 0.01;
+    move_angle_adaptation = {
+      enabled = true;
+      target_acceptance = 0.10;
+      interval_steps = 100;
+      gain = 0.5;
+      min_sigma = 1.0e-6;
+      max_sigma = 0.1;
+      burn_in_steps = 10000;
+    };
+
+After each adaptation interval the solver uses only angle-move trials from
+that interval and updates in logarithmic space:
+
+.. math::
+
+    \log\sigma_{n+1} = \operatorname{clamp}\!\left(
+      \log\sigma_n + \gamma(a_n-a_{\mathrm{target}}),
+      \log\sigma_{\min}, \log\sigma_{\max}\right).
+
+Uniform and reflection moves do not contribute to :math:`a_n`. If no angle
+moves were attempted in an interval, the update is skipped. Adaptation
+intervals are independent of ``output_write_steps``.
+
+.. describe:: move_angle_adaptation.enabled = false
+
+Enables adaptive tuning when ``true``. The other settings below are required
+when adaptation is enabled.
+
+.. describe:: move_angle_adaptation.target_acceptance
+
+Dimensionless target angle-move acceptance fraction. It must be finite and
+satisfy ``0 < target_acceptance < 1``.
+
+.. describe:: move_angle_adaptation.interval_steps
+
+Positive integer number of Monte Carlo steps between updates.
+
+.. describe:: move_angle_adaptation.gain
+
+Finite positive dimensionless gain :math:`\gamma` in the update equation.
+
+.. describe:: move_angle_adaptation.min_sigma
+
+Finite positive dimensionless lower bound for :math:`\sigma`.
+
+.. describe:: move_angle_adaptation.max_sigma
+
+Finite positive dimensionless upper bound for :math:`\sigma`. The bounds and
+initial value must satisfy
+``min_sigma <= move_angle_sigma <= max_sigma``.
+
+.. describe:: move_angle_adaptation.burn_in_steps
+
+Positive integer burn-in duration in Monte Carlo steps, no greater than
+``max_steps``. At nonzero temperature this setting is mandatory: adaptation
+uses only the burn-in samples and the proposal width is frozen before
+production sampling. A final partial interval is updated at the burn-in
+boundary before freezing.
+
+At zero temperature ``burn_in_steps`` is optional. If omitted, adaptation
+continues for the complete constrained minimisation; if present, it freezes at
+the specified boundary. Unrestricted zero-temperature adaptation is intended
+for minimisation, not equilibrium sampling. A runtime guard stops a run if its
+temperature changes from zero to nonzero while unrestricted adaptation is
+active.
+
+The solver logs every update, skipped interval, reached bound, and frozen
+production value. Adaptive counters and the current :math:`\sigma` are not
+serialised by the existing restart mechanism. A restarted process therefore
+begins again from the configured ``move_angle_sigma``; only the restored spin
+configuration is retained.
 
 .. describe:: move_fraction_reflection = 0.0
 

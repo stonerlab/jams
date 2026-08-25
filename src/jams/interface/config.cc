@@ -8,6 +8,17 @@
 
 #include "config.h"
 
+void jams::require_settings(
+    const libconfig::Setting& setting,
+    const std::initializer_list<std::string_view> names,
+    const std::string_view error_message) {
+  for (const auto name : names) {
+    if (!setting.exists(std::string(name))) {
+      throw jams::ConfigException(setting, name, error_message);
+    }
+  }
+}
+
 void config_patch_simple(libconfig::Setting& orig, const libconfig::Setting& patch);
 void config_patch_element(libconfig::Setting& orig, const libconfig::Setting& patch);
 void config_patch_aggregate(libconfig::Setting& orig, const libconfig::Setting& patch);

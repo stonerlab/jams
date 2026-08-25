@@ -6,6 +6,7 @@
 #include <cmath>
 #include <complex>
 #include <cstdint>
+#include <limits>
 #include <numeric>
 #include <type_traits>
 #include <utility>
@@ -70,6 +71,15 @@ TEST(VecTest, SupportsGenericDimensionArithmetic) {
   EXPECT_EQ(jams::dot(a, b), 70);
   EXPECT_EQ(jams::sum(a), 10);
   EXPECT_EQ(jams::product(a), 24);
+}
+
+TEST(VecTest, IsFiniteSupportsFloatingPointVecsOfAnyLength) {
+  EXPECT_TRUE(jams::is_finite(jams::Vec<float, 2>{1.0f, -2.0f}));
+  EXPECT_TRUE(jams::is_finite(jams::Vec<double, 4>{1.0, 2.0, 3.0, 4.0}));
+  EXPECT_FALSE(jams::is_finite(jams::Vec<double, 4>{
+      1.0, std::numeric_limits<double>::infinity(), 3.0, 4.0}));
+  EXPECT_FALSE(jams::is_finite(jams::Vec<float, 2>{
+      std::numeric_limits<float>::quiet_NaN(), 1.0f}));
 }
 
 TEST(Vec3Test, AngleUsesBothVectorNorms) {

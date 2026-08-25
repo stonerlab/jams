@@ -25,7 +25,9 @@ cout
 /build
 /cmake-build*
 /.clion.source.upload.marker
-/examples
+/examples/*
+!/examples/constrained_monte_carlo/
+!/examples/constrained_monte_carlo/*.cfg
 /topological_charge
 *.h5
 *.tsv
