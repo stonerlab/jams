@@ -56,7 +56,7 @@ std::string constrained_mc_config(
     const bool auto_align,
     const std::string& constraint_mode = "",
     const std::optional<jams::Vec<double, 3>>& spiral_wavevector = std::nullopt,
-    const std::optional<jams::Vec<double, 3>>& spiral_axis = std::nullopt,
+    const std::optional<jams::Vec<double, 3>>& spiral_background = std::nullopt,
     const jams::Vec<int, 3>& lattice_size = {1, 1, 1},
     const jams::Vec<bool, 3>& periodic = {true, true, true}) {
   std::ostringstream config;
@@ -80,15 +80,46 @@ std::string constrained_mc_config(
            << (*spiral_wavevector)[1] << ", "
            << (*spiral_wavevector)[2] << "];\n";
   }
-  if (spiral_axis.has_value()) {
-    config << "      cmc_spiral_axis = ["
-           << (*spiral_axis)[0] << ", "
-           << (*spiral_axis)[1] << ", "
-           << (*spiral_axis)[2] << "];\n";
+  if (spiral_background.has_value()) {
+    auto background = *spiral_background;
+    jams::Vec<double, 3> polarisation = {1.0, 0.0, 0.0};
+    double amplitude_degrees = 90.0;
+    const auto background_norm = jams::norm(background);
+    if (jams::is_finite(background)
+        && std::isfinite(background_norm)
+        && background_norm != 0.0) {
+      background /= background_norm;
+      const auto reference = jams::spherical_to_cartesian_vector(
+          1.0, deg_to_rad(theta), deg_to_rad(phi));
+      const auto cosine_amplitude = std::clamp(
+          jams::dot(background, reference), -1.0, 1.0);
+      polarisation = reference - cosine_amplitude * background;
+      const auto polarisation_norm = jams::norm(polarisation);
+      if (polarisation_norm == 0.0) {
+        polarisation = std::abs(background[2]) < 0.9
+            ? jams::normalize(jams::cross(background, jams::Vec<double, 3>{0.0, 0.0, 1.0}))
+            : jams::normalize(jams::cross(background, jams::Vec<double, 3>{0.0, 1.0, 0.0}));
+      } else {
+        polarisation /= polarisation_norm;
+      }
+      amplitude_degrees = rad_to_deg(std::acos(cosine_amplitude));
+    } else {
+      polarisation = {0.0, 1.0, 0.0};
+    }
+    config << "      cmc_spiral_profile = \"circular\";\n"
+           << "      cmc_spiral_background = ["
+           << background[0] << ", " << background[1] << ", "
+           << background[2] << "];\n"
+           << "      cmc_spiral_polarisation = ["
+           << polarisation[0] << ", " << polarisation[1] << ", "
+           << polarisation[2] << "];\n"
+           << "      cmc_spiral_amplitude = " << amplitude_degrees << ";\n";
   }
-  config << "      cmc_constraint_theta = " << theta << ";\n"
-         << "      cmc_constraint_phi = " << phi << ";\n"
-         << R"(    };
+  if (lowercase(constraint_mode) != "spin_spiral") {
+    config << "      cmc_constraint_theta = " << theta << ";\n"
+           << "      cmc_constraint_phi = " << phi << ";\n";
+  }
+  config << R"(    };
 
     physics = {
       module = "empty";
@@ -283,24 +314,64 @@ class ConstrainedMCSolverConstraintTest : public ::testing::Test {
 
   std::unique_ptr<ConstrainedMCSolver> make_programmatic_spiral_solver(
       const jams::Vec<double, 3>& wavevector,
-      const jams::Vec<double, 3>& axis,
+      const jams::Vec<double, 3>& background,
       const std::optional<int> propagation_direction = std::nullopt,
-      const jams::Vec<int, 3>& lattice_size = {4, 2, 1}) {
+      const jams::Vec<int, 3>& lattice_size = {4, 2, 1},
+      const std::string& profile = "circular",
+      const std::optional<jams::Vec<double, 3>>& polarisation = std::nullopt,
+      const double amplitude_degrees = 90.0,
+      const double phase_degrees = 0.0) {
     globals::config = std::make_unique<libconfig::Config>();
     const auto config_text = constrained_mc_config(
         "magnetisation", 90.0, 0.0, true, "", std::nullopt, std::nullopt,
         lattice_size, {true, true, true});
     globals::config->readString(config_text.c_str());
     auto& solver_settings = globals::config->lookup("solver");
+    solver_settings.remove("cmc_constraint_theta");
+    solver_settings.remove("cmc_constraint_phi");
     solver_settings.add("cmc_constraint_mode", libconfig::Setting::TypeString)
         = "spin_spiral";
     add_vec_setting(solver_settings, "cmc_spiral_wavevector", wavevector);
-    add_vec_setting(solver_settings, "cmc_spiral_axis", axis);
+    solver_settings.add("cmc_spiral_profile", libconfig::Setting::TypeString)
+        = profile;
+    add_vec_setting(solver_settings, "cmc_spiral_background", background);
+    auto configured_polarisation = polarisation.value_or(
+        jams::Vec<double, 3>{1.0, 0.0, 0.0});
+    add_vec_setting(
+        solver_settings, "cmc_spiral_polarisation", configured_polarisation);
+    solver_settings.add("cmc_spiral_amplitude", libconfig::Setting::TypeFloat)
+        = amplitude_degrees;
+    solver_settings.add("cmc_spiral_phase", libconfig::Setting::TypeFloat)
+        = phase_degrees;
     if (propagation_direction.has_value()) {
       solver_settings.add(
           "cmc_spiral_propagation_direction", libconfig::Setting::TypeInt)
           = *propagation_direction;
     }
+    globals::lattice = new Lattice();
+    globals::lattice->init_from_config(*globals::config);
+    return std::make_unique<ConstrainedMCSolver>(solver_settings);
+  }
+
+  std::unique_ptr<ConstrainedMCSolver> make_profile_spiral_solver(
+      const std::string& constraint_type,
+      const std::string& profile,
+      const jams::Vec<double, 3>& wavevector,
+      const jams::Vec<double, 3>& background,
+      const jams::Vec<double, 3>& polarisation,
+      const double amplitude_degrees,
+      const double phase_degrees = 0.0,
+      const jams::Vec<int, 3>& lattice_size = {4, 2, 1},
+      const std::optional<int> propagation_direction = std::nullopt) {
+    globals::config = std::make_unique<libconfig::Config>();
+    globals::config->readString(
+        constrained_mc_config(
+            constraint_type, 90.0, 0.0, true, "", std::nullopt,
+            std::nullopt, lattice_size, {true, true, true}).c_str());
+    auto& solver_settings = globals::config->lookup("solver");
+    configure_spin_spiral(
+        solver_settings, profile, wavevector, background, polarisation,
+        amplitude_degrees, phase_degrees, propagation_direction);
     globals::lattice = new Lattice();
     globals::lattice->init_from_config(*globals::config);
     return std::make_unique<ConstrainedMCSolver>(solver_settings);
@@ -324,6 +395,35 @@ class ConstrainedMCSolverConstraintTest : public ::testing::Test {
           Physics::create(globals::config->lookup("physics")));
     }
     return solver;
+  }
+
+  void configure_spin_spiral(
+      libconfig::Setting& solver_settings,
+      const std::string& profile = "circular",
+      const jams::Vec<double, 3>& wavevector = {0.25, 0.0, 0.0},
+      const jams::Vec<double, 3>& background = {0.0, 0.0, 1.0},
+      const jams::Vec<double, 3>& polarisation = {1.0, 0.0, 0.0},
+      const double amplitude_degrees = 30.0,
+      const double phase_degrees = 0.0,
+      const std::optional<int> propagation_direction = std::nullopt) {
+    solver_settings.remove("cmc_constraint_theta");
+    solver_settings.remove("cmc_constraint_phi");
+    solver_settings.add("cmc_constraint_mode", libconfig::Setting::TypeString)
+        = "spin_spiral";
+    solver_settings.add("cmc_spiral_profile", libconfig::Setting::TypeString)
+        = profile;
+    add_vec_setting(solver_settings, "cmc_spiral_wavevector", wavevector);
+    add_vec_setting(solver_settings, "cmc_spiral_background", background);
+    add_vec_setting(solver_settings, "cmc_spiral_polarisation", polarisation);
+    solver_settings.add("cmc_spiral_amplitude", libconfig::Setting::TypeFloat)
+        = amplitude_degrees;
+    solver_settings.add("cmc_spiral_phase", libconfig::Setting::TypeFloat)
+        = phase_degrees;
+    if (propagation_direction.has_value()) {
+      solver_settings.add(
+          "cmc_spiral_propagation_direction", libconfig::Setting::TypeInt)
+          = *propagation_direction;
+    }
   }
 
   void add_move_angle_adaptation(
@@ -472,33 +572,36 @@ class ConstrainedMCSolverConstraintTest : public ::testing::Test {
 
   void exercise_spiral_pair_moves(
       const std::string& constraint_type,
-      const bool transformed) {
-    constexpr double theta = 90.0;
-    constexpr double phi = 0.0;
+      const bool transformed,
+      const std::string& profile = "circular") {
     const jams::Vec<double, 3> wavevector = {0.25, 0.0, 0.0};
-    const jams::Vec<double, 3> axis = {0.0, 0.0, 1.0};
-    auto solver = make_spiral_solver(
-        constraint_type, theta, phi, true, wavevector, axis);
+    auto solver = make_profile_spiral_solver(
+        constraint_type, profile, wavevector, {0.0, 0.0, 1.0},
+        {1.0, 0.0, 0.0}, 30.0);
     solver->register_physics_module(Physics::create(globals::config->lookup("physics")));
+
+    std::vector<jams::Vec<double, 3>> expected_targets;
+    for (auto plane = 0; plane < 4; ++plane) {
+      expected_targets.push_back(constraint_plane_target(*solver, plane));
+    }
 
     jams::instance().random_generator().seed(24680u);
     for (auto step = 0; step < 128; ++step) {
       ASSERT_NO_THROW(solver->run());
     }
 
-    const jams::Vec<double, 3> reference = {1.0, 0.0, 0.0};
     double maximum_cell_angular_error = 0.0;
     for (auto plane = 0; plane < 4; ++plane) {
-      const auto expected = rotation_matrix_from_axis_angle(
-          axis, kTwoPi * wavevector[0] * static_cast<double>(plane)) * reference;
-      expect_direction(constrained_mc_plane_total(0, plane, transformed), expected);
+      expect_direction(
+          constrained_mc_plane_total(0, plane, transformed),
+          expected_targets[plane]);
 
       for (auto transverse_cell = 0; transverse_cell < 2; ++transverse_cell) {
         const auto cell_vector = constrained_mc_cell_total(
             {plane, transverse_cell, 0}, transformed);
         const double angular_error = std::atan2(
-            jams::norm(jams::cross(cell_vector, expected)),
-            jams::dot(cell_vector, expected));
+            jams::norm(jams::cross(cell_vector, expected_targets[plane])),
+            jams::dot(cell_vector, expected_targets[plane]));
         maximum_cell_angular_error = std::max(
             maximum_cell_angular_error, angular_error);
       }
@@ -551,19 +654,33 @@ TEST_F(ConstrainedMCSolverConstraintTest, RejectsUnknownConstraintMode) {
   EXPECT_THROW(make_solver_from_config(config_text), jams::ConfigException);
 }
 
-TEST_F(ConstrainedMCSolverConstraintTest, SpinSpiralRequiresWavevectorAndAxis) {
+TEST_F(ConstrainedMCSolverConstraintTest, SpinSpiralRequiresModulationSettings) {
   const jams::Vec<double, 3> wavevector = {0.25, 0.0, 0.0};
-  const jams::Vec<double, 3> axis = {0.0, 0.0, 1.0};
-  const auto missing_axis = constrained_mc_config(
+  const jams::Vec<double, 3> background = {0.0, 0.0, 1.0};
+  const auto missing_background = constrained_mc_config(
       "magnetisation", 90.0, 0.0, true, "spin_spiral", wavevector,
       std::nullopt, {4, 2, 1});
-  EXPECT_THROW(make_solver_from_config(missing_axis), jams::ConfigException);
+  EXPECT_THROW(make_solver_from_config(missing_background), jams::ConfigException);
 
   reset_constrained_mc_globals();
   const auto missing_wavevector = constrained_mc_config(
       "magnetisation", 90.0, 0.0, true, "spin_spiral", std::nullopt,
-      axis, {4, 2, 1});
+      background, {4, 2, 1});
   EXPECT_THROW(make_solver_from_config(missing_wavevector), jams::ConfigException);
+
+  for (const auto* setting : {
+           "cmc_spiral_profile",
+           "cmc_spiral_background",
+           "cmc_spiral_polarisation",
+           "cmc_spiral_amplitude"}) {
+    reset_constrained_mc_globals();
+    EXPECT_THROW(
+        make_configured_solver(0.0, [this, setting](libconfig::Setting& settings) {
+          configure_spin_spiral(settings);
+          settings.remove(setting);
+        }),
+        jams::ConfigException);
+  }
 }
 
 TEST_F(ConstrainedMCSolverConstraintTest, GlobalModeRejectsSpiralSettings) {
@@ -572,6 +689,99 @@ TEST_F(ConstrainedMCSolverConstraintTest, GlobalModeRejectsSpiralSettings) {
       jams::Vec<double, 3>{0.25, 0.0, 0.0},
       jams::Vec<double, 3>{0.0, 0.0, 1.0}, {4, 2, 1});
   EXPECT_THROW(make_solver_from_config(config_text), jams::ConfigException);
+}
+
+TEST_F(ConstrainedMCSolverConstraintTest, SpinSpiralProfileIsCaseInsensitive) {
+  EXPECT_NO_THROW(make_programmatic_spiral_solver(
+      {0.25, 0.0, 0.0}, {0.0, 0.0, 1.0}, std::nullopt, {4, 2, 1},
+      "LiNeAr", jams::Vec<double, 3>{1.0, 0.0, 0.0}, 5.0));
+}
+
+TEST_F(ConstrainedMCSolverConstraintTest, RejectsUnknownSpinSpiralProfile) {
+  EXPECT_THROW(
+      make_programmatic_spiral_solver(
+          {0.25, 0.0, 0.0}, {0.0, 0.0, 1.0}, std::nullopt,
+          {4, 2, 1}, "elliptical"),
+      jams::ConfigException);
+}
+
+TEST_F(ConstrainedMCSolverConstraintTest, RejectsReplacedSpinSpiralSettings) {
+  for (const auto* setting : {
+           "cmc_constraint_theta", "cmc_constraint_phi", "cmc_spiral_axis"}) {
+    reset_constrained_mc_globals();
+    EXPECT_THROW(
+        make_configured_solver(0.0, [this, setting](libconfig::Setting& settings) {
+          configure_spin_spiral(settings);
+          if (std::string(setting) == "cmc_spiral_axis") {
+            add_vec_setting(settings, setting, {0.0, 0.0, 1.0});
+          } else {
+            settings.add(setting, libconfig::Setting::TypeFloat) = 0.0;
+          }
+        }),
+        jams::ConfigException);
+  }
+}
+
+TEST_F(ConstrainedMCSolverConstraintTest, NormalisesSpinSpiralFrameVectors) {
+  auto solver = make_programmatic_spiral_solver(
+      {0.25, 0.0, 0.0}, {0.0, 0.0, 2.0}, std::nullopt, {4, 2, 1},
+      "linear", jams::Vec<double, 3>{3.0, 0.0, 0.0}, 30.0);
+  expect_direction(
+      constraint_plane_target(*solver, 0),
+      {0.5, 0.0, std::sqrt(3.0) / 2.0});
+}
+
+TEST_F(ConstrainedMCSolverConstraintTest, RejectsInvalidSpinSpiralFrameVectors) {
+  for (const auto& [background, polarisation] : {
+           std::pair{jams::Vec<double, 3>{0.0, 0.0, 0.0}, jams::Vec<double, 3>{1.0, 0.0, 0.0}},
+           std::pair{jams::Vec<double, 3>{0.0, 0.0, 1.0}, jams::Vec<double, 3>{0.0, 0.0, 0.0}},
+           std::pair{jams::Vec<double, 3>{0.0, 0.0, 1.0}, jams::Vec<double, 3>{1.0, 0.0, 1.0}}}) {
+    reset_constrained_mc_globals();
+    EXPECT_THROW(
+        make_programmatic_spiral_solver(
+            {0.25, 0.0, 0.0}, background, std::nullopt, {4, 2, 1},
+            "linear", polarisation, 5.0),
+        jams::ConfigException);
+  }
+}
+
+TEST_F(ConstrainedMCSolverConstraintTest, ValidatesSpinSpiralAmplitudeByProfile) {
+  const auto infinity = std::numeric_limits<double>::infinity();
+  const auto nan = std::numeric_limits<double>::quiet_NaN();
+  for (const auto amplitude : {-1.0, 181.0, infinity, nan}) {
+    reset_constrained_mc_globals();
+    EXPECT_THROW(
+        make_programmatic_spiral_solver(
+            {0.25, 0.0, 0.0}, {0.0, 0.0, 1.0}, std::nullopt,
+            {4, 2, 1}, "circular", std::nullopt, amplitude),
+        jams::ConfigException);
+  }
+  reset_constrained_mc_globals();
+  EXPECT_NO_THROW(make_programmatic_spiral_solver(
+      {0.25, 0.0, 0.0}, {0.0, 0.0, 1.0}, std::nullopt, {4, 2, 1},
+      "circular", std::nullopt, 180.0));
+
+  for (const auto amplitude : {-1.0, 90.0, infinity, nan}) {
+    reset_constrained_mc_globals();
+    EXPECT_THROW(
+        make_programmatic_spiral_solver(
+            {0.25, 0.0, 0.0}, {0.0, 0.0, 1.0}, std::nullopt,
+            {4, 2, 1}, "linear", std::nullopt, amplitude),
+        jams::ConfigException);
+  }
+  reset_constrained_mc_globals();
+  EXPECT_NO_THROW(make_programmatic_spiral_solver(
+      {0.25, 0.0, 0.0}, {0.0, 0.0, 1.0}, std::nullopt, {4, 2, 1},
+      "linear", std::nullopt, 0.0));
+}
+
+TEST_F(ConstrainedMCSolverConstraintTest, RejectsNonFiniteSpinSpiralPhase) {
+  EXPECT_THROW(
+      make_programmatic_spiral_solver(
+          {0.25, 0.0, 0.0}, {0.0, 0.0, 1.0}, std::nullopt,
+          {4, 2, 1}, "linear", std::nullopt, 5.0,
+          std::numeric_limits<double>::infinity()),
+      jams::ConfigException);
 }
 
 TEST_F(ConstrainedMCSolverConstraintTest, RejectsInvalidSpinSpiralVectors) {
@@ -597,54 +807,68 @@ TEST_F(ConstrainedMCSolverConstraintTest, ZeroWavevectorRequiresPropagationDirec
 
 TEST_F(ConstrainedMCSolverConstraintTest, ZeroWavevectorAcceptsEveryPropagationDirection) {
   const jams::Vec<int, 3> lattice_size = {2, 3, 4};
-  for (auto direction = 0; direction < 3; ++direction) {
-    SCOPED_TRACE(direction);
-    auto solver = make_programmatic_spiral_solver(
-        {0.0, 0.0, 0.0}, {0.0, 0.0, 2.0}, direction, lattice_size);
+  for (const auto* profile : {"circular", "linear"}) {
+    for (auto direction = 0; direction < 3; ++direction) {
+      SCOPED_TRACE(profile);
+      SCOPED_TRACE(direction);
+      auto solver = make_programmatic_spiral_solver(
+          {0.0, 0.0, 0.0}, {0.0, 0.0, 2.0}, direction, lattice_size,
+          profile, jams::Vec<double, 3>{1.0, 0.0, 0.0}, 30.0);
 
-    ASSERT_EQ(constraint_plane_count(*solver), lattice_size[direction]);
-    const auto spins_per_plane =
-        2 * lattice_size[(direction + 1) % 3]
-          * lattice_size[(direction + 2) % 3];
-    for (auto plane = 0; plane < constraint_plane_count(*solver); ++plane) {
-      const auto coordinate = constraint_plane_coordinate(*solver, plane);
-      const auto& spins = constraint_plane_spins(*solver, plane);
-      EXPECT_EQ(spins.size(), spins_per_plane);
-      for (const auto spin : spins) {
-        EXPECT_EQ(
-            globals::lattice->cell_offset(spin)[direction], coordinate);
-        EXPECT_EQ(spin_constraint_group(*solver, spin), plane);
+      ASSERT_EQ(constraint_plane_count(*solver), lattice_size[direction]);
+      const auto spins_per_plane =
+          2 * lattice_size[(direction + 1) % 3]
+            * lattice_size[(direction + 2) % 3];
+      for (auto plane = 0; plane < constraint_plane_count(*solver); ++plane) {
+        const auto coordinate = constraint_plane_coordinate(*solver, plane);
+        const auto& spins = constraint_plane_spins(*solver, plane);
+        EXPECT_EQ(spins.size(), spins_per_plane);
+        for (const auto spin : spins) {
+          EXPECT_EQ(
+              globals::lattice->cell_offset(spin)[direction], coordinate);
+          EXPECT_EQ(spin_constraint_group(*solver, spin), plane);
+        }
+        expect_direction(
+            constraint_plane_target(*solver, plane),
+            constraint_plane_target(*solver, 0));
       }
-      expect_direction(
-          constraint_plane_target(*solver, plane), {1.0, 0.0, 0.0});
+
+      solver.reset();
+      reset_constrained_mc_globals();
+    }
+  }
+}
+
+TEST_F(ConstrainedMCSolverConstraintTest, ZeroWavevectorPartnersPreserveEveryPlaneConstraint) {
+  for (const auto* profile : {"circular", "linear"}) {
+    SCOPED_TRACE(profile);
+    auto solver = make_programmatic_spiral_solver(
+        {0.0, 0.0, 0.0}, {0.0, 0.0, 1.0}, 0, {4, 2, 1},
+        profile, jams::Vec<double, 3>{1.0, 0.0, 0.0}, 30.0);
+    const auto expected = constraint_plane_target(*solver, 0);
+    solver->register_physics_module(
+        Physics::create(globals::config->lookup("physics")));
+
+    jams::instance().random_generator().seed(97531u);
+    for (auto step = 0; step < 128; ++step) {
+      ASSERT_NO_THROW(solver->run());
     }
 
+    for (auto plane = 0; plane < 4; ++plane) {
+      expect_direction(
+          constrained_mc_plane_total(0, plane, false), expected);
+    }
     solver.reset();
     reset_constrained_mc_globals();
   }
 }
 
-TEST_F(ConstrainedMCSolverConstraintTest, ZeroWavevectorPartnersPreserveEveryPlaneConstraint) {
-  auto solver = make_programmatic_spiral_solver(
-      {0.0, 0.0, 0.0}, {0.0, 0.0, 1.0}, 0, {4, 2, 1});
-  solver->register_physics_module(
-      Physics::create(globals::config->lookup("physics")));
-
-  jams::instance().random_generator().seed(97531u);
-  for (auto step = 0; step < 128; ++step) {
-    ASSERT_NO_THROW(solver->run());
-  }
-
-  for (auto plane = 0; plane < 4; ++plane) {
-    expect_direction(
-        constrained_mc_plane_total(0, plane, false), {1.0, 0.0, 0.0});
-  }
-}
-
 TEST_F(ConstrainedMCSolverConstraintTest, ZeroWavevectorMatchesReciprocalLatticeVectorWorkaround) {
-  const auto run_case = [this](const double wavevector_component) {
+  const auto run_case = [this](
+      const double wavevector_component, const std::string& profile) {
     auto solver = make_programmatic_spiral_solver(
-        {wavevector_component, 0.0, 0.0}, {0.0, 0.0, 1.0}, 0, {4, 2, 1});
+        {wavevector_component, 0.0, 0.0}, {0.0, 0.0, 1.0}, 0,
+        {4, 2, 1}, profile, jams::Vec<double, 3>{1.0, 0.0, 0.0}, 30.0);
     solver->register_physics_module(
         Physics::create(globals::config->lookup("physics")));
     jams::instance().random_generator().seed(86420u);
@@ -660,14 +884,17 @@ TEST_F(ConstrainedMCSolverConstraintTest, ZeroWavevectorMatchesReciprocalLattice
     return spins;
   };
 
-  const auto zero_wavevector_spins = run_case(0.0);
-  const auto reciprocal_wavevector_spins = run_case(1.0);
-  ASSERT_EQ(zero_wavevector_spins.size(), reciprocal_wavevector_spins.size());
-  for (auto spin = 0; spin < zero_wavevector_spins.size(); ++spin) {
-    for (auto component = 0; component < 3; ++component) {
-      EXPECT_NEAR(
-          zero_wavevector_spins[spin][component],
-          reciprocal_wavevector_spins[spin][component], 1.0e-10);
+  for (const auto* profile : {"circular", "linear"}) {
+    SCOPED_TRACE(profile);
+    const auto zero_wavevector_spins = run_case(0.0, profile);
+    const auto reciprocal_wavevector_spins = run_case(1.0, profile);
+    ASSERT_EQ(zero_wavevector_spins.size(), reciprocal_wavevector_spins.size());
+    for (auto spin = 0; spin < zero_wavevector_spins.size(); ++spin) {
+      for (auto component = 0; component < 3; ++component) {
+        EXPECT_NEAR(
+            zero_wavevector_spins[spin][component],
+            reciprocal_wavevector_spins[spin][component], 1.0e-10);
+      }
     }
   }
 }
@@ -699,12 +926,10 @@ TEST_F(ConstrainedMCSolverConstraintTest, RejectsInvalidPropagationDirections) {
   }
 
   EXPECT_THROW(
-      make_configured_solver(0.0, [](libconfig::Setting& settings) {
-        settings.add("cmc_constraint_mode", libconfig::Setting::TypeString)
-            = "spin_spiral";
-        add_vec_setting(
-            settings, "cmc_spiral_wavevector", {0.0, 0.0, 0.0});
-        add_vec_setting(settings, "cmc_spiral_axis", {0.0, 0.0, 1.0});
+      make_configured_solver(0.0, [this](libconfig::Setting& settings) {
+        configure_spin_spiral(
+            settings, "circular", {0.0, 0.0, 0.0},
+            {0.0, 0.0, 1.0}, {1.0, 0.0, 0.0}, 30.0);
         settings.add(
             "cmc_spiral_propagation_direction", libconfig::Setting::TypeFloat)
             = 1.0;
@@ -731,6 +956,14 @@ TEST_F(ConstrainedMCSolverConstraintTest, RejectsNonFiniteSpinSpiralVectors) {
   EXPECT_THROW(
       make_programmatic_spiral_solver({0.25, 0.0, 0.0}, {0.0, infinity, 1.0}),
       jams::ConfigException);
+
+  reset_constrained_mc_globals();
+  EXPECT_THROW(
+      make_programmatic_spiral_solver(
+          {0.25, 0.0, 0.0}, {0.0, 0.0, 1.0}, std::nullopt,
+          {4, 2, 1}, "linear",
+          jams::Vec<double, 3>{infinity, 0.0, 0.0}, 5.0),
+      jams::ConfigException);
 }
 
 TEST_F(ConstrainedMCSolverConstraintTest, ChecksPeriodicSpinSpiralCommensurability) {
@@ -754,29 +987,125 @@ TEST_F(ConstrainedMCSolverConstraintTest, ChecksPeriodicSpinSpiralCommensurabili
       {0.2, 0.0, 0.0}, {0.0, 0.0, 1.0}, {4, 2, 1}, {false, true, true}));
 }
 
-TEST_F(ConstrainedMCSolverConstraintTest, SpinSpiralAlignsPlaneMagnetisations) {
-  const jams::Vec<double, 3> wavevector = {0.25, 0.0, 0.0};
-  const jams::Vec<double, 3> axis = {0.0, 0.0, 1.0};
-  auto solver = make_spiral_solver(
-      "magnetisation", 90.0, 0.0, true, wavevector, {0.0, 0.0, 2.0});
+TEST_F(ConstrainedMCSolverConstraintTest, CircularProfileUsesTiltedLocalFrame) {
+  const auto inverse_sqrt_two = 1.0 / std::sqrt(2.0);
+  const jams::Vec<double, 3> background = {
+      inverse_sqrt_two, 0.0, inverse_sqrt_two};
+  const jams::Vec<double, 3> polarisation = {
+      inverse_sqrt_two, 0.0, -inverse_sqrt_two};
+  constexpr double amplitude_degrees = 12.0;
+  constexpr double phase_degrees = 30.0;
+  auto solver = make_programmatic_spiral_solver(
+      {0.25, 0.0, 0.0}, background, std::nullopt, {4, 2, 1},
+      "circular", polarisation, amplitude_degrees, phase_degrees);
 
-  const jams::Vec<double, 3> reference = {1.0, 0.0, 0.0};
+  const auto amplitude = deg_to_rad(amplitude_degrees);
   for (auto plane = 0; plane < 4; ++plane) {
-    const auto expected = rotation_matrix_from_axis_angle(
-        axis, kTwoPi * wavevector[0] * static_cast<double>(plane)) * reference;
-    expect_direction(constrained_mc_plane_total(0, plane, false), expected);
+    const auto phase = deg_to_rad(phase_degrees) + 0.5 * kPi * plane;
+    const auto expected = std::cos(amplitude) * background
+        + std::sin(amplitude)
+            * (std::cos(phase) * polarisation
+               + std::sin(phase) * jams::cross(background, polarisation));
+    expect_direction(constraint_plane_target(*solver, plane), expected);
   }
-  expect_unit_spins();
 }
 
-TEST_F(ConstrainedMCSolverConstraintTest, SpinSpiralSupportsTransformedMomentsAndArbitraryAxis) {
-  auto solver = make_spiral_solver(
-      "material_transform", 0.0, 0.0, true,
-      {0.0, 0.5, 0.0}, {2.0, 0.0, 0.0}, {2, 2, 2});
+TEST_F(ConstrainedMCSolverConstraintTest, LinearProfileFollowsStandingWavePhases) {
+  auto solver = make_programmatic_spiral_solver(
+      {0.25, 0.0, 0.0}, {0.0, 0.0, 1.0}, std::nullopt, {4, 2, 1},
+      "linear", jams::Vec<double, 3>{1.0, 0.0, 0.0}, 30.0);
 
-  expect_direction(constrained_mc_plane_total(1, 0, true), {0.0, 0.0, 1.0});
-  expect_direction(constrained_mc_plane_total(1, 1, true), {0.0, 0.0, -1.0});
-  expect_unit_spins();
+  expect_direction(
+      constraint_plane_target(*solver, 0),
+      {0.5, 0.0, std::sqrt(3.0) / 2.0});
+  expect_direction(constraint_plane_target(*solver, 1), {0.0, 0.0, 1.0});
+  expect_direction(
+      constraint_plane_target(*solver, 2),
+      {-0.5, 0.0, std::sqrt(3.0) / 2.0});
+  expect_direction(constraint_plane_target(*solver, 3), {0.0, 0.0, 1.0});
+}
+
+TEST_F(ConstrainedMCSolverConstraintTest, LinearProfileAcceptsTensorProbePolarisations) {
+  const auto inverse_sqrt_two = 1.0 / std::sqrt(2.0);
+  const std::vector<jams::Vec<double, 3>> polarisations = {
+      {1.0, 0.0, 0.0},
+      {0.0, 1.0, 0.0},
+      {inverse_sqrt_two, inverse_sqrt_two, 0.0},
+      {inverse_sqrt_two, -inverse_sqrt_two, 0.0}};
+  const auto amplitude = deg_to_rad(5.0);
+  for (const auto& polarisation : polarisations) {
+    reset_constrained_mc_globals();
+    auto solver = make_programmatic_spiral_solver(
+        {0.0, 0.0, 0.0}, {0.0, 0.0, 1.0}, 0, {4, 2, 1},
+        "linear", polarisation, 5.0);
+    const auto expected =
+        std::cos(amplitude) * jams::Vec<double, 3>{0.0, 0.0, 1.0}
+        + std::sin(amplitude) * polarisation;
+    expect_direction(constraint_plane_target(*solver, 0), expected);
+  }
+}
+
+TEST_F(ConstrainedMCSolverConstraintTest, SpinSpiralPhaseOffsetsQZeroTarget) {
+  auto solver = make_programmatic_spiral_solver(
+      {0.0, 0.0, 0.0}, {0.0, 0.0, 1.0}, 0, {4, 2, 1},
+      "linear", jams::Vec<double, 3>{1.0, 0.0, 0.0}, 30.0, 60.0);
+  const auto expected = jams::normalize(
+      std::cos(deg_to_rad(30.0)) * jams::Vec<double, 3>{0.0, 0.0, 1.0}
+      + std::sin(deg_to_rad(30.0)) * std::cos(deg_to_rad(60.0))
+          * jams::Vec<double, 3>{1.0, 0.0, 0.0});
+  for (auto plane = 0; plane < 4; ++plane) {
+    expect_direction(constraint_plane_target(*solver, plane), expected);
+  }
+}
+
+TEST_F(ConstrainedMCSolverConstraintTest, LogsSpinSpiralPolarisationGeometry) {
+  auto solver = make_programmatic_spiral_solver(
+      {0.25, 0.0, 0.0}, {0.0, 0.0, 2.0}, std::nullopt, {4, 2, 1},
+      "linear", jams::Vec<double, 3>{3.0, 0.0, 0.0}, 5.0, 15.0);
+  const auto output = initialization_output(*solver);
+  EXPECT_NE(output.find("spiral profile linear"), std::string::npos);
+  EXPECT_NE(output.find("spiral background"), std::string::npos);
+  EXPECT_NE(output.find("spiral polarisation"), std::string::npos);
+  EXPECT_NE(output.find("spiral amplitude (deg) 5"), std::string::npos);
+  EXPECT_NE(output.find("spiral phase (deg) 15"), std::string::npos);
+  EXPECT_NE(output.find("spiral reference target"), std::string::npos);
+}
+
+TEST_F(ConstrainedMCSolverConstraintTest, SpinSpiralAlignsPlaneMagnetisations) {
+  const jams::Vec<double, 3> wavevector = {0.25, 0.0, 0.0};
+  for (const auto* profile : {"circular", "linear"}) {
+    SCOPED_TRACE(profile);
+    auto solver = make_profile_spiral_solver(
+        "magnetisation", profile, wavevector, {0.0, 0.0, 1.0},
+        {1.0, 0.0, 0.0}, 30.0);
+
+    for (auto plane = 0; plane < 4; ++plane) {
+      expect_direction(
+          constrained_mc_plane_total(0, plane, false),
+          constraint_plane_target(*solver, plane));
+    }
+    expect_unit_spins();
+    solver.reset();
+    reset_constrained_mc_globals();
+  }
+}
+
+TEST_F(ConstrainedMCSolverConstraintTest, SpinSpiralSupportsTransformedMomentsForBothProfiles) {
+  for (const auto* profile : {"circular", "linear"}) {
+    SCOPED_TRACE(profile);
+    auto solver = make_profile_spiral_solver(
+        "material_transform", profile, {0.0, 0.5, 0.0},
+        {0.0, 0.0, 1.0}, {1.0, 0.0, 0.0}, 30.0, 0.0, {2, 2, 2});
+
+    for (auto plane = 0; plane < 2; ++plane) {
+      expect_direction(
+          constrained_mc_plane_total(1, plane, true),
+          constraint_plane_target(*solver, plane));
+    }
+    expect_unit_spins();
+    solver.reset();
+    reset_constrained_mc_globals();
+  }
 }
 
 TEST_F(ConstrainedMCSolverConstraintTest, SpinSpiralConstrainsPlaneRatherThanUnitCells) {
@@ -1006,6 +1335,14 @@ TEST_F(ConstrainedMCSolverConstraintTest, PairMovesPreserveSpinSpiralPlaneMagnet
 
 TEST_F(ConstrainedMCSolverConstraintTest, PairMovesPreserveSpinSpiralPlaneTransformedMoments) {
   exercise_spiral_pair_moves("material_transform", true);
+}
+
+TEST_F(ConstrainedMCSolverConstraintTest, PairMovesPreserveLinearPlaneMagnetisation) {
+  exercise_spiral_pair_moves("magnetisation", false, "linear");
+}
+
+TEST_F(ConstrainedMCSolverConstraintTest, PairMovesPreserveLinearPlaneTransformedMoments) {
+  exercise_spiral_pair_moves("material_transform", true, "linear");
 }
 
 TEST_F(ConstrainedMCSolverConstraintTest, DisabledAdaptationPreservesSeededTrajectory) {
