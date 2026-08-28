@@ -25,6 +25,7 @@
 
 namespace {
     constexpr double kSpiralCommensurabilityTolerance = 1.0e-8;
+    constexpr double kSpiralOrthogonalityTolerance = 1.0e-8;
 
     inline double remap_azimuthal_angle_degrees(double x) {
       // remaps an angle in degrees to the range -180.0 < x <= 180.0
@@ -68,33 +69,60 @@ void ConstrainedMCSolver::initialize(const libconfig::Setting& settings) {
   }
 
   const bool has_spiral_wavevector = settings.exists("cmc_spiral_wavevector");
-  const bool has_spiral_axis = settings.exists("cmc_spiral_axis");
+  const bool has_spiral_profile = settings.exists("cmc_spiral_profile");
+  const bool has_spiral_background = settings.exists("cmc_spiral_background");
+  const bool has_spiral_polarisation = settings.exists("cmc_spiral_polarisation");
+  const bool has_spiral_amplitude = settings.exists("cmc_spiral_amplitude");
+  const bool has_spiral_phase = settings.exists("cmc_spiral_phase");
   const bool has_spiral_propagation_direction =
       settings.exists("cmc_spiral_propagation_direction");
   if (constraint_mode_ == ConstraintMode::Global
-      && (has_spiral_wavevector || has_spiral_axis
-          || has_spiral_propagation_direction)) {
+      && (has_spiral_wavevector || has_spiral_profile
+          || has_spiral_background || has_spiral_polarisation
+          || has_spiral_amplitude || has_spiral_phase
+          || has_spiral_propagation_direction
+          || settings.exists("cmc_spiral_axis"))) {
     throw jams::ConfigException(
         settings,
-        "cmc_spiral_wavevector, cmc_spiral_axis, and "
-        "cmc_spiral_propagation_direction are only valid when "
+        "cmc_spiral_* settings are only valid when "
         "cmc_constraint_mode is 'spin_spiral'");
   }
-  if (constraint_mode_ == ConstraintMode::SpinSpiral
-      && (!has_spiral_wavevector || !has_spiral_axis)) {
-    throw jams::ConfigException(
-        settings,
-        "spin_spiral mode requires both cmc_spiral_wavevector and cmc_spiral_axis");
+  if (constraint_mode_ == ConstraintMode::SpinSpiral) {
+    if (settings.exists("cmc_constraint_theta")
+        || settings.exists("cmc_constraint_phi")
+        || settings.exists("cmc_spiral_axis")) {
+      throw jams::ConfigException(
+          settings,
+          "spin_spiral mode does not accept cmc_constraint_theta, "
+          "cmc_constraint_phi, or cmc_spiral_axis");
+    }
+    if (!has_spiral_wavevector || !has_spiral_profile
+        || !has_spiral_background || !has_spiral_polarisation
+        || !has_spiral_amplitude) {
+      throw jams::ConfigException(
+          settings,
+          "spin_spiral mode requires cmc_spiral_wavevector, "
+          "cmc_spiral_profile, cmc_spiral_background, "
+          "cmc_spiral_polarisation, and cmc_spiral_amplitude");
+    }
   }
 
   max_steps_ = jams::config_required<int>(settings, "max_steps");
   min_steps_ = jams::config_optional<int>(settings, "min_steps", jams::defaults::solver_min_steps);
 
-  // theta is angle for z to x-y plane from 0 to 180
-  constraint_theta_ = jams::config_required<double>(settings, "cmc_constraint_theta");
-  // phi is angle in the x-y plane from 0 to 360
-  constraint_phi_ = jams::config_required<double>(settings, "cmc_constraint_phi");
-  constraint_phi_ = remap_azimuthal_angle_degrees(constraint_phi_);
+  if (constraint_mode_ == ConstraintMode::Global) {
+    // theta is angle from the z axis and phi is the xy-plane azimuth.
+    constraint_theta_ = jams::config_required<double>(settings, "cmc_constraint_theta");
+    constraint_phi_ = jams::config_required<double>(settings, "cmc_constraint_phi");
+    constraint_phi_ = remap_azimuthal_angle_degrees(constraint_phi_);
+    constraint_vector_ = jams::spherical_to_cartesian_vector(
+        1.0, deg_to_rad(constraint_theta_), deg_to_rad(constraint_phi_));
+
+    // From cartesian into constraint space and back again.
+    rotation_matrix_ = rotation_matrix_y(-deg_to_rad(constraint_theta_))
+        * rotation_matrix_z(-deg_to_rad(constraint_phi_));
+    inverse_rotation_matrix_ = transpose(rotation_matrix_);
+  }
 
   constraint_tolerance_degrees_ = jams::config_optional<double>(
       settings,
@@ -110,14 +138,6 @@ void ConstrainedMCSolver::initialize(const libconfig::Setting& settings) {
 
   move_angle_sigma_        = jams::config_optional<double>(settings, "move_angle_sigma", jams::defaults::solver_monte_carlo_move_sigma);
   output_write_steps_      = jams::config_optional<int>(settings, "output_write_steps",  jams::defaults::monitor_output_steps);
-
-  constraint_vector_       = jams::spherical_to_cartesian_vector(1.0, deg_to_rad(constraint_theta_), deg_to_rad(constraint_phi_));
-
-  // from cartesian into the constraint space
-  rotation_matrix_         = rotation_matrix_y(-deg_to_rad(constraint_theta_))*rotation_matrix_z(-deg_to_rad(constraint_phi_));
-  // from the constraint space back to cartesian
-  inverse_rotation_matrix_ = transpose(rotation_matrix_);
-
 
   if (settings.exists("move_fraction_uniform") || settings.exists("move_fraction_angle") || settings.exists("move_fraction_reflection")) {
     move_fraction_uniform_    = jams::config_optional<double>(settings, "move_fraction_uniform", 0.0);
@@ -147,7 +167,9 @@ void ConstrainedMCSolver::initialize(const libconfig::Setting& settings) {
 
   output_initialization_info(std::cout);
 
-  validate_angles();
+  if (constraint_mode_ == ConstraintMode::Global) {
+    validate_angles();
+  }
   validate_rotation_matricies();
   validate_moves();
 
@@ -271,8 +293,47 @@ void ConstrainedMCSolver::initialize_move_angle_adaptation(
 void ConstrainedMCSolver::initialize_spin_spiral(const libconfig::Setting& settings) {
   spiral_wavevector_ = jams::read_vec_setting<double, 3>(
       settings["cmc_spiral_wavevector"], "cmc_spiral_wavevector");
-  spiral_axis_ = jams::read_vec_setting<double, 3>(
-      settings["cmc_spiral_axis"], "cmc_spiral_axis");
+  spiral_background_ = jams::read_vec_setting<double, 3>(
+      settings["cmc_spiral_background"], "cmc_spiral_background");
+  spiral_polarisation_ = jams::read_vec_setting<double, 3>(
+      settings["cmc_spiral_polarisation"], "cmc_spiral_polarisation");
+
+  const auto profile = lowercase(jams::config_required<std::string>(
+      settings, "cmc_spiral_profile"));
+  if (profile == "circular") {
+    spiral_profile_ = SpinSpiralProfile::Circular;
+  } else if (profile == "linear") {
+    spiral_profile_ = SpinSpiralProfile::Linear;
+  } else {
+    throw jams::ConfigException(
+        settings["cmc_spiral_profile"],
+        "cmc_spiral_profile must be either 'circular' or 'linear'");
+  }
+
+  spiral_amplitude_degrees_ = jams::config_required<double>(
+      settings, "cmc_spiral_amplitude");
+  spiral_phase_degrees_ = jams::config_optional<double>(
+      settings, "cmc_spiral_phase", 0.0);
+  if (!std::isfinite(spiral_amplitude_degrees_)
+      || spiral_amplitude_degrees_ < 0.0
+      || (spiral_profile_ == SpinSpiralProfile::Circular
+          && spiral_amplitude_degrees_ > 180.0)
+      || (spiral_profile_ == SpinSpiralProfile::Linear
+          && spiral_amplitude_degrees_ >= 90.0)) {
+    throw jams::ConfigException(
+        settings["cmc_spiral_amplitude"],
+        spiral_profile_ == SpinSpiralProfile::Circular
+            ? "circular cmc_spiral_amplitude must be finite and in [0, 180] degrees"
+            : "linear cmc_spiral_amplitude must be finite and in [0, 90) degrees");
+  }
+  if (!std::isfinite(spiral_phase_degrees_)) {
+    throw jams::ConfigException(
+        settings["cmc_spiral_phase"],
+        "cmc_spiral_phase must be finite");
+  }
+  spiral_phase_degrees_ = remap_azimuthal_angle_degrees(spiral_phase_degrees_);
+  spiral_amplitude_ = deg_to_rad(spiral_amplitude_degrees_);
+  spiral_phase_ = deg_to_rad(spiral_phase_degrees_);
 
   if (!jams::is_finite(spiral_wavevector_)) {
     throw jams::ConfigException(
@@ -324,18 +385,43 @@ void ConstrainedMCSolver::initialize_spin_spiral(const libconfig::Setting& setti
     }
   }
 
-  if (!jams::is_finite(spiral_axis_)) {
+  if (!jams::is_finite(spiral_background_)) {
     throw jams::ConfigException(
-        settings["cmc_spiral_axis"],
-        "cmc_spiral_axis components must be finite");
+        settings["cmc_spiral_background"],
+        "cmc_spiral_background components must be finite");
   }
-  const double spiral_axis_norm = jams::norm(spiral_axis_);
-  if (!std::isfinite(spiral_axis_norm) || spiral_axis_norm == 0.0) {
+  const double background_norm = jams::norm(spiral_background_);
+  if (!std::isfinite(background_norm) || background_norm == 0.0) {
     throw jams::ConfigException(
-        settings["cmc_spiral_axis"],
-        "cmc_spiral_axis must have a finite, non-zero length");
+        settings["cmc_spiral_background"],
+        "cmc_spiral_background must have a finite, non-zero length");
   }
-  spiral_axis_ /= spiral_axis_norm;
+  spiral_background_ /= background_norm;
+
+  if (!jams::is_finite(spiral_polarisation_)) {
+    throw jams::ConfigException(
+        settings["cmc_spiral_polarisation"],
+        "cmc_spiral_polarisation components must be finite");
+  }
+  const double polarisation_norm = jams::norm(spiral_polarisation_);
+  if (!std::isfinite(polarisation_norm) || polarisation_norm == 0.0) {
+    throw jams::ConfigException(
+        settings["cmc_spiral_polarisation"],
+        "cmc_spiral_polarisation must have a finite, non-zero length");
+  }
+  spiral_polarisation_ /= polarisation_norm;
+
+  const double background_polarisation_dot =
+      jams::dot(spiral_background_, spiral_polarisation_);
+  if (!std::isfinite(background_polarisation_dot)
+      || std::abs(background_polarisation_dot)
+          > kSpiralOrthogonalityTolerance) {
+    throw jams::ConfigException(
+        settings["cmc_spiral_polarisation"],
+        "cmc_spiral_polarisation must be perpendicular to "
+        "cmc_spiral_background within ",
+        kSpiralOrthogonalityTolerance);
+  }
 
   const double wavevector_component = spiral_wavevector_[spiral_propagation_direction_];
   if (globals::lattice->is_periodic(spiral_propagation_direction_)) {
@@ -369,9 +455,11 @@ void ConstrainedMCSolver::initialize_spin_spiral(const libconfig::Setting& setti
 
     ConstraintPlane plane;
     plane.coordinate = coordinate;
-    const double phase = kTwoPi * wavevector_component * static_cast<double>(coordinate);
-    plane.target_direction = rotation_matrix_from_axis_angle(spiral_axis_, phase)
-        * constraint_vector_;
+    // Plane phase psi_p = phi_0 + 2 pi q_d R_{p,d}, where the integer cell
+    // coordinate is R_{p,d} in reduced lattice units.
+    const double phase = spiral_phase_
+        + kTwoPi * wavevector_component * static_cast<double>(coordinate);
+    plane.target_direction = spin_spiral_target(phase);
     plane.rotation_matrix = rotation_to_z(plane.target_direction);
     plane.inverse_rotation_matrix = transpose(plane.rotation_matrix);
     constraint_planes_.push_back(std::move(plane));
@@ -398,6 +486,44 @@ void ConstrainedMCSolver::initialize_spin_spiral(const libconfig::Setting& setti
           " non-zero-moment spins; at least two are required");
     }
   }
+}
+
+jams::Vec<double, 3> ConstrainedMCSolver::spin_spiral_target(
+    const double phase) const {
+  // Here n = spiral_background_, e = spiral_polarisation_,
+  // alpha = spiral_amplitude_, and phase is psi. Validation guarantees that
+  // n and e are orthonormal, so n x e completes the local transverse frame.
+  const double background_scale = std::cos(spiral_amplitude_);
+  const double transverse_scale = std::sin(spiral_amplitude_);
+
+  jams::Vec<double, 3> transverse_direction;
+  if (spiral_profile_ == SpinSpiralProfile::Circular) {
+    // u_circular(psi) = e cos(psi) + (n x e) sin(psi), hence
+    // t_circular = cos(alpha)n + sin(alpha)u_circular. The three terms form
+    // an orthonormal frame, so the exact expression has unit length.
+    transverse_direction = std::cos(phase) * spiral_polarisation_
+        + std::sin(phase)
+            * jams::cross(spiral_background_, spiral_polarisation_);
+  } else {
+    // A linearly polarised standing wave has transverse displacement
+    // u_linear(psi) = e cos(psi). Its length varies with phase, so the final
+    // target t_linear = cos(alpha)n + sin(alpha)u_linear must be normalised.
+    transverse_direction = std::cos(phase) * spiral_polarisation_;
+  }
+
+  // The explicit normalisation implements the linear definition and removes
+  // accumulated floating-point error from the circular definition.
+  auto target = background_scale * spiral_background_
+      + transverse_scale * transverse_direction;
+  const double target_norm = jams::norm(target);
+  if (!jams::is_finite(target)
+      || !std::isfinite(target_norm)
+      || target_norm == 0.0) {
+    throw std::runtime_error(
+        "ConstrainedMCSolver -- spin-spiral target direction is zero or non-finite");
+  }
+  target /= target_norm;
+  return target;
 }
 
 void ConstrainedMCSolver::run() {
@@ -760,22 +886,35 @@ const char* ConstrainedMCSolver::constraint_mode_name() const {
   return "unknown";
 }
 
+const char* ConstrainedMCSolver::spin_spiral_profile_name() const {
+  switch (spiral_profile_) {
+    case SpinSpiralProfile::Circular:
+      return "circular";
+    case SpinSpiralProfile::Linear:
+      return "linear";
+  }
+  return "unknown";
+}
+
 void ConstrainedMCSolver::output_initialization_info(std::ostream &os) {
   os << "    constraint mode " << constraint_mode_name() << "\n";
   os << "    constraint type " << constraint_type_name() << "\n";
-  os << "    constraint angle theta (deg) " << constraint_theta_ << "\n";
-  os << "    constraint angle phi (deg) " << constraint_phi_ << "\n";
   os << "    constraint angular tolerance (deg) " << constraint_tolerance_degrees_ << "\n";
-  os << "    "
-     << (constraint_mode_ == ConstraintMode::Global
-             ? "constraint vector " : "reference constraint vector ")
-     << constraint_vector_[0] << " " << constraint_vector_[1] << " "
-     << constraint_vector_[2] << "\n";
-  if (constraint_mode_ == ConstraintMode::SpinSpiral) {
+  if (constraint_mode_ == ConstraintMode::Global) {
+    os << "    constraint angle theta (deg) " << constraint_theta_ << "\n";
+    os << "    constraint angle phi (deg) " << constraint_phi_ << "\n";
+    os << "    constraint vector " << constraint_vector_ << "\n";
+  } else {
+    os << "    spiral profile " << spin_spiral_profile_name() << "\n";
     os << "    spiral wavevector " << spiral_wavevector_ << " (cycles per unit cell)\n";
     os << "    zero-wavevector plane constraint "
        << (zero_wavevector_plane_constraint_ ? "yes" : "no") << "\n";
-    os << "    spiral rotation axis " << spiral_axis_ << "\n";
+    os << "    spiral background " << spiral_background_ << "\n";
+    os << "    spiral polarisation " << spiral_polarisation_ << "\n";
+    os << "    spiral amplitude (deg) " << spiral_amplitude_degrees_ << "\n";
+    os << "    spiral phase (deg) " << spiral_phase_degrees_ << "\n";
+    os << "    spiral reference target "
+       << spin_spiral_target(spiral_phase_) << "\n";
     os << "    spiral propagation lattice direction " << spiral_propagation_direction_ << "\n";
     os << "    constrained planes " << constraint_planes_.size() << "\n";
     for (const auto& plane : constraint_planes_) {

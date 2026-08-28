@@ -44,6 +44,11 @@ class ConstrainedMCSolver : public Solver {
       SpinSpiral
     };
 
+    enum class SpinSpiralProfile {
+      Circular,
+      Linear
+    };
+
     struct ConstraintPlane {
       int coordinate = 0;
       jams::Vec<double, 3> target_direction = {{0.0, 0.0, 1.0}};
@@ -58,8 +63,18 @@ class ConstrainedMCSolver : public Solver {
 
     const char* constraint_type_name() const;
     const char* constraint_mode_name() const;
+    /// Returns the canonical configuration spelling of the selected profile.
+    const char* spin_spiral_profile_name() const;
 
+    /// Parses the spin-spiral frame and builds one target constraint per plane.
     void initialize_spin_spiral(const libconfig::Setting& settings);
+
+    /// Returns the unit target direction at phase psi for the configured
+    /// background n, tangent polarisation e, and cone amplitude alpha.
+    ///
+    /// Circular: t = cos(alpha)n + sin(alpha)[e cos(psi) + (n x e) sin(psi)].
+    /// Linear:   t = normalize(cos(alpha)n + sin(alpha)e cos(psi)).
+    jams::Vec<double, 3> spin_spiral_target(double phase) const;
     void initialize_move_angle_adaptation(const libconfig::Setting& settings);
     bool is_unrestricted_move_angle_adaptation_active() const;
     void update_move_angle_adaptation(std::ostream& os);
@@ -114,7 +129,13 @@ class ConstrainedMCSolver : public Solver {
     std::vector<jams::Mat<double, 3, 3>> constraint_transformations_;
 
     jams::Vec<double, 3> spiral_wavevector_ = {{0.0, 0.0, 0.0}};
-    jams::Vec<double, 3> spiral_axis_ = {{0.0, 0.0, 1.0}};
+    SpinSpiralProfile spiral_profile_ = SpinSpiralProfile::Circular;
+    jams::Vec<double, 3> spiral_background_ = {{0.0, 0.0, 1.0}};
+    jams::Vec<double, 3> spiral_polarisation_ = {{1.0, 0.0, 0.0}};
+    double spiral_amplitude_degrees_ = 0.0;
+    double spiral_amplitude_ = 0.0;
+    double spiral_phase_degrees_ = 0.0;
+    double spiral_phase_ = 0.0;
     int spiral_propagation_direction_ = -1;
     bool zero_wavevector_plane_constraint_ = false;
     std::vector<ConstraintPlane> constraint_planes_;

@@ -47,33 +47,50 @@ The magnitude of every constrained vector remains free. Individual unit-cell
 vectors within a plane are not constrained and may fluctuate away from the
 plane direction.
 
-For an axis-aligned reciprocal wavevector with nonzero component :math:`q_d`,
-the target direction of the plane at integer unit-cell coordinate :math:`n_d`
-is
+In spin-spiral mode, let :math:`\hat{\vec{n}}` be the background direction,
+:math:`\hat{\vec{e}}` a perpendicular tangent polarisation, :math:`\alpha`
+the modulation amplitude, and
 
 .. math::
-    \hat{\vec{c}}_{n_d} =
-    R_{\hat{\vec{a}}}\!\left(2\pi q_d n_d\right)\hat{\vec{c}}_0,
+    \psi_p = 2\pi\vec{q}\cdot\vec{R}_p + \phi_0
 
-where :math:`\hat{\vec{a}}` is the Cartesian spin-rotation axis and
+the phase of plane :math:`p`. The circular profile constrains the plane to
 
 .. math::
-    \hat{\vec{c}}_0 =
-    (\sin\theta\cos\phi,\sin\theta\sin\phi,\cos\theta).
+    \hat{\vec{t}}_p =
+    \cos\alpha\,\hat{\vec{n}} +
+    \sin\alpha\left[
+      \hat{\vec{e}}\cos\psi_p +
+      (\hat{\vec{n}}\times\hat{\vec{e}})\sin\psi_p
+    \right].
+
+The linear profile constrains it to
+
+.. math::
+    \hat{\vec{t}}_p =
+    \frac{
+      \cos\alpha\,\hat{\vec{n}} +
+      \sin\alpha\,\hat{\vec{e}}\cos\psi_p
+    }{
+      \left|
+        \cos\alpha\,\hat{\vec{n}} +
+        \sin\alpha\,\hat{\vec{e}}\cos\psi_p
+      \right|
+    }.
 
 The wavevector is specified in cycles per unit cell, so the factor
 :math:`2\pi` is applied by the solver. Planes are grouped by their integer
 unit-cell coordinate, not merely by target direction: planes separated by a
 full turn remain independent constraints.
 
-The same plane grouping is also available at :math:`Q=0`. In this case every
-plane has target direction :math:`\hat{\vec{c}}_0`, but each plane remains a
-separate constrained collective vector and compensation spins are still
-selected from that plane. This is deliberately different from ``"global"``
-mode, which constrains only the collective vector summed over the complete
-supercell. Use the plane-constrained :math:`Q=0` form when a zero-wavevector
-reference must have the same constrained degrees of freedom as finite-
-:math:`Q` spin-spiral calculations.
+The same plane grouping is also available at :math:`Q=0`. The configured
+phase :math:`\phi_0` then selects one common target from the chosen profile,
+but each plane remains a separate constrained collective vector and
+compensation spins are still selected from that plane. This is deliberately
+different from ``"global"`` mode, which constrains only the collective vector
+summed over the complete supercell. Use the plane-constrained :math:`Q=0`
+form when a zero-wavevector reference must have the same constrained degrees
+of freedom as finite-:math:`Q` spin-spiral calculations.
 
 This Monte Carlo solver moves **two** spins for every trial. We define One Monte
 Carlo step as one trial move of every spin on average. Therefore `num_spins/2`
@@ -99,11 +116,13 @@ Maximum number of Monte Carlo steps to solve.
 
 .. describe:: cmc_constraint_theta
 
-Polar (from :math:`z`-axis) constraint angle in degrees.
+Required in ``"global"`` mode. Polar (from :math:`z`-axis) constraint angle
+in degrees.
 
 .. describe:: cmc_constraint_phi
 
-Azimuthal (in :math:`xy`-plane)  constraint angle in degrees.
+Required in ``"global"`` mode. Azimuthal (in :math:`xy`-plane) constraint
+angle in degrees.
 
 Optional settings
 ^^^^^^^^^^^^^^^^^
@@ -140,7 +159,7 @@ finite and at most one component may be nonzero; oblique wavevectors are
 rejected.
 
 For a nonzero wavevector, the propagation direction is inferred from its
-nonzero component as before. For a zero wavevector,
+nonzero component. For a zero wavevector,
 ``cmc_spiral_propagation_direction`` is required so that the solver knows how
 to construct the constraint planes. A zero wavevector is always commensurate.
 
@@ -163,23 +182,56 @@ is mandatory when ``cmc_spiral_wavevector = [0.0, 0.0, 0.0]``.
 For a nonzero wavevector this setting is optional. If supplied, it must agree
 with the direction inferred from the nonzero wavevector component.
 
-.. describe:: cmc_spiral_axis
+.. describe:: cmc_spiral_profile
 
-Required only when ``cmc_constraint_mode = "spin_spiral"``. A finite,
-nonzero Cartesian vector defining the spin-space rotation axis
-:math:`\hat{\vec{a}}`. It is normalised internally.
+Required in ``"spin_spiral"`` mode. Selects ``"circular"`` or ``"linear"``
+target generation. Values are case-insensitive.
 
-For example, a planar spiral making one turn over four periodic unit cells in
-the :math:`a` direction is configured with
+.. describe:: cmc_spiral_background
+
+Required in ``"spin_spiral"`` mode. A finite, nonzero three-component
+Cartesian vector defining :math:`\hat{\vec{n}}`. It is normalised internally.
+
+.. describe:: cmc_spiral_polarisation
+
+Required in ``"spin_spiral"`` mode. A finite, nonzero three-component
+Cartesian tangent vector defining :math:`\hat{\vec{e}}`. It is normalised
+internally and must be perpendicular to ``cmc_spiral_background`` within
+:math:`10^{-8}` after normalisation.
+
+For any orthonormal tangent basis :math:`(\hat{\vec{e}}_1,
+\hat{\vec{e}}_2)`, the linear profile may be sampled with
+:math:`\hat{\vec{e}}_1`, :math:`\hat{\vec{e}}_2`,
+:math:`(\hat{\vec{e}}_1+\hat{\vec{e}}_2)/\sqrt{2}`, and
+:math:`(\hat{\vec{e}}_1-\hat{\vec{e}}_2)/\sqrt{2}` to resolve diagonal and
+mixed transverse responses.
+
+.. describe:: cmc_spiral_amplitude
+
+Required in ``"spin_spiral"`` mode. The finite, non-negative modulation
+amplitude :math:`\alpha` in degrees. Circular profiles permit
+``0 <= cmc_spiral_amplitude <= 180``. Linear profiles require
+``0 <= cmc_spiral_amplitude < 90`` so their target cannot become singular.
+
+.. describe:: cmc_spiral_phase = 0.0
+
+Optional finite phase offset :math:`\phi_0` in degrees. At :math:`Q=0`, this
+selects the same phase point on the chosen profile for every independently
+constrained plane.
+
+For example, a linearly polarised modulation making one turn over four
+periodic unit cells in the :math:`a` direction is configured with
 
 .. code-block:: cfg
 
     cmc_constraint_mode = "spin_spiral";
     cmc_constraint_type = "magnetisation";
-    cmc_constraint_theta = 90.0;
-    cmc_constraint_phi = 0.0;
+    cmc_spiral_profile = "linear";
+    cmc_spiral_background = [0.0, 0.0, 1.0];
+    cmc_spiral_polarisation = [1.0, 0.0, 0.0];
+    cmc_spiral_amplitude = 5.0;
+    cmc_spiral_phase = 0.0;
     cmc_spiral_wavevector = [0.25, 0.0, 0.0];
-    cmc_spiral_axis = [0.0, 0.0, 1.0];
 
 Every constrained plane must contain at least two nonzero-moment spins so that
 a compensation spin is available.
@@ -191,27 +243,32 @@ directions, respectively:
 .. code-block:: cfg
 
     cmc_constraint_mode = "spin_spiral";
+    cmc_spiral_profile = "circular";
+    cmc_spiral_background = [0.0, 0.0, 1.0];
+    cmc_spiral_polarisation = [1.0, 0.0, 0.0];
+    cmc_spiral_amplitude = 5.0;
     cmc_spiral_wavevector = [0.0, 0.0, 0.0];
-    cmc_spiral_axis = [0.0, 0.0, 1.0];
     cmc_spiral_propagation_direction = 0; // a planes
 
 .. code-block:: cfg
 
     cmc_constraint_mode = "spin_spiral";
+    cmc_spiral_profile = "circular";
+    cmc_spiral_background = [0.0, 0.0, 1.0];
+    cmc_spiral_polarisation = [1.0, 0.0, 0.0];
+    cmc_spiral_amplitude = 5.0;
     cmc_spiral_wavevector = [0.0, 0.0, 0.0];
-    cmc_spiral_axis = [0.0, 0.0, 1.0];
     cmc_spiral_propagation_direction = 1; // b planes
 
 .. code-block:: cfg
 
     cmc_constraint_mode = "spin_spiral";
+    cmc_spiral_profile = "circular";
+    cmc_spiral_background = [0.0, 0.0, 1.0];
+    cmc_spiral_polarisation = [1.0, 0.0, 0.0];
+    cmc_spiral_amplitude = 5.0;
     cmc_spiral_wavevector = [0.0, 0.0, 0.0];
-    cmc_spiral_axis = [0.0, 0.0, 1.0];
     cmc_spiral_propagation_direction = 2; // c planes
-
-The spiral axis is still required, finite, nonzero, and normalised internally
-at :math:`Q=0`, even though it has no numerical effect when every phase is
-zero.
 
 .. describe:: cmc_constraint_tolerance = 1e-6
 
