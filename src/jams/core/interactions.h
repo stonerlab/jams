@@ -204,8 +204,8 @@ class InteractionList {
 };
 
 template <class T>
-std::pair<typename InteractionList<T>::value_type::iterator,bool>
-InteractionList<T>::insert(size_type i, size_type j, const T &value) {
+auto InteractionList<T>::insert(size_type i, size_type j, const T &value)
+    -> std::pair<typename value_type::iterator,bool> {
   if (i >= interactions_.size()) {
     interactions_.resize(i + 1);
   }
