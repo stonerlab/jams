@@ -42,14 +42,14 @@ DipoleBruteforceHamiltonian::DipoleBruteforceHamiltonian(const libconfig::Settin
 
 }
 
-jams::Real DipoleBruteforceHamiltonian::calculate_energy(const int i, jams::Real time) {
+jams::Real DipoleBruteforceHamiltonian::calculate_energy(const int i, double time) {
   jams::Vec<jams::Real, 3> s_i = jams::array_cast<jams::Real>(jams::Vec<double, 3>{globals::s(i, 0), globals::s(i, 1), globals::s(i, 2)});
   auto field = calculate_field(i, time);
   return -0.5 * jams::dot(s_i, field);
 }
 
 jams::Real DipoleBruteforceHamiltonian::calculate_energy_difference(int i, const jams::Vec<double, 3> &spin_initial,
-                                                                const jams::Vec<double, 3> &spin_final, jams::Real time) {
+                                                                const jams::Vec<double, 3> &spin_final, double time) {
   const auto field = calculate_field(i, time);
   const jams::Real e_initial = -jams::dot(spin_initial, field);
   const jams::Real e_final = -jams::dot(spin_final, field);
@@ -58,7 +58,7 @@ jams::Real DipoleBruteforceHamiltonian::calculate_energy_difference(int i, const
 
 jams::Real DipoleBruteforceHamiltonian::calculate_energy_from_spins(
     const int i,
-    jams::Real time,
+    double time,
     const SpinHostView& spins) {
   const jams::Vec<jams::Real, 3> s_i = {spins(i, 0), spins(i, 1), spins(i, 2)};
   const auto field = calculate_field_from_spins(i, time, spins);
@@ -106,7 +106,7 @@ void DipoleBruteforceHamiltonian::add_energy_current_interactions(
 }
 
 [[gnu::hot]]
-jams::Vec<jams::Real, 3> DipoleBruteforceHamiltonian::calculate_field(const int i, jams::Real time) {
+jams::Vec<jams::Real, 3> DipoleBruteforceHamiltonian::calculate_field(const int i, double time) {
   using namespace std::placeholders;
 
 
@@ -157,7 +157,7 @@ jams::Vec<jams::Real, 3> DipoleBruteforceHamiltonian::calculate_field(const int 
 [[gnu::hot]]
 jams::Vec<jams::Real, 3> DipoleBruteforceHamiltonian::calculate_field_from_spins(
     const int i,
-    jams::Real time,
+    double time,
     const SpinHostView& spins) {
   assert(r_cutoff_ <= globals::lattice->max_interaction_radius());
 

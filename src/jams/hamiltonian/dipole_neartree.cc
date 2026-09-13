@@ -43,14 +43,14 @@ DipoleNearTreeHamiltonian::DipoleNearTreeHamiltonian(const libconfig::Setting &s
 }
 
 
-jams::Real DipoleNearTreeHamiltonian::calculate_energy(const int i, jams::Real time) {
+jams::Real DipoleNearTreeHamiltonian::calculate_energy(const int i, double time) {
     jams::Vec<double, 3> s_i = {{globals::s(i, 0), globals::s(i, 1), globals::s(i, 2)}};
     auto field = calculate_field(i, time);
     return -0.5 * jams::dot(s_i, field);
 }
 
 
-jams::Real DipoleNearTreeHamiltonian::calculate_energy_difference(int i, const jams::Vec<double, 3> &spin_initial, const jams::Vec<double, 3> &spin_final, jams::Real time) {
+jams::Real DipoleNearTreeHamiltonian::calculate_energy_difference(int i, const jams::Vec<double, 3> &spin_initial, const jams::Vec<double, 3> &spin_final, double time) {
     const auto field = calculate_field(i, time);
     const jams::Real e_initial = -jams::dot(spin_initial, field);
     const jams::Real e_final = -jams::dot(spin_final, field);
@@ -59,7 +59,7 @@ jams::Real DipoleNearTreeHamiltonian::calculate_energy_difference(int i, const j
 
 jams::Real DipoleNearTreeHamiltonian::calculate_energy_from_spins(
     const int i,
-    jams::Real time,
+    double time,
     const SpinHostView& spins) {
     const jams::Vec<jams::Real, 3> s_i = {spins(i, 0), spins(i, 1), spins(i, 2)};
     const auto field = calculate_field_from_spins(i, time, spins);
@@ -92,7 +92,7 @@ void DipoleNearTreeHamiltonian::add_energy_current_interactions(
 
 
 [[gnu::hot]]
-jams::Vec<jams::Real, 3> DipoleNearTreeHamiltonian::calculate_field(const int i, jams::Real time)
+jams::Vec<jams::Real, 3> DipoleNearTreeHamiltonian::calculate_field(const int i, double time)
 {
   const jams::Vec<jams::Real, 3> r_i = {globals::positions(i, 0), globals::positions(i, 1), globals::positions(i, 2)};
 
@@ -122,7 +122,7 @@ jams::Vec<jams::Real, 3> DipoleNearTreeHamiltonian::calculate_field(const int i,
 [[gnu::hot]]
 jams::Vec<jams::Real, 3> DipoleNearTreeHamiltonian::calculate_field_from_spins(
     const int i,
-    jams::Real time,
+    double time,
     const SpinHostView& spins)
 {
   const jams::Vec<jams::Real, 3> r_i = {globals::positions(i, 0), globals::positions(i, 1), globals::positions(i, 2)};

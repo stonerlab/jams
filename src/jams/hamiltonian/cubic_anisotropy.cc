@@ -123,7 +123,7 @@ CubicAnisotropyHamiltonian::CubicAnisotropyHamiltonian(const Setting &settings, 
 }
 
 
-jams::Real CubicAnisotropyHamiltonian::calculate_energy(const int i, jams::Real time) {
+jams::Real CubicAnisotropyHamiltonian::calculate_energy(const int i, double time) {
     double energy = 0.0;
 
     jams::Vec<double, 3> spin = jams::Vec<double, 3>{globals::s(i, 0), globals::s(i, 1), globals::s(i, 2)};
@@ -148,7 +148,7 @@ jams::Real CubicAnisotropyHamiltonian::calculate_energy(const int i, jams::Real 
 
 jams::Real CubicAnisotropyHamiltonian::calculate_energy_from_spins(
     const int i,
-    jams::Real time,
+    double time,
     const SpinHostView& spins) {
     jams::Real energy = 0.0;
 
@@ -173,7 +173,7 @@ jams::Real CubicAnisotropyHamiltonian::calculate_energy_from_spins(
 }
 
 jams::Real CubicAnisotropyHamiltonian::calculate_energy_difference(int i, const jams::Vec<double, 3> &spin_initial,
-                                                               const jams::Vec<double, 3> &spin_final, jams::Real time) {
+                                                               const jams::Vec<double, 3> &spin_final, double time) {
     double e_initial = 0.0;
     double e_final = 0.0;
 
@@ -206,7 +206,7 @@ jams::Real CubicAnisotropyHamiltonian::calculate_energy_difference(int i, const 
 }
 
 
-jams::Vec<jams::Real, 3> CubicAnisotropyHamiltonian::calculate_field(const int i, jams::Real time) {
+jams::Vec<jams::Real, 3> CubicAnisotropyHamiltonian::calculate_field(const int i, double time) {
   jams::Vec<double, 3> field = {0.0, 0.0, 0.0};
 
     jams::Vec<double, 3> spin = {globals::s(i, 0), globals::s(i, 1), globals::s(i, 2)};
@@ -240,7 +240,7 @@ jams::Vec<jams::Real, 3> CubicAnisotropyHamiltonian::calculate_field(const int i
 
 jams::Vec<jams::Real, 3> CubicAnisotropyHamiltonian::calculate_field_from_spins(
     const int i,
-    jams::Real time,
+    double time,
     const SpinHostView& spins) {
   jams::Vec<double, 3> field = {0.0, 0.0, 0.0};
 

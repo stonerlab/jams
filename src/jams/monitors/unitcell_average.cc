@@ -111,8 +111,8 @@ void UnitcellAverageMonitor::write_h5_file(const std::string &h5_file_name, cons
   auto mag_dataset = file.createDataSet<double>("/magnetisation",  DataSpace({globals::lattice->num_cells(), 3}), props);
 
   mag_dataset.createAttribute<std::string>("units", "bohr_magnetons");
-  mag_dataset.createAttribute<int>("iteration", DataSpace::From(iteration));
-  mag_dataset.createAttribute<double>("time_ps", DataSpace::From(time));
+  mag_dataset.createAttribute<int>("iteration", iteration);
+  mag_dataset.createAttribute<double>("time_ps", time);
   mag_dataset.createAttribute<double>("temperature_K", DataSpace::From(temperature));
 
   mag_dataset.write(cell_mag_);
@@ -120,8 +120,8 @@ void UnitcellAverageMonitor::write_h5_file(const std::string &h5_file_name, cons
   auto neel_dataset = file.createDataSet<double>("/neel",  DataSpace({globals::lattice->num_cells(), 3}), props);
 
   neel_dataset.createAttribute<std::string>("units", "bohr_magnetons");
-  neel_dataset.createAttribute<int>("iteration", DataSpace::From(iteration));
-  neel_dataset.createAttribute<double>("time_ps", DataSpace::From(time));
+  neel_dataset.createAttribute<int>("iteration", iteration);
+  neel_dataset.createAttribute<double>("time_ps", time);
   neel_dataset.createAttribute<double>("temperature_K", DataSpace::From(temperature));
 
   neel_dataset.write(cell_neel_);
@@ -156,7 +156,7 @@ void UnitcellAverageMonitor::update_xdmf_file(const std::string &h5_file_name, c
   fseek(xdmf_file_, -31, SEEK_CUR);
 
   fputs("      <Grid Name=\"Lattice\" GridType=\"Uniform\">\n", xdmf_file_);
-  fprintf(xdmf_file_, "        <Time Value=\"%f\" />\n", time);
+  fprintf(xdmf_file_, "        <Time Value=\"%.17g\" />\n", time);
   fprintf(xdmf_file_, "        <Topology TopologyType=\"Polyvertex\" Dimensions=\"%llu\" />\n", data_dimension);
   fputs("       <Geometry GeometryType=\"XYZ\">\n", xdmf_file_);
   fprintf(xdmf_file_, "         <DataItem Dimensions=\"%llu 3\" NumberType=\"Float\" Precision=\"%u\" Format=\"HDF\">\n", data_dimension, float_precision);

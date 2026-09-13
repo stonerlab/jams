@@ -28,7 +28,7 @@ CudaAppliedFieldHamiltonian::CudaAppliedFieldHamiltonian(
     const libconfig::Setting &settings, const unsigned int size) : AppliedFieldHamiltonian(
     settings, size) {}
 
-void CudaAppliedFieldHamiltonian::calculate_fields(jams::Real time, const jams::MultiArray<jams::Real, 2>& spins) {
+void CudaAppliedFieldHamiltonian::calculate_fields(double time, const jams::MultiArray<jams::Real, 2>& spins) {
   dim3 block_size;
   block_size.x = 256;
 
@@ -42,7 +42,7 @@ void CudaAppliedFieldHamiltonian::calculate_fields(jams::Real time, const jams::
     DEBUG_CHECK_CUDA_ASYNC_STATUS;
 }
 
-void CudaAppliedFieldHamiltonian::calculate_energies(jams::Real time, const jams::MultiArray<jams::Real, 2>& spins) {
+void CudaAppliedFieldHamiltonian::calculate_energies(double time, const jams::MultiArray<jams::Real, 2>& spins) {
   dim3 block_size;
   block_size.x = 256;
 
@@ -56,7 +56,7 @@ void CudaAppliedFieldHamiltonian::calculate_energies(jams::Real time, const jams
   DEBUG_CHECK_CUDA_ASYNC_STATUS;
 }
 
-jams::Real CudaAppliedFieldHamiltonian::calculate_total_energy(jams::Real time, const jams::MultiArray<jams::Real, 2>& spins)
+jams::Real CudaAppliedFieldHamiltonian::calculate_total_energy(double time, const jams::MultiArray<jams::Real, 2>& spins)
 {
     calculate_energies(time, spins);
     return cuda_reduce_array(energy_.device_data(), globals::num_spins, cuda_stream_.get());

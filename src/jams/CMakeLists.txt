@@ -69,6 +69,14 @@ if (JAMS_BUILD_FASTMATH)
     jams_set_fast_math(jams_core)
 endif()
 
+# Duration validation must handle non-finite input even in fast-math builds.
+# Keep the clock's seconds-to-picoseconds conversion under normal FP rules too.
+if (CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
+    set_property(SOURCE core/solver.cc APPEND PROPERTY COMPILE_OPTIONS -fno-fast-math)
+elseif (CMAKE_CXX_COMPILER_ID STREQUAL "Intel")
+    set_property(SOURCE core/solver.cc APPEND PROPERTY COMPILE_OPTIONS -fp-model=precise)
+endif()
+
 add_executable(jams "")
 target_sources(jams PRIVATE main.cc)
 target_link_libraries(jams PRIVATE jams_core)

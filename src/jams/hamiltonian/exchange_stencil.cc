@@ -762,7 +762,7 @@ void ExchangeStencilBackend::calculate_fields_storage_in_parallel(
   }
 }
 
-void ExchangeStencilBackend::calculate_fields(jams::Real time, const SpinArray& spins, FieldArray& field) {
+void ExchangeStencilBackend::calculate_fields(double time, const SpinArray& spins, FieldArray& field) {
   const auto spin_view = spins.host_view();
 
   if (fully_periodic_) {
@@ -813,7 +813,7 @@ bool ExchangeStencilBackend::supports_calculate_fields_in_parallel() const {
 }
 
 void ExchangeStencilBackend::calculate_fields_in_parallel(
-    jams::Real time,
+    double time,
     const SpinArray& spins,
     FieldArray& field) {
   const auto spin_view = spins.host_view();
@@ -862,7 +862,7 @@ void ExchangeStencilBackend::calculate_fields_in_parallel(
 }
 
 jams::Real ExchangeStencilBackend::calculate_total_energy(
-    jams::Real time,
+    double time,
     const SpinArray& spins,
     FieldArray& field,
     EnergyArray& energy) {
@@ -880,7 +880,7 @@ jams::Real ExchangeStencilBackend::calculate_total_energy(
 }
 
 void ExchangeStencilBackend::calculate_energies(
-    jams::Real time,
+    double time,
     const SpinArray& spins,
     FieldArray& field,
     EnergyArray& energy) {
@@ -905,14 +905,14 @@ void ExchangeStencilBackend::calculate_energies(
 
 jams::Vec<jams::Real, 3> ExchangeStencilBackend::calculate_field(
     const int site,
-    jams::Real time,
+    double time,
     const SpinArray& spins) {
   return calculate_stencil_field_for_site(site, spins.host_view());
 }
 
 jams::Real ExchangeStencilBackend::calculate_energy(
     const int site,
-    jams::Real time,
+    double time,
     const SpinArray& spins) {
   const auto field = calculate_field(site, time, spins);
   const jams::Vec<jams::Real, 3> s_i = {
@@ -926,7 +926,7 @@ jams::Real ExchangeStencilBackend::calculate_energy_difference(
     const int site,
     const jams::Vec<double, 3>& spin_initial,
     const jams::Vec<double, 3>& spin_final,
-    jams::Real time,
+    double time,
     const SpinArray& spins) {
   const auto field = calculate_field(site, time, spins);
   const auto e_initial = -jams::dot(spin_initial, field);

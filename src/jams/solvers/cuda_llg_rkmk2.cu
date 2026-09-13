@@ -127,17 +127,7 @@ __global__ void cuda_llg_rkmk2_kernel_step_2
 void CUDALLGRKMK2Solver::initialize(const libconfig::Setting& settings)
 {
   // convert input in seconds to picoseconds for internal units
-  step_size_ = jams::config_required<double>(settings, "t_step") / 1e-12;
-  auto t_max = jams::config_required<double>(settings, "t_max") / 1e-12;
-  auto t_min = jams::config_optional<double>(settings, "t_min", 0.0) / 1e-12;
-
-
-  max_steps_ = static_cast<int>(t_max / step_size_);
-  min_steps_ = static_cast<int>(t_min / step_size_);
-
-  std::cout << "\ntimestep (ps) " << step_size_ << "\n";
-  std::cout << "\nt_max (ps) " << t_max << " steps " << max_steps_ << "\n";
-  std::cout << "\nt_min (ps) " << t_min << " steps " << min_steps_ << "\n";
+  initialize_time(settings);
 
   std::string thermostat_name = jams::config_optional<std::string>(globals::config->lookup("solver"), "thermostat", jams::defaults::solver_gpu_thermostat);
   // Strang splitting means the thermostat timestep is 1/2 of the RKMK time step
@@ -240,8 +230,7 @@ void CUDALLGRKMK2Solver::run_with_parameters(
   thermostat_->record_consumed(jams::instance().cuda_master_stream().get());
   record_spin_and_field_cache_barrier_event();
 
-  iteration_++;
-  time_ = iteration_ * step_size_;
+  advance_time();
 }
 
 void CUDALLGRKMK2Solver::run()

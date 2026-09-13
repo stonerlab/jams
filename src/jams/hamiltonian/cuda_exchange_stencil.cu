@@ -330,14 +330,14 @@ public:
     return false;
   }
 
-  void calculate_fields(jams::Real time, const SpinArray& spins, FieldArray& field) override;
+  void calculate_fields(double time, const SpinArray& spins, FieldArray& field) override;
   void calculate_energies(
-      jams::Real time,
+      double time,
       const SpinArray& spins,
       FieldArray& field,
       EnergyArray& energy) override;
   [[nodiscard]] jams::Real calculate_total_energy(
-      jams::Real time,
+      double time,
       const SpinArray& spins,
       FieldArray& field,
       EnergyArray& energy) override;
@@ -586,7 +586,7 @@ void CudaExchangeStencilBackend::upload_stencil_to_device() {
   (void)device_values_.device_data();
 }
 
-void CudaExchangeStencilBackend::calculate_fields(jams::Real time, const SpinArray& spins, FieldArray& field) {
+void CudaExchangeStencilBackend::calculate_fields(double time, const SpinArray& spins, FieldArray& field) {
   const dim3 block_size = {static_cast<unsigned int>(field_kernel_block_size_), 1, 1};
   const dim3 grid_size = cuda_grid_size(
       block_size,
@@ -769,7 +769,7 @@ void CudaExchangeStencilBackend::calculate_fields(jams::Real time, const SpinArr
 }
 
 void CudaExchangeStencilBackend::calculate_energies(
-    jams::Real time,
+    double time,
     const SpinArray& spins,
     FieldArray& field,
     EnergyArray& energy) {
@@ -784,7 +784,7 @@ void CudaExchangeStencilBackend::calculate_energies(
 }
 
 jams::Real CudaExchangeStencilBackend::calculate_total_energy(
-    jams::Real time,
+    double time,
     const SpinArray& spins,
     FieldArray& field,
     EnergyArray& energy) {

@@ -17,15 +17,15 @@ class CudaRandomAnisotropyHamiltonian : public RandomAnisotropyHamiltonian {
       CudaRandomAnisotropyHamiltonian(const libconfig::Setting &settings, const unsigned int size);
       ~CudaRandomAnisotropyHamiltonian() override = default;
 
-      void   calculate_energies(jams::Real time, const jams::MultiArray<jams::Real, 2>& spins) override;
-      void   calculate_fields(jams::Real time, const jams::MultiArray<jams::Real, 2>& spins) override;
-      jams::Real calculate_total_energy(jams::Real time, const jams::MultiArray<jams::Real, 2>& spins) override;
+      void   calculate_energies(double time, const jams::MultiArray<jams::Real, 2>& spins) override;
+      void   calculate_fields(double time, const jams::MultiArray<jams::Real, 2>& spins) override;
+      jams::Real calculate_total_energy(double time, const jams::MultiArray<jams::Real, 2>& spins) override;
 
-      jams::Vec<jams::Real, 3>   calculate_field(const int i, jams::Real time) final {
+      jams::Vec<jams::Real, 3>   calculate_field(const int i, double time) final {
         JAMS_UNIMPLEMENTED_FUNCTION; }
-      jams::Real calculate_energy(const int i, jams::Real time) final {
+      jams::Real calculate_energy(const int i, double time) final {
         JAMS_UNIMPLEMENTED_FUNCTION; }
-      jams::Real calculate_energy_difference(int i, const jams::Vec<double, 3> &spin_initial, const jams::Vec<double, 3> &spin_final, jams::Real time) final {
+      jams::Real calculate_energy_difference(int i, const jams::Vec<double, 3> &spin_initial, const jams::Vec<double, 3> &spin_final, double time) final {
         JAMS_UNIMPLEMENTED_FUNCTION;}
 
     private:

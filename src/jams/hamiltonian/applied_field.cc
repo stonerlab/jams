@@ -14,7 +14,7 @@ public:
     : b_field_(jams::config_required<jams::Vec<jams::Real, 3>>(settings, "field"))
     {}
 
-    jams::Vec<jams::Real, 3> field(const jams::Real time) override {
+    jams::Vec<jams::Real, 3> field(const double time) override {
       return b_field_;
     }
 private:
@@ -34,17 +34,17 @@ struct SincField : public AppliedFieldHamiltonian::TimeDependentField {
 public:
     explicit SincField(const libconfig::Setting &settings)
         : b_field_(jams::config_required<jams::Vec<jams::Real, 3>>(settings, "field"))
-        , time_center_(jams::config_required<jams::Real>(settings, "time_center") / 1e-12)
-        , freq_bandwidth_(jams::config_required<jams::Real>(settings, "freq_bandwidth")  / 1e12) //  Thz
+        , time_center_(jams::config_required<double>(settings, "time_center") / 1e-12)
+        , freq_bandwidth_(jams::config_required<double>(settings, "freq_bandwidth")  / 1e12) //  Thz
     {}
 
-    jams::Vec<jams::Real, 3> field(const jams::Real time) override {
+    jams::Vec<jams::Real, 3> field(const double time) override {
       return b_field_ * static_cast<jams::Real>(jams::sinc(kPi * freq_bandwidth_ * (time - time_center_)));
     }
 private:
     jams::Vec<jams::Real, 3> b_field_ = {0, 0, 0};
-    jams::Real time_center_ = 0.0;
-    jams::Real freq_bandwidth_ = 0.0;
+    double time_center_ = 0.0;
+    double freq_bandwidth_ = 0.0;
 };
 
 /// Implements an AppliedFieldHamiltonian functional class for the field
@@ -62,20 +62,20 @@ struct SincCosField : public AppliedFieldHamiltonian::TimeDependentField {
 public:
     explicit SincCosField(const libconfig::Setting &settings)
         : b_field_(jams::config_required<jams::Vec<jams::Real, 3>>(settings, "field"))
-          , time_center_(jams::config_required<jams::Real>(settings, "time_center") / 1e-12)
-          , freq_bandwidth_(jams::config_required<jams::Real>(settings, "freq_bandwidth")  / 1e12) //  THz
-          , freq_center_(jams::config_required<jams::Real>(settings, "freq_center")  / 1e12) //  THz
+          , time_center_(jams::config_required<double>(settings, "time_center") / 1e-12)
+          , freq_bandwidth_(jams::config_required<double>(settings, "freq_bandwidth")  / 1e12) //  THz
+          , freq_center_(jams::config_required<double>(settings, "freq_center")  / 1e12) //  THz
     {}
 
-    jams::Vec<jams::Real, 3> field(const jams::Real time) override {
+    jams::Vec<jams::Real, 3> field(const double time) override {
       return b_field_ * static_cast<jams::Real>(jams::sinc(kPi * freq_bandwidth_ * (time - time_center_))
                       * cos(kTwoPi * freq_center_ * (time - time_center_)));
     }
 private:
     jams::Vec<jams::Real, 3> b_field_ = {0, 0, 0};
-    jams::Real time_center_ = 0.0;
-    jams::Real freq_bandwidth_ = 0.0;
-    jams::Real freq_center_ = 0.0;
+    double time_center_ = 0.0;
+    double freq_bandwidth_ = 0.0;
+    double freq_center_ = 0.0;
 };
 
 
@@ -121,15 +121,15 @@ AppliedFieldHamiltonian::AppliedFieldHamiltonian(
 
 
 
-jams::Vec<jams::Real, 3> AppliedFieldHamiltonian::calculate_field(int i, jams::Real time) {
+jams::Vec<jams::Real, 3> AppliedFieldHamiltonian::calculate_field(int i, double time) {
   return globals::mus(i) * time_dependent_field_->field(time);
 }
 
-jams::Real AppliedFieldHamiltonian::calculate_energy(int i, jams::Real time) {
+jams::Real AppliedFieldHamiltonian::calculate_energy(int i, double time) {
   return calculate_energy_for_spin(i, {globals::s(i, 0), globals::s(i, 1), globals::s(i, 2)}, time);
 }
 
-jams::Real AppliedFieldHamiltonian::calculate_energy_for_spin(int i, const jams::Vec<double, 3>& spin, jams::Real time) {
+jams::Real AppliedFieldHamiltonian::calculate_energy_for_spin(int i, const jams::Vec<double, 3>& spin, double time) {
   auto field = calculate_field(i, time);
   return -( spin[0] * field[0]
           + spin[1] * field[1]
@@ -138,7 +138,7 @@ jams::Real AppliedFieldHamiltonian::calculate_energy_for_spin(int i, const jams:
 
 jams::Real AppliedFieldHamiltonian::calculate_energy_from_spins(
     const int i,
-    jams::Real time,
+    double time,
     const SpinHostView& spins) {
   const auto field = calculate_field(i, time);
   const jams::Vec<jams::Real, 3> spin = {spins(i, 0), spins(i, 1), spins(i, 2)};

@@ -161,7 +161,7 @@ DipoleFFTHamiltonian::DipoleFFTHamiltonian(const libconfig::Setting &settings, c
 }
 
 
-jams::Real DipoleFFTHamiltonian::calculate_total_energy(jams::Real time, const jams::MultiArray<jams::Real, 2>& spins) {
+jams::Real DipoleFFTHamiltonian::calculate_total_energy(double time, const jams::MultiArray<jams::Real, 2>& spins) {
     jams::Real e_total = 0.0;
 
     calculate_fields(time, spins);
@@ -175,7 +175,7 @@ jams::Real DipoleFFTHamiltonian::calculate_total_energy(jams::Real time, const j
     return -0.5*e_total;
 }
 
-jams::Real DipoleFFTHamiltonian::calculate_energy(const int i, jams::Real time) {
+jams::Real DipoleFFTHamiltonian::calculate_energy(const int i, double time) {
   const jams::Vec<jams::Real, 3> s_i = jams::array_cast<jams::Real>(jams::Vec<double, 3>{globals::s(i, 0), globals::s(i, 1), globals::s(i, 2)});
   const auto field = calculate_field(i, time);
   return -0.5 * jams::dot(s_i, field);
@@ -183,7 +183,7 @@ jams::Real DipoleFFTHamiltonian::calculate_energy(const int i, jams::Real time) 
 
 
 jams::Real DipoleFFTHamiltonian::calculate_energy_difference(
-    int i, const jams::Vec<double, 3> &spin_initial, const jams::Vec<double, 3> &spin_final, jams::Real time)
+    int i, const jams::Vec<double, 3> &spin_initial, const jams::Vec<double, 3> &spin_final, double time)
 {
     calculate_fields(time, global_spin_array_for_fields());
     const jams::Vec<jams::Real, 3> h = {field_(i, 0), field_(i, 1), field_(i, 2)};
@@ -193,7 +193,7 @@ jams::Real DipoleFFTHamiltonian::calculate_energy_difference(
 }
 
 
-jams::Vec<jams::Real, 3> DipoleFFTHamiltonian::calculate_field(const int i, jams::Real time) {
+jams::Vec<jams::Real, 3> DipoleFFTHamiltonian::calculate_field(const int i, double time) {
     calculate_fields(time, global_spin_array_for_fields());
     return {field_(i, 0), field_(i, 1), field_(i, 2)};
 }
@@ -408,7 +408,7 @@ DipoleFFTHamiltonian::generate_kspace_dipole_tensor(const int pos_i, const int p
 }
 
 
-void DipoleFFTHamiltonian::calculate_fields(jams::Real time, const jams::MultiArray<jams::Real, 2>& spins) {
+void DipoleFFTHamiltonian::calculate_fields(double time, const jams::MultiArray<jams::Real, 2>& spins) {
   const auto spin_view = spins.host_view();
   zero(field_);
 

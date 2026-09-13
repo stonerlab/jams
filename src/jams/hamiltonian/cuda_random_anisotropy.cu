@@ -59,7 +59,7 @@ CudaRandomAnisotropyHamiltonian::CudaRandomAnisotropyHamiltonian(const libconfig
   dev_direction_ = flatten_vector(direction_);
 }
 
-void CudaRandomAnisotropyHamiltonian::calculate_fields(jams::Real time, const jams::MultiArray<jams::Real, 2>& spins) {
+void CudaRandomAnisotropyHamiltonian::calculate_fields(double time, const jams::MultiArray<jams::Real, 2>& spins) {
   const unsigned num_blocks = (globals::num_spins+dev_blocksize_-1)/dev_blocksize_;
   random_anisotropy_cuda_field_kernel<<<num_blocks, dev_blocksize_, 0, cuda_stream_.get()>>>(
           globals::num_spins,
@@ -71,7 +71,7 @@ void CudaRandomAnisotropyHamiltonian::calculate_fields(jams::Real time, const ja
   DEBUG_CHECK_CUDA_ASYNC_STATUS;
 }
 
-void CudaRandomAnisotropyHamiltonian::calculate_energies(jams::Real time, const jams::MultiArray<jams::Real, 2>& spins) {
+void CudaRandomAnisotropyHamiltonian::calculate_energies(double time, const jams::MultiArray<jams::Real, 2>& spins) {
   const unsigned num_blocks = (globals::num_spins+dev_blocksize_-1)/dev_blocksize_;
   random_anisotropy_cuda_energy_kernel<<<num_blocks, dev_blocksize_, 0, cuda_stream_.get()>>>(
           globals::num_spins,
@@ -82,7 +82,7 @@ void CudaRandomAnisotropyHamiltonian::calculate_energies(jams::Real time, const 
   DEBUG_CHECK_CUDA_ASYNC_STATUS;
 }
 
-jams::Real CudaRandomAnisotropyHamiltonian::calculate_total_energy(jams::Real time, const jams::MultiArray<jams::Real, 2>& spins) {
+jams::Real CudaRandomAnisotropyHamiltonian::calculate_total_energy(double time, const jams::MultiArray<jams::Real, 2>& spins) {
   calculate_energies(time, spins);
   return thrust::reduce(energy_.device_data(), energy_.device_data()+energy_.size());
 }

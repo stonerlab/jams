@@ -36,7 +36,7 @@ class Solver {
     return iteration_;
   }
 
-  inline jams::Real time() const {
+  inline double time() const {
     return time_;
   }
 
@@ -83,14 +83,22 @@ class Solver {
 
   static Solver* create(const libconfig::Setting &setting);
  protected:
+    // Input times are in seconds; the clock and stage times are in picoseconds.
+    // Keep time independent of the precision used for spins and fields.
+    void initialize_time(const libconfig::Setting& settings);
+    void advance_time() {
+      ++iteration_;
+      time_ = iteration_ * step_size_;
+    }
+
     void initialize_gyro_eff(const libconfig::Setting& settings, jams::MultiArray<jams::Real, 1>& gyro_eff) const;
 
     int iteration_ = 0;
     int max_steps_ = 0;
     int min_steps_ = 0;
 
-    jams::Real time_ = 0.0;
-    jams::Real step_size_ = 1.0;
+    double time_ = 0.0;
+    double step_size_ = 1.0;
 
   std::unique_ptr<Physics> physics_module_;
   std::unique_ptr<Thermostat> thermostat_;

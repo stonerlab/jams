@@ -14,15 +14,15 @@ class UniaxialMicroscopicAnisotropyHamiltonian : public Hamiltonian {
 public:
     UniaxialMicroscopicAnisotropyHamiltonian(const libconfig::Setting &settings, unsigned int size);
 
-    void calculate_energies(jams::Real time, const jams::MultiArray<jams::Real, 2>& spins) override;
+    void calculate_energies(double time, const jams::MultiArray<jams::Real, 2>& spins) override;
 
-    void calculate_fields(jams::Real time, const jams::MultiArray<jams::Real, 2>& spins) override;
+    void calculate_fields(double time, const jams::MultiArray<jams::Real, 2>& spins) override;
 
-    jams::Vec<jams::Real, 3> calculate_field(int i, jams::Real time) override;
+    jams::Vec<jams::Real, 3> calculate_field(int i, double time) override;
 
-    jams::Real calculate_energy(int i, jams::Real time) override;
+    jams::Real calculate_energy(int i, double time) override;
 
-    jams::Real calculate_energy_difference(int i, const jams::Vec<double, 3> &spin_initial, const jams::Vec<double, 3> &spin_final, jams::Real time) override;
+    jams::Real calculate_energy_difference(int i, const jams::Vec<double, 3> &spin_initial, const jams::Vec<double, 3> &spin_final, double time) override;
 
     EnergyCurrentInteractionSupport energy_current_interaction_support() const override {
       return EnergyCurrentInteractionSupport::None;

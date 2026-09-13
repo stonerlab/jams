@@ -90,18 +90,18 @@ public:
 
     const jams::InteractionList<jams::Mat<double, 3, 3>, 2> &neighbour_list() const;
 
-    jams::Real calculate_total_energy(jams::Real time, const SpinArray& spins) override;
-    void calculate_energies(jams::Real time, const SpinArray& spins) override;
-    void calculate_fields(jams::Real time, const SpinArray& spins) override;
+    jams::Real calculate_total_energy(double time, const SpinArray& spins) override;
+    void calculate_energies(double time, const SpinArray& spins) override;
+    void calculate_fields(double time, const SpinArray& spins) override;
     bool supports_calculate_fields_in_parallel() const override;
-    void calculate_fields_in_parallel(jams::Real time, const SpinArray& spins) override;
-    jams::Vec<jams::Real, 3> calculate_field(int i, jams::Real time) override;
-    jams::Real calculate_energy(int i, jams::Real time) override;
+    void calculate_fields_in_parallel(double time, const SpinArray& spins) override;
+    jams::Vec<jams::Real, 3> calculate_field(int i, double time) override;
+    jams::Real calculate_energy(int i, double time) override;
     jams::Real calculate_energy_difference(
         int i,
         const jams::Vec<double, 3>& spin_initial,
         const jams::Vec<double, 3>& spin_final,
-        jams::Real time) override;
+        double time) override;
 
     EnergyCurrentInteractionSupport energy_current_interaction_support() const override {
       return EnergyCurrentInteractionSupport::Supported;

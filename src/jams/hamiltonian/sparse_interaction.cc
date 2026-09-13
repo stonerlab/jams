@@ -34,7 +34,7 @@ void SparseInteractionHamiltonian::insert_interaction_tensor(const int i, const 
   interaction_matrix_builder_.insert(i, j, value);
 }
 
-void SparseInteractionHamiltonian::calculate_fields(jams::Real time, const jams::MultiArray<jams::Real, 2>& spins) {
+void SparseInteractionHamiltonian::calculate_fields(double time, const jams::MultiArray<jams::Real, 2>& spins) {
   assert(is_finalized_);
   #if HAS_CUDA
     if (jams::instance().mode() == jams::Mode::GPU) {
@@ -50,13 +50,13 @@ bool SparseInteractionHamiltonian::supports_calculate_fields_in_parallel() const
 }
 
 void SparseInteractionHamiltonian::calculate_fields_in_parallel(
-    jams::Real,
+    double,
     const jams::MultiArray<jams::Real, 2>& spins) {
   assert(is_finalized_);
   interaction_matrix_.multiply_in_parallel(spins, field_);
 }
 
-jams::Vec<jams::Real, 3> SparseInteractionHamiltonian::calculate_field(const int i, jams::Real time) {
+jams::Vec<jams::Real, 3> SparseInteractionHamiltonian::calculate_field(const int i, double time) {
   assert(is_finalized_);
   jams::Vec<jams::Real, 3> field;
 
@@ -64,7 +64,7 @@ jams::Vec<jams::Real, 3> SparseInteractionHamiltonian::calculate_field(const int
   return field;
 }
 
-void SparseInteractionHamiltonian::calculate_energies(jams::Real time, const jams::MultiArray<jams::Real, 2>& spins) {
+void SparseInteractionHamiltonian::calculate_energies(double time, const jams::MultiArray<jams::Real, 2>& spins) {
   assert(is_finalized_);
   #if HAS_CUDA
   if (jams::instance().mode() == jams::Mode::GPU) {
@@ -91,7 +91,7 @@ void SparseInteractionHamiltonian::calculate_energies(jams::Real time, const jam
 }
 
 jams::Real SparseInteractionHamiltonian::calculate_energy_difference(int i, const jams::Vec<double, 3> &spin_initial,
-                                                                 const jams::Vec<double, 3> &spin_final, jams::Real time) {
+                                                                 const jams::Vec<double, 3> &spin_final, double time) {
   assert(is_finalized_);
   auto field = calculate_field(i, time);
   auto e_initial = -jams::dot(spin_initial, field);
@@ -99,14 +99,14 @@ jams::Real SparseInteractionHamiltonian::calculate_energy_difference(int i, cons
   return e_final - e_initial;
 }
 
-jams::Real SparseInteractionHamiltonian::calculate_energy(const int i, jams::Real time) {
+jams::Real SparseInteractionHamiltonian::calculate_energy(const int i, double time) {
   assert(is_finalized_);
   jams::Vec<double, 3> s_i = {globals::s(i,0), globals::s(i,1), globals::s(i,2)};
   auto field = calculate_field(i, time);
   return -0.5 * jams::dot(s_i, field);
 }
 
-jams::Real SparseInteractionHamiltonian::calculate_total_energy(jams::Real time, const jams::MultiArray<jams::Real, 2>& spins) {
+jams::Real SparseInteractionHamiltonian::calculate_total_energy(double time, const jams::MultiArray<jams::Real, 2>& spins) {
   assert(is_finalized_);
 
 #if HAS_CUDA

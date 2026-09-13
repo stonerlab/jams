@@ -574,17 +574,7 @@ void rkmk4_step_4(const double dt,
 }  // namespace
 
 void RKMK2LLGSolver::initialize(const libconfig::Setting& settings) {
-  step_size_ = jams::config_required<double>(settings, "t_step") / 1e-12;
-  const auto t_max = jams::config_required<double>(settings, "t_max") / 1e-12;
-  const auto t_min =
-      jams::config_optional<double>(settings, "t_min", 0.0) / 1e-12;
-
-  max_steps_ = static_cast<int>(t_max / step_size_);
-  min_steps_ = static_cast<int>(t_min / step_size_);
-
-  std::cout << "\ntimestep (ps) " << step_size_ << "\n";
-  std::cout << "\nt_max (ps) " << t_max << " steps " << max_steps_ << "\n";
-  std::cout << "\nt_min (ps) " << t_min << " steps " << min_steps_ << "\n";
+  initialize_time(settings);
 
   initialize_gyro_eff(settings, gyro_eff_);
 
@@ -641,8 +631,7 @@ void RKMK2LLGSolver::run_persistent_parallel_step() {
 
 #pragma omp single
     {
-      iteration_++;
-      time_ = iteration_ * step_size_;
+      advance_time();
     }
   }
 #else
@@ -672,22 +661,11 @@ void RKMK2LLGSolver::run() {
   update_thermostat();
   rkmk2_step_2(step_size_, half_dt, s_init_, phi_, gyro_eff_, thermostat_->data());
 
-  iteration_++;
-  time_ = iteration_ * step_size_;
+  advance_time();
 }
 
 void RKMK4LLGSolver::initialize(const libconfig::Setting& settings) {
-  step_size_ = jams::config_required<double>(settings, "t_step") / 1e-12;
-  const auto t_max = jams::config_required<double>(settings, "t_max") / 1e-12;
-  const auto t_min =
-      jams::config_optional<double>(settings, "t_min", 0.0) / 1e-12;
-
-  max_steps_ = static_cast<int>(t_max / step_size_);
-  min_steps_ = static_cast<int>(t_min / step_size_);
-
-  std::cout << "\ntimestep (ps) " << step_size_ << "\n";
-  std::cout << "\nt_max (ps) " << t_max << " steps " << max_steps_ << "\n";
-  std::cout << "\nt_min (ps) " << t_min << " steps " << min_steps_ << "\n";
+  initialize_time(settings);
 
   initialize_gyro_eff(settings, gyro_eff_);
 
@@ -728,6 +706,5 @@ void RKMK4LLGSolver::run() {
   rkmk4_step_4(
       step_size_, half_dt, s_init_, k1_, k2_, k3_, gyro_eff_, thermostat_->data());
 
-  iteration_++;
-  time_ = iteration_ * step_size_;
+  advance_time();
 }

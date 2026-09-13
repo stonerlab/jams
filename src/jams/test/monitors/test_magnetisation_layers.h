@@ -36,7 +36,7 @@ public:
   void run() override {}
   std::string name() const override { return "magnetisation-layers-stub"; }
 
-  void set_monitor_state(const int iteration, const jams::Real time) {
+  void set_monitor_state(const int iteration, const double time) {
     iteration_ = iteration;
     time_ = time;
   }

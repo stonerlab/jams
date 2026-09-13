@@ -27,8 +27,8 @@ CudaFieldPulseHamiltonian::CudaFieldPulseHamiltonian(
     settings, size) {
 
   surface_cutoff_ = jams::config_required<jams::Real>(settings, "surface_cutoff");
-  temporal_width_ = jams::config_required<jams::Real>(settings, "temporal_width");
-  temporal_center_ = jams::config_required<jams::Real>(settings, "temporal_center");
+  temporal_width_ = jams::config_required<double>(settings, "temporal_width");
+  temporal_center_ = jams::config_required<double>(settings, "temporal_center");
   max_field_ = jams::config_required<jams::Vec<jams::Real, 3>>(settings, "field");
 
   positions_.resize(globals::num_spins, 3);
@@ -41,7 +41,7 @@ CudaFieldPulseHamiltonian::CudaFieldPulseHamiltonian(
   output_pulse();
 }
 
-void CudaFieldPulseHamiltonian::calculate_fields(jams::Real time, const jams::MultiArray<jams::Real, 2>& spins) {
+void CudaFieldPulseHamiltonian::calculate_fields(double time, const jams::MultiArray<jams::Real, 2>& spins) {
 
   dim3 block_size;
   block_size.x = 64;
@@ -49,7 +49,7 @@ void CudaFieldPulseHamiltonian::calculate_fields(jams::Real time, const jams::Mu
   dim3 grid_size;
   grid_size.x = (globals::num_spins + block_size.x - 1) / block_size.x;
 
-  jams::Vec<jams::Real, 3> b_field = gaussian(time, temporal_center_, static_cast<jams::Real>(1), temporal_width_) * max_field_;
+  jams::Vec<jams::Real, 3> b_field = static_cast<jams::Real>(gaussian(time, temporal_center_, 1.0, temporal_width_)) * max_field_;
   jams::Real3 field = {b_field[0], b_field[1], b_field[2]};
   cuda_field_pulse_surface_kernel<<<grid_size, block_size, 0, cuda_stream_.get() >>>
       (globals::num_spins, surface_cutoff_, globals::mus.device_data(), positions_.device_data(),
@@ -60,14 +60,14 @@ void CudaFieldPulseHamiltonian::calculate_fields(jams::Real time, const jams::Mu
 void CudaFieldPulseHamiltonian::output_pulse() const {
   jams::output::TsvWriter tsv(
       jams::output::hamiltonian_filename(name(), "pulse", "tsv"),
-      {{"time", "picoseconds"},
+      {jams::output::time_column(),
        {"Hx", "T", jams::output::ColFmt::Fixed},
        {"Hy", "T", jams::output::ColFmt::Fixed},
        {"Hz", "T", jams::output::ColFmt::Fixed}});
 
   for (auto i = 0; i < globals::solver->max_steps(); ++i) {
-    jams::Real time = i * globals::solver->time_step();
-    jams::Vec<jams::Real, 3> field = gaussian(time, temporal_center_, static_cast<jams::Real>(1), temporal_width_) * max_field_;
+    double time = i * globals::solver->time_step();
+    jams::Vec<jams::Real, 3> field = static_cast<jams::Real>(gaussian(time, temporal_center_, 1.0, temporal_width_)) * max_field_;
     tsv.write_row_values(time, field[0], field[1], field[2]);
   }
 }

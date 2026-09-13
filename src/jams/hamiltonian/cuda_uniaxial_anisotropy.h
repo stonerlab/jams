@@ -12,9 +12,9 @@ class CudaUniaxialAnisotropyHamiltonian : public UniaxialAnisotropyHamiltonian {
 public:
     CudaUniaxialAnisotropyHamiltonian(const libconfig::Setting &settings, const unsigned int size);
 
-    jams::Real calculate_total_energy(jams::Real time, const jams::MultiArray<jams::Real, 2>& spins) override;
-    void   calculate_energies(jams::Real time, const jams::MultiArray<jams::Real, 2>& spins) override;
-    void   calculate_fields(jams::Real time, const jams::MultiArray<jams::Real, 2>& spins) override;
+    jams::Real calculate_total_energy(double time, const jams::MultiArray<jams::Real, 2>& spins) override;
+    void   calculate_energies(double time, const jams::MultiArray<jams::Real, 2>& spins) override;
+    void   calculate_fields(double time, const jams::MultiArray<jams::Real, 2>& spins) override;
 private:
     unsigned int dev_blocksize_ = 256;
 };

@@ -41,28 +41,28 @@ public:
     static Hamiltonian *create(const libconfig::Setting &settings, unsigned int size, bool is_cuda_solver);
 
     // calculate the field a spin i
-    virtual jams::Vec<jams::Real, 3> calculate_field(int i, jams::Real time) = 0;
+    virtual jams::Vec<jams::Real, 3> calculate_field(int i, double time) = 0;
 
     // calculate the energy of spin i
-    virtual jams::Real calculate_energy(int i, jams::Real time) = 0;
+    virtual jams::Real calculate_energy(int i, double time) = 0;
 
     // calculate the field at each spin and store in field_
-    virtual void calculate_fields(jams::Real time, const SpinArray& spins);
+    virtual void calculate_fields(double time, const SpinArray& spins);
 
     // Opt-in variant for callers that are already inside an OpenMP parallel
     // region. Implementations must use omp for-style work sharing and must be
     // called by every thread in the team.
     virtual bool supports_calculate_fields_in_parallel() const;
-    virtual void calculate_fields_in_parallel(jams::Real time, const SpinArray& spins);
+    virtual void calculate_fields_in_parallel(double time, const SpinArray& spins);
 
     // calculate the energy of each spin and store in energy_
-    virtual void calculate_energies(jams::Real time, const SpinArray& spins);
+    virtual void calculate_energies(double time, const SpinArray& spins);
 
     // calculate the total energy of this Hamiltonian term
-    virtual jams::Real calculate_total_energy(jams::Real time, const SpinArray& spins);
+    virtual jams::Real calculate_total_energy(double time, const SpinArray& spins);
 
     // calculate the energy difference of spin i in initial and final states
-    virtual jams::Real calculate_energy_difference(int i, const jams::Vec<double, 3> &spin_initial, const jams::Vec<double, 3> &spin_final, jams::Real time);
+    virtual jams::Real calculate_energy_difference(int i, const jams::Vec<double, 3> &spin_initial, const jams::Vec<double, 3> &spin_final, double time);
 
     // Declares whether this Hamiltonian contributes pair interaction operators
     // needed by thermal-current calculations.
@@ -126,14 +126,14 @@ public:
 #endif
 
 protected:
-    virtual jams::Vec<jams::Real, 3> calculate_field_from_spins(int i, jams::Real time, const SpinHostView& spins);
-    virtual jams::Real calculate_energy_from_spins(int i, jams::Real time, const SpinHostView& spins);
+    virtual jams::Vec<jams::Real, 3> calculate_field_from_spins(int i, double time, const SpinHostView& spins);
+    virtual jams::Real calculate_energy_from_spins(int i, double time, const SpinHostView& spins);
     const SpinArray& global_spin_array_for_fields();
 
     // calculate the energy of spin i for a proposed spin direction without
     // changing globals::s. Hamiltonians that use the base energy-difference
     // implementation must override this.
-    virtual jams::Real calculate_energy_for_spin(int i, const jams::Vec<double, 3> &spin, jams::Real time);
+    virtual jams::Real calculate_energy_for_spin(int i, const jams::Vec<double, 3> &spin, double time);
 
     std::string input_energy_unit_name_; // name of energy unit in input
     double input_energy_unit_conversion_ = 1.0; // conversion factor from input energy to JAMS native units

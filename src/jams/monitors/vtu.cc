@@ -3,6 +3,8 @@
 #include <cstdint>
 #include <string>
 #include <fstream>
+#include <iomanip>
+#include <limits>
 #include <iostream>
 
 #include "jams/helpers/error.h"
@@ -112,7 +114,9 @@ void VtuMonitor::update(Solver& solver) {
     vtkfile << "VTU file produced by JAMS++ (" << QUOTEME(GITCOMMIT) << ")\n";
     vtkfile << "  configuration file: " << globals::simulation_name << "\n";
     vtkfile << "  iteration: " << solver.iteration() << "\n";
-    vtkfile << "  time: " << solver.time() << "\n";
+    const auto precision = vtkfile.precision();
+    vtkfile << "  time: " << std::setprecision(std::numeric_limits<double>::max_digits10) << solver.time() << "\n";
+    vtkfile.precision(precision);
     vtkfile << "  temperature: " << solver.physics()->temperature() << "\n";
     vtkfile << "  applied field: (" << solver.physics()->applied_field(0) << ", " << solver.physics()->applied_field(1) << ", " << solver.physics()->applied_field(2) << ")\n";
     vtkfile << "-->" << "\n";

@@ -30,31 +30,31 @@ public:
   }
 
   [[nodiscard]] virtual bool supports_calculate_fields_in_parallel() const = 0;
-  virtual void calculate_fields(jams::Real time, const SpinArray& spins, FieldArray& field) = 0;
-  virtual void calculate_fields_in_parallel(jams::Real time, const SpinArray& spins, FieldArray& field) = 0;
+  virtual void calculate_fields(double time, const SpinArray& spins, FieldArray& field) = 0;
+  virtual void calculate_fields_in_parallel(double time, const SpinArray& spins, FieldArray& field) = 0;
   virtual void calculate_energies(
-      jams::Real time,
+      double time,
       const SpinArray& spins,
       FieldArray& field,
       EnergyArray& energy) = 0;
   [[nodiscard]] virtual jams::Real calculate_total_energy(
-      jams::Real time,
+      double time,
       const SpinArray& spins,
       FieldArray& field,
       EnergyArray& energy) = 0;
   [[nodiscard]] virtual jams::Vec<jams::Real, 3> calculate_field(
       int site,
-      jams::Real time,
+      double time,
       const SpinArray& spins) = 0;
   [[nodiscard]] virtual jams::Real calculate_energy(
       int site,
-      jams::Real time,
+      double time,
       const SpinArray& spins) = 0;
   [[nodiscard]] virtual jams::Real calculate_energy_difference(
       int site,
       const jams::Vec<double, 3>& spin_initial,
       const jams::Vec<double, 3>& spin_final,
-      jams::Real time,
+      double time,
       const SpinArray& spins) = 0;
   virtual void add_energy_current_interactions(jams::EnergyCurrentInteractionSink& sink) const = 0;
 };
@@ -69,31 +69,31 @@ public:
   static ExchangeBackendSupport check_support(const ExchangeInteractionSetup& setup);
 
   [[nodiscard]] bool supports_calculate_fields_in_parallel() const override;
-  void calculate_fields(jams::Real time, const SpinArray& spins, FieldArray& field) override;
-  void calculate_fields_in_parallel(jams::Real time, const SpinArray& spins, FieldArray& field) override;
+  void calculate_fields(double time, const SpinArray& spins, FieldArray& field) override;
+  void calculate_fields_in_parallel(double time, const SpinArray& spins, FieldArray& field) override;
   void calculate_energies(
-      jams::Real time,
+      double time,
       const SpinArray& spins,
       FieldArray& field,
       EnergyArray& energy) override;
   [[nodiscard]] jams::Real calculate_total_energy(
-      jams::Real time,
+      double time,
       const SpinArray& spins,
       FieldArray& field,
       EnergyArray& energy) override;
   [[nodiscard]] jams::Vec<jams::Real, 3> calculate_field(
       int site,
-      jams::Real time,
+      double time,
       const SpinArray& spins) override;
   [[nodiscard]] jams::Real calculate_energy(
       int site,
-      jams::Real time,
+      double time,
       const SpinArray& spins) override;
   [[nodiscard]] jams::Real calculate_energy_difference(
       int site,
       const jams::Vec<double, 3>& spin_initial,
       const jams::Vec<double, 3>& spin_final,
-      jams::Real time,
+      double time,
       const SpinArray& spins) override;
   void add_energy_current_interactions(jams::EnergyCurrentInteractionSink& sink) const override;
 

@@ -425,31 +425,31 @@ CudaDipoleFFTHamiltonian::CudaDipoleFFTHamiltonian(const libconfig::Setting &set
   CHECK_CUFFT_STATUS(cufftSetStream(cuda_fft_h_kspace_to_rspace, cuda_stream_.get()));
 }
 
-jams::Real CudaDipoleFFTHamiltonian::calculate_total_energy(jams::Real time, const jams::MultiArray<jams::Real, 2>& spins) {
+jams::Real CudaDipoleFFTHamiltonian::calculate_total_energy(double time, const jams::MultiArray<jams::Real, 2>& spins) {
   calculate_energies(time, spins);
   return cuda_reduce_array(energy_.device_data(), globals::num_spins, cuda_stream_.get());
 }
 
-jams::Real CudaDipoleFFTHamiltonian::calculate_one_spin_energy(const int i, const jams::Vec<double, 3> &s_i, jams::Real time) {
+jams::Real CudaDipoleFFTHamiltonian::calculate_one_spin_energy(const int i, const jams::Vec<double, 3> &s_i, double time) {
     throw jams::unimplemented_error("CudaDipoleFFTHamiltonian::calculate_one_spin_energy is not implemented");
 }
 
-jams::Real CudaDipoleFFTHamiltonian::calculate_energy(const int i, jams::Real time) {
+jams::Real CudaDipoleFFTHamiltonian::calculate_energy(const int i, double time) {
     throw jams::unimplemented_error("CudaDipoleFFTHamiltonian::calculate_energy is not implemented");
 }
 
 jams::Real CudaDipoleFFTHamiltonian::calculate_energy_difference(
-    int i, const jams::Vec<double, 3> &spin_initial, const jams::Vec<double, 3> &spin_final, jams::Real time) {
+    int i, const jams::Vec<double, 3> &spin_initial, const jams::Vec<double, 3> &spin_final, double time) {
   throw jams::unimplemented_error("CudaDipoleFFTHamiltonian::calculate_energy_difference is not implemented");
 }
 
-void CudaDipoleFFTHamiltonian::calculate_energies(jams::Real time, const jams::MultiArray<jams::Real, 2>& spins) {
+void CudaDipoleFFTHamiltonian::calculate_energies(double time, const jams::MultiArray<jams::Real, 2>& spins) {
   calculate_fields(time, spins);
   const auto minus_half = static_cast<jams::Real>(-0.5);
   cuda_array_dot_product(globals::num_spins, minus_half, spins.device_data(), field_.device_data(), energy_.mutable_device_data(), cuda_stream_.get());
 }
 
-jams::Vec<jams::Real, 3> CudaDipoleFFTHamiltonian::calculate_field(const int i, jams::Real time) {
+jams::Vec<jams::Real, 3> CudaDipoleFFTHamiltonian::calculate_field(const int i, double time) {
   throw jams::unimplemented_error("CudaDipoleFFTHamiltonian::calculate_field is not implemented");
 }
 
@@ -526,7 +526,7 @@ void CudaDipoleFFTHamiltonian::add_energy_current_interactions(
   }
 }
 
-void CudaDipoleFFTHamiltonian::calculate_fields(jams::Real time, const jams::MultiArray<jams::Real, 2>& spins) {
+void CudaDipoleFFTHamiltonian::calculate_fields(double time, const jams::MultiArray<jams::Real, 2>& spins) {
 
   if (use_dense_fft_buffers_) {
     const unsigned int num_dense_slots = fft_site_map_.size();

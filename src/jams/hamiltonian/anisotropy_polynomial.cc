@@ -599,7 +599,7 @@ void AnisotropyPolynomialHamiltonian::set_tesseral_terms(
     }
 }
 
-jams::Vec<jams::Real, 3> AnisotropyPolynomialHamiltonian::calculate_field(int i, jams::Real time)
+jams::Vec<jams::Real, 3> AnisotropyPolynomialHamiltonian::calculate_field(int i, double time)
 {
     const auto spins = std::as_const(globals::s).host_view();
     jams::Real field[3];
@@ -624,7 +624,7 @@ jams::Vec<jams::Real, 3> AnisotropyPolynomialHamiltonian::calculate_field(int i,
 
 jams::Vec<jams::Real, 3> AnisotropyPolynomialHamiltonian::calculate_field_from_spins(
     int i,
-    jams::Real time,
+    double time,
     const SpinHostView& spins)
 {
     jams::Real field[3];
@@ -647,7 +647,7 @@ jams::Vec<jams::Real, 3> AnisotropyPolynomialHamiltonian::calculate_field_from_s
     return {field[0], field[1], field[2]};
 }
 
-jams::Real AnisotropyPolynomialHamiltonian::calculate_energy(int i, jams::Real time)
+jams::Real AnisotropyPolynomialHamiltonian::calculate_energy(int i, double time)
 {
     const auto spins = std::as_const(globals::s).host_view();
     return jams::tesseral_polynomial::energy_for_spin_with_profiles(
@@ -668,7 +668,7 @@ jams::Real AnisotropyPolynomialHamiltonian::calculate_energy(int i, jams::Real t
 
 jams::Real AnisotropyPolynomialHamiltonian::calculate_energy_from_spins(
     int i,
-    jams::Real time,
+    double time,
     const SpinHostView& spins)
 {
     return jams::tesseral_polynomial::energy_for_spin_with_profiles(
@@ -687,7 +687,7 @@ jams::Real AnisotropyPolynomialHamiltonian::calculate_energy_from_spins(
         std::as_const(axial_polynomial_coefficients_).host_data());
 }
 
-jams::Real AnisotropyPolynomialHamiltonian::calculate_energy_for_spin(int i, const jams::Vec<double, 3> &spin, jams::Real time)
+jams::Real AnisotropyPolynomialHamiltonian::calculate_energy_for_spin(int i, const jams::Vec<double, 3> &spin, double time)
 {
     return jams::tesseral_polynomial::energy_for_spin_with_profiles(
         i,

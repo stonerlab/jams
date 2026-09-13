@@ -1,6 +1,8 @@
 // Copyright 2014 Joseph Barker. All rights reserved.
 
 #include <algorithm>
+#include <cmath>
+#include <limits>
 #include <memory>
 #include <stdexcept>
 #include <string>
@@ -48,6 +50,51 @@ return new type(settings); \
 } \
 }
 
+
+void Solver::initialize_time(const libconfig::Setting& settings) {
+  // Configuration uses seconds; dynamics and monitor coordinates use ps.
+  const double step = jams::config_required<double>(settings, "t_step") / 1e-12;
+  const double t_max = jams::config_required<double>(settings, "t_max") / 1e-12;
+  const double t_min = jams::config_optional<double>(settings, "t_min", 0.0) / 1e-12;
+  if (!std::isfinite(step) || step <= 0.0) {
+    throw std::runtime_error("solver.t_step must be finite and positive");
+  }
+  if (!std::isfinite(t_max) || !std::isfinite(t_min) || t_min < 0.0 || t_max < t_min) {
+    throw std::runtime_error("solver times must be finite and satisfy 0 <= t_min <= t_max");
+  }
+
+  const auto step_count = [step](double duration, bool minimum) {
+    double quotient = duration / step;
+    if (!std::isfinite(quotient)) {
+      throw std::runtime_error("solver duration exceeds the supported step count");
+    }
+    const double nearest = std::round(quotient);
+    const double tolerance = 8 * std::numeric_limits<double>::epsilon()
+        * std::max(1.0, std::abs(quotient));
+    if (std::abs(quotient - nearest) <= tolerance) {
+      quotient = nearest;
+    }
+    const double count = minimum ? std::ceil(quotient) : std::floor(quotient);
+    if (count > std::numeric_limits<int>::max()) {
+      throw std::runtime_error("solver duration exceeds the supported step count");
+    }
+    return static_cast<int>(count);
+  };
+
+  const int max_steps = step_count(t_max, false);
+  const int min_steps = step_count(t_min, true);
+  if (min_steps > max_steps) {
+    throw std::runtime_error("solver t_min and t_max contain no common timestep boundary");
+  }
+  step_size_ = step;
+  max_steps_ = max_steps;
+  min_steps_ = min_steps;
+  iteration_ = 0;
+  time_ = 0.0;
+  std::cout << "\ntimestep (ps) " << step_size_ << "\n";
+  std::cout << "\nt_max (ps) " << t_max << " steps " << max_steps_ << "\n";
+  std::cout << "\nt_min (ps) " << t_min << " steps " << min_steps_ << "\n";
+}
 
 void Solver::initialize_gyro_eff(
     const libconfig::Setting& settings,
@@ -290,7 +337,7 @@ bool Solver::is_running() {
 }
 
 std::vector<jams::output::ColDef> Solver::monitor_coordinate_columns() const {
-  return {{"time", "picoseconds", jams::output::ColFmt::Scientific}};
+  return {jams::output::time_column()};
 }
 
 std::vector<double> Solver::monitor_coordinates() const {

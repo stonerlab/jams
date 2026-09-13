@@ -12,23 +12,23 @@ class ZeemanHamiltonian : public Hamiltonian {
 public:
     ZeemanHamiltonian(const libconfig::Setting &settings, unsigned int size);
 
-    jams::Vec<jams::Real, 3> calculate_field(int i, jams::Real time) override;
+    jams::Vec<jams::Real, 3> calculate_field(int i, double time) override;
 
-    jams::Real calculate_energy(int i, jams::Real time) override;
+    jams::Real calculate_energy(int i, double time) override;
 
     EnergyCurrentInteractionSupport energy_current_interaction_support() const override {
       return EnergyCurrentInteractionSupport::None;
     }
 
 protected:
-    jams::Real calculate_energy_from_spins(int i, jams::Real time, const SpinHostView& spins) override;
+    jams::Real calculate_energy_from_spins(int i, double time, const SpinHostView& spins) override;
 
-    jams::Real calculate_energy_for_spin(int i, const jams::Vec<double, 3> &spin, jams::Real time) override;
+    jams::Real calculate_energy_for_spin(int i, const jams::Vec<double, 3> &spin, double time) override;
 
 private:
     jams::MultiArray<jams::Real, 2> dc_local_field_;
     jams::MultiArray<jams::Real, 2> ac_local_field_;
-    jams::MultiArray<jams::Real, 1> ac_local_frequency_;
+    jams::MultiArray<double, 1> ac_local_frequency_;
 
     bool has_ac_local_field_;
 };

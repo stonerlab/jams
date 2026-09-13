@@ -13,6 +13,7 @@
 #include <cassert>
 #include <cmath>
 #include <optional>
+#include <limits>
 #include <stdexcept>
 #include <unordered_set>
 #include <utility>
@@ -86,7 +87,14 @@ namespace jams::output {
         std::string name;
         std::string units;
         ColFmt format = ColFmt::Scientific;
+        std::optional<int> precision = std::nullopt;
     };
+
+    // Scientific precision counts digits after the decimal point.
+    inline ColDef time_column() {
+      return {"time", "picoseconds", ColFmt::Scientific,
+              std::numeric_limits<double>::max_digits10 - 1};
+    }
 
     inline void apply_format(std::ostream& os, ColFmt fmt, int precision = 8)
     {
@@ -145,7 +153,7 @@ namespace jams::output {
         const auto& col = cols[i];
         double v = values[i];
 
-        apply_format(os, col.format, precision);
+        apply_format(os, col.format, col.precision.value_or(precision));
 
         switch (col.format) {
           case ColFmt::Integer:
@@ -172,7 +180,7 @@ namespace jams::output {
       for (std::size_t i = 0; i < cols.size(); ++i) {
         const auto& col = cols[i];
 
-        apply_format(os, col.format, precision);
+        apply_format(os, col.format, col.precision.value_or(precision));
         if (!values[i].has_value()) {
           os << "--------";
           write_tsv_separator(os, i, cols.size());
@@ -217,7 +225,7 @@ namespace jams::output {
 
       for (std::size_t i = 0; i < cols.size(); ++i) {
         const auto& col = cols[i];
-        apply_format(os, col.format, precision);
+        apply_format(os, col.format, col.precision.value_or(precision));
         os << col.name;
         write_tsv_separator(os, i, cols.size());
       }

@@ -38,13 +38,13 @@ CudaUniaxialMicroscopicAnisotropyHamiltonian::CudaUniaxialMicroscopicAnisotropyH
   dev_blocksize_ = 128;
 }
 
-void CudaUniaxialMicroscopicAnisotropyHamiltonian::calculate_fields(jams::Real time, const jams::MultiArray<jams::Real, 2>& spins) {
+void CudaUniaxialMicroscopicAnisotropyHamiltonian::calculate_fields(double time, const jams::MultiArray<jams::Real, 2>& spins) {
   cuda_uniaxial_microscopic_field_kernel<<<(globals::num_spins+dev_blocksize_-1)/dev_blocksize_, dev_blocksize_, 0, cuda_stream_.get()>>>
             (globals::num_spins, mca_order_.size(), mca_order_.device_data(), mca_value_.device_data(), spins.device_data(), field_.mutable_device_data());
   DEBUG_CHECK_CUDA_ASYNC_STATUS;
 }
 
-void CudaUniaxialMicroscopicAnisotropyHamiltonian::calculate_energies(jams::Real time, const jams::MultiArray<jams::Real, 2>& spins)
+void CudaUniaxialMicroscopicAnisotropyHamiltonian::calculate_energies(double time, const jams::MultiArray<jams::Real, 2>& spins)
 {
     cuda_uniaxial_microscopic_energy_kernel<<<(globals::num_spins+dev_blocksize_-1)/dev_blocksize_, dev_blocksize_, 0, cuda_stream_.get()>>>
             (globals::num_spins, mca_order_.size(), mca_order_.device_data(), mca_value_.device_data(), spins.device_data(), energy_.mutable_device_data());

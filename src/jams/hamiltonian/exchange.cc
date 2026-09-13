@@ -221,7 +221,7 @@ public:
     return is_finalized_ && !uses_device();
   }
 
-  void calculate_fields(jams::Real, const SpinArray& spins, FieldArray& field) override {
+  void calculate_fields(double, const SpinArray& spins, FieldArray& field) override {
     assert(is_finalized_);
 #if HAS_CUDA
     if (uses_device()) {
@@ -232,13 +232,13 @@ public:
     interaction_matrix_.multiply(spins, field);
   }
 
-  void calculate_fields_in_parallel(jams::Real, const SpinArray& spins, FieldArray& field) override {
+  void calculate_fields_in_parallel(double, const SpinArray& spins, FieldArray& field) override {
     assert(is_finalized_);
     interaction_matrix_.multiply_in_parallel(spins, field);
   }
 
   void calculate_energies(
-      jams::Real time,
+      double time,
       const SpinArray& spins,
       FieldArray& field,
       EnergyArray& energy) override {
@@ -276,7 +276,7 @@ public:
   }
 
   [[nodiscard]] jams::Real calculate_total_energy(
-      jams::Real time,
+      double time,
       const SpinArray& spins,
       FieldArray& field,
       EnergyArray& energy) override {
@@ -308,7 +308,7 @@ public:
 
   [[nodiscard]] jams::Vec<jams::Real, 3> calculate_field(
       const int i,
-      jams::Real,
+      double,
       const SpinArray& spins) override {
     assert(is_finalized_);
     return interaction_matrix_.multiply_row(i, spins);
@@ -316,7 +316,7 @@ public:
 
   [[nodiscard]] jams::Real calculate_energy(
       const int i,
-      jams::Real time,
+      double time,
       const SpinArray& spins) override {
     assert(is_finalized_);
     const jams::Vec<double, 3> s_i = {spins(i, 0), spins(i, 1), spins(i, 2)};
@@ -328,7 +328,7 @@ public:
       const int i,
       const jams::Vec<double, 3>& spin_initial,
       const jams::Vec<double, 3>& spin_final,
-      jams::Real time,
+      double time,
       const SpinArray& spins) override {
     assert(is_finalized_);
     const auto field = calculate_field(i, time, spins);
@@ -650,7 +650,7 @@ ExchangeHamiltonian::neighbour_list() const {
   return setup_->neighbour_list();
 }
 
-void ExchangeHamiltonian::calculate_fields(jams::Real time, const SpinArray& spins) {
+void ExchangeHamiltonian::calculate_fields(double time, const SpinArray& spins) {
   backend_->calculate_fields(time, spins, field_);
 #if HAS_CUDA
   if (backend_->uses_device()) {
@@ -663,11 +663,11 @@ bool ExchangeHamiltonian::supports_calculate_fields_in_parallel() const {
   return backend_->supports_calculate_fields_in_parallel();
 }
 
-void ExchangeHamiltonian::calculate_fields_in_parallel(jams::Real time, const SpinArray& spins) {
+void ExchangeHamiltonian::calculate_fields_in_parallel(double time, const SpinArray& spins) {
   backend_->calculate_fields_in_parallel(time, spins, field_);
 }
 
-void ExchangeHamiltonian::calculate_energies(jams::Real time, const SpinArray& spins) {
+void ExchangeHamiltonian::calculate_energies(double time, const SpinArray& spins) {
   backend_->calculate_energies(time, spins, field_, energy_);
 #if HAS_CUDA
   if (backend_->uses_device()) {
@@ -677,7 +677,7 @@ void ExchangeHamiltonian::calculate_energies(jams::Real time, const SpinArray& s
 }
 
 jams::Real ExchangeHamiltonian::calculate_total_energy(
-    jams::Real time,
+    double time,
     const SpinArray& spins) {
   const auto total_energy = backend_->calculate_total_energy(time, spins, field_, energy_);
 #if HAS_CUDA
@@ -690,11 +690,11 @@ jams::Real ExchangeHamiltonian::calculate_total_energy(
 
 jams::Vec<jams::Real, 3> ExchangeHamiltonian::calculate_field(
     const int i,
-    jams::Real time) {
+    double time) {
   return backend_->calculate_field(i, time, global_spin_array_for_fields());
 }
 
-jams::Real ExchangeHamiltonian::calculate_energy(const int i, jams::Real time) {
+jams::Real ExchangeHamiltonian::calculate_energy(const int i, double time) {
   return backend_->calculate_energy(i, time, global_spin_array_for_fields());
 }
 
@@ -702,7 +702,7 @@ jams::Real ExchangeHamiltonian::calculate_energy_difference(
     const int i,
     const jams::Vec<double, 3>& spin_initial,
     const jams::Vec<double, 3>& spin_final,
-    jams::Real time) {
+    double time) {
   return backend_->calculate_energy_difference(
       i,
       spin_initial,

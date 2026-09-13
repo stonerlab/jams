@@ -27,8 +27,7 @@ public:
     }
 
     inline void run() final {
-      iteration_++;
-      time_ = iteration_ * step_size_;
+      advance_time();
     }
 };
 

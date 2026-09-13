@@ -74,32 +74,32 @@ RandomAnisotropyHamiltonian::RandomAnisotropyHamiltonian(const libconfig::Settin
 }
 
 
-jams::Real RandomAnisotropyHamiltonian::calculate_energy(const int i, jams::Real time) {
+jams::Real RandomAnisotropyHamiltonian::calculate_energy(const int i, double time) {
   return calculate_energy_for_spin(i, {globals::s(i, 0), globals::s(i, 1), globals::s(i, 2)}, time);
 }
 
-jams::Real RandomAnisotropyHamiltonian::calculate_energy_for_spin(const int i, const jams::Vec<double, 3>& spin, jams::Real time) {
+jams::Real RandomAnisotropyHamiltonian::calculate_energy_for_spin(const int i, const jams::Vec<double, 3>& spin, double time) {
   const auto s = jams::array_cast<jams::Real>(spin);
   return -magnitude_[i] * pow2(jams::dot(direction_[i], s));
 }
 
 jams::Real RandomAnisotropyHamiltonian::calculate_energy_from_spins(
     const int i,
-    jams::Real time,
+    double time,
     const SpinHostView& spins) {
   const jams::Vec<jams::Real, 3> s_i = {spins(i, 0), spins(i, 1), spins(i, 2)};
   return -magnitude_[i] * pow2(jams::dot(direction_[i], s_i));
 }
 
 
-jams::Vec<jams::Real, 3> RandomAnisotropyHamiltonian::calculate_field(const int i, jams::Real time) {
+jams::Vec<jams::Real, 3> RandomAnisotropyHamiltonian::calculate_field(const int i, double time) {
   jams::Vec<jams::Real, 3> s_i = jams::array_cast<jams::Real>(jams::Vec<double, 3>{globals::s(i,0), globals::s(i,1), globals::s(i,2)});
   return magnitude_[i] * jams::dot(direction_[i], s_i) * direction_[i];
 }
 
 jams::Vec<jams::Real, 3> RandomAnisotropyHamiltonian::calculate_field_from_spins(
     const int i,
-    jams::Real time,
+    double time,
     const SpinHostView& spins) {
   const jams::Vec<jams::Real, 3> s_i = {spins(i, 0), spins(i, 1), spins(i, 2)};
   return magnitude_[i] * jams::dot(direction_[i], s_i) * direction_[i];

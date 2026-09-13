@@ -127,7 +127,7 @@ Hamiltonian * Hamiltonian::create(const libconfig::Setting &settings, const unsi
   throw std::runtime_error("unknown hamiltonian " + jams::config_required<std::string>(settings, "module"));
 }
 
-void Hamiltonian::calculate_fields(jams::Real time, const SpinArray& spins)
+void Hamiltonian::calculate_fields(double time, const SpinArray& spins)
 {
   const auto spin_view = spins.host_view();
   for (auto i = 0; i < globals::num_spins; ++i) {
@@ -143,12 +143,12 @@ bool Hamiltonian::supports_calculate_fields_in_parallel() const
   return false;
 }
 
-void Hamiltonian::calculate_fields_in_parallel(jams::Real, const SpinArray&)
+void Hamiltonian::calculate_fields_in_parallel(double, const SpinArray&)
 {
   throw jams::unimplemented_error("Hamiltonian::calculate_fields_in_parallel");
 }
 
-void Hamiltonian::calculate_energies(jams::Real time, const SpinArray& spins)
+void Hamiltonian::calculate_energies(double time, const SpinArray& spins)
 {
   const auto spin_view = spins.host_view();
   for (auto i = 0; i < globals::num_spins; ++i) {
@@ -156,7 +156,7 @@ void Hamiltonian::calculate_energies(jams::Real time, const SpinArray& spins)
   }
 }
 
-jams::Real Hamiltonian::calculate_total_energy(jams::Real time, const SpinArray& spins)
+jams::Real Hamiltonian::calculate_total_energy(double time, const SpinArray& spins)
 {
   double e_total = 0.0;
   calculate_energies(time, spins);
@@ -167,7 +167,7 @@ jams::Real Hamiltonian::calculate_total_energy(jams::Real time, const SpinArray&
 }
 
 jams::Real Hamiltonian::calculate_energy_difference(int i, const jams::Vec<double, 3>& spin_initial, const jams::Vec<double, 3>& spin_final,
-  jams::Real time)
+  double time)
 {
   const jams::Real e_initial = calculate_energy_for_spin(i, spin_initial, time);
   const jams::Real e_final = calculate_energy_for_spin(i, spin_final, time);
@@ -184,7 +184,7 @@ void Hamiltonian::add_energy_current_interactions(jams::EnergyCurrentInteraction
 
 jams::Vec<jams::Real, 3> Hamiltonian::calculate_field_from_spins(
     int i,
-    jams::Real time,
+    double time,
     const SpinHostView&)
 {
   return calculate_field(i, time);
@@ -192,7 +192,7 @@ jams::Vec<jams::Real, 3> Hamiltonian::calculate_field_from_spins(
 
 jams::Real Hamiltonian::calculate_energy_from_spins(
     int i,
-    jams::Real time,
+    double time,
     const SpinHostView&)
 {
   return calculate_energy(i, time);
@@ -220,7 +220,7 @@ const Hamiltonian::SpinArray& Hamiltonian::global_spin_array_for_fields()
 #endif
 }
 
-jams::Real Hamiltonian::calculate_energy_for_spin(int i, const jams::Vec<double, 3>& spin, jams::Real time)
+jams::Real Hamiltonian::calculate_energy_for_spin(int i, const jams::Vec<double, 3>& spin, double time)
 {
   throw jams::unimplemented_error("Hamiltonian::calculate_energy_for_spin");
 }

@@ -94,14 +94,14 @@ DipoleNeighbourListHamiltonian::DipoleNeighbourListHamiltonian(const libconfig::
        << memory_in_natural_units(max_memory_per_tensor * num_neighbours) << std::endl;
 }
 
-jams::Real DipoleNeighbourListHamiltonian::calculate_energy(const int i, jams::Real time) {
+jams::Real DipoleNeighbourListHamiltonian::calculate_energy(const int i, double time) {
   jams::Vec<jams::Real, 3> s_i = jams::array_cast<jams::Real>(jams::Vec<double, 3>{globals::s(i, 0), globals::s(i, 1), globals::s(i, 2)});
   auto field = calculate_field(i, time);
   return -0.5 * jams::dot(s_i, field);
 }
 
 
-jams::Real DipoleNeighbourListHamiltonian::calculate_energy_difference(int i, const jams::Vec<double, 3> &spin_initial, const jams::Vec<double, 3> &spin_final, jams::Real time) {
+jams::Real DipoleNeighbourListHamiltonian::calculate_energy_difference(int i, const jams::Vec<double, 3> &spin_initial, const jams::Vec<double, 3> &spin_final, double time) {
   const auto field = calculate_field(i, time);
   const jams::Real e_initial = -jams::dot(spin_initial, field);
   const jams::Real e_final = -jams::dot(spin_final, field);
@@ -110,7 +110,7 @@ jams::Real DipoleNeighbourListHamiltonian::calculate_energy_difference(int i, co
 
 jams::Real DipoleNeighbourListHamiltonian::calculate_energy_from_spins(
     const int i,
-    jams::Real time,
+    double time,
     const SpinHostView& spins) {
   const jams::Vec<jams::Real, 3> s_i = {spins(i, 0), spins(i, 1), spins(i, 2)};
   const auto field = calculate_field_from_spins(i, time, spins);
@@ -142,7 +142,7 @@ void DipoleNeighbourListHamiltonian::add_energy_current_interactions(
 
 
 [[gnu::hot]]
-jams::Vec<jams::Real, 3> DipoleNeighbourListHamiltonian::calculate_field(const int i, jams::Real time)
+jams::Vec<jams::Real, 3> DipoleNeighbourListHamiltonian::calculate_field(const int i, double time)
 {
   jams::Vec<jams::Real, 3> r_i = {globals::positions(i,0), globals::positions(i,1), globals::positions(i,2)};
   // 2020-04-21 Using OMP on this loop gives almost no speedup because the heavy
@@ -170,7 +170,7 @@ jams::Vec<jams::Real, 3> DipoleNeighbourListHamiltonian::calculate_field(const i
 [[gnu::hot]]
 jams::Vec<jams::Real, 3> DipoleNeighbourListHamiltonian::calculate_field_from_spins(
     const int i,
-    jams::Real time,
+    double time,
     const SpinHostView& spins)
 {
   jams::Vec<jams::Real, 3> r_i = {globals::positions(i,0), globals::positions(i,1), globals::positions(i,2)};

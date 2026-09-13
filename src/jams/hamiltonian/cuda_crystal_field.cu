@@ -9,7 +9,7 @@ CudaCrystalFieldHamiltonian::CudaCrystalFieldHamiltonian(
         const libconfig::Setting &settings, const unsigned int size) : CrystalFieldHamiltonian(
         settings, size) {}
 
-void CudaCrystalFieldHamiltonian::calculate_fields(jams::Real time, const jams::MultiArray<jams::Real, 2>& spins) {
+void CudaCrystalFieldHamiltonian::calculate_fields(double time, const jams::MultiArray<jams::Real, 2>& spins) {
     dim3 block_size;
     block_size.x = 64;
 
@@ -45,7 +45,7 @@ void CudaCrystalFieldHamiltonian::calculate_fields(jams::Real time, const jams::
     DEBUG_CHECK_CUDA_ASYNC_STATUS;
 }
 
-void CudaCrystalFieldHamiltonian::calculate_energies(jams::Real time, const jams::MultiArray<jams::Real, 2>& spins) {
+void CudaCrystalFieldHamiltonian::calculate_energies(double time, const jams::MultiArray<jams::Real, 2>& spins) {
     dim3 block_size;
     block_size.x = 64;
 
@@ -81,7 +81,7 @@ void CudaCrystalFieldHamiltonian::calculate_energies(jams::Real time, const jams
     DEBUG_CHECK_CUDA_ASYNC_STATUS;
 }
 
-jams::Real CudaCrystalFieldHamiltonian::calculate_total_energy(jams::Real time, const jams::MultiArray<jams::Real, 2>& spins) {
+jams::Real CudaCrystalFieldHamiltonian::calculate_total_energy(double time, const jams::MultiArray<jams::Real, 2>& spins) {
     calculate_energies(time, spins);
     return jams::scalar_field_reduce_cuda(energy_, cuda_stream_.get());
 }

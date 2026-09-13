@@ -104,17 +104,7 @@ __global__ void cuda_llg_semi_implicit_corr_kernel
 void CUDALLGSemiImplictSolver::initialize(const libconfig::Setting& settings)
 {
   // convert input in seconds to picoseconds for internal units
-  step_size_ = jams::config_required<double>(settings, "t_step") / 1e-12;
-  auto t_max = jams::config_required<double>(settings, "t_max") / 1e-12;
-  auto t_min = jams::config_optional<double>(settings, "t_min", 0.0) / 1e-12;
-
-
-  max_steps_ = static_cast<int>(t_max / step_size_);
-  min_steps_ = static_cast<int>(t_min / step_size_);
-
-  std::cout << "\ntimestep (ps) " << step_size_ << "\n";
-  std::cout << "\nt_max (ps) " << t_max << " steps " << max_steps_ << "\n";
-  std::cout << "\nt_min (ps) " << t_min << " steps " << min_steps_ << "\n";
+  initialize_time(settings);
 
   std::string thermostat_name = jams::config_optional<std::string>(globals::config->lookup("solver"), "thermostat", jams::defaults::solver_gpu_thermostat);
   register_thermostat(Thermostat::create(thermostat_name, 0.5 * this->time_step()));
@@ -155,8 +145,8 @@ void CUDALLGSemiImplictSolver::run_with_parameters(
     const AlphaParam alpha,
     const DtGyroMuParam dt_gyro_mu)
 {
-  jams::Real t0 = time_;
-  const jams::Real half_dt = 0.5 * step_size_;
+  double t0 = time_;
+  const double half_dt = 0.5 * step_size_;
 
   const dim3 block_size = {64, 1, 1};
   auto grid_size = cuda_grid_size(block_size, {static_cast<unsigned int>(globals::num_spins), 1, 1});
@@ -194,7 +184,7 @@ void CUDALLGSemiImplictSolver::run_with_parameters(
   DEBUG_CHECK_CUDA_ASYNC_STATUS
   record_spin_barrier_event();
 
-  jams::Real mid_time_step = 0.5 * step_size_;
+  double mid_time_step = 0.5 * step_size_;
   time_ = t0 + mid_time_step;
   compute_fields();
 
@@ -222,8 +212,7 @@ void CUDALLGSemiImplictSolver::run_with_parameters(
   thermostat_->record_consumed(jams::instance().cuda_master_stream().get());
   record_spin_barrier_event();
 
-  iteration_++;
-  time_ = iteration_ * step_size_;
+  advance_time();
 }
 
 void CUDALLGSemiImplictSolver::run()

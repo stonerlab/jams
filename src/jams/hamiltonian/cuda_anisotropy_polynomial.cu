@@ -108,7 +108,7 @@ CudaAnisotropyPolynomialHamiltonian::CudaAnisotropyPolynomialHamiltonian(
 {
 }
 
-void CudaAnisotropyPolynomialHamiltonian::calculate_fields(jams::Real time, const jams::MultiArray<jams::Real, 2>& spins)
+void CudaAnisotropyPolynomialHamiltonian::calculate_fields(double time, const jams::MultiArray<jams::Real, 2>& spins)
 {
     CHECK_CUDA_STATUS(cudaMemsetAsync(
         field_.mutable_device_data(),
@@ -140,7 +140,7 @@ void CudaAnisotropyPolynomialHamiltonian::calculate_fields(jams::Real time, cons
     DEBUG_CHECK_CUDA_ASYNC_STATUS;
 }
 
-void CudaAnisotropyPolynomialHamiltonian::calculate_energies(jams::Real time, const jams::MultiArray<jams::Real, 2>& spins)
+void CudaAnisotropyPolynomialHamiltonian::calculate_energies(double time, const jams::MultiArray<jams::Real, 2>& spins)
 {
     CHECK_CUDA_STATUS(cudaMemsetAsync(
         energy_.mutable_device_data(),
@@ -172,7 +172,7 @@ void CudaAnisotropyPolynomialHamiltonian::calculate_energies(jams::Real time, co
     DEBUG_CHECK_CUDA_ASYNC_STATUS;
 }
 
-jams::Real CudaAnisotropyPolynomialHamiltonian::calculate_total_energy(jams::Real time, const jams::MultiArray<jams::Real, 2>& spins)
+jams::Real CudaAnisotropyPolynomialHamiltonian::calculate_total_energy(double time, const jams::MultiArray<jams::Real, 2>& spins)
 {
     calculate_energies(time, spins);
     return jams::scalar_field_reduce_cuda(energy_, cuda_stream_.get());

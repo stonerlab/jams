@@ -17,15 +17,15 @@ class CudaBiquadraticExchangeHamiltonian : public Hamiltonian {
 public:
     CudaBiquadraticExchangeHamiltonian(const libconfig::Setting &settings, unsigned int size);
 
-    jams::Real calculate_total_energy(jams::Real time, const jams::MultiArray<jams::Real, 2>& spins) override;
+    jams::Real calculate_total_energy(double time, const jams::MultiArray<jams::Real, 2>& spins) override;
 
-    void calculate_fields(jams::Real time, const jams::MultiArray<jams::Real, 2>& spins) override;
+    void calculate_fields(double time, const jams::MultiArray<jams::Real, 2>& spins) override;
 
-    jams::Vec<jams::Real, 3> calculate_field(int i, jams::Real time) override;
+    jams::Vec<jams::Real, 3> calculate_field(int i, double time) override;
 
-    jams::Real calculate_energy(int i, jams::Real time) override;
+    jams::Real calculate_energy(int i, double time) override;
 
-    jams::Real calculate_energy_difference(int i, const jams::Vec<double, 3> &spin_initial, const jams::Vec<double, 3> &spin_final, jams::Real time) override;
+    jams::Real calculate_energy_difference(int i, const jams::Vec<double, 3> &spin_initial, const jams::Vec<double, 3> &spin_final, double time) override;
 
     EnergyCurrentInteractionSupport energy_current_interaction_support() const override {
       return EnergyCurrentInteractionSupport::Unsupported;

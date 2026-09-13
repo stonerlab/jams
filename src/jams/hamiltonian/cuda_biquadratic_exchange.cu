@@ -164,7 +164,7 @@ CudaBiquadraticExchangeHamiltonian::CudaBiquadraticExchangeHamiltonian(
 }
 
 
-void CudaBiquadraticExchangeHamiltonian::calculate_fields(jams::Real time, const jams::MultiArray<jams::Real, 2>& spins) {
+void CudaBiquadraticExchangeHamiltonian::calculate_fields(double time, const jams::MultiArray<jams::Real, 2>& spins) {
   assert(is_finalized_);
 
   const dim3 block_size = {128, 1, 1};
@@ -179,7 +179,7 @@ void CudaBiquadraticExchangeHamiltonian::calculate_fields(jams::Real time, const
 }
 
 
-jams::Real CudaBiquadraticExchangeHamiltonian::calculate_total_energy(jams::Real time, const jams::MultiArray<jams::Real, 2>& spins) {
+jams::Real CudaBiquadraticExchangeHamiltonian::calculate_total_energy(double time, const jams::MultiArray<jams::Real, 2>& spins) {
   assert(is_finalized_);
 
   calculate_fields(time, spins);
@@ -188,7 +188,7 @@ jams::Real CudaBiquadraticExchangeHamiltonian::calculate_total_energy(jams::Real
 }
 
 
-jams::Vec<jams::Real, 3> CudaBiquadraticExchangeHamiltonian::calculate_field(int i, jams::Real time) {
+jams::Vec<jams::Real, 3> CudaBiquadraticExchangeHamiltonian::calculate_field(int i, double time) {
   using namespace globals;
   assert(is_finalized_);
   jams::Vec<double, 3> field;
@@ -212,7 +212,7 @@ jams::Vec<jams::Real, 3> CudaBiquadraticExchangeHamiltonian::calculate_field(int
 }
 
 
-jams::Real CudaBiquadraticExchangeHamiltonian::calculate_energy(int i, jams::Real time) {
+jams::Real CudaBiquadraticExchangeHamiltonian::calculate_energy(int i, double time) {
   using namespace globals;
   assert(is_finalized_);
   jams::Vec<double, 3> s_i = {s(i,0), s(i,1), s(i,2)};
@@ -224,7 +224,7 @@ jams::Real CudaBiquadraticExchangeHamiltonian::calculate_energy(int i, jams::Rea
 jams::Real CudaBiquadraticExchangeHamiltonian::calculate_energy_difference(int i,
                                                                        const jams::Vec<double, 3> &spin_initial,
                                                                        const jams::Vec<double, 3> &spin_final,
-                                                                       jams::Real time) {
+                                                                       double time) {
   assert(is_finalized_);
   auto field = calculate_field(i, time);
   auto e_initial = -jams::dot(spin_initial, 0.5*field);

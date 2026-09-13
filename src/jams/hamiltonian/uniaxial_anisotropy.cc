@@ -116,7 +116,7 @@ UniaxialAnisotropyHamiltonian::UniaxialAnisotropyHamiltonian(const Setting &sett
   }
 }
 
-jams::Real UniaxialAnisotropyHamiltonian::calculate_energy(const int i, jams::Real time) {
+jams::Real UniaxialAnisotropyHamiltonian::calculate_energy(const int i, double time) {
   jams::Real energy = 0.0;
 
   auto dot = (axis_(i,0) * globals::s(i,0) + axis_(i,1) * globals::s(i,1) + axis_(i,2) * globals::s(i,2));
@@ -126,7 +126,7 @@ jams::Real UniaxialAnisotropyHamiltonian::calculate_energy(const int i, jams::Re
 }
 
 jams::Real UniaxialAnisotropyHamiltonian::calculate_energy_difference(int i, const jams::Vec<double, 3> &spin_initial,
-                                                                  const jams::Vec<double, 3> &spin_final, jams::Real time) {
+                                                                  const jams::Vec<double, 3> &spin_final, double time) {
   jams::Real e_initial = 0.0;
   jams::Real e_final = 0.0;
 
@@ -140,7 +140,7 @@ jams::Real UniaxialAnisotropyHamiltonian::calculate_energy_difference(int i, con
 }
 
 
-void UniaxialAnisotropyHamiltonian::calculate_energies(jams::Real time, const jams::MultiArray<jams::Real, 2>& spins) {
+void UniaxialAnisotropyHamiltonian::calculate_energies(double time, const jams::MultiArray<jams::Real, 2>& spins) {
   const auto spin_view = spins.host_view();
   for (auto i = 0; i < energy_.size(); ++i) {
     energy_(i) = calculate_energy_from_spins(i, time, spin_view);
@@ -149,13 +149,13 @@ void UniaxialAnisotropyHamiltonian::calculate_energies(jams::Real time, const ja
 
 jams::Real UniaxialAnisotropyHamiltonian::calculate_energy_from_spins(
     const int i,
-    jams::Real time,
+    double time,
     const SpinHostView& spins) {
   const auto dot = (axis_(i,0) * spins(i,0) + axis_(i,1) * spins(i,1) + axis_(i,2) * spins(i,2));
   return -magnitude_(i) * pow(dot, power_);
 }
 
-jams::Vec<jams::Real, 3> UniaxialAnisotropyHamiltonian::calculate_field(const int i, jams::Real time) {
+jams::Vec<jams::Real, 3> UniaxialAnisotropyHamiltonian::calculate_field(const int i, double time) {
   jams::Real dot = (axis_(i,0) * globals::s(i,0) + axis_(i,1) * globals::s(i,1) + axis_(i,2) * globals::s(i,2));
 
   jams::Vec<jams::Real, 3> field;
@@ -167,7 +167,7 @@ jams::Vec<jams::Real, 3> UniaxialAnisotropyHamiltonian::calculate_field(const in
 
 jams::Vec<jams::Real, 3> UniaxialAnisotropyHamiltonian::calculate_field_from_spins(
     const int i,
-    jams::Real time,
+    double time,
     const SpinHostView& spins) {
   jams::Real dot = (axis_(i,0) * spins(i,0) + axis_(i,1) * spins(i,1) + axis_(i,2) * spins(i,2));
 

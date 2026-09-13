@@ -47,7 +47,7 @@ ZeemanHamiltonian::ZeemanHamiltonian(const libconfig::Setting &settings, const u
         has_ac_local_field_ = true;
         const auto ac_fields = jams::read_vec_sequence_setting<jams::Real, 3>(
             settings["ac_local_field"], "ac_local_field", num_materials);
-        const auto ac_frequencies = jams::read_numeric_sequence_setting<jams::Real>(
+        const auto ac_frequencies = jams::read_numeric_sequence_setting<double>(
             settings["ac_local_frequency"], "ac_local_frequency", num_materials);
 
         for (int i = 0; i < globals::num_spins; ++i) {
@@ -62,11 +62,11 @@ ZeemanHamiltonian::ZeemanHamiltonian(const libconfig::Setting &settings, const u
 }
 
 
-jams::Real ZeemanHamiltonian::calculate_energy(const int i, jams::Real time) {
+jams::Real ZeemanHamiltonian::calculate_energy(const int i, double time) {
     return calculate_energy_for_spin(i, {globals::s(i, 0), globals::s(i, 1), globals::s(i, 2)}, time);
 }
 
-jams::Real ZeemanHamiltonian::calculate_energy_for_spin(const int i, const jams::Vec<double, 3>& spin, jams::Real time) {
+jams::Real ZeemanHamiltonian::calculate_energy_for_spin(const int i, const jams::Vec<double, 3>& spin, double time) {
     const auto field = calculate_field(i, time);
 
     return -jams::dot(jams::array_cast<jams::Real>(spin), field);
@@ -74,7 +74,7 @@ jams::Real ZeemanHamiltonian::calculate_energy_for_spin(const int i, const jams:
 
 jams::Real ZeemanHamiltonian::calculate_energy_from_spins(
     const int i,
-    jams::Real time,
+    double time,
     const SpinHostView& spins) {
     const auto field = calculate_field(i, time);
     const jams::Vec<jams::Real, 3> spin = {spins(i, 0), spins(i, 1), spins(i, 2)};
@@ -82,7 +82,7 @@ jams::Real ZeemanHamiltonian::calculate_energy_from_spins(
 }
 
 
-jams::Vec<jams::Real, 3> ZeemanHamiltonian::calculate_field(const int i, jams::Real time) {
+jams::Vec<jams::Real, 3> ZeemanHamiltonian::calculate_field(const int i, double time) {
     using std::pow;
 
     jams::Vec<jams::Real, 3> field = {0.0, 0.0, 0.0};

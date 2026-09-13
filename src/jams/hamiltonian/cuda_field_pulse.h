@@ -27,25 +27,25 @@ public:
 
     CudaFieldPulseHamiltonian(const libconfig::Setting &settings, unsigned int size);
 
-    jams::Real calculate_total_energy(jams::Real time, const jams::MultiArray<jams::Real, 2>& spins) override {
+    jams::Real calculate_total_energy(double time, const jams::MultiArray<jams::Real, 2>& spins) override {
       throw jams::unimplemented_error("CudaFieldPulseHamiltonian::calculate_total_energy is unimplemented");
     }
 
-    void calculate_energies(jams::Real time, const jams::MultiArray<jams::Real, 2>& spins) override {
+    void calculate_energies(double time, const jams::MultiArray<jams::Real, 2>& spins) override {
       throw jams::unimplemented_error("CudaFieldPulseHamiltonian::calculate_energies is unimplemented");
     }
 
-    void calculate_fields(jams::Real time, const jams::MultiArray<jams::Real, 2>& spins) override;
+    void calculate_fields(double time, const jams::MultiArray<jams::Real, 2>& spins) override;
 
-    jams::Vec<jams::Real, 3> calculate_field(int i, jams::Real time) override {
+    jams::Vec<jams::Real, 3> calculate_field(int i, double time) override {
       throw jams::unimplemented_error("CudaFieldPulseHamiltonian::calculate_field is unimplemented");
     }
 
-    jams::Real calculate_energy(int i, jams::Real time) override {
+    jams::Real calculate_energy(int i, double time) override {
       throw jams::unimplemented_error("CudaFieldPulseHamiltonian::calculate_energy is unimplemented");
     }
 
-    jams::Real calculate_energy_difference(int i, const jams::Vec<double, 3> &spin_initial, const jams::Vec<double, 3> &spin_final, jams::Real time) override {
+    jams::Real calculate_energy_difference(int i, const jams::Vec<double, 3> &spin_initial, const jams::Vec<double, 3> &spin_final, double time) override {
       throw jams::unimplemented_error("CudaFieldPulseHamiltonian::calculate_energy_difference is unimplemented");
     }
 
@@ -57,8 +57,8 @@ private:
     jams::MultiArray<jams::Real, 2> positions_;
 
     jams::Real surface_cutoff_;
-    jams::Real temporal_width_;
-    jams::Real temporal_center_;
+    double temporal_width_;
+    double temporal_center_;
     jams::Vec<jams::Real, 3> max_field_;
 
     void output_pulse() const;

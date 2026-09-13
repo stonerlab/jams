@@ -131,8 +131,8 @@ void CudaSpinCurrentMonitor::write_spin_current_h5_file(const std::string &h5_fi
 
   auto dataset = file.createDataSet<double>("/spin_current",  DataSpace::From(js));
 
-  dataset.createAttribute<int>("iteration", DataSpace::From(iteration));
-  dataset.createAttribute<double>("time", DataSpace::From(time));
+  dataset.createAttribute<int>("iteration", iteration);
+  dataset.createAttribute<double>("time", time);
 }
 
 void CudaSpinCurrentMonitor::open_new_xdmf_file(const std::string &xdmf_file_name) {
@@ -160,7 +160,7 @@ void CudaSpinCurrentMonitor::update_xdmf_file(const std::string &h5_file_name, c
   fseek(xdmf_file_, -31, SEEK_CUR);
 
   fputs("      <Grid Name=\"Lattice\" GridType=\"Uniform\">\n", xdmf_file_);
-  fprintf(xdmf_file_, "        <Time Value=\"%f\" />\n", time/1e-12);
+  fprintf(xdmf_file_, "        <Time Value=\"%.17g\" />\n", time);
   fprintf(xdmf_file_, "        <Topology TopologyType=\"Polyvertex\" Dimensions=\"%llu\" />\n", globals::num_spins);
   fputs("       <Geometry GeometryType=\"XYZ\">\n", xdmf_file_);
   fprintf(xdmf_file_, "         <DataItem Dimensions=\"%llu 3\" NumberType=\"Float\" Precision=\"%u\" Format=\"HDF\">\n", data_dimension, float_precision);

@@ -11,8 +11,8 @@
 class TemporalFieldPulse {
 public:
     virtual ~TemporalFieldPulse() = default;
-    virtual jams::Vec<jams::Real, 3> local_field(const jams::Real& time, const jams::Vec<jams::Real, 3>& r) = 0;
-    virtual jams::Vec<jams::Real, 3> max_field(const jams::Real& time) = 0;
+    virtual jams::Vec<jams::Real, 3> local_field(const double& time, const jams::Vec<jams::Real, 3>& r) = 0;
+    virtual jams::Vec<jams::Real, 3> max_field(const double& time) = 0;
 };
 
 ///
@@ -34,18 +34,18 @@ public:
 
     FieldPulseHamiltonian(const libconfig::Setting &settings, unsigned int size);
 
-    jams::Vec<jams::Real, 3> calculate_field(int i, jams::Real time) override;
+    jams::Vec<jams::Real, 3> calculate_field(int i, double time) override;
 
-    jams::Real calculate_energy(int i, jams::Real time) override;
+    jams::Real calculate_energy(int i, double time) override;
 
     EnergyCurrentInteractionSupport energy_current_interaction_support() const override {
       return EnergyCurrentInteractionSupport::None;
     }
 
 protected:
-    jams::Real calculate_energy_from_spins(int i, jams::Real time, const SpinHostView& spins) override;
+    jams::Real calculate_energy_from_spins(int i, double time, const SpinHostView& spins) override;
 
-    jams::Real calculate_energy_for_spin(int i, const jams::Vec<double, 3> &spin, jams::Real time) override;
+    jams::Real calculate_energy_for_spin(int i, const jams::Vec<double, 3> &spin, double time) override;
 
 private:
     void output_pulse() const;

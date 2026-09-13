@@ -57,19 +57,19 @@ class CubicAnisotropyHamiltonian : public Hamiltonian {
 public:
     CubicAnisotropyHamiltonian(const libconfig::Setting &settings, unsigned int size);
 
-    jams::Vec<jams::Real, 3> calculate_field(int i, jams::Real time) override;
+    jams::Vec<jams::Real, 3> calculate_field(int i, double time) override;
 
-    jams::Real calculate_energy(int i, jams::Real time) override;
+    jams::Real calculate_energy(int i, double time) override;
 
-    jams::Real calculate_energy_difference(int i, const jams::Vec<double, 3> &spin_initial, const jams::Vec<double, 3> &spin_final, jams::Real time) override;
+    jams::Real calculate_energy_difference(int i, const jams::Vec<double, 3> &spin_initial, const jams::Vec<double, 3> &spin_final, double time) override;
 
     EnergyCurrentInteractionSupport energy_current_interaction_support() const override {
       return EnergyCurrentInteractionSupport::None;
     }
 
 protected:
-    jams::Vec<jams::Real, 3> calculate_field_from_spins(int i, jams::Real time, const SpinHostView& spins) override;
-    jams::Real calculate_energy_from_spins(int i, jams::Real time, const SpinHostView& spins) override;
+    jams::Vec<jams::Real, 3> calculate_field_from_spins(int i, double time, const SpinHostView& spins) override;
+    jams::Real calculate_energy_from_spins(int i, double time, const SpinHostView& spins) override;
 
 private:
     jams::MultiArray<unsigned, 1> order_;

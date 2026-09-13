@@ -7,6 +7,7 @@
 #include "jams/test/containers/test_cell.h"
 #include "jams/test/core/test_interactions.h"
 #include "jams/test/core/test_magnetic_moments.h"
+#include "jams/test/core/test_solver_time.h"
 #include "jams/test/core/test_thermostat_temperature_profile.h"
 #include "jams/test/initializer/test_damping_regions_initializer.h"
 #include "jams/test/initializer/test_h5_initializer.h"
@@ -20,6 +21,7 @@
 #include <jams/test/monitors/test_neutron_scattering.h>
 
 #include "jams/test/hamiltonian/test_crystal_field.h"
+#include "jams/test/hamiltonian/test_time_dependent_field.h"
 #include "jams/test/hamiltonian/test_anisotropy_polynomial.h"
 #include "jams/test/hamiltonian/test_dipole.h"
 #include "jams/test/hamiltonian/test_exchange_stencil.h"

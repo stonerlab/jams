@@ -11,6 +11,6 @@ class CudaZeemanHamiltonian : public ZeemanHamiltonian {
 public:
     CudaZeemanHamiltonian(const libconfig::Setting &settings, const unsigned int size);
 
-    void calculate_fields(jams::Real time, const jams::MultiArray<jams::Real, 2>& spins) override;
+    void calculate_fields(double time, const jams::MultiArray<jams::Real, 2>& spins) override;
 };
 #endif //JAMS_CUDA_ZEEMAN_H

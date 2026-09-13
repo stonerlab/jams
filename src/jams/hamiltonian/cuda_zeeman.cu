@@ -9,8 +9,8 @@
 #include "jams/helpers/error.h"
 #include "jams/cuda/cuda_common.h"
 
-__global__ void cuda_zeeman_energy_kernel(const unsigned int num_spins, const jams::Real time, const jams::Real * dc_local_field,
-  const jams::Real * ac_local_field, const jams::Real * ac_local_frequency, const jams::RealHi * dev_s, jams::Real * dev_e) {
+__global__ void cuda_zeeman_energy_kernel(const unsigned int num_spins, const double time, const jams::Real * dc_local_field,
+  const jams::Real * ac_local_field, const double * ac_local_frequency, const jams::RealHi * dev_s, jams::Real * dev_e) {
 
     const unsigned int idx = blockIdx.x * blockDim.x + threadIdx.x;
     const unsigned int base = 3 * idx;
@@ -25,8 +25,8 @@ __global__ void cuda_zeeman_energy_kernel(const unsigned int num_spins, const ja
     dev_e[idx] = e_total;
 }
 
-__global__ void cuda_zeeman_ac_field_kernel(const unsigned int num_spins, const jams::Real time,
-  const jams::Real * ac_local_field, const jams::Real * ac_local_frequency, jams::Real * dev_h) {
+__global__ void cuda_zeeman_ac_field_kernel(const unsigned int num_spins, const double time,
+  const jams::Real * ac_local_field, const double * ac_local_frequency, jams::Real * dev_h) {
     const unsigned int idx = blockIdx.x * blockDim.x + threadIdx.x;
     const unsigned int idy = blockIdx.y * blockDim.y + threadIdx.y;
     const unsigned int gxy = 3 * idx + idy;
@@ -40,7 +40,7 @@ CudaZeemanHamiltonian::CudaZeemanHamiltonian(const libconfig::Setting &settings,
         : ZeemanHamiltonian(settings, size) {
 }
 
-void CudaZeemanHamiltonian::calculate_fields(jams::Real time, const jams::MultiArray<jams::Real, 2>& spins) {
+void CudaZeemanHamiltonian::calculate_fields(double time, const jams::MultiArray<jams::Real, 2>& spins) {
     dim3 block_size;
         block_size.x = 32;
         block_size.y = 4;

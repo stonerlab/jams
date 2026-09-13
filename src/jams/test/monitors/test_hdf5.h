@@ -25,6 +25,7 @@
 #include <jams/initializer/init_dispatcher.h>
 #include <jams/interface/highfive.h>
 #include <jams/monitors/hdf5.h>
+#include <jams/monitors/unitcell_average.h>
 
 namespace {
 
@@ -57,6 +58,10 @@ class Hdf5MonitorStubSolver : public Solver {
   void initialize(const libconfig::Setting&) override {}
   void run() override {}
   std::string name() const override { return "hdf5-monitor-stub"; }
+  void set_time(int iteration, double time) {
+    iteration_ = iteration;
+    time_ = time;
+  }
 };
 
 class Hdf5MonitorTest : public ::testing::Test {
@@ -97,6 +102,8 @@ class Hdf5MonitorTest : public ::testing::Test {
       monitor.update(*solver_);
     }
   }
+
+  Hdf5MonitorStubSolver& test_solver() { return *solver_; }
 
   const libconfig::Setting& first_monitor_settings() const {
     return globals::config->lookup("monitors")[0];
@@ -356,6 +363,55 @@ TEST_F(Hdf5MonitorTest, SpinOutputMasksZeroMomentSitesAsZeroVectors) {
   EXPECT_EQ(spins(1, 1), 0.0);
   EXPECT_EQ(spins(1, 2), 0.0);
   EXPECT_EQ(spins(0, 0), 1.0);
+}
+
+TEST_F(Hdf5MonitorTest, XdmfPreservesCloselySpacedTimes) {
+  initialise(R"(
+    monitors = ({module = "hdf5"; output_steps = 1; compressed = false;});
+  )");
+  const std::vector<double> times = {1.2345678901234567, 1.2345678901234567 + 1e-8};
+  {
+    Hdf5Monitor monitor(first_monitor_settings());
+    for (int i = 0; i < times.size(); ++i) {
+      test_solver().set_time(i, times[i]);
+      monitor.update(test_solver());
+    }
+  }
+  const auto xdmf = read_xdmf();
+  std::size_t position = 0;
+  for (const double expected : times) {
+    position = xdmf.find("<Time Value=\"", position);
+    ASSERT_NE(position, std::string::npos);
+    position += std::string("<Time Value=\"").size();
+    EXPECT_EQ(std::stod(xdmf.substr(position)), expected);
+  }
+}
+
+TEST_F(Hdf5MonitorTest, UnitcellTimeMetadataMatchesXdmf) {
+  initialise(R"(
+    monitors = ({module = "unitcell-average"; output_steps = 1;});
+  )");
+  const double time = 1.2345678901234567;
+  test_solver().set_time(17, time);
+  {
+    UnitcellAverageMonitor monitor(first_monitor_settings());
+    monitor.update(test_solver());
+  }
+  HighFive::File file(jams::output::monitor_filename_series("unitcell-average", "h5", 17),
+                      HighFive::File::ReadOnly);
+  for (const auto* dataset : {"/magnetisation", "/neel"}) {
+    double stored_time = 0.0;
+    int stored_iteration = 0;
+    file.getDataSet(dataset).getAttribute("time_ps").read(stored_time);
+    file.getDataSet(dataset).getAttribute("iteration").read(stored_iteration);
+    EXPECT_EQ(stored_time, time);
+    EXPECT_EQ(stored_iteration, 17);
+  }
+  std::ifstream stream(jams::output::monitor_filename("unitcell-average", "xdmf"));
+  const std::string xdmf(std::istreambuf_iterator<char>(stream), {});
+  const auto position = xdmf.find("<Time Value=\"");
+  ASSERT_NE(position, std::string::npos);
+  EXPECT_EQ(std::stod(xdmf.substr(position + std::string("<Time Value=\"").size())), time);
 }
 
 }  // namespace jams::testing

@@ -39,9 +39,7 @@ void CUDALLLorentzianRK4Solver::initialize(const libconfig::Setting& settings)
 
   // convert input in seconds to picoseconds for internal units
 
-  step_size_ = jams::config_required<double>(settings, "t_step") / 1e-12;
-  auto t_max = jams::config_required<double>(settings, "t_max") / 1e-12;
-  auto t_min = jams::config_optional<double>(settings, "t_min", 0.0) / 1e-12;
+  initialize_time(settings);
 
   lorentzian_gamma_ = kTwoPi * jams::config_required<double>(globals::config->lookup("thermostat"), "lorentzian_gamma");
   lorentzian_omega_ = kTwoPi * jams::config_required<double>(globals::config->lookup("thermostat"), "lorentzian_omega0");
@@ -58,13 +56,6 @@ void CUDALLLorentzianRK4Solver::initialize(const libconfig::Setting& settings)
       / globals::gyro(first_spin);
 
   lorentzian_A_ =  (eta_G * pow4(lorentzian_omega_)) / (lorentzian_gamma_);
-
-  max_steps_ = static_cast<int>(t_max / step_size_);
-  min_steps_ = static_cast<int>(t_min / step_size_);
-
-  std::cout << "timestep (ps) " << step_size_ << "\n";
-  std::cout << "t_max (ps) " << t_max << " steps (" <<  max_steps_ << ")\n";
-  std::cout << "t_min (ps) " << t_min << " steps (" << min_steps_ << ")\n";
 
   std::string thermostat_name = jams::config_optional<std::string>(globals::config->lookup("solver"), "thermostat", jams::defaults::solver_gpu_thermostat);
   register_thermostat(Thermostat::create(thermostat_name, this->time_step()));
@@ -250,6 +241,5 @@ void CUDALLLorentzianRK4Solver::run()
       step_size_, globals::num_spins3);
   DEBUG_CHECK_CUDA_ASYNC_STATUS
 
-  iteration_++;
-  time_ = iteration_ * step_size_;
+  advance_time();
 }
