@@ -185,3 +185,39 @@ class SpinRateIntegrationTest(JamsIntegrationtest):
                 solver_extra='spin_polarisation = [0.0, 1.0, 0.0]; spin_hall_angle = 0.1; charge_current_density = 1e12;'),
                 success=False)
             self.assertIn("spin-rate is not supported", result.stderr + result.stdout)
+
+    def test_spin_perturbation_initial_state_matches_all_solvers(self):
+        reference = None
+        for solver in self.solvers():
+            with self.subTest(solver=solver):
+                config = self.config(
+                    solver, ', {module = "spin-rate"; output_steps = 1; precision = 17;}',
+                    spin="[0.0, 0.0, 1.0]", t_max=1e-15)
+                initializer = 'initializer = {module = "spin-perturbation"; amplitude = 0.001; seed = 1234;};'
+                _, rows = self.run_case(config + initializer)
+                _, repeat = self.run_case(config + initializer)
+                initial = rows["magnetisation"][0][1:4]
+                self.assertEqual(initial, repeat["magnetisation"][0][1:4])
+                if reference is None:
+                    reference = initial
+                self.assertEqual(initial, reference)
+                self.assertGreater(math.hypot(*initial[:2]), 0.0)
+                self.assertLessEqual(math.hypot(*initial[:2]) / initial[2], 0.001 + 1e-14)
+                self.assertAlmostEqual(sum(x*x for x in initial), 1.0, delta=1e-14)
+
+    def test_spin_perturbation_releases_unstable_equilibrium(self):
+        for solver in self.solvers():
+            with self.subTest(solver=solver):
+                config = self.config(
+                    solver, ', {module = "spin-rate"; output_steps = 1; convergence = 1e-4;}',
+                    spin="[0.0, 0.0, 1.0]", alpha=1.0, t_step=1e-14, t_max=2e-12,
+                    hamiltonians='({module = "applied-field"; field = [0.0, 0.0, -100.0];})')
+                result, _ = self.run_case(config)
+                self.assertIn("stopping: monitor convergence at iteration 0", result.stdout)
+                result, rows = self.run_case(config +
+                    'initializer = {module = "spin-perturbation"; amplitude = 0.001; seed = 1234;};')
+                self.assertNotIn("stopping: monitor convergence at iteration 0", result.stdout)
+                self.assertIn("stopping: monitor convergence", result.stdout)
+                self.assertGreater(rows["spin-rate"][0][1], 1e-4)
+                self.assertGreater(rows["magnetisation"][0][3], 0.999)
+                self.assertLess(rows["magnetisation"][-1][3], -0.999)

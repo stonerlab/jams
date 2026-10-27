@@ -4,6 +4,7 @@
 #include <jams/initializer/init_damping_regions.h>
 #include <jams/initializer/init_h5.h>
 #include <jams/initializer/init_skyrmion.h>
+#include <jams/initializer/init_spin_perturbation.h>
 #include <jams/initializer/init_triple_q.h>
 
 
@@ -43,6 +44,7 @@ void jams::InitializerDispatcher::execute(const libconfig::Setting &settings) {
   DEFINED_INITIALIZER("damping-regions", InitDampingRegions, settings);
   DEFINED_INITIALIZER("bloch_domain_wall", InitBlochDomainWall, settings);
   DEFINED_INITIALIZER("skyrmion", InitSkyrmion, settings);
+  DEFINED_INITIALIZER("spin-perturbation", InitSpinPerturbation, settings);
   DEFINED_INITIALIZER("triple-q", InitTripleQ, settings);
 
 

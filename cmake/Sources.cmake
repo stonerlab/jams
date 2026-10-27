@@ -48,6 +48,7 @@ set(JAMS_SOURCES_CXX
         initializer/init_damping_regions.cc
         initializer/init_h5.cc
         initializer/init_skyrmion.cc
+        initializer/init_spin_perturbation.cc
         initializer/init_triple_q.cc
         interface/config.cc
         interface/fft.cc
