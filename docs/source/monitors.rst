@@ -17,6 +17,14 @@ their HDF5 attributes; older versions created these attributes without writing
 their values.
 See :ref:`solvers` for duration rounding and the regular sampling convention.
 
+For ``magnetisation-layers``, setting ``output_steps = 0`` writes only the
+initial state at iteration zero and the final state during post-processing,
+including when convergence ends the run early. This mode ignores
+``start_delay_steps``. If the initial and final iterations coincide, only one
+snapshot is written. Both snapshots use the existing HDF5 timeseries layout
+and XDMF sidecar; positive output intervals retain their regular sampling
+behaviour.
+
 .. toctree::
    :glob:
    :maxdepth: 2

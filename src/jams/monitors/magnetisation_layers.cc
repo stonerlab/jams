@@ -1,6 +1,7 @@
 // magnetisation_layers.cc                                             -*-C++-*-
 #include <jams/monitors/magnetisation_layers.h>
 
+#include <jams/common.h>
 #include <jams/core/globals.h>
 #include <jams/core/lattice.h>
 #include <jams/core/solver.h>
@@ -1661,7 +1662,42 @@ void MagnetisationLayersMonitor::accumulate_layer_magnetisation_cuda() {
 }
 #endif
 
+bool MagnetisationLayersMonitor::is_updating(const int& iteration) {
+  if (output_step_freq_ == 0) {
+    return iteration == 0;
+  }
+  return Monitor::is_updating(iteration);
+}
+
 void MagnetisationLayersMonitor::update(Solver& solver) {
+  if (output_step_freq_ == 0 && solver.iteration() != 0) {
+    return;
+  }
+  write_snapshot(solver);
+}
+
+void MagnetisationLayersMonitor::post_process() {
+  if (output_step_freq_ != 0 || globals::solver == nullptr) {
+    return;
+  }
+  auto& solver = *globals::solver;
+  if (last_written_iteration_ == solver.iteration()) {
+    return;
+  }
+#if HAS_CUDA
+  if (solver.is_cuda_solver()) {
+    // Post-processing bypasses CudaSolver::notify_monitors(), which normally
+    // waits for the solver's spin updates before running monitor reductions.
+    jams::instance().cuda_master_stream().synchronize();
+  }
+#endif
+  write_snapshot(solver);
+}
+
+void MagnetisationLayersMonitor::write_snapshot(Solver& solver) {
+  if (output_step_freq_ == 0 && last_written_iteration_ == solver.iteration()) {
+    return;
+  }
   // Open the h5 file to write new data
   HighFive::File file(
       h5_file_name_, HighFive::File::ReadWrite);
@@ -1724,4 +1760,5 @@ void MagnetisationLayersMonitor::update(Solver& solver) {
   }
 
   append_xdmf_time_step(solver);
+  last_written_iteration_ = solver.iteration();
 }

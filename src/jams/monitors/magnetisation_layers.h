@@ -91,6 +91,10 @@
 ///
 /// @setting `layer_normal` (required) normal vector along which to calculate
 ///           layers.
+/// @setting `output_steps` (optional) output interval in solver iterations.
+///           Zero writes only the initial and final states and ignores
+///           start_delay_steps. Final output is written during post-processing;
+///           if both states have the same iteration, only one snapshot is kept.
 /// @setting `layer_thickness` (optional) layer thickness in nm. The default is
 ///           0.0, which groups atoms into zero-thickness layers using
 ///           distance_tolerance.
@@ -120,6 +124,7 @@
 #include <jams/monitors/spin_grouping.h>
 
 #include <memory>
+#include <optional>
 #include <vector>
 #include <string>
 
@@ -133,7 +138,8 @@ public:
 
     void update(Solver& solver) override;
 
-    inline void post_process() override {};
+    bool is_updating(const int& iteration) override;
+    void post_process() override;
 
 private:
     struct XdmfTimeStep {
@@ -149,6 +155,7 @@ private:
         bool any() const { return volume || slice || glyph; }
     };
 
+    void write_snapshot(Solver& solver);
     void accumulate_layer_magnetisation_cpu();
     void write_xdmf_file() const;
     void append_xdmf_time_step(const Solver& solver);
@@ -166,6 +173,7 @@ private:
     std::string h5_file_name_;
     std::string xdmf_file_name_;
     XdmfOutputSelection xdmf_outputs_;
+    std::optional<int> last_written_iteration_;
 
     std::vector<jams::monitors::SpinGroup> spin_groups_;
     std::vector<int> group_num_layers_;
