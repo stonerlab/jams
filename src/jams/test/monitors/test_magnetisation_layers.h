@@ -25,6 +25,8 @@
 #include <jams/monitors/magnetisation_layers.h>
 
 #if HAS_CUDA
+#include <chrono>
+#include <thread>
 #include <cuda_runtime.h>
 #endif
 
@@ -40,6 +42,8 @@ public:
     iteration_ = iteration;
     time_ = time;
   }
+
+  void set_max_steps(const int steps) { max_steps_ = steps; }
 };
 
 #if HAS_CUDA
@@ -213,6 +217,99 @@ protected:
     return std::max(1.0, std::abs(expected)) * kMagnetisationTolerance;
   }
 
+  static void expect_magnetisation(const std::vector<double>& actual,
+                                   const std::vector<double>& expected) {
+    ASSERT_EQ(actual.size(), expected.size());
+    for (std::size_t i = 0; i < expected.size(); ++i) {
+      EXPECT_NEAR(actual[i], expected[i], magnetisation_tolerance(expected[i]));
+    }
+  }
+
+  static std::vector<std::string> read_output_iterations() {
+    HighFive::File file(
+        jams::output::monitor_filename("magnetisation-layers", "h5"),
+        HighFive::File::ReadOnly);
+    auto iterations = file.getGroup("/jams/monitors/magnetisation-layers/timeseries").listObjectNames();
+    std::sort(iterations.begin(), iterations.end());
+    return iterations;
+  }
+
+  void check_initial_and_final_output(const bool geometry_enabled) {
+    initialise_lattice_with_monitor(std::string(R"(
+      monitors = ({
+        module = "magnetisation-layers";
+        output_steps = 0;
+        start_delay_steps = 100;
+        layer_normal = [0.0, 0.0, 1.0];
+    )") + (geometry_enabled ? "" : "xdmf_outputs = ();\n") + "});");
+
+    MagnetisationLayersStubSolver solver;
+    solver.set_max_steps(20);
+    globals::solver = &solver;
+    auto* monitor = new MagnetisationLayersMonitor(first_monitor_settings());
+    solver.register_monitor(monitor);
+    EXPECT_TRUE(monitor->is_updating(0));
+    EXPECT_FALSE(monitor->is_updating(std::numeric_limits<int>::max()));
+    solver.notify_monitors();
+    monitor->update(solver); // Repeated initial notification must be harmless.
+
+    for (int iteration = 1; iteration <= 3; ++iteration) {
+      solver.set_monitor_state(iteration, iteration * 0.25);
+      EXPECT_FALSE(monitor->is_updating(iteration));
+      solver.notify_monitors();
+      monitor->update(solver); // Direct calls must also suppress intermediate output.
+    }
+    EXPECT_EQ(read_output_iterations(), (std::vector<std::string>{"000000000"}));
+
+    {
+      auto spins = globals::s.mutable_host_view();
+      spins(0, 0) = 0.0;
+      spins(0, 1) = 1.0;
+      spins(0, 2) = 0.0;
+    }
+    // Finalise before max_steps, as happens when convergence ends the run.
+    ASSERT_LT(solver.iteration(), solver.max_steps());
+    monitor->post_process();
+    const auto xdmf = read_xdmf();
+    monitor->post_process();
+    EXPECT_EQ(read_xdmf(), xdmf);
+    EXPECT_EQ(read_output_iterations(),
+              (std::vector<std::string>{"000000000", "000000003"}));
+    expect_magnetisation(read_first_update_magnetisation(), {1.0, 0.0, 0.0});
+    const std::string root = "/jams/monitors/magnetisation-layers/timeseries/";
+    expect_magnetisation(read_2d_double_dataset(root + "000000003/A/magnetisation"),
+                         {0.0, 1.0, 0.0});
+    {
+      HighFive::File file(jams::output::monitor_filename("magnetisation-layers", "h5"),
+                          HighFive::File::ReadOnly);
+      double time = -1.0;
+      double step = -1.0;
+      std::string units;
+      file.getGroup(root + "000000000").getAttribute("time").read(time);
+      EXPECT_EQ(time, 0.0);
+      auto final = file.getGroup(root + "000000003");
+      final.getAttribute("time").read(time);
+      final.getAttribute("time_step").read(step);
+      final.getAttribute("units").read(units);
+      EXPECT_EQ(time, 0.75);
+      EXPECT_EQ(step, solver.time_step());
+      EXPECT_EQ(units, "ps");
+    }
+    if (geometry_enabled) {
+      EXPECT_NE(xdmf.find("step_000000000"), std::string::npos);
+      EXPECT_NE(xdmf.find("step_000000003"), std::string::npos);
+      EXPECT_EQ(xdmf.find("step_000000001"), std::string::npos);
+      EXPECT_EQ(xdmf.find("step_000000002"), std::string::npos);
+      EXPECT_NE(xdmf.find("<Time Value=\"0\" />"), std::string::npos);
+      EXPECT_NE(xdmf.find("<Time Value=\"0.75\" />"), std::string::npos);
+      EXPECT_NE(xdmf.find("timeseries/000000003/A/slice_magnetisation"), std::string::npos);
+    } else {
+      EXPECT_EQ(xdmf.find("<Grid"), std::string::npos);
+      EXPECT_FALSE(h5_path_exists("/jams/monitors/magnetisation-layers/groups/A/xdmf"));
+    }
+    globals::solver = nullptr;
+  }
+
 private:
   static std::filesystem::path test_output_directory() {
     const auto* test_info = ::testing::UnitTest::GetInstance()->current_test_info();
@@ -240,6 +337,77 @@ private:
 
   std::filesystem::path output_dir_;
 };
+
+TEST_F(MagnetisationLayersMonitorTest, ZeroOutputStepsWritesOnlyInitialAndFinalStates) {
+  check_initial_and_final_output(true);
+}
+
+TEST_F(MagnetisationLayersMonitorTest, ZeroOutputStepsWorksWithoutXdmfGeometry) {
+  check_initial_and_final_output(false);
+}
+
+TEST_F(MagnetisationLayersMonitorTest, ZeroStepRunWritesOneSnapshotDuringPostProcessing) {
+  initialise_lattice_with_monitor(R"(
+    monitors = ({
+      module = "magnetisation-layers";
+      output_steps = 0;
+      layer_normal = [0.0, 0.0, 1.0];
+    });
+  )");
+  MagnetisationLayersStubSolver solver;
+  globals::solver = &solver;
+  MagnetisationLayersMonitor monitor(first_monitor_settings());
+  // A zero-step run never enters the monitor notification loop.
+  monitor.post_process();
+  const auto xdmf = read_xdmf();
+  monitor.post_process();
+  monitor.update(solver);
+  EXPECT_EQ(read_xdmf(), xdmf);
+  EXPECT_EQ(read_output_iterations(), (std::vector<std::string>{"000000000"}));
+  expect_magnetisation(read_first_update_magnetisation(), {1.0, 0.0, 0.0});
+}
+
+TEST_F(MagnetisationLayersMonitorTest, FinalisationAtInitialIterationDoesNotDuplicateSnapshot) {
+  initialise_lattice_with_monitor(R"(
+    monitors = ({
+      module = "magnetisation-layers";
+      output_steps = 0;
+      layer_normal = [0.0, 0.0, 1.0];
+    });
+  )");
+  MagnetisationLayersStubSolver solver;
+  globals::solver = &solver;
+  MagnetisationLayersMonitor monitor(first_monitor_settings());
+  monitor.update(solver);
+  const auto xdmf = read_xdmf();
+  monitor.post_process();
+  EXPECT_EQ(read_xdmf(), xdmf);
+  EXPECT_EQ(read_output_iterations(), (std::vector<std::string>{"000000000"}));
+}
+
+TEST_F(MagnetisationLayersMonitorTest, PositiveOutputStepsRetainsSchedulingAndStartDelay) {
+  initialise_lattice_with_monitor(R"(
+    monitors = ({
+      module = "magnetisation-layers";
+      output_steps = 2;
+      start_delay_steps = 3;
+      layer_normal = [0.0, 0.0, 1.0];
+    });
+  )");
+  MagnetisationLayersStubSolver solver;
+  globals::solver = &solver;
+  auto* monitor = new MagnetisationLayersMonitor(first_monitor_settings());
+  solver.register_monitor(monitor);
+  for (int iteration = 0; iteration <= 7; ++iteration) {
+    solver.set_monitor_state(iteration, iteration * 0.25);
+    EXPECT_EQ(monitor->is_updating(iteration), iteration == 4 || iteration == 6);
+    solver.notify_monitors();
+  }
+  const auto xdmf = read_xdmf();
+  monitor->post_process();
+  EXPECT_EQ(read_xdmf(), xdmf);
+  EXPECT_EQ(read_output_iterations(), (std::vector<std::string>{"000000004", "000000006"}));
+}
 
 TEST_F(MagnetisationLayersMonitorTest, RejectsZeroLayerNormal) {
   initialise_lattice_with_monitor(R"(
@@ -1221,6 +1389,40 @@ TEST_F(MagnetisationLayersMonitorTest, XdmfContainsMultipleTimeSteps) {
 }
 
 #if HAS_CUDA
+TEST_F(MagnetisationLayersMonitorTest, CudaFinalOutputWaitsForQueuedSpinUpdates) {
+  if (!magnetisation_layers_cuda_device_available()) {
+    GTEST_SKIP() << "CUDA runtime is enabled but no CUDA device is available";
+  }
+  initialise_lattice_with_monitor(R"(
+    monitors = ({
+      module = "magnetisation-layers";
+      output_steps = 0;
+      layer_normal = [0.0, 0.0, 1.0];
+    });
+  )");
+  MagnetisationLayersCudaStubSolver solver;
+  globals::solver = &solver;
+  MagnetisationLayersMonitor monitor(first_monitor_settings());
+  monitor.update(solver);
+  expect_magnetisation(read_first_update_magnetisation(), {1.0, 0.0, 0.0});
+
+  auto* spins = globals::s.mutable_device_data();
+  auto stream = jams::instance().cuda_master_stream().get();
+  // Delay the update so a reduction on the monitor's separate stream cannot
+  // rely on the queued write having already completed by chance.
+  CHECK_CUDA_STATUS(cudaLaunchHostFunc(stream, [](void*) {
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+  }, nullptr));
+  CHECK_CUDA_STATUS(cudaMemsetAsync(spins, 0, globals::s.size() * sizeof(*spins), stream));
+  solver.set_monitor_state(5, 1.25);
+  monitor.post_process();
+
+  EXPECT_EQ(read_output_iterations(), (std::vector<std::string>{"000000000", "000000005"}));
+  EXPECT_EQ(read_2d_double_dataset(
+      "/jams/monitors/magnetisation-layers/timeseries/000000005/A/magnetisation"),
+      (std::vector<double>{0.0, 0.0, 0.0}));
+}
+
 TEST_F(MagnetisationLayersMonitorTest, CudaFiniteThicknessUpdateMatchesExpectedLayerMagnetisation) {
   if (!magnetisation_layers_cuda_device_available()) {
     GTEST_SKIP() << "CUDA runtime is enabled but no CUDA device is available";
