@@ -26,6 +26,10 @@ class Solver {
 
   virtual bool is_cuda_solver() const { return false; }
 
+  virtual bool supports_deterministic_spin_rate() const { return false; }
+  // Maximum local deterministic rate at the current configuration, in ps^-1.
+  virtual double max_deterministic_spin_rate();
+
   Monitor::ConvergenceStatus convergence_status();
   virtual bool is_running();
   virtual std::vector<jams::output::ColDef> monitor_coordinate_columns() const;
@@ -47,6 +51,8 @@ class Solver {
   inline int max_steps() const {
     return max_steps_;
   }
+
+  inline int min_steps() const { return min_steps_; }
 
   inline const Physics * physics() const {
     return physics_module_.get();
@@ -83,6 +89,7 @@ class Solver {
 
   static Solver* create(const libconfig::Setting &setting);
  protected:
+    double max_llg_spin_rate_cpu(const jams::MultiArray<jams::Real, 1>& gyro_eff);
     // Input times are in seconds; the clock and stage times are in picoseconds.
     // Keep time independent of the precision used for spins and fields.
     void initialize_time(const libconfig::Setting& settings);

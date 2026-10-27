@@ -48,6 +48,7 @@ set(JAMS_SOURCES_CXX
         initializer/init_damping_regions.cc
         initializer/init_h5.cc
         initializer/init_skyrmion.cc
+        initializer/init_spin_perturbation.cc
         initializer/init_triple_q.cc
         interface/config.cc
         interface/fft.cc
@@ -85,6 +86,7 @@ set(JAMS_SOURCES_CXX
         monitors/spin_correlation.cc
         monitors/spin_pumping.cc
         monitors/spin_temperature.cc
+        monitors/spin_rate.cc
         monitors/stability.cc
         monitors/torque.cc
         monitors/unitcell_average.cc
@@ -115,6 +117,7 @@ set(JAMS_SOURCES_CUDA
         cuda/cuda_array_reduction.cu
         cuda/cuda_common.cu
         cuda/cuda_solver.cu
+        cuda/cuda_spin_rate.cu
         cuda/cuda_spin_ops.cu
         cuda/cuda_minimum_image.cu
         hamiltonian/cuda_anisotropy_polynomial.cu

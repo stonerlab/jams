@@ -23,6 +23,11 @@ class CUDAHeunLLGSolver : public CudaSolver {
 
     std::string name() const override { return "llg-heun-gpu"; }
 
+    bool supports_deterministic_spin_rate() const override { return true; }
+    double max_deterministic_spin_rate() override {
+      return max_llg_spin_rate_cuda(gyro_eff_);
+    }
+
   private:
     CudaStream dev_stream_;
     jams::MultiArray<jams::Real, 1> gyro_eff_;

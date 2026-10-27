@@ -22,6 +22,11 @@ class RKMK2LLGSolver : public Solver {
 
   std::string name() const override { return "llg-rkmk2-cpu"; }
 
+  bool supports_deterministic_spin_rate() const override { return true; }
+  double max_deterministic_spin_rate() override {
+    return max_llg_spin_rate_cpu(gyro_eff_);
+  }
+
  private:
   bool supports_persistent_parallel_step() const;
   void run_persistent_parallel_step();
@@ -44,6 +49,11 @@ class RKMK4LLGSolver : public Solver {
   void run() override;
 
   std::string name() const override { return "llg-rkmk4-cpu"; }
+
+  bool supports_deterministic_spin_rate() const override { return true; }
+  double max_deterministic_spin_rate() override {
+    return max_llg_spin_rate_cpu(gyro_eff_);
+  }
 
  private:
   jams::MultiArray<jams::Real, 1> gyro_eff_;
