@@ -21,6 +21,11 @@ public:
     void run() override;
 
     std::string name() const override { return "llg-rkmk2-gpu"; }
+
+    bool supports_deterministic_spin_rate() const override { return true; }
+    double max_deterministic_spin_rate() override {
+      return max_llg_spin_rate_cuda(gyro_eff_);
+    }
 private:
     template <typename GyroParam, typename AlphaParam, typename FieldScaleParam>
     void run_with_parameters(GyroParam gyro, AlphaParam alpha, FieldScaleParam field_scale);

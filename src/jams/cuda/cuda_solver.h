@@ -72,6 +72,7 @@ class CudaSolver : public Solver {
     }
 
   protected:
+    double max_llg_spin_rate_cuda(const jams::MultiArray<jams::Real, 1>& gyro_eff);
 #if DO_MIXED_PRECISION
     jams::Real* mutable_field_spin_cache_device_data()
     {
@@ -98,6 +99,8 @@ class CudaSolver : public Solver {
 #endif
 
   private:
+    jams::MultiArray<double, 1> spin_rate_partials_;
+    jams::MultiArray<double, 1> spin_rate_result_;
     void create_spin_barrier_event()
     {
         cudaEventCreateWithFlags(&spin_barrier_event_, cudaEventDisableTiming);

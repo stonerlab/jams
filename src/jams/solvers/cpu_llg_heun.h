@@ -23,6 +23,11 @@ public:
 
   std::string name() const override { return "llg-heun-cpu"; }
 
+  bool supports_deterministic_spin_rate() const override { return true; }
+  double max_deterministic_spin_rate() override {
+    return max_llg_spin_rate_cpu(gyro_eff_);
+  }
+
  private:
     jams::MultiArray<double, 2> s_old_;
     jams::MultiArray<jams::Real, 1> gyro_eff_;

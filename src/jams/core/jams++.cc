@@ -887,6 +887,8 @@ std::string choose_simulation_name(const jams::ProgramArgs &program_args) {
             ::globals::solver->notify_monitors();
 
             if (::globals::solver->convergence_status() == Monitor::ConvergenceStatus::kConverged) {
+              std::cout << "stopping: monitor convergence at iteration "
+                        << ::globals::solver->iteration() << "\n";
               break;
             }
 

@@ -19,6 +19,7 @@
 #include <jams/test/monitors/test_hdf5.h>
 #include <jams/test/monitors/test_magnetisation_layers.h>
 #include <jams/test/monitors/test_neutron_scattering.h>
+#include "jams/test/monitors/test_spin_rate.h"
 
 #include "jams/test/hamiltonian/test_crystal_field.h"
 #include "jams/test/hamiltonian/test_time_dependent_field.h"

@@ -22,6 +22,7 @@
 #include "jams/core/base.h"
 #include "jams/helpers/utils.h"
 #include "jams/core/globals.h"
+#include "jams/solvers/llg_spin_rate.h"
 #include "jams/helpers/defaults.h"
 
 #include "jams/solvers/null_solver.h"
@@ -334,6 +335,36 @@ void Solver::notify_monitors() {
 
 bool Solver::is_running() {
   return iteration_ < max_steps_;
+}
+
+double Solver::max_deterministic_spin_rate() {
+  throw std::runtime_error("solver '" + name() + "' does not support deterministic spin rate");
+}
+
+double Solver::max_llg_spin_rate_cpu(const jams::MultiArray<jams::Real, 1>& gyro_eff) {
+  if (globals::num_magnetic_spins == 0) {
+    throw std::runtime_error("spin-rate requires at least one magnetic spin");
+  }
+  compute_fields();
+  const auto spins = globals::s.host_view();
+  const auto inverse_moments = globals::inv_mus.host_view();
+  const auto alpha = globals::alpha.host_view();
+  const auto gyro = gyro_eff.host_view();
+  const auto* fields = hamiltonians_.empty() ? nullptr : globals::h.host_data();
+  double maximum = 0.0;
+  int invalid = 0;
+#if HAS_OMP
+#pragma omp parallel for reduction(max:maximum) reduction(|:invalid) schedule(static)
+#endif
+  for (int i = 0; i < globals::num_spins; ++i) {
+    const double rate = jams::solvers::llg_spin_rate(
+        spins.data() + 3 * i, fields ? fields + 3 * i : nullptr,
+        inverse_moments(i), alpha(i), gyro(i));
+    invalid |= rate < 0.0;
+    maximum = std::max(maximum, rate);
+  }
+  if (invalid) throw std::runtime_error("non-finite input or result in deterministic spin rate");
+  return maximum;
 }
 
 std::vector<jams::output::ColDef> Solver::monitor_coordinate_columns() const {
