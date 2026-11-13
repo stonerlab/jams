@@ -105,8 +105,8 @@ void jams::BoseEinsteinCudaSRK4Thermostat::update() {
 
   // We can solve the two stochastic processes (5 and 6 in the Savin paper)
   // separately and so we put each one into a separate CUDA stream.
-  // The final step where we combine them is done in the default stream which
-  // will not execute until the other streams are complete.
+  // Combine on stream 5 after stream 6 has produced its state. Stream 6 must
+  // then wait for the combination before it can overwrite that state again.
 
   CHECK_CURAND_STATUS(curandGenerateNormalDouble(prng5_, psi5_.mutable_device_data(), psi5_.size(), 0.0, 1.0));
   CHECK_CURAND_STATUS(curandGenerateNormalDouble(prng6_, psi6_.mutable_device_data(), psi6_.size(), 0.0, 1.0));
@@ -131,7 +131,6 @@ void jams::BoseEinsteinCudaSRK4Thermostat::update() {
       globals::num_spins3);
   DEBUG_CHECK_CUDA_ASYNC_STATUS;
 
-  cudaEventRecord(event5_, dev_stream5_.get());
   cudaEventRecord(event6_, dev_stream6_.get());
 
   cudaStreamWaitEvent(dev_stream5_.get(), event6_, 0);
@@ -144,6 +143,10 @@ void jams::BoseEinsteinCudaSRK4Thermostat::update() {
       temperature_,
       globals::num_spins3);
   DEBUG_CHECK_CUDA_ASYNC_STATUS;
+
+  // Protect v6_ from the next update, including consecutive warm-up updates.
+  CHECK_CUDA_STATUS(cudaEventRecord(event5_, dev_stream5_.get()));
+  CHECK_CUDA_STATUS(cudaStreamWaitEvent(dev_stream6_.get(), event5_, 0));
 }
 
 void jams::BoseEinsteinCudaSRK4Thermostat::warmup(const unsigned steps) {
