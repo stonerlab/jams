@@ -254,7 +254,7 @@ void CudaThermostatGeneralFFT::update() {
   CHECK_CURAND_STATUS(
       curandSetStream(jams::instance().curand_generator(), dev_curand_stream_));
 
-  const auto n = pbc(globals::solver->iteration(), (2 * num_trunc_ + 1));
+  const auto n = static_cast<int>(noise_sample_count_ % (2 * num_trunc_ + 1));
   cuda_thermostat_general_fft_kernel<<<grid_size, block_size, 0, dev_stream_ >>>(
       noise_.mutable_device_data(),
       memory_kernel_.device_data(),
@@ -270,20 +270,21 @@ void CudaThermostatGeneralFFT::update() {
 
   // generate new random numbers ready for the next round
   auto start_index = num_spins3_even_ * pbc(
-      globals::solver->iteration() + num_trunc_ + 1, 2 * num_trunc_ + 1);
+      n + num_trunc_ + 1, 2 * num_trunc_ + 1);
   CHECK_CURAND_STATUS(
       curandGenerateNormalDouble(
           jams::instance().curand_generator(),
            white_noise_.mutable_device_data() + start_index, num_spins3_even_, 0.0, 1.0));
 
   #ifdef PRINT_NOISE
-  debug_file_ << solver->iteration() * delta_t_ << " " << noise_(0, 0)
+  debug_file_ << noise_sample_count_ * delta_t_ << " " << noise_(0, 0)
                 << "\n";
   #endif
 
   // reset the curand stream to default
   CHECK_CURAND_STATUS(
       curandSetStream(jams::instance().curand_generator(), nullptr));
+  ++noise_sample_count_;
 }
 
 CudaThermostatGeneralFFT::~CudaThermostatGeneralFFT() {

@@ -128,6 +128,7 @@
 
 #include <curand.h>
 #include <fstream>
+#include <cstdint>
 #include <mutex>
 
 #include "jams/core/thermostat.h"
@@ -192,6 +193,8 @@ private:
     double delta_omega_;
     double delta_t_;
     double filter_temperature_;
+    // Splitting solvers can request multiple noise samples per solver step.
+    std::uint64_t noise_sample_count_ = 0;
 
     // 3*num_spins increased by one to make it even if needed. Required for
     // curand which can only generate even lengths of random numbers.
