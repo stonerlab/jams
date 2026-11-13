@@ -189,10 +189,6 @@ CudaThermostatGeneralFFT::CudaThermostatGeneralFFT(const jams::Real &temperature
     throw jams::GeneralException("Failed to create CUDA stream in CudaLangevinBoseThermostat");
   }
 
-  if (cudaStreamCreate(&dev_curand_stream_) != cudaSuccess) {
-    throw jams::GeneralException("Failed to create CURAND stream in CudaLangevinBoseThermostat");
-  }
-
   // Curand will only generate noise for arrays which are multiples of 2
   // so we sometimes have to make the size of the white noise array artificially
   // larger. We can't just add 1 element to the total white_noise_ because when
@@ -202,10 +198,12 @@ CudaThermostatGeneralFFT::CudaThermostatGeneralFFT(const jams::Real &temperature
   num_spins3_even_ = (3 * num_spins) + ((3 * num_spins) % 2);
 
   white_noise_.resize(num_spins3_even_ * (2 * num_trunc_ + 1));
+  CHECK_CURAND_STATUS(curandSetStream(jams::instance().curand_generator(), dev_stream_));
   CHECK_CURAND_STATUS(
       curandGenerateNormalDouble(jams::instance().curand_generator(),
                                  white_noise_.mutable_device_data(),
                                  white_noise_.size(), 0.0, 1.0));
+  CHECK_CURAND_STATUS(curandSetStream(jams::instance().curand_generator(), nullptr));
 
 
   // Output functions to files for checking
@@ -251,9 +249,6 @@ void CudaThermostatGeneralFFT::update() {
   int block_size = 128;
   int grid_size = (globals::num_spins3 + block_size - 1) / block_size;
 
-  CHECK_CURAND_STATUS(
-      curandSetStream(jams::instance().curand_generator(), dev_curand_stream_));
-
   const auto n = static_cast<int>(noise_sample_count_ % (2 * num_trunc_ + 1));
   cuda_thermostat_general_fft_kernel<<<grid_size, block_size, 0, dev_stream_ >>>(
       noise_.mutable_device_data(),
@@ -268,9 +263,11 @@ void CudaThermostatGeneralFFT::update() {
   cuda_array_elementwise_scale(globals::num_spins, 3, sigma_.device_data(), 1.0, noise_.mutable_device_data(), 1,
                                noise_.mutable_device_data(), 1, dev_stream_);
 
-  // generate new random numbers ready for the next round
+  // Order the refill and convolution on the same stream so that consecutive
+  // updates can safely reuse the ring buffer.
   auto start_index = num_spins3_even_ * pbc(
       n + num_trunc_ + 1, 2 * num_trunc_ + 1);
+  CHECK_CURAND_STATUS(curandSetStream(jams::instance().curand_generator(), dev_stream_));
   CHECK_CURAND_STATUS(
       curandGenerateNormalDouble(
           jams::instance().curand_generator(),
@@ -294,10 +291,6 @@ CudaThermostatGeneralFFT::~CudaThermostatGeneralFFT() {
 
   if (dev_stream_ != nullptr) {
     cudaStreamDestroy(dev_stream_);
-  }
-
-  if (dev_curand_stream_ != nullptr) {
-    cudaStreamDestroy(dev_curand_stream_);
   }
 }
 

@@ -209,7 +209,6 @@ private:
     jams::MultiArray<double, 1> white_noise_;
 
     cudaStream_t                dev_stream_ = nullptr;
-    cudaStream_t                dev_curand_stream_ = nullptr;
 };
 
 // INLINE DEFINITIONS
