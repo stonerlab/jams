@@ -12,6 +12,8 @@
 #include "cuda_gse_rk4_kernel.cuh"
 
 void CUDAGSERK4Solver::function_kernel(jams::MultiArray<double, 2>& spins, jams::MultiArray<double, 2>& k) {
+  compute_fields();
+
   const dim3 block_size = {64, 1, 1};
   auto grid_size = cuda_grid_size(block_size, {static_cast<unsigned int>(globals::num_spins), 1, 1});
 
