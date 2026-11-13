@@ -22,7 +22,7 @@ __global__ void cuda_heun_llg_kernelA
 {
   __shared__ double s[85 * 3];
   __shared__ jams::Real h[85 * 3];
-  double rhs;
+  double rhs = 0.0;
 
   const unsigned int tx3 = 3 * threadIdx.x;
   const unsigned int ty = threadIdx.y;
@@ -38,19 +38,29 @@ __global__ void cuda_heun_llg_kernelA
   if (idx < dev_num_spins && ty < 3) {
     h[p0] = ((h_dev[gxy] * inv_mus_dev[idx]) + noise_dev[gxy]);
     s[p0] = s_dev[gxy];
+  }
 
-    __syncthreads();
+  // All threads participate, including inactive threads in the final block.
+  __syncthreads();
 
+  if (idx < dev_num_spins && ty < 3) {
     rhs = - gyro_dev[idx] * ((s[p1] * h[p2] - s[p2] * h[p1])
         + alpha_dev[idx] * ( s[p1] * (s[p0] * h[p1] - s[p1] * h[p0])
                            - s[p2] * (s[p2] * h[p0] - s[p0] * h[p2]) ));
 
     ds_dt_dev[gxy] = 0.5 * rhs;
+  }
 
+  // Finish reading every old spin component before any component is replaced.
+  __syncthreads();
+
+  if (idx < dev_num_spins && ty < 3) {
     s[p0] = s[p0] + dev_dt * rhs;
+  }
 
-    __syncthreads();
+  __syncthreads();
 
+  if (idx < dev_num_spins && ty < 3) {
     const double norm_sq = s[tx3] * s[tx3] + s[tx3 + 1] * s[tx3 + 1] + s[tx3 + 2] * s[tx3 + 2];
     const double recip_snorm = norm_sq > 0.0 ? rsqrt(norm_sq) : 0.0;
     s_dev[gxy] = s[p0] * recip_snorm;
@@ -73,7 +83,7 @@ __global__ void cuda_heun_llg_kernelB
 {
   __shared__ double s[85 * 3];
   __shared__ jams::Real h[85 * 3];
-  double rhs;
+  double rhs = 0.0;
 
   const unsigned int tx3 = 3*threadIdx.x;
   const unsigned int ty = threadIdx.y;
@@ -89,19 +99,30 @@ __global__ void cuda_heun_llg_kernelB
   if (idx < dev_num_spins && ty < 3) {
     h[p0] = ((h_dev[gxy] * inv_mus_dev[idx]) + noise_dev[gxy]);
     s[p0] = s_dev[gxy];
+  }
 
-    __syncthreads();
+  // All threads participate, including inactive threads in the final block.
+  __syncthreads();
 
+  if (idx < dev_num_spins && ty < 3) {
     rhs = - gyro_dev[idx] * ((s[p1] * h[p2] - s[p2] * h[p1])
                              + alpha_dev[idx] * ( s[p1] * (s[p0] * h[p1] - s[p1] * h[p0])
                                                   - s[p2] * (s[p2] * h[p0] - s[p0] * h[p2]) ));
 
 
     ds_dt_dev[gxy] = ds_dt_dev[gxy] + 0.5 * rhs;
+  }
 
+  // Finish reading every old spin component before any component is replaced.
+  __syncthreads();
+
+  if (idx < dev_num_spins && ty < 3) {
     s[p0] = s_old_dev[gxy] + dev_dt * ds_dt_dev[gxy];
+  }
 
-    __syncthreads();
+  __syncthreads();
+
+  if (idx < dev_num_spins && ty < 3) {
     const double norm_sq = s[tx3] * s[tx3] + s[tx3 + 1] * s[tx3 + 1] + s[tx3 + 2] * s[tx3 + 2];
     const double recip_snorm = norm_sq > 0.0 ? rsqrt(norm_sq) : 0.0;
     s_dev[gxy] = s[p0] * recip_snorm;
