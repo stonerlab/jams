@@ -241,7 +241,6 @@ void CUDALLGDMSolver::run_with_parameters(
     alpha,
     globals::num_spins, step_size_);
   DEBUG_CHECK_CUDA_ASYNC_STATUS
-  record_spin_barrier_event();
 
   // --- fields at t_{n+1} using S* (this matches DM for time-dependent fields)
   // Put predicted spins into globals::s so compute_fields() uses them.
@@ -252,6 +251,8 @@ void CUDALLGDMSolver::run_with_parameters(
     cudaMemcpyDeviceToDevice,
     jams::instance().cuda_master_stream().get());
   DEBUG_CHECK_CUDA_ASYNC_STATUS
+  // Hamiltonian streams must wait for the predicted spins in globals::s.
+  record_spin_barrier_event();
 
   time_ = t0 + step_size_;
   compute_fields();
