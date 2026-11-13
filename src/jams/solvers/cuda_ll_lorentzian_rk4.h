@@ -5,7 +5,6 @@
 
 #if HAS_CUDA
 
-#include "jams/cuda/cuda_stream.h"
 #include "jams/cuda/cuda_solver.h"
 #include "jams/containers/multiarray.h"
 
@@ -24,7 +23,6 @@ class CUDALLLorentzianRK4Solver : public CudaSolver {
     std::string name() const override { return "ll-lorentzian-rk4-gpu"; }
 
   private:
-    CudaStream dev_stream_;
     jams::MultiArray<jams::Real, 1> gyro_eff_;
 
     double lorentzian_omega_;

@@ -1,3 +1,5 @@
+namespace {
+
 __global__ void cuda_rk4_mid_step_kernel
 (
   const unsigned dev_num_spins3,
@@ -61,3 +63,5 @@ __global__ void cuda_spin_normalisation_kernel
     }
   }
 }
+
+}  // namespace

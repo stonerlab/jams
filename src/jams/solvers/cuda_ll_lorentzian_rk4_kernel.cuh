@@ -5,7 +5,6 @@
 
 #include "jams/cuda/cuda_common.h"
 
-#include "jams/cuda/cuda_device_rk4.cuh"
 #include "jams/helpers/mixed_precision.h"
 
 
@@ -90,55 +89,5 @@ __global__ void cuda_ll_lorentzian_rk4_kernel
 
   }
 }
-
-__global__ void cuda_ll_lorentzian_rk4_combination_kernel
-    (
-        double * x_dev,
-        const double * x_old,
-        const double * k1_dev,
-        const double * k2_dev,
-        const double * k3_dev,
-        const double * k4_dev,
-        const double dt,
-        const unsigned size
-    )
-{
-  const unsigned int idx = blockIdx.x * blockDim.x + threadIdx.x;
-
-  if (idx < size) {
-      x_dev[idx] = x_old[idx] + dt * (k1_dev[idx] + 2*k2_dev[idx] + 2*k3_dev[idx] + k4_dev[idx]) / 6.0;
-  }
-}
-
-__global__ void cuda_ll_lorentzian_rk4_combination_normalize_kernel
-    (
-        double * s_dev,
-        const double * s_old,
-        const double * k1_dev,
-        const double * k2_dev,
-        const double * k3_dev,
-        const double * k4_dev,
-        const double dt,
-        const unsigned dev_num_spins
-    )
-{
-  const unsigned int idx = blockIdx.x * blockDim.x + threadIdx.x;
-
-  if (idx < dev_num_spins) {
-
-    double s[3];
-    for (auto n = 0; n < 3; ++n) {
-      s[n] = s_old[3*idx + n] + dt * (k1_dev[3*idx + n] + 2*k2_dev[3*idx + n] + 2*k3_dev[3*idx + n] + k4_dev[3*idx + n]) / 6.0;
-    }
-
-    const double norm_sq = s[0]*s[0] + s[1]*s[1] + s[2]*s[2];
-    const double recip_snorm = norm_sq > 0.0 ? rsqrt(norm_sq) : 0.0;
-
-    for (auto n = 0; n < 3; ++n) {
-      s_dev[3*idx + n] = s[n] * recip_snorm;
-    }
-  }
-}
-
 
 #endif
