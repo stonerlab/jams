@@ -55,8 +55,10 @@ public:
 
     std::string name() const override { return "llg-sot-rk4-gpu"; }
 
-    void function_kernel(jams::MultiArray<double, 2>& spins, jams::MultiArray<double, 2>& k) override;
-    void post_step(jams::MultiArray<double, 2>& spins) override;
+    void pre_stage(jams::MultiArray<double, 2>& spins, cudaStream_t stream) override;
+    void function_kernel(jams::MultiArray<double, 2>& spins,
+                         jams::MultiArray<double, 2>& k, cudaStream_t stream) override;
+    void post_step(jams::MultiArray<double, 2>& spins, cudaStream_t stream) override;
 
 private:
     jams::MultiArray<double, 2> spin_polarisation_;

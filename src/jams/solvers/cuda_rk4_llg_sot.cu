@@ -91,18 +91,16 @@ CudaRK4LLGSOTSolver::CudaRK4LLGSOTSolver(const libconfig::Setting &settings)
   }
 }
 
-void CudaRK4LLGSOTSolver::function_kernel(jams::MultiArray<double, 2> &spins,
-                                          jams::MultiArray<double, 2> &k) {
+void CudaRK4LLGSOTSolver::pre_stage(jams::MultiArray<double, 2>& spins, cudaStream_t stream) {
+  jams::normalise_spins_cuda(spins, stream);
+}
 
-  jams::normalise_spins_cuda(spins);
-
-  compute_fields();
-
+void CudaRK4LLGSOTSolver::function_kernel(jams::MultiArray<double, 2>& spins,
+                                          jams::MultiArray<double, 2>& k, cudaStream_t stream) {
   const dim3 block_size = {64, 1, 1};
   auto grid_size = cuda_grid_size(block_size, {static_cast<unsigned int>(globals::num_spins), 1, 1});
 
-  // using default stream blocks all streams until complete to force synchronisation
-  cuda_rk4_llg_sot_kernel<<<grid_size, block_size>>>
+  cuda_rk4_llg_sot_kernel<<<grid_size, block_size, 0, stream>>>
       (spins.device_data(), k.mutable_device_data(),
        globals::h.device_data(), spin_polarisation_.device_data(),
        sot_coefficient_.device_data(), thermostat_->device_data(),
@@ -112,6 +110,6 @@ void CudaRK4LLGSOTSolver::function_kernel(jams::MultiArray<double, 2> &spins,
 }
 
 
-void CudaRK4LLGSOTSolver::post_step(jams::MultiArray<double, 2> &spins) {
-  jams::normalise_spins_cuda(spins);
+void CudaRK4LLGSOTSolver::post_step(jams::MultiArray<double, 2>& spins, cudaStream_t stream) {
+  jams::normalise_spins_cuda(spins, stream);
 }

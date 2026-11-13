@@ -35,77 +35,54 @@ void CudaRK4BaseSolver::initialize(const libconfig::Setting &settings) {
 }
 
 
+void CudaRK4BaseSolver::evaluate_stage(jams::MultiArray<double, 2>& k, cudaStream_t stream) {
+  pre_stage(globals::s, stream);
+  record_spin_barrier_event();
+  compute_fields();
+  function_kernel(globals::s, k, stream);
+}
+
+
 void CudaRK4BaseSolver::run()
 {
+  const auto stream = jams::instance().cuda_master_stream().get();
   const dim3 block_size = {64, 1, 1};
-  auto grid_size = cuda_grid_size(block_size, {static_cast<unsigned int>(globals::num_spins3), 1, 1});
+  const auto grid_size = cuda_grid_size(block_size, {static_cast<unsigned int>(globals::num_spins3), 1, 1});
 
-  double t0 = time_;
+  const double t0 = time_;
+  const double half_step = 0.5 * step_size_;
 
-  cudaMemcpyAsync(s_old_.mutable_device_data(),           // void *               dst
-                  globals::s.device_data(),               // const void *         src
-                  globals::num_spins3*sizeof(double),   // size_t               count
-                  cudaMemcpyDeviceToDevice,    // enum cudaMemcpyKind  kind
-                  jams::instance().cuda_master_stream().get());                   // device stream
-
+  CHECK_CUDA_STATUS(cudaMemcpyAsync(s_old_.mutable_device_data(),
+      globals::s.device_data(), globals::s.bytes(), cudaMemcpyDeviceToDevice, stream));
   DEBUG_CHECK_CUDA_ASYNC_STATUS
-
-  pre_step(globals::s);
 
   update_thermostat();
   thermostat_->record_done();
-  thermostat_->wait_on(jams::instance().cuda_master_stream().get());
+  thermostat_->wait_on(stream);
 
+  evaluate_stage(k1_, stream);
 
-  // k1
-  record_spin_barrier_event();
-  function_kernel(globals::s, k1_);
+  time_ = t0 + half_step;
+  cuda_rk4_mid_step_kernel<<<grid_size, block_size, 0, stream>>>(globals::num_spins3,
+      half_step, s_old_.device_data(), k1_.device_data(), globals::s.mutable_device_data());
+  evaluate_stage(k2_, stream);
 
-  double mid_time_step = 0.5 * step_size_;
-  time_ = t0 + mid_time_step;
+  cuda_rk4_mid_step_kernel<<<grid_size, block_size, 0, stream>>>(globals::num_spins3,
+      half_step, s_old_.device_data(), k2_.device_data(), globals::s.mutable_device_data());
+  evaluate_stage(k3_, stream);
 
-  cuda_rk4_mid_step_kernel<<<grid_size, block_size, 0 ,jams::instance().cuda_master_stream().get()>>>(globals::num_spins3, mid_time_step, s_old_.device_data(), k1_.device_data(), globals::s.mutable_device_data());
-  // CHECK_CUBLAS_STATUS(cublasDcopy(jams::instance().cublas_handle(), globals::num_spins3, s_old_.device_data(), 1, globals::s.device_data(), 1));
-  // CHECK_CUBLAS_STATUS(cublasDaxpy(jams::instance().cublas_handle(), globals::num_spins3, &mid_time_step, k1_.device_data(), 1, globals::s.device_data(), 1));
+  time_ = t0 + step_size_;
+  cuda_rk4_mid_step_kernel<<<grid_size, block_size, 0, stream>>>(globals::num_spins3,
+      step_size_, s_old_.device_data(), k3_.device_data(), globals::s.mutable_device_data());
+  evaluate_stage(k4_, stream);
+  thermostat_->record_consumed(stream);
 
-  record_spin_barrier_event();
-  function_kernel(globals::s, k2_);
+  cuda_rk4_combination_kernel<<<grid_size, block_size, 0, stream>>>(
+      globals::s.mutable_device_data(), s_old_.device_data(),
+      k1_.device_data(), k2_.device_data(), k3_.device_data(), k4_.device_data(),
+      step_size_, globals::num_spins3);
 
-  mid_time_step = 0.5 * step_size_;
-  time_ = t0 + mid_time_step;
-
-  cuda_rk4_mid_step_kernel<<<grid_size, block_size, 0 ,jams::instance().cuda_master_stream().get()>>>(globals::num_spins3, mid_time_step, s_old_.device_data(), k2_.device_data(), globals::s.mutable_device_data());
-  // CHECK_CUBLAS_STATUS(cublasDcopy(jams::instance().cublas_handle(), globals::num_spins3, s_old_.device_data(), 1, globals::s.device_data(), 1));
-  // CHECK_CUBLAS_STATUS(cublasDaxpy(jams::instance().cublas_handle(), globals::num_spins3, &mid_time_step, k2_.device_data(), 1, globals::s.device_data(), 1));
-
-  record_spin_barrier_event();
-  function_kernel(globals::s, k3_);
-
-  mid_time_step = step_size_;
-  time_ = t0 + mid_time_step;
-
-  cuda_rk4_mid_step_kernel<<<grid_size, block_size, 0 ,jams::instance().cuda_master_stream().get()>>>(globals::num_spins3, mid_time_step, s_old_.device_data(), k3_.device_data(), globals::s.mutable_device_data());
-  // CHECK_CUBLAS_STATUS(cublasDcopy(jams::instance().cublas_handle(), globals::num_spins3, s_old_.device_data(), 1, globals::s.device_data(), 1));
-  // CHECK_CUBLAS_STATUS(cublasDaxpy(jams::instance().cublas_handle(), globals::num_spins3, &mid_time_step, k3_.device_data(), 1, globals::s.device_data(), 1));
-
-  record_spin_barrier_event();
-  function_kernel(globals::s, k4_);
-  // Derived RK4 function kernels currently launch their noise consumers on
-  // the legacy default stream.
-  thermostat_->record_consumed(nullptr);
-
-
-  // NOTE: this does NOT normalise the spins. This must be done in the post_step
-  // function
-  record_spin_barrier_event();
-  cuda_rk4_combination_kernel<<<grid_size, block_size, 0 ,jams::instance().cuda_master_stream().get()>>>
-      (globals::s.mutable_device_data(), s_old_.device_data(),
-       k1_.device_data(), k2_.device_data(), k3_.device_data(), k4_.device_data(),
-       step_size_, globals::num_spins3);
-
-  record_spin_barrier_event();
-  post_step(globals::s);
-
+  post_step(globals::s, stream);
   record_spin_barrier_event();
 
   advance_time();

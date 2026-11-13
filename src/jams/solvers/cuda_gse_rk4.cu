@@ -11,13 +11,12 @@
 
 #include "cuda_gse_rk4_kernel.cuh"
 
-void CUDAGSERK4Solver::function_kernel(jams::MultiArray<double, 2>& spins, jams::MultiArray<double, 2>& k) {
-  compute_fields();
-
+void CUDAGSERK4Solver::function_kernel(jams::MultiArray<double, 2>& spins,
+                                       jams::MultiArray<double, 2>& k, cudaStream_t stream) {
   const dim3 block_size = {64, 1, 1};
   auto grid_size = cuda_grid_size(block_size, {static_cast<unsigned int>(globals::num_spins), 1, 1});
 
-  cuda_gse_rk4_kernel<<<grid_size, block_size>>>
+  cuda_gse_rk4_kernel<<<grid_size, block_size, 0, stream>>>
       (spins.device_data(), k.mutable_device_data(),
        globals::h.device_data(), thermostat_->device_data(),
        gyro_eff_.device_data(), globals::inv_mus.device_data(),

@@ -6,11 +6,19 @@
 #include <jams/containers/mat3.h>
 #include <jams/cuda/cuda_only_implementation_macro.h>
 
+#if HAS_CUDA
+#include <cuda_runtime_api.h>
+#endif
+
 namespace jams {
 
 /// Normalise spins to unit vectors
+#if HAS_CUDA
+void normalise_spins_cuda(jams::MultiArray<double, 2> &spins, cudaStream_t stream = nullptr);
+#else
 CUDA_ONLY_IMPLEMENTATION(
     void normalise_spins_cuda(jams::MultiArray<double, 2> &spins));
+#endif
 
 /// Rotate spins with given indices by the rotation matrix
 ///

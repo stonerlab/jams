@@ -1,4 +1,4 @@
-// cuda_ll_lorentzian_rk4.cu                                                          -*-C++-*-
+// cuda_llg_rk4.cu                                                          -*-C++-*-
 // Copyright 2014 Joseph Barker. All rights reserved.
 
 #include "jams/solvers/cuda_llg_rk4.h"
@@ -14,14 +14,12 @@
 #include <jams/cuda/cuda_spin_ops.h>
 
 
-void CUDALLGRK4Solver::function_kernel(jams::MultiArray<double, 2>& spins, jams::MultiArray<double, 2>& k) {
-  compute_fields();
-
+void CUDALLGRK4Solver::function_kernel(jams::MultiArray<double, 2>& spins,
+                                       jams::MultiArray<double, 2>& k, cudaStream_t stream) {
   const dim3 block_size = {64, 1, 1};
   auto grid_size = cuda_grid_size(block_size, {static_cast<unsigned int>(globals::num_spins), 1, 1});
 
-  // using default stream blocks all streams until complete to force synchronisation
-  cuda_llg_rk4_kernel<<<grid_size, block_size>>>
+  cuda_llg_rk4_kernel<<<grid_size, block_size, 0, stream>>>
       (spins.device_data(), k.mutable_device_data(),
        globals::h.device_data(), thermostat_->device_data(),
        gyro_eff_.device_data(), globals::inv_mus.device_data(),
@@ -30,6 +28,6 @@ void CUDALLGRK4Solver::function_kernel(jams::MultiArray<double, 2>& spins, jams:
 }
 
 
-void CUDALLGRK4Solver::post_step(jams::MultiArray<double, 2> &spins) {
-  jams::normalise_spins_cuda(spins);
+void CUDALLGRK4Solver::post_step(jams::MultiArray<double, 2> &spins, cudaStream_t stream) {
+  jams::normalise_spins_cuda(spins, stream);
 }

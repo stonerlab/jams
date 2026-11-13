@@ -21,19 +21,21 @@ public:
     void run() override;
 
 protected:
-    // Function called before each integration step
-    virtual void pre_step(jams::MultiArray<double, 2>& spins) {};
+    // Prepare the stage spins before evaluating the Hamiltonians.
+    virtual void pre_stage(jams::MultiArray<double, 2>& spins, cudaStream_t stream) {}
 
-    // Function which is being integrated with the intermediate 'k' being written to
-    virtual void function_kernel(jams::MultiArray<double, 2>& spins, jams::MultiArray<double, 2>& k) = 0;
+    // Evaluate the RHS with the stage fields and noise ready on stream.
+    virtual void function_kernel(jams::MultiArray<double, 2>& spins,
+                                 jams::MultiArray<double, 2>& k, cudaStream_t stream) = 0;
 
-    // Function called after each integration step
-    virtual void post_step(jams::MultiArray<double, 2>& spins) {};
+    // Finish updating the accepted spins on stream.
+    virtual void post_step(jams::MultiArray<double, 2>& spins, cudaStream_t stream) {}
 
-    CudaStream dev_stream_;
     jams::MultiArray<jams::Real, 1> gyro_eff_;
 
 private:
+    void evaluate_stage(jams::MultiArray<double, 2>& k, cudaStream_t stream);
+
     jams::MultiArray<double, 2> s_old_;
     jams::MultiArray<double, 2> k1_;
     jams::MultiArray<double, 2> k2_;
