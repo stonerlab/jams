@@ -126,16 +126,19 @@
 
 #if HAS_CUDA
 
+#include <cstddef>
+#include <cstdint>
 #include <curand.h>
 #include <fstream>
-#include <cstdint>
+#include <functional>
 #include <mutex>
 
 #include "jams/core/thermostat.h"
 
 class CudaThermostatGeneralFFT : public Thermostat {
 public:
-    CudaThermostatGeneralFFT(const jams::Real &temperature, const jams::Real &sigma, const jams::Real timestep, const int num_spins);
+    CudaThermostatGeneralFFT(const jams::Real &temperature, const jams::Real &sigma,
+                             double timestep, int num_spins);
     ~CudaThermostatGeneralFFT();
 
     void update();
@@ -182,7 +185,7 @@ private:
 
     // Returns the 1D discrete fourier transform of x. This is a properly
     // normalised transform.
-    std::vector<double> discrete_real_fourier_transform(std::vector<double>& x);
+    std::vector<double> discrete_real_fourier_transform(std::vector<double> x);
 
 
     std::ofstream debug_file_;
@@ -198,12 +201,12 @@ private:
 
     // 3*num_spins increased by one to make it even if needed. Required for
     // curand which can only generate even lengths of random numbers.
-    int    num_spins3_even_;
+    std::size_t num_spins3_even_;
 
     // Lorentzian parameters
-    double lorentzian_omega0_;
-    double lorentzian_gamma_;
-    double lorentzian_A_;
+    double lorentzian_omega0_ = 0.0;
+    double lorentzian_gamma_ = 0.0;
+    double lorentzian_A_ = 0.0;
 
     jams::MultiArray<double, 1> memory_kernel_;
     jams::MultiArray<double, 1> white_noise_;

@@ -153,6 +153,7 @@ set(JAMS_SOURCES_CUDA
         solvers/cuda_llg_semi_implicit.cu
         solvers/cuda_llg_rkmk2.cu
         solvers/cuda_llg_rkmk4.cu
+        solvers/cuda_llg_rs2.cu
         thermostats/thm_bose_einstein_cuda_srk4.cu
         thermostats/thm_bose_einstein_cuda_srk4_kernel.cuh
         thermostats/cuda_quantum_spde_noise.cu

@@ -1,6 +1,8 @@
 #ifndef JAMS_CUDA_THERMOSTAT_GENERAL_FFT_KERNEL_H
 #define JAMS_CUDA_THERMOSTAT_GENERAL_FFT_KERNEL_H
 
+#include <cstddef>
+
 #include "jams/cuda/cuda_device_rk4.cuh"
 #include "jams/helpers/mixed_precision.h"
 
@@ -18,17 +20,18 @@ __global__ void cuda_thermostat_general_fft_kernel
                 const double *rands,
                 const int j, // pointer to central random number
                 const int num_trunc,
-                const int num_proc // 3*num_spins
+                const int num_proc, // 3*num_spins
+                const std::size_t random_stride
         ) {
   const int idx = blockIdx.x * blockDim.x + threadIdx.x;
   if (idx < num_proc) {
-    double sum = filter[0]*rands[num_proc*j + idx];
+    double sum = filter[0]*rands[random_stride*j + idx];
 
     for (auto k = 1; k < num_trunc; ++k) {
       const auto j_minus_k = pbc(j-k, (2*num_trunc + 1));
       const auto j_plus_k  = pbc(j+k, (2*num_trunc + 1));
 
-      sum += filter[k] * (rands[num_proc*j_plus_k + idx] + rands[num_proc*j_minus_k + idx]);
+      sum += filter[k] * (rands[random_stride*j_plus_k + idx] + rands[random_stride*j_minus_k + idx]);
     }
 
     noise_[idx] = sum;

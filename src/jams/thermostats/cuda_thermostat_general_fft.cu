@@ -1,11 +1,15 @@
 // Copyright 2014 Joseph Barker. All rights reserved.
 
+#include <algorithm>
 #include <cmath>
-#include <string>
-#include <iomanip>
-#include <random>
-#include <mutex>
 #include <fstream>
+#include <iomanip>
+#include <mutex>
+#include <numeric>
+#include <random>
+#include <stdexcept>
+#include <string>
+#include <utility>
 #include <jams/common.h>
 
 #include "jams/helpers/output.h"
@@ -19,6 +23,7 @@
 #include "jams/cuda/cuda_array_kernels.h"
 #include "jams/helpers/consts.h"
 #include "jams/helpers/error.h"
+#include "jams/helpers/finite.h"
 #include "jams/helpers/random.h"
 #include "jams/helpers/utils.h"
 #include "jams/cuda/cuda_common.h"
@@ -32,11 +37,17 @@
 
 //#define PRINT_NOISE
 
-CudaThermostatGeneralFFT::CudaThermostatGeneralFFT(const jams::Real &temperature, const jams::Real &sigma, const jams::Real timestep, const int num_spins)
-: Thermostat(temperature, sigma, timestep, num_spins),
-  filter_temperature_(0.0) {
+CudaThermostatGeneralFFT::CudaThermostatGeneralFFT(
+    const jams::Real &temperature, const jams::Real &sigma, const double timestep,
+    const int num_spins)
+: Thermostat(temperature, sigma, static_cast<jams::Real>(timestep), num_spins),
+  delta_t_(timestep), filter_temperature_(this->temperature()) {
 
   std::cout << "\n  initialising general-fft-gpu thermostat\n";
+
+  if (!jams::is_finite(timestep) || timestep <= 0.0) {
+    throw std::runtime_error("general-fft-gpu requires a positive finite sampling interval");
+  }
 
   if (has_per_spin_temperature()) {
     throw std::runtime_error(
@@ -64,11 +75,6 @@ CudaThermostatGeneralFFT::CudaThermostatGeneralFFT(const jams::Real &temperature
   double eta_G = globals::alpha(first_spin) * globals::inv_mus(first_spin)
       / globals::gyro(first_spin);
 
-
-  // We store the temperature and check in update() that it doesn't change when
-  // running the simulation. Currently we don't know how to deal with a
-  // dynamically changing temperature in this formalism.
-  filter_temperature_ = this->temperature();
 
   for (int i = 0; i < num_spins; ++i) {
     for (int j = 0; j < 3; ++j) {
@@ -122,20 +128,20 @@ CudaThermostatGeneralFFT::CudaThermostatGeneralFFT(const jams::Real &temperature
   const int num_freq_increment_attempts = 499;
   const double memory_function_equality_tolerance = 1e-7;
 
-  delta_t_ = timestep;
+  num_freq_ = num_freq_init;
   max_omega_ = kPi / delta_t_;
   delta_omega_ = max_omega_ / double(num_freq_);
 
-  num_freq_ = num_freq_init;
   // Generate the discrete filter F(n) = sqrt(P(n * delta_omega))
   auto discrete_psd = discrete_sqrt_psd(psd_function, delta_omega_, num_freq_);
   // Do the fourier transform to go from frequency space into sqrt(P(omega)) -> K(t - t')
   auto memory_kernel = discrete_real_fourier_transform(discrete_psd);
 
   for (auto n = 0; n < num_freq_increment_attempts; ++n) {
-    int trial_num_freq = num_freq_ += num_freq_increment;
-    auto trial_psd = discrete_sqrt_psd(psd_function, max_omega_ / double(trial_num_freq), trial_num_freq);
-    auto trial_kernel =  discrete_real_fourier_transform(trial_psd);
+    const int trial_num_freq = num_freq_ + num_freq_increment;
+    const double trial_delta_omega = max_omega_ / double(trial_num_freq);
+    auto trial_psd = discrete_sqrt_psd(psd_function, trial_delta_omega, trial_num_freq);
+    auto trial_kernel = discrete_real_fourier_transform(trial_psd);
 
     bool kernels_are_equal = std::equal(memory_kernel.begin(), memory_kernel.end(), trial_kernel.begin(),
                                         [&](const auto& x, const auto &y){
@@ -147,11 +153,10 @@ CudaThermostatGeneralFFT::CudaThermostatGeneralFFT(const jams::Real &temperature
     }
 
     num_freq_ = trial_num_freq;
-    discrete_psd = trial_psd;
-    memory_kernel = trial_kernel;
-  };
-
-  delta_omega_ = max_omega_ / double(num_freq_);
+    delta_omega_ = trial_delta_omega;
+    discrete_psd = std::move(trial_psd);
+    memory_kernel = std::move(trial_kernel);
+  }
 
 
   // Autoconfigure the number of memory kernel time steps to retain
@@ -161,24 +166,30 @@ CudaThermostatGeneralFFT::CudaThermostatGeneralFFT(const jams::Real &temperature
   // calculating the mean of successive blocks of the kernel and stopping once we have two successive blocks with
   // means close to zero.
 
-  auto memory_absmax = *std::max_element(memory_kernel.begin(), memory_kernel.end(),
+  const double memory_absmax = std::abs(*std::max_element(memory_kernel.begin(), memory_kernel.end(),
     [](const auto& a, const auto& b){
-    return abs(a) < abs(b);
-  });
+    return std::abs(a) < std::abs(b);
+  }));
 
   const int trunc_block_size = 100;
   const double trunc_zero_tolerance = memory_absmax * 0.005;
 
-  std::vector<double> block_averages;
-  for (size_t i = 0; i < memory_kernel.size(); i += trunc_block_size) {
-    auto block_sum = std::accumulate(memory_kernel.begin() + i, memory_kernel.begin() + std::min(i + trunc_block_size, memory_kernel.size()), 0.0);
-    block_averages.push_back(block_sum / double(trunc_block_size));
-  }
-
-  for (auto i = 1; i < block_averages.size(); ++i) {
-    if (approximately_zero(block_averages[i], trunc_zero_tolerance) && approximately_zero(block_averages[i-1], trunc_zero_tolerance)) {
-      num_trunc_ = trunc_block_size * i;
-      break;
+  num_trunc_ = static_cast<int>(memory_kernel.size());
+  if (memory_absmax == 0.0) {
+    num_trunc_ = 1;
+  } else {
+    bool previous_block_near_zero = false;
+    for (std::size_t i = 0; i < memory_kernel.size(); i += trunc_block_size) {
+      const auto end = std::min(i + trunc_block_size, memory_kernel.size());
+      const double block_sum = std::accumulate(memory_kernel.begin() + i,
+                                               memory_kernel.begin() + end, 0.0);
+      const bool block_near_zero = approximately_zero(block_sum / double(end - i),
+                                                       trunc_zero_tolerance);
+      if (previous_block_near_zero && block_near_zero) {
+        num_trunc_ = static_cast<int>(i);
+        break;
+      }
+      previous_block_near_zero = block_near_zero;
     }
   }
 
@@ -190,12 +201,10 @@ CudaThermostatGeneralFFT::CudaThermostatGeneralFFT(const jams::Real &temperature
   }
 
   // Curand will only generate noise for arrays which are multiples of 2
-  // so we sometimes have to make the size of the white noise array artificially
-  // larger. We can't just add 1 element to the total white_noise_ because when
-  // we generate random numbers later we will be generating only 3*num_spins
-  // numbers at each step. So we adjust 3*num_spins to make sure it's even.
+  // so pad each ring row. The output still has exactly 3*num_spins entries.
 
-  num_spins3_even_ = (3 * num_spins) + ((3 * num_spins) % 2);
+  const auto num_proc = 3 * static_cast<std::size_t>(num_spins);
+  num_spins3_even_ = num_proc + (num_proc % 2);
 
   white_noise_.resize(num_spins3_even_ * (2 * num_trunc_ + 1));
   CHECK_CURAND_STATUS(curandSetStream(jams::instance().curand_generator(), dev_stream_));
@@ -211,7 +220,7 @@ CudaThermostatGeneralFFT::CudaThermostatGeneralFFT(const jams::Real &temperature
   noise_target_file << "freq_THz    spectrum_meV" << std::endl;
   for (auto i = 0; i < discrete_psd.size(); ++i) {
     noise_target_file << jams::fmt::decimal << i*delta_omega_/(kTwoPi) << " ";
-    noise_target_file << jams::fmt::sci << discrete_psd[i] << "\n";
+    noise_target_file << jams::fmt::sci << pow2(discrete_psd[i]) << "\n";
   }
   noise_target_file.close();
 
@@ -246,8 +255,9 @@ void CudaThermostatGeneralFFT::update() {
         "you cannot dynamically change the temperature for the CudaLangevinArbitraryThermostat");
   }
 
-  int block_size = 128;
-  int grid_size = (globals::num_spins3 + block_size - 1) / block_size;
+  const int block_size = 128;
+  const auto num_proc = static_cast<int>(noise_.elements());
+  const auto grid_size = (noise_.elements() + block_size - 1) / block_size;
 
   const auto n = static_cast<int>(noise_sample_count_ % (2 * num_trunc_ + 1));
   cuda_thermostat_general_fft_kernel<<<grid_size, block_size, 0, dev_stream_ >>>(
@@ -256,11 +266,12 @@ void CudaThermostatGeneralFFT::update() {
       white_noise_.device_data(),
       n,
       num_trunc_,
+      num_proc,
       num_spins3_even_);
   DEBUG_CHECK_CUDA_ASYNC_STATUS;
 
   // scale the noise by the prefactor sigma
-  cuda_array_elementwise_scale(globals::num_spins, 3, sigma_.device_data(), 1.0, noise_.mutable_device_data(), 1,
+  cuda_array_elementwise_scale(num_proc / 3, 3, sigma_.device_data(), 1.0, noise_.mutable_device_data(), 1,
                                noise_.mutable_device_data(), 1, dev_stream_);
 
   // Order the refill and convolution on the same stream so that consecutive
@@ -308,7 +319,7 @@ void CudaThermostatGeneralFFT::output_thermostat_properties(std::ostream& os) {
 }
 
 
-std::vector<double> CudaThermostatGeneralFFT::discrete_real_fourier_transform(std::vector<double>& x) {
+std::vector<double> CudaThermostatGeneralFFT::discrete_real_fourier_transform(std::vector<double> x) {
   int size = static_cast<int>(x.size());
   fftw_plan plan = fftw_plan_r2r_1d(
       size, //int n
@@ -316,6 +327,10 @@ std::vector<double> CudaThermostatGeneralFFT::discrete_real_fourier_transform(st
       x.data(), // double *out
       FFTW_REDFT10, // fftw_r2r_kind kind
       FFTW_ESTIMATE); // unsigned flags
+
+  if (plan == nullptr) {
+    throw std::runtime_error("failed to create FFT thermostat filter transform");
+  }
 
   fftw_execute(plan);
   fftw_destroy_plan(plan);
@@ -340,6 +355,9 @@ double CudaThermostatGeneralFFT::classical_ohmic_spectrum(double omega, double t
 }
 
 double CudaThermostatGeneralFFT::quantum_ohmic_spectrum(double omega, double temperature, double eta_G) {
+  if (temperature == 0.0) {
+    return kHBarIU * std::abs(omega) * eta_G;
+  }
   if (omega == 0.0) {
     return 2.0 * kBoltzmannIU * temperature * eta_G;
   }
@@ -349,6 +367,9 @@ double CudaThermostatGeneralFFT::quantum_ohmic_spectrum(double omega, double tem
 }
 
 double CudaThermostatGeneralFFT::quantum_no_zero_ohmic_spectrum(double omega, double temperature, double eta_G) {
+  if (temperature == 0.0) {
+    return 0.0;
+  }
   if (omega == 0.0) {
     return 2.0 * kBoltzmannIU * temperature * eta_G;
   }

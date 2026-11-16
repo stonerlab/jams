@@ -1,7 +1,10 @@
 // Copyright 2014 Joseph Barker. All rights reserved.
 
+#include <cmath>
 #include <iostream>
+#include <limits>
 #include <memory>
+#include <stdexcept>
 #include <string>
 
 #include "jams/helpers/utils.h"
@@ -10,6 +13,7 @@
 
 #include "jams/core/globals.h"
 #include "jams/helpers/consts.h"
+#include "jams/helpers/finite.h"
 #include <jams/helpers/exception.h>
 
 namespace {
@@ -21,10 +25,17 @@ int checked_spin_count_for_cuda_quantum_spde(const int num_spins) {
 
 }  // namespace
 
-CudaThermostatQuantumSpde::CudaThermostatQuantumSpde(const jams::Real &temperature, const jams::Real &sigma, const jams::Real timestep, const int num_spins)
-: Thermostat(temperature, sigma, timestep, checked_spin_count_for_cuda_quantum_spde(num_spins))
+CudaThermostatQuantumSpde::CudaThermostatQuantumSpde(
+    const jams::Real &temperature, const jams::Real &sigma, const double timestep,
+    const int num_spins)
+: Thermostat(temperature, sigma, static_cast<jams::Real>(timestep),
+             checked_spin_count_for_cuda_quantum_spde(num_spins))
 {
   std::cout << "\n  initialising quantum-spde-gpu thermostat\n";
+
+  if (!jams::is_finite(timestep) || timestep <= 0.0) {
+    throw std::runtime_error("quantum-spde-gpu requires a positive finite sampling interval");
+  }
 
   cuda_stream_ = CudaStream(CudaStream::Priority::LOW);
   const libconfig::Setting* thermostat_settings = nullptr;
@@ -98,6 +109,7 @@ CudaThermostatQuantumSpde::CudaThermostatQuantumSpde(const jams::Real &temperatu
       noise_generator_->initialize_stationary(this->temperature());
     }
   } else {
+    initial_sample_ready_ = true;  // The initial state and the output buffer are zero.
     if (has_per_spin_temperature()) {
       noise_generator_->initialize(jams::CudaQuantumSpdeNoiseGenerator::Initialization::Zero,
                                    process_temperature_);
@@ -107,8 +119,13 @@ CudaThermostatQuantumSpde::CudaThermostatQuantumSpde(const jams::Real &temperatu
     }
   }
 
-  auto num_warm_up_steps = static_cast<unsigned>(t_warmup / dt_thermostat);
-  if (do_warmup && num_warm_up_steps > 0) {
+  const double warm_up_steps = do_warmup ? std::floor(t_warmup / dt_thermostat) : 0.0;
+  if (!jams::is_finite(warm_up_steps) || warm_up_steps < 0.0 ||
+      warm_up_steps > std::numeric_limits<unsigned>::max()) {
+    throw jams::ConfigException(*thermostat_settings, "invalid SPDE warmup duration");
+  }
+  const auto num_warm_up_steps = static_cast<unsigned>(warm_up_steps);
+  if (num_warm_up_steps > 0) {
     if (has_per_spin_temperature()) {
       std::cout << "warming up thermostat " << num_warm_up_steps
                 << " steps with per-spin temperatures" << std::endl;
@@ -120,7 +137,17 @@ CudaThermostatQuantumSpde::CudaThermostatQuantumSpde(const jams::Real &temperatu
       noise_generator_->warmup(num_warm_up_steps, this->temperature(),
                                noise_.mutable_device_data(), sigma_.device_data());
     }
+    initial_sample_ready_ = true;
   }
+}
+
+void CudaThermostatQuantumSpde::sample_initial() {
+  if (initial_sample_ready_) return;
+
+  // Anchor the first stationary sample at t=0. This also samples the
+  // zero-point term, whose field depends on the interval's innovation.
+  update();
+  initial_sample_ready_ = true;
 }
 
 void CudaThermostatQuantumSpde::update() {

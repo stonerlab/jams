@@ -36,6 +36,7 @@ add_executable(jams_tests "jams_test.cc")
 if(JAMS_BUILD_CUDA)
     target_sources(jams_tests PRIVATE
             "solvers/test_cuda_heun.cc"
+            "solvers/test_cuda_rs2.cu"
             "solvers/test_cuda_solver_parameter.cu")
 endif()
 
