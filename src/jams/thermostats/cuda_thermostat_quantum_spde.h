@@ -21,7 +21,7 @@ class CudaThermostatQuantumSpde : public Thermostat {
   void update() override;
   // Publish the t=0 sample before the first regular update. The caller
   // orders consumption with record_done() and wait_on() as for update().
-  void sample_initial();
+  void sample_initial() override;
 
   // override the base class implementation
   const jams::Real* device_data() override { return noise_.device_data(); }

@@ -11,8 +11,6 @@
 #include "jams/containers/multiarray.h"
 #include "jams/cuda/cuda_solver.h"
 
-class CudaThermostatQuantumSpde;
-
 class CUDALLGRS2Solver : public CudaSolver {
  public:
   explicit CUDALLGRS2Solver(const libconfig::Setting& settings) { initialize(settings); }
@@ -48,7 +46,6 @@ class CUDALLGRS2Solver : public CudaSolver {
 
   bool has_coloured_bath_ = false;
   bool coloured_sample_ready_ = false;
-  CudaThermostatQuantumSpde* spde_thermostat_ = nullptr;
   double white_temperature_ = 0.0;
   jams::MultiArray<double, 1> white_sigma_;
   jams::MultiArray<double, 2> uniforms_;

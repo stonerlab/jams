@@ -97,11 +97,17 @@ class CountingThermostat final : public Thermostat {
     cuda_stream_ = CudaStream(CudaStream::Priority::LOW);
   }
 
+  void sample_initial() override {
+    ++initial_samples;
+    update();
+  }
+
   void update() override {
     store_sample<<<1, 1, 0, get_stream()>>>(noise_.mutable_device_data(), ++samples);
     CHECK_CUDA_STATUS(cudaGetLastError());
   }
 
+  int initial_samples = 0;
   int samples = 0;
 };
 
@@ -359,6 +365,7 @@ TEST_F(CudaRS2Test, ColouredStagesReuseLaterSampleAndAdvanceToEndpoint) {
     angle += h * globals::gyro(0) * (0.25 * start_sample + 0.75 * later_sample);
   }
   ASSERT_EQ(cudaDeviceSynchronize(), cudaSuccess);
+  EXPECT_EQ(bath->initial_samples, 1);
   EXPECT_EQ(bath->field(0, 2), 7.0);
   const auto spin = spin_at(0);
   EXPECT_NEAR(spin[0], std::cos(angle), 2e-12);

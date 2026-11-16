@@ -78,38 +78,46 @@ void Thermostat::update_in_parallel() {
   throw jams::unimplemented_error("Thermostat::update_in_parallel");
 }
 
-Thermostat* Thermostat::create(const std::string &thermostat_name, const jams::Real timestep) {
+Thermostat* Thermostat::create(const std::string &thermostat_name, const double timestep,
+                               const std::optional<double> stage_interval) {
   std::cout << thermostat_name << " thermostat\n";
 
-  auto temperature = jams::config_required<double>(
+  const auto temperature = jams::config_required<double>(
       globals::config->lookup("physics"), "temperature");
-
-  // create the selected thermostat
-  if (capitalize(thermostat_name) == "CLASSICAL-CPU"
-      || capitalize(thermostat_name) == "LANGEVIN-WHITE-CPU") {
-    return new ThermostatClassical(temperature, 0.0, timestep, globals::num_spins);
-  }
-  if (capitalize(thermostat_name) == "QUANTUM-SPDE-CPU"
-      || capitalize(thermostat_name) == "LANGEVIN-BOSE-CPU"
-      || capitalize(thermostat_name) == "CPU_LANGEVIN_COTH") {
-    return new ThermostatQuantumSpde(temperature, 0.0, timestep, globals::num_spins);
-  }
+  const auto name = capitalize(thermostat_name);
+  // Preserve the timestep precision of existing factory callers.
+  const auto legacy_timestep = static_cast<jams::Real>(timestep);
 
   #if HAS_CUDA
-  if (capitalize(thermostat_name) == "CLASSICAL-GPU" || capitalize(thermostat_name) == "LANGEVIN-WHITE-GPU" || capitalize(thermostat_name) == "CUDA_LANGEVIN_WHITE") {
-      return new CudaThermostatClassical(temperature, 0.0, timestep, globals::num_spins);
+  const double coloured_interval = stage_interval.value_or(legacy_timestep);
+  if (name == "CLASSICAL-GPU" || name == "LANGEVIN-WHITE-GPU" || name == "CUDA_LANGEVIN_WHITE") {
+    return new CudaThermostatClassical(temperature, 0.0, legacy_timestep, globals::num_spins);
   }
-  if (capitalize(thermostat_name) == "QUANTUM-SPDE-GPU" || capitalize(thermostat_name) == "LANGEVIN-BOSE-GPU" ||capitalize(thermostat_name) == "CUDA_LANGEVIN_COTH") {
-    return new CudaThermostatQuantumSpde(temperature, 0.0, timestep, globals::num_spins);
+  if (name == "QUANTUM-SPDE-GPU" || name == "LANGEVIN-BOSE-GPU" || name == "CUDA_LANGEVIN_COTH") {
+    return new CudaThermostatQuantumSpde(temperature, 0.0, coloured_interval, globals::num_spins);
   }
-  if (capitalize(thermostat_name) == "LANGEVIN-BOSE-SRK4-GPU") {
-    return new jams::BoseEinsteinCudaSRK4Thermostat(temperature, 0.0, timestep, globals::num_spins);
-  }
-  if (capitalize(thermostat_name) == "GENERAL-FFT-GPU" || capitalize(thermostat_name) == "LANGEVIN-LORENTZIAN-GPU" || capitalize(thermostat_name) == "LANGEVIN-ARBITRARY-GPU" ||capitalize(thermostat_name) == "CUDA_LANGEVIN_ARBITRARY") {
-    return new CudaThermostatGeneralFFT(temperature, 0.0, timestep, globals::num_spins);
+  if (name == "GENERAL-FFT-GPU" || name == "LANGEVIN-LORENTZIAN-GPU"
+      || name == "LANGEVIN-ARBITRARY-GPU" || name == "CUDA_LANGEVIN_ARBITRARY") {
+    return new CudaThermostatGeneralFFT(temperature, 0.0, coloured_interval, globals::num_spins);
   }
   #endif
 
-    // throw error if the thermostat name is no known
+  if (stage_interval) {
+    throw std::runtime_error("thermostat " + thermostat_name + " is unsupported with a stage sampling interval");
+  }
+
+  if (name == "CLASSICAL-CPU" || name == "LANGEVIN-WHITE-CPU") {
+    return new ThermostatClassical(temperature, 0.0, legacy_timestep, globals::num_spins);
+  }
+  if (name == "QUANTUM-SPDE-CPU" || name == "LANGEVIN-BOSE-CPU" || name == "CPU_LANGEVIN_COTH") {
+    return new ThermostatQuantumSpde(temperature, 0.0, legacy_timestep, globals::num_spins);
+  }
+
+  #if HAS_CUDA
+  if (name == "LANGEVIN-BOSE-SRK4-GPU") {
+    return new jams::BoseEinsteinCudaSRK4Thermostat(temperature, 0.0, legacy_timestep, globals::num_spins);
+  }
+  #endif
+
   throw std::runtime_error("unknown thermostat " + thermostat_name);
 }

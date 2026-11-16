@@ -3,6 +3,7 @@
 #include <cinttypes>
 
 #include <cmath>
+#include <stdexcept>
 #include <string>
 #include <iomanip>
 
@@ -13,11 +14,20 @@
 #include "jams/core/globals.h"
 #include "jams/core/lattice.h"
 #include "jams/helpers/error.h"
+#include "jams/helpers/finite.h"
 #include "jams/helpers/random.h"
 #include "jams/core/solver.h"
 #include "jams/cuda/cuda_common.h"
 
 #include "jams/monitors/magnetisation.h"
+
+namespace {
+
+double classical_noise_variance(int i, double temperature, double denominator) {
+  return (2.0 * kBoltzmannIU * globals::alpha(i) * globals::inv_mus(i) * temperature) / denominator;
+}
+
+}  // namespace
 
 CudaThermostatClassical::CudaThermostatClassical(const jams::Real &temperature, const jams::Real &sigma, const jams::Real timestep, const int num_spins)
 : Thermostat(temperature, sigma, timestep, num_spins),
@@ -25,8 +35,8 @@ CudaThermostatClassical::CudaThermostatClassical(const jams::Real &temperature, 
   std::cout << "\n  initialising classical-gpu thermostat\n";
 
   for(int i = 0; i < num_spins; ++i) {
-    sigma_spin_(i) = static_cast<jams::Real>(sqrt((2.0 * kBoltzmannIU * globals::alpha(i) * globals::inv_mus(i)) /
-                          (globals::gyro(i) * timestep)));
+    sigma_spin_(i) = static_cast<jams::Real>(
+        std::sqrt(classical_noise_variance(i, 1.0, globals::gyro(i) * timestep)));
     for (int j = 0; j < 3; ++j) {
       sigma_(i, j) = sigma_spin_(i);
     }
@@ -41,6 +51,26 @@ CudaThermostatClassical::CudaThermostatClassical(const jams::Real &temperature, 
   }
 
   std::cout << "  done\n\n";
+}
+
+jams::MultiArray<double, 1> CudaThermostatClassical::diffusion_amplitudes(
+    const double uniform_temperature) const {
+  jams::MultiArray<double, 1> amplitudes(sigma_spin_.size());
+  const auto& profile = temperature_profile();
+  const auto temperatures = profile.temperature().host_view();
+  for (int i = 0; i < profile.size(); ++i) {
+    const double temperature = profile.is_uniform() ? uniform_temperature : temperatures(i);
+    if (temperature == 0.0 || globals::alpha(i) == 0.0 || globals::inv_mus(i) == 0.0) {
+      amplitudes(i) = 0.0;
+      continue;
+    }
+    const double variance = classical_noise_variance(i, temperature, globals::gyro(i));
+    if (!jams::is_finite(variance) || variance < 0.0) {
+      throw std::runtime_error("invalid classical white-noise variance at spin " + std::to_string(i));
+    }
+    amplitudes(i) = std::sqrt(variance);
+  }
+  return amplitudes;
 }
 
 cudaStream_t& CudaThermostatClassical::get_stream() {

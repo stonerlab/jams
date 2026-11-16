@@ -5,6 +5,7 @@
 
 #include "jams/containers/multiarray.h"
 
+#include <optional>
 #include <string>
 
 #include "jams/helpers/mixed_precision.h"
@@ -21,11 +22,16 @@ class Thermostat {
 
   virtual ~Thermostat();
   virtual void update() = 0;
+  // Publish the starting sample before the caller advances the bath.
+  virtual void sample_initial() { update(); }
   virtual bool supports_update_in_parallel() const { return false; }
   virtual void update_in_parallel();
 
   // factory
-  static Thermostat* create(const std::string &thermostat_name, const jams::Real timestep);
+  // With a stage interval, select a CUDA white bath or a coloured bath
+  // that can be sampled on that finer time grid.
+  static Thermostat* create(const std::string &thermostat_name, double timestep,
+                            std::optional<double> stage_interval = std::nullopt);
 
   // accessors
   jams::Real temperature() const { return temperature_; }

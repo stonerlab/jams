@@ -1,5 +1,6 @@
 #include "jams/solvers/cuda_llg_rs2.h"
 
+#include <algorithm>
 #include <cmath>
 #include <iostream>
 #include <string>
@@ -7,14 +8,10 @@
 #include "jams/common.h"
 #include "jams/core/globals.h"
 #include "jams/core/physics.h"
-#include "jams/helpers/consts.h"
 #include "jams/helpers/defaults.h"
-#include "jams/helpers/finite.h"
-#include "jams/helpers/utils.h"
 #include "jams/interface/config.h"
 #include "jams/solvers/cuda_solver_functions.cuh"
-#include "jams/thermostats/cuda_thermostat_general_fft.h"
-#include "jams/thermostats/cuda_thermostat_quantum_spde.h"
+#include "jams/thermostats/cuda_thermostat_classical.h"
 
 namespace {
 
@@ -232,34 +229,15 @@ __global__ void rs2_stage_3(const double* initial_spins, const double* f1_dev, c
 void CUDALLGRS2Solver::initialize(const libconfig::Setting& settings) {
   initialize_time(settings);
 
-  const auto thermostat_name = lowercase(jams::config_optional<std::string>(
-      settings, "thermostat", jams::defaults::solver_gpu_thermostat));
-  const auto& physics_settings = globals::config->lookup("physics");
-  const auto temperature = jams::config_required<double>(physics_settings, "temperature");
-  const double sample_dt = time_step() / 3.0;
+  const auto thermostat_name = jams::config_optional<std::string>(
+      settings, "thermostat", jams::defaults::solver_gpu_thermostat);
   const auto num_spins = globals::num_spins;
 
-  has_coloured_bath_ = false;
-  spde_thermostat_ = nullptr;
+  register_thermostat(Thermostat::create(thermostat_name, time_step(), time_step() / 3.0));
+  const auto* white_bath = dynamic_cast<const CudaThermostatClassical*>(thermostat_.get());
+  has_coloured_bath_ = white_bath == nullptr;
   coloured_sample_ready_ = false;
   white_generator_.reset();
-  if (thermostat_name == "classical-gpu" || thermostat_name == "langevin-white-gpu"
-      || thermostat_name == "cuda_langevin_white") {
-    register_thermostat(Thermostat::create(thermostat_name, time_step()));
-  } else if (thermostat_name == "quantum-spde-gpu" || thermostat_name == "langevin-bose-gpu"
-      || thermostat_name == "cuda_langevin_coth") {
-    auto thermostat = std::make_unique<CudaThermostatQuantumSpde>(temperature, 0.0, sample_dt, num_spins);
-    spde_thermostat_ = thermostat.get();
-    register_thermostat(thermostat.release());
-    has_coloured_bath_ = true;
-  } else if (thermostat_name == "general-fft-gpu" || thermostat_name == "langevin-lorentzian-gpu"
-      || thermostat_name == "langevin-arbitrary-gpu" || thermostat_name == "cuda_langevin_arbitrary") {
-    register_thermostat(new CudaThermostatGeneralFFT(temperature, 0.0, sample_dt, num_spins));
-    has_coloured_bath_ = true;
-  } else {
-    throw jams::ConfigException(settings, "unsupported RS2 thermostat ", thermostat_name);
-  }
-  std::cout << "  thermostat " << thermostat_name << "\n";
 
   initialize_gyro_eff(settings, gyro_eff_);
   const auto gyro_choice = cuda_spin_parameter_choice(gyro_eff_);
@@ -277,29 +255,12 @@ void CUDALLGRS2Solver::initialize(const libconfig::Setting& settings) {
   f2_.resize(num_spins, 3);
   b_.resize(num_spins, 3);
 
-  if (has_coloured_bath_) return;
-  white_temperature_ = temperature;
-  white_sigma_.resize(num_spins);
-  const auto& profile = thermostat_->temperature_profile();
-  const auto spin_temperatures = profile.temperature().host_view();
-  bool has_white_noise = false;
-  for (int i = 0; i < num_spins; ++i) {
-    const double spin_temperature = profile.is_uniform() ? temperature : spin_temperatures(i);
-    const double alpha = globals::alpha(i);
-    const double inv_mu = globals::inv_mus(i);
-    if (spin_temperature == 0.0 || alpha == 0.0 || inv_mu == 0.0) {
-      white_sigma_(i) = 0.0;
-      continue;
-    }
-    const double variance = 2.0 * alpha * kBoltzmannIU * spin_temperature * inv_mu / globals::gyro(i);
-    if (!jams::is_finite(variance) || variance < 0.0) {
-      throw jams::ConfigException(settings, "invalid RS2 white-noise variance at spin ", i);
-    }
-    white_sigma_(i) = std::sqrt(variance);
-    has_white_noise |= white_sigma_(i) > 0.0;
-  }
+  if (!white_bath) return;
+  white_temperature_ = jams::config_required<double>(globals::config->lookup("physics"), "temperature");
+  white_sigma_ = white_bath->diffusion_amplitudes(white_temperature_);
+  const auto amplitudes = white_sigma_.host_span();
 
-  if (has_white_noise) {
+  if (std::any_of(amplitudes.begin(), amplitudes.end(), [](double sigma) { return sigma > 0.0; })) {
     uniforms_.resize(num_spins, 5);
     curandGenerator_t generator = nullptr;
     CHECK_CURAND_STATUS(curandCreateGenerator(&generator, CURAND_RNG_PSEUDO_PHILOX4_32_10));
@@ -347,16 +308,13 @@ void CUDALLGRS2Solver::run_with_parameters(const GyroParam gyro, const AlphaPara
   const auto grid_size = cuda_grid_size(block_size, {num_spins, 1, 1});
 
   if (has_coloured_bath_ && !coloured_sample_ready_) {
-    if (spde_thermostat_) {
-      if (spde_thermostat_->has_uniform_temperature()) {
-        spde_thermostat_->set_temperature(physics_module_->temperature());
-      }
-      spde_thermostat_->sample_initial();
-      spde_thermostat_->record_done();
-      spde_thermostat_->wait_on(stream);
-    } else {
-      update_thermostat_on_stream(stream);
+    thermostat_->wait_for_consumed();
+    if (thermostat_->has_uniform_temperature()) {
+      thermostat_->set_temperature(physics_module_->temperature());
     }
+    thermostat_->sample_initial();
+    thermostat_->record_done();
+    thermostat_->wait_on(stream);
     coloured_sample_ready_ = true;
   }
 
