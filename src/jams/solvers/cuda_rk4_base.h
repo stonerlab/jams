@@ -5,13 +5,16 @@
 
 #include "jams/cuda/cuda_solver.h"
 #include "jams/containers/multiarray.h"
+#include "jams/core/thermostat.h"
 
 class CudaRK4BaseSolver : public CudaSolver {
  public:
   CudaRK4BaseSolver() = default;
   ~CudaRK4BaseSolver() override = default;
 
-  inline explicit CudaRK4BaseSolver(const libconfig::Setting& settings) { initialize(settings); }
+  explicit CudaRK4BaseSolver(const libconfig::Setting& settings,
+                             jams::ThermalTorque torque = jams::ThermalTorque::llg)
+      : thermal_torque_(torque) { initialize(settings); }
 
   void initialize(const libconfig::Setting& settings) override;
   void run() override;
@@ -30,6 +33,8 @@ class CudaRK4BaseSolver : public CudaSolver {
   jams::MultiArray<jams::Real, 1> gyro_eff_;
 
  private:
+  jams::ThermalTorque thermal_torque_ = jams::ThermalTorque::llg;
+
   void evaluate_stage(jams::MultiArray<double, 2>& k, cudaStream_t stream);
 
   jams::MultiArray<double, 2> spins_initial_;

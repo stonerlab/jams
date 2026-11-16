@@ -503,7 +503,8 @@ void RKMK2LLGSolver::initialize(const libconfig::Setting& settings) {
 
   const std::string thermostat_name =
       jams::config_optional<std::string>(settings, "thermostat", "langevin-white-cpu");
-  register_thermostat(Thermostat::create(thermostat_name, 0.5 * time_step()));
+  register_thermostat(Thermostat::create(
+      thermostat_name, 0.5 * time_step(), jams::thermal_field_coupling(gyro_eff_)));
   std::cout << "  thermostat " << thermostat_name.c_str() << "\n";
 
   spins_initial_.resize(globals::num_spins, 3);
@@ -543,7 +544,8 @@ void RKMK4LLGSolver::initialize(const libconfig::Setting& settings) {
 
   const std::string thermostat_name =
       jams::config_optional<std::string>(settings, "thermostat", "langevin-white-cpu");
-  register_thermostat(Thermostat::create(thermostat_name, 0.5 * time_step()));
+  register_thermostat(Thermostat::create(
+      thermostat_name, 0.5 * time_step(), jams::thermal_field_coupling(gyro_eff_)));
   std::cout << "  thermostat " << thermostat_name.c_str() << "\n";
 
   spins_initial_.resize(globals::num_spins, 3);

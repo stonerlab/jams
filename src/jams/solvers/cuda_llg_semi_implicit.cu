@@ -72,11 +72,12 @@ void CUDALLGSemiImplictSolver::initialize(const libconfig::Setting& settings) {
 
   const auto thermostat_name = jams::config_optional<std::string>(
       settings, "thermostat", jams::defaults::solver_gpu_thermostat);
-  register_thermostat(Thermostat::create(thermostat_name, 0.5 * time_step()));
+  initialize_gyro_eff(settings, gyro_eff_);
+  register_thermostat(Thermostat::create(
+      thermostat_name, 0.5 * time_step(), jams::thermal_field_coupling(gyro_eff_)));
 
   std::cout << "  thermostat " << thermostat_name << "\n";
 
-  initialize_gyro_eff(settings, gyro_eff_);
   const auto gyro_eff_choice = cuda_spin_parameter_choice(gyro_eff_);
   gyro_eff_is_uniform_ = gyro_eff_choice.is_uniform;
   gyro_eff_uniform_value_ = gyro_eff_choice.uniform_value;

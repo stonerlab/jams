@@ -15,7 +15,7 @@
 
 class CudaThermostatQuantumSpde : public Thermostat {
  public:
-  CudaThermostatQuantumSpde(const jams::Real &temperature, const jams::Real &sigma,
+  CudaThermostatQuantumSpde(const jams::Real &temperature, std::span<const double> coupling,
                            double timestep, int num_spins);
 
   void update() override;

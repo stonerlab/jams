@@ -614,7 +614,7 @@ TEST_F(CudaQuantumSpdeThermostatCompletionTest,
 
   constexpr double kTimestepPs = 1.0e-3;
   CudaThermostatQuantumSpde thermostat(
-      jams::Real{300.0}, jams::Real{0.0}, jams::Real{kTimestepPs}, kSpinCount);
+      jams::Real{300.0}, jams::thermal_field_coupling(globals::gyro), kTimestepPs, kSpinCount);
   thermostat.update();
   thermostat.record_done();
 
@@ -647,7 +647,7 @@ TEST_F(CudaQuantumSpdeThermostatCompletionTest,
   }
 
   CudaThermostatQuantumSpde thermostat(
-      jams::Real{300.0}, jams::Real{0.0}, jams::Real{1.0e-3}, kSpinCount);
+      jams::Real{300.0}, jams::thermal_field_coupling(globals::gyro), 1.0e-3, kSpinCount);
   thermostat.update();
   thermostat.record_done();
 

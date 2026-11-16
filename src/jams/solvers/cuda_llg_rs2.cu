@@ -233,13 +233,14 @@ void CUDALLGRS2Solver::initialize(const libconfig::Setting& settings) {
       settings, "thermostat", jams::defaults::solver_gpu_thermostat);
   const auto num_spins = globals::num_spins;
 
-  register_thermostat(Thermostat::create(thermostat_name, time_step(), time_step() / 3.0));
+  initialize_gyro_eff(settings, gyro_eff_);
+  register_thermostat(Thermostat::create(
+      thermostat_name, time_step(), jams::thermal_field_coupling(gyro_eff_), time_step() / 3.0));
   const auto* white_bath = dynamic_cast<const CudaThermostatClassical*>(thermostat_.get());
   has_coloured_bath_ = white_bath == nullptr;
   coloured_sample_ready_ = false;
   white_generator_.reset();
 
-  initialize_gyro_eff(settings, gyro_eff_);
   const auto gyro_choice = cuda_spin_parameter_choice(gyro_eff_);
   gyro_eff_is_uniform_ = gyro_choice.is_uniform;
   gyro_eff_uniform_value_ = gyro_choice.uniform_value;

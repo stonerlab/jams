@@ -15,11 +15,11 @@ void CudaRK4BaseSolver::initialize(const libconfig::Setting& settings) {
 
   const auto thermostat_name = jams::config_optional<std::string>(
       settings, "thermostat", jams::defaults::solver_gpu_thermostat);
-  register_thermostat(Thermostat::create(thermostat_name, time_step()));
+  initialize_gyro_eff(settings, gyro_eff_);
+  register_thermostat(Thermostat::create(
+      thermostat_name, time_step(), jams::thermal_field_coupling(gyro_eff_, thermal_torque_)));
 
   std::cout << "  thermostat " << thermostat_name << "\n";
-
-  initialize_gyro_eff(settings, gyro_eff_);
 
   spins_initial_.resize(globals::num_spins, 3);
 

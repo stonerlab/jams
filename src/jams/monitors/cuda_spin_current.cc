@@ -69,7 +69,7 @@ CudaSpinCurrentMonitor::CudaSpinCurrentMonitor(const libconfig::Setting &setting
 
 void CudaSpinCurrentMonitor::update(Solver& solver) {
   const auto& spins = globals::s;
-  const auto& gyro = globals::gyro;
+  const auto& gyro = globals::gyro; // Bare gamma for the conservative spin current.
   const auto& inv_moments = globals::inv_mus;
   jams::Vec<double, 3> js_z = execute_cuda_spin_current_kernel(
           stream,

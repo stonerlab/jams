@@ -105,6 +105,8 @@ void Solver::initialize_gyro_eff(
       jams::config_optional<bool>(settings, "gilbert_prefactor", false);
   std::cout << "    llg gilbert_prefactor " << use_gilbert_prefactor << "\n";
 
+  // Apply the optional Gilbert denominator once, after site initialisers.
+  // The dimensionless damping alpha is the relative strength in the torque.
   gyro_eff.resize(globals::num_spins);
   for (auto i = 0; i < globals::num_spins; ++i) {
     const auto alpha = globals::alpha(i);

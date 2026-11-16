@@ -21,22 +21,15 @@
 
 #include "jams/monitors/magnetisation.h"
 
-namespace {
-
-double classical_noise_variance(int i, double temperature, double denominator) {
-  return (2.0 * kBoltzmannIU * globals::alpha(i) * globals::inv_mus(i) * temperature) / denominator;
-}
-
-}  // namespace
-
-CudaThermostatClassical::CudaThermostatClassical(const jams::Real &temperature, const jams::Real &sigma, const jams::Real timestep, const int num_spins)
-: Thermostat(temperature, sigma, timestep, num_spins),
-  sigma_spin_(num_spins) {
+CudaThermostatClassical::CudaThermostatClassical(const jams::Real &temperature, std::span<const double> coupling, const jams::Real timestep, const int num_spins)
+: Thermostat(temperature, 0.0, timestep, num_spins),
+  sigma_spin_(num_spins),
+  coupling_(coupling.begin(), coupling.end()) {
   std::cout << "\n  initialising classical-gpu thermostat\n";
 
   for(int i = 0; i < num_spins; ++i) {
     sigma_spin_(i) = static_cast<jams::Real>(
-        std::sqrt(classical_noise_variance(i, 1.0, globals::gyro(i) * timestep)));
+        std::sqrt(2.0 * kBoltzmannIU * coupling[i] / timestep));
     for (int j = 0; j < 3; ++j) {
       sigma_(i, j) = sigma_spin_(i);
     }
@@ -60,11 +53,8 @@ jams::MultiArray<double, 1> CudaThermostatClassical::diffusion_amplitudes(
   const auto temperatures = profile.temperature().host_view();
   for (int i = 0; i < profile.size(); ++i) {
     const double temperature = profile.is_uniform() ? uniform_temperature : temperatures(i);
-    if (temperature == 0.0 || globals::alpha(i) == 0.0 || globals::inv_mus(i) == 0.0) {
-      amplitudes(i) = 0.0;
-      continue;
-    }
-    const double variance = classical_noise_variance(i, temperature, globals::gyro(i));
+    // RS2 multiplies by a Wiener increment with variance dt.
+    const double variance = 2.0 * kBoltzmannIU * coupling_[i] * temperature;
     if (!jams::is_finite(variance) || variance < 0.0) {
       throw std::runtime_error("invalid classical white-noise variance at spin " + std::to_string(i));
     }

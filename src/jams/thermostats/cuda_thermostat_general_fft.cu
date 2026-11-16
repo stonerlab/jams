@@ -38,10 +38,11 @@
 //#define PRINT_NOISE
 
 CudaThermostatGeneralFFT::CudaThermostatGeneralFFT(
-    const jams::Real &temperature, const jams::Real &sigma, const double timestep,
-    const int num_spins)
-: Thermostat(temperature, sigma, static_cast<jams::Real>(timestep), num_spins),
-  delta_t_(timestep), filter_temperature_(this->temperature()) {
+    const jams::Real &temperature, const std::span<const double> coupling,
+    const double timestep, const int num_spins, const std::string& noise_spectrum_type,
+    const std::optional<jams::LorentzianBathParameters> memory_bath)
+: Thermostat(temperature, 0.0, static_cast<jams::Real>(timestep), num_spins),
+  delta_t_(timestep), filter_temperature_(this->temperature()), site_scale_(num_spins) {
 
   std::cout << "\n  initialising general-fft-gpu thermostat\n";
 
@@ -59,27 +60,20 @@ CudaThermostatGeneralFFT::CudaThermostatGeneralFFT(
         "CudaLangevinArbitraryThermostat is only implemented for single material cells");
   }
 
-  auto& thermostat_settings = globals::config->lookup("thermostat");
-
-  auto noise_spectrum_type = lowercase(
-      jams::config_required<std::string>(thermostat_settings, "spectrum"));
-
-  // In arXiv:2009.00600v2 Janet uses eta_G for the Gilbert damping, but this is
-  // a **dimensionful** Gilbert damping (implied by Eq. (1) in the paper and
-  // also explicitly mentioned). In JAMS alpha is the dimensionless Gilbert
-  // damping. The difference is eta_G = alpha / (mu_s * gamma). It's important
-  // that we convert here to get the scaling of the noice correct (i.e. it
-  // converts Janet's equations into the JAMS convention).
-
-  const int first_spin = globals::first_magnetic_spin();
-  double eta_G = globals::alpha(first_spin) * globals::inv_mus(first_spin)
-      / globals::gyro(first_spin);
-
-
+  // All sites share the spectrum's shape. Build the filter at the largest
+  // coupling and scale each field by the square root of its relative power.
+  const double eta_G = coupling.empty() ? 0.0 : *std::max_element(coupling.begin(), coupling.end());
   for (int i = 0; i < num_spins; ++i) {
-    for (int j = 0; j < 3; ++j) {
-      sigma_(i, j) = sqrt(1.0 / timestep);
-    }
+    site_scale_(i) = static_cast<jams::Real>(
+        eta_G > 0.0 ? std::sqrt((coupling[i] / eta_G) / timestep) : 0.0);
+  }
+
+  if (noise_spectrum_type.ends_with("-lorentzian")) {
+    const auto parameters = memory_bath ? *memory_bath :
+        jams::LorentzianBathParameters::from_settings(globals::config->lookup("thermostat"));
+    lorentzian_omega0_ = parameters.omega0;
+    lorentzian_gamma_ = parameters.linewidth;
+    lorentzian_A_ = parameters.amplitude(eta_G);
   }
 
   // Define the spectral function P(omega) as a lambda
@@ -98,17 +92,14 @@ CudaThermostatGeneralFFT::CudaThermostatGeneralFFT(
       return quantum_no_zero_ohmic_spectrum(omega, filter_temperature_, eta_G);
     };
   } else if (noise_spectrum_type == "classical-lorentzian") {
-    init_lorentzian(thermostat_settings, eta_G);
     psd_function = [&](double omega) {
       return classical_lorentzian_spectrum(omega, filter_temperature_, lorentzian_omega0_, lorentzian_gamma_, lorentzian_A_);
     };
   } else if (noise_spectrum_type == "quantum-lorentzian") {
-    init_lorentzian(thermostat_settings, eta_G);
     psd_function = [&](double omega) {
       return quantum_lorentzian_spectrum(omega, filter_temperature_, lorentzian_omega0_, lorentzian_gamma_, lorentzian_A_);
     };
   } else if (noise_spectrum_type == "quantum-no-zero-lorentzian" || noise_spectrum_type == "no-zero-quantum-lorentzian") {
-    init_lorentzian(thermostat_settings, eta_G);
     psd_function = [&](double omega) {
       return quantum_no_zero_lorentzian_spectrum(omega, filter_temperature_, lorentzian_omega0_, lorentzian_gamma_, lorentzian_A_);
     };
@@ -271,7 +262,7 @@ void CudaThermostatGeneralFFT::update() {
   DEBUG_CHECK_CUDA_ASYNC_STATUS;
 
   // scale the noise by the prefactor sigma
-  cuda_array_elementwise_scale(num_proc / 3, 3, sigma_.device_data(), 1.0, noise_.mutable_device_data(), 1,
+  cuda_array_elementwise_scale(num_proc / 3, 3, site_scale_.device_data(), 1.0, noise_.mutable_device_data(), 1,
                                noise_.mutable_device_data(), 1, dev_stream_);
 
   // Order the refill and convolution on the same stream so that consecutive
@@ -342,12 +333,6 @@ std::vector<double> CudaThermostatGeneralFFT::discrete_real_fourier_transform(st
   }
 
   return x;
-}
-
-void CudaThermostatGeneralFFT::init_lorentzian(libconfig::Setting &settings, double eta_G) {
-  lorentzian_gamma_ = kTwoPi * jams::config_required<double>(settings, "lorentzian_gamma");
-  lorentzian_omega0_ = kTwoPi * jams::config_required<double>(settings, "lorentzian_omega0");
-  lorentzian_A_ = (eta_G * pow4(lorentzian_omega0_)) / (lorentzian_gamma_);
 }
 
 double CudaThermostatGeneralFFT::classical_ohmic_spectrum(double omega, double temperature, double eta_G) {

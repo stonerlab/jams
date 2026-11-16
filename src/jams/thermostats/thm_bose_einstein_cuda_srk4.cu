@@ -17,8 +17,8 @@
 #include <string>
 #include <iostream>
 
-jams::BoseEinsteinCudaSRK4Thermostat::BoseEinsteinCudaSRK4Thermostat(const double &temperature, const double &sigma, const double timestep, const int num_spins)
-: Thermostat(temperature, sigma, timestep, num_spins) {
+jams::BoseEinsteinCudaSRK4Thermostat::BoseEinsteinCudaSRK4Thermostat(const double &temperature, std::span<const double> coupling, const double timestep, const int num_spins)
+: Thermostat(temperature, 0.0, timestep, num_spins) {
    std::cout << "\n  initialising CUDA Langevin semi-quantum noise thermostat\n";
 
    jams_warning("This thermostat is currently broken. Do not use for production work.");
@@ -47,8 +47,7 @@ jams::BoseEinsteinCudaSRK4Thermostat::BoseEinsteinCudaSRK4Thermostat(const doubl
 
    for (int i = 0; i < num_spins; ++i) {
      for (int j = 0; j < 3; ++j) {
-       sigma_(i,j) = (kBoltzmannIU) * sqrt((2.0 * globals::alpha(i))
-           * globals::inv_mus(i) / (kHBarIU * globals::gyro(i)));
+       sigma_(i,j) = kBoltzmannIU * std::sqrt(2.0 * coupling[i] / kHBarIU);
      }
    }
 

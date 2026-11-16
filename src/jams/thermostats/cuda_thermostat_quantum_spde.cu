@@ -26,9 +26,9 @@ int checked_spin_count_for_cuda_quantum_spde(const int num_spins) {
 }  // namespace
 
 CudaThermostatQuantumSpde::CudaThermostatQuantumSpde(
-    const jams::Real &temperature, const jams::Real &sigma, const double timestep,
+    const jams::Real &temperature, std::span<const double> coupling, const double timestep,
     const int num_spins)
-: Thermostat(temperature, sigma, static_cast<jams::Real>(timestep),
+: Thermostat(temperature, 0.0, static_cast<jams::Real>(timestep),
              checked_spin_count_for_cuda_quantum_spde(num_spins))
 {
   std::cout << "\n  initialising quantum-spde-gpu thermostat\n";
@@ -81,8 +81,7 @@ CudaThermostatQuantumSpde::CudaThermostatQuantumSpde(
 
   for (int i = 0; i < num_spins; ++i) {
     for (int j = 0; j < 3; ++j) {
-      sigma_(i,j) = static_cast<jams::Real>((kBoltzmannIU) * sqrt((2.0 * globals::alpha(i))
-                                          * globals::inv_mus(i) / (kHBarIU * globals::gyro(i))));
+      sigma_(i,j) = static_cast<jams::Real>(kBoltzmannIU * std::sqrt(2.0 * coupling[i] / kHBarIU));
     }
   }
 

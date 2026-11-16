@@ -13,30 +13,23 @@
 #endif
 
 ThermostatClassical::ThermostatClassical(const jams::Real& temperature,
-                                         const jams::Real& sigma,
+                                         std::span<const double> coupling,
                                          const jams::Real timestep,
                                          const int num_spins)
-    : Thermostat(temperature, sigma, timestep, num_spins),
+    : Thermostat(temperature, 0.0, timestep, num_spins),
       sigma_spin_(num_spins),
       random_generator_(pcg_extras::seed_seq_from<pcg32>(
           jams::instance().random_generator()())) {
   ensure_random_generators(1);
 
   auto sigma_spin_view = sigma_spin_.mutable_host_view();
-  auto alpha_view = globals::alpha.host_view();
-  auto inv_mu_view = globals::inv_mus.host_view();
-  auto gyro_view = globals::gyro.host_view();
   auto* sigma_spin_values = sigma_spin_view.data();
-  const auto* alpha_values = alpha_view.data();
-  const auto* inv_mu_values = inv_mu_view.data();
-  const auto* gyro_values = gyro_view.data();
 #if HAS_OMP
 #pragma omp parallel for schedule(static)
 #endif
   for (int i = 0; i < num_spins; ++i) {
     sigma_spin_values[i] = static_cast<jams::Real>(
-        std::sqrt((2.0 * kBoltzmannIU * alpha_values[i] * inv_mu_values[i]) /
-                  (gyro_values[i] * timestep)));
+        std::sqrt(2.0 * kBoltzmannIU * coupling[i] / timestep));
   }
 }
 

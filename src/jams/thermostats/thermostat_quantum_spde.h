@@ -96,7 +96,7 @@ class QuantumSpdeNoiseGenerator {
 class ThermostatQuantumSpde : public Thermostat {
  public:
   ThermostatQuantumSpde(const jams::Real& temperature,
-                        const jams::Real& sigma,
+                        std::span<const double> coupling,
                         jams::Real timestep,
                         int num_spins);
 

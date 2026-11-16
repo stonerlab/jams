@@ -6,7 +6,9 @@
 #include "jams/containers/multiarray.h"
 
 #include <optional>
+#include <span>
 #include <string>
+#include <vector>
 
 #include "jams/helpers/mixed_precision.h"
 #include "jams/core/thermostat_temperature_profile.h"
@@ -15,6 +17,25 @@
 #include "jams/cuda/cuda_stream.h"
 #endif
 
+namespace libconfig { class Setting; }
+
+namespace jams {
+enum class ThermalTorque { llg, additive, precession };
+
+// Coefficient eta in the classical field spectrum 2 k_B T eta. Local
+// equations supply gyro_eff. The retarded precession equation supplies
+// bare gamma to set the strength of its memory kernel and matched noise.
+std::vector<double> thermal_field_coupling(
+    const MultiArray<Real, 1>& gyro, ThermalTorque torque = ThermalTorque::llg);
+
+struct LorentzianBathParameters {
+  double omega0;
+  double linewidth;
+
+  static LorentzianBathParameters from_settings(const libconfig::Setting& settings);
+  double amplitude(double coupling) const;
+};
+}
 
 class Thermostat {
  public:
@@ -28,10 +49,13 @@ class Thermostat {
   virtual void update_in_parallel();
 
   // factory
-  // With a stage interval, select a CUDA white bath or a coloured bath
-  // that can be sampled on that finer time grid.
+  // Coupling is set by the solver's thermal torque. White fields use
+  // timestep as the sampling interval. RS2 uses native Wiener increments
+  // for white noise and the separate stage interval for coloured noise.
   static Thermostat* create(const std::string &thermostat_name, double timestep,
-                            std::optional<double> stage_interval = std::nullopt);
+                            std::span<const double> coupling,
+                            std::optional<double> stage_interval = std::nullopt,
+                            std::optional<jams::LorentzianBathParameters> memory_bath = std::nullopt);
 
   // accessors
   jams::Real temperature() const { return temperature_; }

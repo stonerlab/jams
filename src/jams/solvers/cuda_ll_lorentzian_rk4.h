@@ -27,7 +27,7 @@ class CUDALLLorentzianRK4Solver : public CudaSolver {
 
   double lorentzian_omega_;
   double lorentzian_gamma_;
-  double lorentzian_A_;
+  jams::MultiArray<double, 1> lorentzian_amplitude_;
 
   jams::MultiArray<double, 2> spins_initial_;
   jams::MultiArray<double, 2> s_k1_;

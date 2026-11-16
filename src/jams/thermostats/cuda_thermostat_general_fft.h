@@ -137,8 +137,9 @@
 
 class CudaThermostatGeneralFFT : public Thermostat {
 public:
-    CudaThermostatGeneralFFT(const jams::Real &temperature, const jams::Real &sigma,
-                             double timestep, int num_spins);
+    CudaThermostatGeneralFFT(const jams::Real &temperature, std::span<const double> coupling,
+                             double timestep, int num_spins, const std::string& spectrum,
+                             std::optional<jams::LorentzianBathParameters> memory_bath);
     ~CudaThermostatGeneralFFT();
 
     void update();
@@ -149,8 +150,6 @@ public:
     const jams::Real* device_data() { return noise_.device_data(); }
 
 private:
-
-  void init_lorentzian(libconfig::Setting &settings, double eta_G);
 
   static double classical_ohmic_spectrum(double omega, double temperature, double eta_G);
   static double quantum_ohmic_spectrum(double omega, double temperature, double eta_G);
@@ -210,6 +209,7 @@ private:
 
     jams::MultiArray<double, 1> memory_kernel_;
     jams::MultiArray<double, 1> white_noise_;
+    jams::MultiArray<jams::Real, 1> site_scale_;
 
     cudaStream_t                dev_stream_ = nullptr;
 };

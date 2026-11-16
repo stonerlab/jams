@@ -35,6 +35,7 @@ class CudaRS2TestAccess {
   }
 
   static const auto& uniforms(const CUDALLGRS2Solver& solver) { return solver.uniforms_; }
+  static const auto& white_sigma(const CUDALLGRS2Solver& solver) { return solver.white_sigma_; }
 };
 
 namespace {
@@ -242,7 +243,8 @@ class CudaRS2Test : public testing::Test {
   }
 
   void initialize(const std::string& thermostat, double temperature, double alpha,
-                  bool two_materials = false, const std::string& bath_settings = {}) {
+                  bool two_materials = false, const std::string& bath_settings = {},
+                  bool gilbert_prefactor = true) {
     const std::string second_material = two_materials
         ? R"(, {name = "B"; moment = 2.1; alpha = 0.35; spin = [0.0, 0.0, 1.0];})" : "";
     const std::string second_site = two_materials ? R"(, ("B", [0.5, 0.0, 0.0]))" : "";
@@ -257,7 +259,8 @@ class CudaRS2Test : public testing::Test {
       physics = {temperature = )" + std::to_string(temperature) + R"(;};
       hamiltonians = ();
       solver = {module = "llg-rs2-gpu"; thermostat = ")" + thermostat + R"(";
-                gilbert_prefactor = true; t_step = 1e-14; t_max = 4e-14;};
+                gilbert_prefactor = )" + (gilbert_prefactor ? "true" : "false") + R"(;
+                t_step = 1e-14; t_max = 4e-14;};
       monitors = ();
     )" + bath_settings;
 
@@ -410,8 +413,24 @@ TEST_F(CudaRS2Test, QuantumSpdeBathSmoke) {
 
 TEST_F(CudaRS2Test, GeneralFftBathSmoke) {
   initialize("general-fft-gpu", 50.0, 0.2, false,
-             R"(thermostat = {spectrum = "classical-ohmic";};)");
+             R"(thermostat = {spectrum = "quantum-no-zero-ohmic";};)");
   check_real_bath();
+}
+
+TEST_F(CudaRS2Test, FlatFftBathUsesWienerIncrementsWithBareGyro) {
+  constexpr double temperature = 50.0;
+  initialize("general-fft-gpu", temperature, 1.0, false,
+             R"(thermostat = {spectrum = "classical-ohmic";};)", false);
+  const auto sigma = CudaRS2TestAccess::white_sigma(solver()).host_span();
+  ASSERT_EQ(sigma.size(), 1u);
+  const double expected = std::sqrt(
+      kBoltzmannIU * temperature * globals::inv_mus(0) / globals::gyro(0));
+  EXPECT_NEAR(sigma[0], expected, kFieldTolerance * expected);
+  EXPECT_EQ(CudaRS2TestAccess::uniforms(solver()).size(), 5u);
+  solver().update_physics_module();
+  solver().run();
+  ASSERT_EQ(cudaDeviceSynchronize(), cudaSuccess);
+  EXPECT_NEAR(jams::norm_squared(spin_at(0)), 1.0, 2.0e-12);
 }
 
 TEST_F(CudaRS2Test, GeneralFftZeroSpectrumKeepsSpinsFixed) {

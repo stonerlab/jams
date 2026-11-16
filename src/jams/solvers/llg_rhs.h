@@ -7,7 +7,8 @@
 
 namespace jams::solvers {
 
-// field includes the thermal field, in Tesla. The result is in ps^-1.
+// The field, in Tesla, includes thermal noise in both torque terms.
+// gyro_eff is the solver's torque prefactor and the slope is in ps^-1.
 JAMS_HOST_DEVICE inline void llg_rhs(const double spin[3], const double field[3],
                                      const double gyro_eff, const double alpha, double slope[3]) {
   const double cx = spin[1] * field[2] - spin[2] * field[1];

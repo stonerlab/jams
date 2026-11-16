@@ -23,7 +23,7 @@ __global__ void cuda_ll_lorentzian_rk4_kernel(
     double* s_k_dev, double* w_k_dev, double* v_k_dev, const double* spins, const double* w_dev,
     const double* v_dev, const jams::Real* fields, const jams::Real* noise,
     const jams::Real* gyro_eff, const jams::Real* mus_dev, const jams::Real* inverse_moments,
-    const double lorentzian_omega, const double lorentzian_gamma, const double lorentzian_A,
+    const double lorentzian_omega, const double lorentzian_gamma, const double* lorentzian_amplitude,
     const unsigned num_spins) {
   const unsigned int spin_index = blockIdx.x * blockDim.x + threadIdx.x;
 
@@ -79,7 +79,7 @@ __global__ void cuda_ll_lorentzian_rk4_kernel(
   for (auto n = 0; n < 3; ++n) {
     w_k_dev[offset + n] = -lorentzian_omega * lorentzian_omega * v[n] -
                                   lorentzian_gamma * w[n] +
-                                  lorentzian_A * mus_dev[spin_index] * s[n];
+                                  lorentzian_amplitude[spin_index] * mus_dev[spin_index] * s[n];
   }
 
   for (auto n = 0; n < 3; ++n) {
@@ -118,31 +118,29 @@ void CUDALLLorentzianRK4Solver::initialize(const libconfig::Setting& settings) {
 
   initialize_time(settings);
 
-  lorentzian_gamma_ = kTwoPi * jams::config_required<double>(globals::config->lookup("thermostat"),
-                                                             "lorentzian_gamma");
-  lorentzian_omega_ = kTwoPi * jams::config_required<double>(globals::config->lookup("thermostat"),
-                                                             "lorentzian_omega0");
+  const auto bath = jams::LorentzianBathParameters::from_settings(
+      globals::config->lookup("thermostat"));
+  lorentzian_omega_ = bath.omega0;
+  lorentzian_gamma_ = bath.linewidth;
+  initialize_gyro_eff(settings, gyro_eff_);
 
-  // In arXiv:2009.00600v2 Janet uses eta_G for the Gilbert damping, but this is
-  // a **dimensionful** Gilbert damping (implied by Eq. (1) in the paper and
-  // also explicitly mentioned). In JAMS alpha is the dimensionless Gilbert
-  // damping. The difference is eta_G = alpha / (mu_s * gamma). It's important
-  // that we convert here to get the scaling of the noise correct (i.e. it
-  // converts Janet's equations into the JAMS convention).
+  // The matched spectrum and retarded field use the same eta = alpha/(mu*gamma)
+  // with bare gamma. The flag changes the precession rate, so the Ohmic-limit
+  // dimensionless damping is mu*gyro_eff*eta. See arXiv:2009.00600, Eq. (16).
+  const auto coupling = jams::thermal_field_coupling(globals::gyro, jams::ThermalTorque::precession);
+  lorentzian_amplitude_.resize(globals::num_spins);
+  for (int i = 0; i < globals::num_spins; ++i) {
+    lorentzian_amplitude_(i) = bath.amplitude(coupling[i]);
+  }
 
-  const int first_spin = globals::first_magnetic_spin();
-  double eta_G =
-      globals::alpha(first_spin) * globals::inv_mus(first_spin) / globals::gyro(first_spin);
-
-  lorentzian_A_ = (eta_G * pow4(lorentzian_omega_)) / (lorentzian_gamma_);
-
+  // Explicit alternate spectra supply a prescribed field. The default
+  // classical Lorentzian is matched to the dissipative kernel.
   const auto thermostat_name = jams::config_optional<std::string>(
-      settings, "thermostat", jams::defaults::solver_gpu_thermostat);
-  register_thermostat(Thermostat::create(thermostat_name, time_step()));
+      settings, "thermostat", "general-fft-gpu");
+  register_thermostat(Thermostat::create(
+      thermostat_name, time_step(), coupling, std::nullopt, bath));
 
   std::cout << "  thermostat " << thermostat_name << "\n";
-
-  initialize_gyro_eff(settings, gyro_eff_);
 
   spins_initial_.resize(globals::num_spins, 3);
 
@@ -199,7 +197,7 @@ void CUDALLLorentzianRK4Solver::run() {
         v_slope.mutable_device_data(), globals::s.device_data(), w_memory_process_.device_data(),
         v_memory_process_.device_data(), globals::h.device_data(), noise, gyro_eff_.device_data(),
         globals::mus.device_data(), globals::inv_mus.device_data(), lorentzian_omega_,
-        lorentzian_gamma_, lorentzian_A_, num_spins);
+        lorentzian_gamma_, lorentzian_amplitude_.device_data(), num_spins);
     DEBUG_CHECK_CUDA_ASYNC_STATUS
   };
 

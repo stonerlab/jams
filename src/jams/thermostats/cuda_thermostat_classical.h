@@ -11,7 +11,7 @@
 
 class CudaThermostatClassical : public Thermostat {
  public:
-  CudaThermostatClassical(const jams::Real &temperature, const jams::Real &sigma, const jams::Real timestep, const int num_spins);
+  CudaThermostatClassical(const jams::Real &temperature, std::span<const double> coupling, const jams::Real timestep, const int num_spins);
 
   void update() override;
 
@@ -31,6 +31,7 @@ class CudaThermostatClassical : public Thermostat {
  private:
     jams::MultiArray<jams::Real, 1> sigma_spin_;
     jams::MultiArray<jams::Real, 1> sigma_sqrt_temperature_;
+    std::vector<double> coupling_;
     cudaStream_t                dev_stream_ = nullptr;
 };
 

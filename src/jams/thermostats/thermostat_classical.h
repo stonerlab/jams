@@ -13,7 +13,7 @@
 class ThermostatClassical : public Thermostat {
  public:
   ThermostatClassical(const jams::Real& temperature,
-                      const jams::Real& sigma,
+                      std::span<const double> coupling,
                       jams::Real timestep,
                       int num_spins);
 

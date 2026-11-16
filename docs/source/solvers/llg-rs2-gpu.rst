@@ -18,8 +18,9 @@ rotation to each starting spin to preserve its length.
      t_max = 1e-12;
    };
 
-The time settings are in seconds. The optional ``gilbert_prefactor`` setting
-uses the effective gyromagnetic ratio in the LLG torque when enabled.
+The time settings are in seconds. When ``gilbert_prefactor`` is enabled,
+the LLG torque uses the material gyromagnetic ratio divided by
+:math:`1+\alpha^2`. Otherwise it uses the material ratio directly.
 
 Thermostats
 -----------
@@ -28,9 +29,9 @@ Thermostats
   The classical bath uses the RS2 white increments and includes the damping
   term in the thermal torque. Use a fixed scalar ``physics.temperature`` or a
   fixed spatial temperature profile configured with
-  ``thermostat.temperature_regions``. The noise amplitude uses the bare
-  gyromagnetic ratio. The method targets weak order two when white noise is
-  active.
+  ``thermostat.temperature_regions``. The field variance per unit time is
+  :math:`2\alpha k_\mathrm{B}T/[\mu\gamma_\mathrm{eff}(1+\alpha^2)]`.
+  The method targets weak order two when white noise is active.
 
 ``quantum-spde-gpu``
   The SPDE thermostat supplies a persistent coloured field. The initial sample
@@ -38,12 +39,12 @@ Thermostats
   stationary sample, according to the thermostat settings.
 
 ``general-fft-gpu``
-  The FFT thermostat supplies a persistent sampled field for a single material
-  at fixed uniform temperature. Its configured spectrum, including a flat
-  classical spectrum, enters the drift as a sampled driving field. The solver
-  uses standard LLG damping with this prescribed field.
+  Coloured FFT spectra supply a persistent sampled field for a single
+  material at fixed uniform temperature. A flat classical spectrum
+  (``classical`` or ``classical-ohmic``) uses the same native white
+  increments as ``langevin-white-gpu``.
 
-For SPDE and FFT, a single bath sequence advances at intervals of one third of
+For SPDE and coloured FFT spectra, a single bath sequence advances at intervals of one third of
 the solver timestep. The first drift uses the sample at the start of the step.
 Both later drifts use the sample two thirds of the way through the step. The
 endpoint sample becomes the start sample for the following step. The

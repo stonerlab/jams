@@ -987,10 +987,10 @@ void QuantumSpdeNoiseGenerator::update_in_parallel(
 }  // namespace jams
 
 ThermostatQuantumSpde::ThermostatQuantumSpde(const jams::Real& temperature,
-                                             const jams::Real& sigma,
+                                             std::span<const double> coupling,
                                              const jams::Real timestep,
                                              const int num_spins)
-    : Thermostat(temperature, sigma, timestep, num_spins) {
+    : Thermostat(temperature, 0.0, timestep, num_spins) {
   std::cout << "\n  initialising quantum-spde-cpu thermostat\n";
 
   const libconfig::Setting* thermostat_settings = nullptr;
@@ -1033,20 +1033,13 @@ ThermostatQuantumSpde::ThermostatQuantumSpde(const jams::Real& temperature,
   std::cout << "    zero_point " << do_zero_point << "\n";
 
   auto sigma_view = sigma_.mutable_host_view();
-  auto alpha_view = globals::alpha.host_view();
-  auto inv_mu_view = globals::inv_mus.host_view();
-  auto gyro_view = globals::gyro.host_view();
   auto* sigma_values = sigma_view.data();
-  const auto* alpha_values = alpha_view.data();
-  const auto* inv_mu_values = inv_mu_view.data();
-  const auto* gyro_values = gyro_view.data();
 #if HAS_OMP
 #pragma omp parallel for schedule(static)
 #endif
   for (auto i = 0; i < num_spins; ++i) {
     const auto value = static_cast<jams::Real>(
-        kBoltzmannIU * std::sqrt((2.0 * alpha_values[i] * inv_mu_values[i])
-        / (kHBarIU * gyro_values[i])));
+        kBoltzmannIU * std::sqrt(2.0 * coupling[i] / kHBarIU));
     const auto offset = 3 * i;
     sigma_values[offset] = value;
     sigma_values[offset + 1] = value;

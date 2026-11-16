@@ -314,7 +314,8 @@ TEST(QuantumSpdeNoiseGeneratorCpuTest, ZeroTemperatureWithZeroPointProducesNoise
 
 TEST_F(QuantumSpdeThermostatFactoryCpuTest, FactoryConstructsQuantumSpdeCpuThermostat) {
   std::unique_ptr<Thermostat> thermostat(
-      Thermostat::create("quantum-spde-cpu", jams::Real{1.0e-3}));
+      Thermostat::create("quantum-spde-cpu", 1.0e-3,
+                         jams::thermal_field_coupling(globals::gyro)));
   ASSERT_NE(thermostat, nullptr);
 
   thermostat->update();

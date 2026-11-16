@@ -53,19 +53,19 @@ namespace globals {
   /// - cartesian_component: 0: x | 1: y | 2: z
   GLOBAL jams::MultiArray<jams::Real, 2> positions;
 
-  /// @brief global dimensionless damping constant data
+  /// @brief Per-site dimensionless damping coefficient, before solver setup.
   ///
   /// @details positions(site_index)
   /// - site_index: enumerates sites in the whole lattice
   GLOBAL jams::MultiArray<jams::Real, 1> alpha;
 
-  /// @brief global magnetic moment data in units of Joules/Tesla
+  /// @brief Global magnetic moment data in meV/T.
   ///
   /// @details positions(site_index)
   /// - site_index: enumerates sites in the whole lattice
   GLOBAL jams::MultiArray<jams::Real, 1> mus;
 
-  /// @brief global reciprocal magnetic moment data in Tesla/Joules
+  /// @brief Global reciprocal magnetic moment data in T/meV.
   ///
   /// @details Zero-moment vacancy sites have reciprocal moment zero.
   GLOBAL jams::MultiArray<jams::Real, 1> inv_mus;
@@ -73,7 +73,8 @@ namespace globals {
   /// @brief number of sites with a non-zero magnetic moment
   GLOBAL int num_magnetic_spins;
 
-  /// @brief global gyromagnetic moment data in units of gyromagnetic ratios
+  /// @brief Bare per-site gyromagnetic ratio in rad ps^-1 T^-1.
+  /// The solver derives its torque prefactor separately and never rescales this array.
   ///
   /// @details positions(site_index)
   /// - site_index: enumerates sites in the whole lattice

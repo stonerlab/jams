@@ -217,7 +217,7 @@ void CudaThermalCurrentMonitor::update(Solver& solver) {
 
   const auto& spins = globals::s;
   const auto& field = globals::h;
-  const auto& gyro = globals::gyro;
+  const auto& gyro = globals::gyro; // Bare gamma for the conservative precession derivative.
   const auto& inv_mus = globals::inv_mus;
   jams::Vec<double, 3> jE = execute_cuda_thermal_current_kernel(
       stream,

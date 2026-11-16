@@ -53,7 +53,7 @@ namespace jams {
 
 class BoseEinsteinCudaSRK4Thermostat : public Thermostat {
 public:
-    BoseEinsteinCudaSRK4Thermostat(const double &temperature, const double &sigma, const double timestep, const int num_spins);
+    BoseEinsteinCudaSRK4Thermostat(const double &temperature, std::span<const double> coupling, const double timestep, const int num_spins);
     ~BoseEinsteinCudaSRK4Thermostat() override;
 
     void update() override;

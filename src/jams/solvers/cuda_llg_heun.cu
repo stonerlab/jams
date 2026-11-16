@@ -89,7 +89,8 @@ void CUDAHeunLLGSolver::initialize(const libconfig::Setting& settings) {
 
   const auto thermostat_name = jams::config_optional<std::string>(
       settings, "thermostat", jams::defaults::solver_gpu_thermostat);
-  register_thermostat(Thermostat::create(thermostat_name, time_step()));
+  register_thermostat(Thermostat::create(
+      thermostat_name, time_step(), jams::thermal_field_coupling(gyro_eff_)));
   std::cout << "  thermostat " << thermostat_name << "\n";
 
   spins_initial_.resize(globals::num_spins, 3);

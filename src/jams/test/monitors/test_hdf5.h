@@ -93,7 +93,8 @@ class Hdf5MonitorTest : public ::testing::Test {
     solver_ = std::make_unique<Hdf5MonitorStubSolver>();
     globals::solver = solver_.get();
     solver_->register_physics_module(Physics::create(globals::config->lookup("physics")));
-    solver_->register_thermostat(Thermostat::create("classical-cpu", 1.0e-15));
+    solver_->register_thermostat(Thermostat::create(
+        "classical-cpu", 1.0e-15, jams::thermal_field_coupling(globals::gyro)));
   }
 
   void run_monitor_once() {

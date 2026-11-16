@@ -15,7 +15,7 @@
 class CUDAGSERK4Solver : public CudaRK4BaseSolver {
  public:
   inline explicit CUDAGSERK4Solver(const libconfig::Setting& settings)
-      : CudaRK4BaseSolver(settings) {};
+      : CudaRK4BaseSolver(settings, jams::ThermalTorque::additive) {}
 
   std::string name() const override { return "gse-rk4-gpu"; }
 
