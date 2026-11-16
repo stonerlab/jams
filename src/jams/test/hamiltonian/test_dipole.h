@@ -5,6 +5,7 @@
 #include <libconfig.h++>
 #include <array>
 #include <memory>
+#include <type_traits>
 
 #include "jams/common.h"
 #include "jams/core/globals.h"
@@ -366,6 +367,50 @@ public:
         }
     }
 
+    void check_trial_energy_and_field(const bool check_trial_energy) {
+      ASSERT_EQ(globals::num_spins, 2);
+      constexpr int site = 0;
+      const jams::Vec<double, 3> initial_spin = {-0.8, 0.6, 0.0};
+      const jams::Vec<double, 3> neighbour_spin = {0.36, 0.48, 0.8};
+      for (auto n = 0; n < 3; ++n) {
+        globals::s(site, n) = initial_spin[n];
+        globals::s(1, n) = neighbour_spin[n];
+      }
+
+      auto field_spins = current_test_field_spins();
+      const double initial_energy = hamiltonian->calculate_total_energy(0.0, field_spins);
+      hamiltonian->calculate_fields(0.0, field_spins);
+#if HAS_CUDA
+      if constexpr (std::is_same_v<T, CudaDipoleBruteforceHamiltonian>
+                    || std::is_same_v<T, CudaDipoleFFTHamiltonian>) {
+        ASSERT_EQ(cudaStreamSynchronize(hamiltonian->get_stream()), cudaSuccess);
+      }
+#endif
+      const jams::Vec<double, 3> field = {
+          hamiltonian->field(site, 0), hamiltonian->field(site, 1), hamiltonian->field(site, 2)};
+
+      for (auto axis = 0; axis < 3; ++axis) {
+        SCOPED_TRACE(axis);
+        jams::Vec<double, 3> trial_spin{};
+        trial_spin[axis] = 1.0;
+        for (auto n = 0; n < 3; ++n) {
+          field_spins(site, n) = static_cast<jams::Real>(trial_spin[n]);
+        }
+        const double positive_energy = hamiltonian->calculate_total_energy(0.0, field_spins);
+        field_spins(site, axis) = -1.0;
+        const double negative_energy = hamiltonian->calculate_total_energy(0.0, field_spins);
+
+        // The total energy is linear in the changed spin when its neighbour is fixed.
+        EXPECT_GT(std::abs(positive_energy - negative_energy), target_accuracy);
+        EXPECT_NEAR(field[axis], 0.5 * (negative_energy - positive_energy), target_accuracy);
+        if (check_trial_energy) {
+          const auto trial_delta = hamiltonian->calculate_energy_difference(
+              site, initial_spin, trial_spin, 0.0);
+          EXPECT_NEAR(trial_delta, positive_energy - initial_energy, target_accuracy);
+        }
+      }
+    }
+
     std::unique_ptr<T> hamiltonian;
 
     // mus = 2.0 muB; a = 0.3 nm
@@ -399,6 +444,31 @@ public:
       DipoleHamiltonianTests<T>::TearDown();
     }
 };
+#endif
+
+TYPED_TEST(DipoleHamiltonianCPUTests, TrialEnergyAndFieldMatchTotalEnergy) {
+  using namespace jams::testing::dipole;
+  TestFixture::SetUp(
+      config_basic_cpu
+      + config_unitcell_sc_z_2_atom
+      + config_lattice({1, 1, 1}, {false, false, false})
+      + config_dipole("dipole", 0.75));
+  TestFixture::check_trial_energy_and_field(true);
+}
+
+#if HAS_CUDA
+TYPED_TEST(DipoleHamiltonianGPUTests, TrialEnergyAndFieldMatchTotalEnergy) {
+  using namespace jams::testing::dipole;
+  if (!cuda_device_is_available()) {
+    GTEST_SKIP() << "CUDA device is not available";
+  }
+  TestFixture::SetUp(
+      config_basic_gpu
+      + config_unitcell_sc_z_2_atom
+      + config_lattice({1, 1, 1}, {false, false, false})
+      + config_dipole("dipole", 0.75));
+  TestFixture::check_trial_energy_and_field(std::is_same_v<TypeParam, CudaDipoleBruteforceHamiltonian>);
+}
 #endif
 
 class CroppedDipoleFFTHamiltonianTest : public ::testing::Test {

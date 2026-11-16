@@ -347,11 +347,17 @@ void ExchangeStencilBackend::build_runtime_entries() {
   runtime_target_spin_offsets_.reserve(num_stencil_entries());
   runtime_values_.reserve(num_stencil_entries() * components_per_entry_);
   runtime_group_target_cell_offsets_.reserve(num_stencil_entries());
+  self_tensor_by_basis_.resize(num_basis_sites_);
 
   for (auto basis = 0; basis < num_basis_sites_; ++basis) {
     runtime_group_offsets_[basis] = static_cast<int>(runtime_group_translation_ids_.size());
     std::map<int, std::vector<RuntimeEntry>> grouped_entries;
     for (const auto& entry : stencil_entries_by_basis_[basis]) {
+      // A translation that maps back to the same site at the origin does so
+      // in every cell of this dense lattice.
+      if (entry.basis_site_j == basis && stencil_target_site({0, 0, 0}, entry) == basis) {
+        self_tensor_by_basis_[basis] = entry.tensor;
+      }
       RuntimeEntry runtime_entry;
       runtime_entry.basis_site_j = entry.basis_site_j;
 
@@ -928,10 +934,13 @@ jams::Real ExchangeStencilBackend::calculate_energy_difference(
     const jams::Vec<double, 3>& spin_final,
     double time,
     const SpinArray& spins) {
-  const auto field = calculate_field(site, time, spins);
-  const auto e_initial = -jams::dot(spin_initial, field);
-  const auto e_final = -jams::dot(spin_final, field);
-  return e_final - e_initial;
+  auto field = jams::array_cast<double>(calculate_field(site, time, spins));
+  if (const auto& tensor = self_tensor_by_basis_[site % num_basis_sites_]) {
+    // Evaluate the on-site part of the field halfway along the trial move.
+    const jams::Vec<double, 3> current = {spins(site, 0), spins(site, 1), spins(site, 2)};
+    field = field + matrix_cast<double>(*tensor) * (0.5 * (spin_initial + spin_final) - current);
+  }
+  return -jams::dot(spin_final - spin_initial, field);
 }
 
 void ExchangeStencilBackend::add_energy_current_interactions(

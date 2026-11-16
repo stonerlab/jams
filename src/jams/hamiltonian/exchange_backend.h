@@ -168,6 +168,7 @@ private:
 
   std::shared_ptr<const ExchangeInteractionSetup> setup_;
   std::vector<std::vector<StencilEntry>> stencil_entries_by_basis_;
+  std::vector<std::optional<jams::Mat<jams::Real, 3, 3>>> self_tensor_by_basis_;
   jams::Vec<int, 3> lattice_size_ = {0, 0, 0};
   jams::Vec<bool, 3> periodic_boundaries_ = {false, false, false};
   int num_basis_sites_ = 0;

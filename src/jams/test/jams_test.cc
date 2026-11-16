@@ -27,12 +27,14 @@
 #include "jams/test/hamiltonian/test_anisotropy_polynomial.h"
 #include "jams/test/hamiltonian/test_dipole.h"
 #include "jams/test/hamiltonian/test_exchange_stencil.h"
+#include "jams/test/hamiltonian/test_random_anisotropy.h"
 #include "jams/test/solvers/test_cpu_monte_carlo_constrained.h"
 #include "jams/test/solvers/test_cpu_rotations.h"
 #include "jams/test/thermostats/test_quantum_spde_noise.h"
 
 #ifdef HAS_CUDA
 #include <jams/cuda/cuda_array_reduction.t.h>
+#include "jams/test/hamiltonian/test_cuda_biquadratic_exchange.h"
 #include "jams/test/monitors/test_cuda_grouped_spin_reduction.h"
 #include "jams/test/monitors/test_cuda_thermal_current.h"
 #include "jams/test/thermostats/test_cuda_quantum_spde_noise.h"

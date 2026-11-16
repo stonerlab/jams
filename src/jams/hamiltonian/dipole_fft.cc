@@ -185,11 +185,8 @@ jams::Real DipoleFFTHamiltonian::calculate_energy(const int i, double time) {
 jams::Real DipoleFFTHamiltonian::calculate_energy_difference(
     int i, const jams::Vec<double, 3> &spin_initial, const jams::Vec<double, 3> &spin_final, double time)
 {
-    calculate_fields(time, global_spin_array_for_fields());
-    const jams::Vec<jams::Real, 3> h = {field_(i, 0), field_(i, 1), field_(i, 2)};
-
-    return -0.5 * ((spin_final[0] * h[0] + spin_final[1] * h[1] + spin_final[2] * h[2])
-          - (spin_initial[0] * h[0] + spin_initial[1] * h[1] + spin_initial[2] * h[2]));
+    const auto field = calculate_field(i, time);
+    return static_cast<jams::Real>(-jams::dot(spin_final - spin_initial, field));
 }
 
 

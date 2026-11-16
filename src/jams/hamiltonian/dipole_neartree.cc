@@ -52,9 +52,7 @@ jams::Real DipoleNearTreeHamiltonian::calculate_energy(const int i, double time)
 
 jams::Real DipoleNearTreeHamiltonian::calculate_energy_difference(int i, const jams::Vec<double, 3> &spin_initial, const jams::Vec<double, 3> &spin_final, double time) {
     const auto field = calculate_field(i, time);
-    const jams::Real e_initial = -jams::dot(spin_initial, field);
-    const jams::Real e_final = -jams::dot(spin_final, field);
-    return 0.5 * (e_final - e_initial);
+    return static_cast<jams::Real>(-jams::dot(spin_final - spin_initial, field));
 }
 
 jams::Real DipoleNearTreeHamiltonian::calculate_energy_from_spins(

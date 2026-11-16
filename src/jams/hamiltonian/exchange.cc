@@ -331,10 +331,20 @@ public:
       double time,
       const SpinArray& spins) override {
     assert(is_finalized_);
-    const auto field = calculate_field(i, time, spins);
-    const auto e_initial = -jams::dot(spin_initial, field);
-    const auto e_final = -jams::dot(spin_final, field);
-    return e_final - e_initial;
+    auto field = jams::array_cast<double>(calculate_field(i, time, spins));
+    if (has_self_interactions_) {
+      const auto* rows = interaction_matrix_.row_data();
+      const auto* cols = interaction_matrix_.col_data();
+      const auto* end = cols + rows[i + 1];
+      const auto* diagonal = std::lower_bound(cols + rows[i], end, i);
+      if (diagonal != end && *diagonal == i) {
+        // A quadratic on-site energy is integrated exactly by the midpoint field.
+        const auto tensor = interaction_matrix_.block_tensor(diagonal - cols);
+        const jams::Vec<double, 3> current = {spins(i, 0), spins(i, 1), spins(i, 2)};
+        field = field + matrix_cast<double>(tensor) * (0.5 * (spin_initial + spin_final) - current);
+      }
+    }
+    return -jams::dot(spin_final - spin_initial, field);
   }
 
   void add_energy_current_interactions(jams::EnergyCurrentInteractionSink& sink) const override {
@@ -383,6 +393,7 @@ private:
   void insert_interaction_tensor(const int i, const int j, const jams::Mat<jams::Real, 3, 3>& value) {
     assert(!is_finalized_);
     interaction_matrix_builder_.insert(i, j, value);
+    has_self_interactions_ = has_self_interactions_ || i == j;
   }
 
   void initialize_from_setup(const bool debug_enabled, const std::string& hamiltonian_name) {
@@ -439,6 +450,7 @@ private:
   }
 
   bool is_finalized_ = false;
+  bool has_self_interactions_ = false;
   std::shared_ptr<const ExchangeInteractionSetup> setup_;
   jams::BlockSparseInteractionMatrix<jams::Real>::Builder interaction_matrix_builder_;
   jams::BlockSparseInteractionMatrix<jams::Real> interaction_matrix_;

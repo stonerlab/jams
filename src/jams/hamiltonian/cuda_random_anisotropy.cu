@@ -7,6 +7,7 @@
 #include <jams/hamiltonian/random_anisotropy.h>
 #include <jams/helpers/utils.h>
 #include <jams/interface/config.h>
+#include "jams/cuda/cuda_array_kernels.h"
 #include "jams/cuda/cuda_device_vector_ops.h"
 
 __global__
@@ -23,11 +24,11 @@ void random_anisotropy_cuda_field_kernel(
 
   const jams::Real s[3] = {spins[base + 0], spins[base + 1], spins[base + 2]};
   const jams::Real x[3] = {directions[base + 0], directions[base + 1], directions[base + 2]};
-  const jams::Real d = magnitudes[idx];
+  const jams::Real field_scale = jams::Real{2.0} * magnitudes[idx] * dot(x, s);
 
 #pragma unroll
   for (auto n = 0; n < 3; ++n) {
-    fields[3 * idx + n] = d * dot(x, s) * x[n];
+    fields[base + n] = field_scale * x[n];
   }
 }
 
@@ -84,5 +85,5 @@ void CudaRandomAnisotropyHamiltonian::calculate_energies(double time, const jams
 
 jams::Real CudaRandomAnisotropyHamiltonian::calculate_total_energy(double time, const jams::MultiArray<jams::Real, 2>& spins) {
   calculate_energies(time, spins);
-  return thrust::reduce(energy_.device_data(), energy_.device_data()+energy_.size());
+  return cuda_reduce_array(energy_.device_data(), energy_.size(), cuda_stream_.get());
 }

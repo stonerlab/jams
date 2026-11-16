@@ -92,9 +92,7 @@ jams::Real CudaDipoleBruteforceHamiltonian::calculate_energy(const int i, double
 
 jams::Real CudaDipoleBruteforceHamiltonian::calculate_energy_difference(int i, const jams::Vec<double, 3> &spin_initial, const jams::Vec<double, 3> &spin_final, double time) {
     const auto field = calculate_field(i, time);
-    double e_initial = -jams::dot(spin_initial, field);
-    double e_final = -jams::dot(spin_final, field);
-    return 0.5*(e_final - e_initial);
+    return static_cast<jams::Real>(-jams::dot(spin_final - spin_initial, field));
 }
 
 void CudaDipoleBruteforceHamiltonian::add_energy_current_interactions(

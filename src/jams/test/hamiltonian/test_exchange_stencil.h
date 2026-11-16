@@ -341,6 +341,55 @@ TEST_F(ExchangeStencilHamiltonianTest, MatchesSparseForPeriodicScalarExchange) {
   compare_to_sparse_exchange(globals::config->lookup("hamiltonians"), 1.0e-8);
 }
 
+TEST_F(ExchangeStencilHamiltonianTest, OnSiteTrialEnergyAndFieldMatchTotalEnergy) {
+  using namespace jams::testing::exchange_stencil;
+  SetUp(make_config(
+      "[false, false, false]",
+      single_basis_positions(),
+      single_material(),
+      R"(
+        ("A", "A", [ 0.0, 0.0, 0.0], [1.0, 0.2, 0.3, 0.2, 1.5, 0.6, 0.3, 0.6, 2.0]),
+        ("A", "A", [ 1.0, 0.0, 0.0], [0.5, 0.0, 0.0, 0.0, 0.5, 0.0, 0.0, 0.0, 0.5]),
+        ("A", "A", [-1.0, 0.0, 0.0], [0.5, 0.0, 0.0, 0.0, 0.5, 0.0, 0.0, 0.0, 0.5])
+      )",
+      "false", "", R"(energy_units = "meV";)", "", "[2, 1, 1]"));
+  ASSERT_EQ(globals::num_spins, 2);
+
+  const jams::Vec<double, 3> initial = {0.0, 0.6, 0.8};
+  const jams::Vec<double, 3> trial = {1.0, 0.0, 0.0};
+  auto spins = make_spins();
+  for (int n = 0; n < 3; ++n) {
+    globals::s(0, n) = initial[n];
+    spins(0, n) = initial[n];
+  }
+
+  for (const auto& settings : globals::config->lookup("hamiltonians")) {
+    SCOPED_TRACE(static_cast<const char*>(settings["backend"]));
+    ExchangeHamiltonian exchange(settings, globals::num_spins, false);
+    const double initial_energy = exchange.calculate_total_energy(0.0, spins);
+    const double trial_delta = exchange.calculate_energy_difference(0, initial, trial, 0.0);
+    auto trial_spins = spins;
+    for (int n = 0; n < 3; ++n) {
+      trial_spins(0, n) = trial[n];
+    }
+    const double trial_energy = exchange.calculate_total_energy(0.0, trial_spins);
+    EXPECT_NEAR(trial_delta, trial_energy - initial_energy, 2.0e-6);
+
+    exchange.calculate_fields(0.0, spins);
+    const jams::Vec<double, 3> field = {exchange.field(0, 0), exchange.field(0, 1), exchange.field(0, 2)};
+    // The total is quadratic in each spin component, so the centred difference is exact in real arithmetic.
+    constexpr double step = 0.01;
+    for (int n = 0; n < 3; ++n) {
+      auto displaced_spins = spins;
+      displaced_spins(0, n) = initial[n] + step;
+      const double energy_plus = exchange.calculate_total_energy(0.0, displaced_spins);
+      displaced_spins(0, n) = initial[n] - step;
+      const double energy_minus = exchange.calculate_total_energy(0.0, displaced_spins);
+      EXPECT_NEAR(field[n], -(energy_plus - energy_minus) / (2.0 * step), 2.0e-5);
+    }
+  }
+}
+
 TEST_F(ExchangeStencilHamiltonianTest, PrefactorAliasMatchesInteractionPrefactor) {
   using namespace jams::testing::exchange_stencil;
   SetUp(make_config(

@@ -6,6 +6,7 @@
 #include <jams/core/interactions.h>
 #include <jams/cuda/cuda_array_kernels.h>
 #include <jams/cuda/cuda_device_vector_ops.h>
+#include <jams/helpers/maths.h>
 #include <jams/interface/config.h>
 
 #include <fstream>
@@ -217,7 +218,7 @@ jams::Real CudaBiquadraticExchangeHamiltonian::calculate_energy(int i, double ti
   assert(is_finalized_);
   jams::Vec<double, 3> s_i = {s(i,0), s(i,1), s(i,2)};
   auto field = calculate_field(i, time);
-  return -0.5*jams::dot(s_i, field);
+  return -0.25 * jams::dot(s_i, field);
 }
 
 
@@ -226,8 +227,26 @@ jams::Real CudaBiquadraticExchangeHamiltonian::calculate_energy_difference(int i
                                                                        const jams::Vec<double, 3> &spin_final,
                                                                        double time) {
   assert(is_finalized_);
-  auto field = calculate_field(i, time);
-  auto e_initial = -jams::dot(spin_initial, 0.5*field);
-  auto e_final = -jams::dot(spin_final, 0.5*field);
-  return static_cast<jams::Real>(e_final - e_initial);
+  const auto* rows = interaction_matrix_.row_data();
+  const auto* cols = interaction_matrix_.col_data();
+  const auto* strengths = interaction_matrix_.val_data();
+  const auto spins = globals::s.host_view();
+  double delta_energy = 0.0;
+
+  for (auto m = rows[i]; m < rows[i + 1]; ++m) {
+    const auto j = cols[m];
+    const double strength = strengths[m];
+    if (j == i) {
+      // The diagonal contributes only once to the directed pair sum.
+      delta_energy -= 0.5 * strength
+          * (pow2(jams::norm_squared(spin_final)) - pow2(jams::norm_squared(spin_initial)));
+      continue;
+    }
+
+    const jams::Vec<double, 3> neighbour = {spins(j, 0), spins(j, 1), spins(j, 2)};
+    const auto initial_dot = jams::dot(spin_initial, neighbour);
+    const auto final_dot = jams::dot(spin_final, neighbour);
+    delta_energy -= strength * (pow2(final_dot) - pow2(initial_dot));
+  }
+  return static_cast<jams::Real>(delta_energy);
 }
