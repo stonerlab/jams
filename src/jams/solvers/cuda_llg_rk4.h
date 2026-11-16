@@ -5,27 +5,24 @@
 
 #if HAS_CUDA
 
-#include "jams/cuda/cuda_stream.h"
 #include "jams/containers/multiarray.h"
 #include "jams/solvers/cuda_rk4_base.h"
 
 class CUDALLGRK4Solver : public CudaRK4BaseSolver {
-  public:
-    inline explicit CUDALLGRK4Solver(const libconfig::Setting &settings) : CudaRK4BaseSolver(settings) {};
+ public:
+  inline explicit CUDALLGRK4Solver(const libconfig::Setting& settings)
+      : CudaRK4BaseSolver(settings) {};
 
-    std::string name() const override { return "llg-rk4-gpu"; }
+  std::string name() const override { return "llg-rk4-gpu"; }
 
-    bool supports_deterministic_spin_rate() const override { return true; }
-    double max_deterministic_spin_rate() override {
-      return max_llg_spin_rate_cuda(gyro_eff_);
-    }
+  bool supports_deterministic_spin_rate() const override { return true; }
+  double max_deterministic_spin_rate() override { return max_llg_spin_rate_cuda(gyro_eff_); }
 
-    void function_kernel(jams::MultiArray<double, 2>& spins,
-                         jams::MultiArray<double, 2>& k, cudaStream_t stream) override;
-    void post_step(jams::MultiArray<double, 2>& spins, cudaStream_t stream) override;
+  void function_kernel(jams::MultiArray<double, 2>& spins, jams::MultiArray<double, 2>& k,
+                       cudaStream_t stream) override;
+  void post_step(jams::MultiArray<double, 2>& spins, cudaStream_t stream) override;
 };
 
 #endif
 
-#endif // JAMS_SOLVER_CUDA_LLG_RK4_H
-
+#endif  // JAMS_SOLVER_CUDA_LLG_RK4_H

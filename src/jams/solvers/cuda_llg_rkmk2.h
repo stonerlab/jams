@@ -7,43 +7,36 @@
 
 #if HAS_CUDA
 
-#include "jams/cuda/cuda_stream.h"
 #include "jams/cuda/cuda_solver.h"
 #include "jams/containers/multiarray.h"
 
 class CUDALLGRKMK2Solver : public CudaSolver {
-public:
-    inline explicit CUDALLGRKMK2Solver(const libconfig::Setting &settings) {
-        initialize(settings);
-    }
+ public:
+  inline explicit CUDALLGRKMK2Solver(const libconfig::Setting& settings) { initialize(settings); }
 
-    void initialize(const libconfig::Setting& settings) override;
-    void run() override;
+  void initialize(const libconfig::Setting& settings) override;
+  void run() override;
 
-    std::string name() const override { return "llg-rkmk2-gpu"; }
+  std::string name() const override { return "llg-rkmk2-gpu"; }
 
-    bool supports_deterministic_spin_rate() const override { return true; }
-    double max_deterministic_spin_rate() override {
-      return max_llg_spin_rate_cuda(gyro_eff_);
-    }
-private:
-    template <typename GyroParam, typename AlphaParam, typename FieldScaleParam>
-    void run_with_parameters(GyroParam gyro, AlphaParam alpha, FieldScaleParam field_scale);
+  bool supports_deterministic_spin_rate() const override { return true; }
+  double max_deterministic_spin_rate() override { return max_llg_spin_rate_cuda(gyro_eff_); }
 
-    CudaStream dev_stream_;
-    jams::MultiArray<jams::Real, 1> gyro_eff_;
-    bool gyro_eff_is_uniform_ = false;
-    jams::Real gyro_eff_uniform_value_ = jams::Real{0.0};
-    bool alpha_is_uniform_ = false;
-    jams::Real alpha_uniform_value_ = jams::Real{0.0};
-    bool mus_is_uniform_ = false;
-    jams::Real mus_uniform_inv_value_ = jams::Real{0.0};
-    jams::MultiArray<double, 2> s_init_;
-    jams::MultiArray<double, 2> phi_;
+ private:
+  template <typename GyroParam, typename AlphaParam, typename FieldScaleParam>
+  void run_with_parameters(GyroParam gyro, AlphaParam alpha, FieldScaleParam field_scale);
 
+  jams::MultiArray<jams::Real, 1> gyro_eff_;
+  bool gyro_eff_is_uniform_ = false;
+  jams::Real gyro_eff_uniform_value_ = jams::Real{0.0};
+  bool alpha_is_uniform_ = false;
+  jams::Real alpha_uniform_value_ = jams::Real{0.0};
+  bool mus_is_uniform_ = false;
+  jams::Real mus_uniform_inv_value_ = jams::Real{0.0};
+  jams::MultiArray<double, 2> spins_initial_;
+  jams::MultiArray<double, 2> phi_;
 };
 
 #endif
 
-
-#endif //JAMS_CUDA_LLG_RKMK2_H
+#endif  // JAMS_CUDA_LLG_RKMK2_H

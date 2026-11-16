@@ -1,206 +1,128 @@
 // Copyright 2014 Joseph Barker. All rights reserved.
 
-#include "cpu_llg_heun.h"
+#include "jams/solvers/cpu_llg_heun.h"
 
 #include <cmath>
-#include <jams/interface/config.h>
-#include <jams/helpers/maths.h>
+#include <iostream>
+#include <string>
 
 #include "jams/core/globals.h"
-#include "jams/core/physics.h"
+#include "jams/interface/config.h"
+#include "jams/solvers/llg_rhs.h"
 
 namespace {
 
-inline jams::Vec<double, 3> llg_rhs(
-    const double sx,
-    const double sy,
-    const double sz,
-    const double hx,
-    const double hy,
-    const double hz,
-    const double alpha,
-    const double gyro_eff) {
-  const double cx = sy * hz - sz * hy;
-  const double cy = sz * hx - sx * hz;
-  const double cz = sx * hy - sy * hx;
-
-  const double scx = sy * cz - sz * cy;
-  const double scy = sz * cx - sx * cz;
-  const double scz = sx * cy - sy * cx;
-
-  return {
-      -gyro_eff * (cx + alpha * scx),
-      -gyro_eff * (cy + alpha * scy),
-      -gyro_eff * (cz + alpha * scz)};
+void heun_rhs(const double spin[3], jams::Real* field, const jams::Real* noise, const double inv_mu,
+              const double gyro_eff, const double alpha, double ds_dt[3]) {
+  double effective_field[3];
+  for (int n = 0; n < 3; ++n) {
+    effective_field[n] = noise[n] + field[n] * inv_mu;
+    field[n] = static_cast<jams::Real>(effective_field[n]);
+  }
+  jams::solvers::llg_rhs(spin, effective_field, gyro_eff, alpha, ds_dt);
 }
 
-inline jams::Vec<double, 3> normalized_spin(
-    const double sx,
-    const double sy,
-    const double sz) {
-  const double norm_sq = sx * sx + sy * sy + sz * sz;
+void store_normalised_spin(const double spin[3], double* destination) {
+  const double norm_sq = spin[0] * spin[0] + spin[1] * spin[1] + spin[2] * spin[2];
   if (norm_sq == 0.0) {
-    return {0.0, 0.0, 0.0};
+    destination[0] = destination[1] = destination[2] = 0.0;
+    return;
   }
   const double inv_norm = 1.0 / std::sqrt(norm_sq);
-  return {sx * inv_norm, sy * inv_norm, sz * inv_norm};
+  for (int n = 0; n < 3; ++n) {
+    destination[n] = spin[n] * inv_norm;
+  }
+}
+
+void heun_stage_1(const double dt, const jams::Real* noise,
+                  const jams::MultiArray<jams::Real, 1>& gyro_eff,
+                  jams::MultiArray<double, 2>& spins_initial) {
+  auto* spins = globals::s.mutable_host_view().data();
+  auto* initial_spins = spins_initial.mutable_host_view().data();
+  auto* ds_dt = globals::ds_dt.mutable_host_view().data();
+  auto* fields = globals::h.mutable_host_view().data();
+  const auto* inverse_moments = globals::inv_mus.host_view().data();
+  const auto* gyro = gyro_eff.host_data();
+  const auto* damping = globals::alpha.host_view().data();
+
+#if HAS_OMP
+#pragma omp parallel for schedule(static)
+#endif
+  for (int spin_index = 0; spin_index < globals::num_spins; ++spin_index) {
+    const int offset = 3 * spin_index;
+    double k1[3];
+    heun_rhs(spins + offset, fields + offset, noise + offset, inverse_moments[spin_index],
+             gyro[spin_index], damping[spin_index], k1);
+
+    double stage_2_spin[3];
+    for (int n = 0; n < 3; ++n) {
+      const int index = offset + n;
+      initial_spins[index] = spins[index];
+      ds_dt[index] = 0.5 * k1[n];
+      stage_2_spin[n] = spins[index] + dt * k1[n];
+    }
+    store_normalised_spin(stage_2_spin, spins + offset);
+  }
+}
+
+void heun_stage_2(const double dt, const jams::Real* noise,
+                  const jams::MultiArray<jams::Real, 1>& gyro_eff,
+                  const jams::MultiArray<double, 2>& spins_initial) {
+  auto* spins = globals::s.mutable_host_view().data();
+  const auto* initial_spins = spins_initial.host_data();
+  auto* ds_dt = globals::ds_dt.mutable_host_view().data();
+  auto* fields = globals::h.mutable_host_view().data();
+  const auto* inverse_moments = globals::inv_mus.host_view().data();
+  const auto* gyro = gyro_eff.host_data();
+  const auto* damping = globals::alpha.host_view().data();
+
+#if HAS_OMP
+#pragma omp parallel for schedule(static)
+#endif
+  for (int spin_index = 0; spin_index < globals::num_spins; ++spin_index) {
+    const int offset = 3 * spin_index;
+    double k2[3];
+    heun_rhs(spins + offset, fields + offset, noise + offset, inverse_moments[spin_index],
+             gyro[spin_index], damping[spin_index], k2);
+
+    double final_spin[3];
+    for (int n = 0; n < 3; ++n) {
+      const int index = offset + n;
+      // Stage 1 stored k1 / 2. Complete the average with k2 / 2.
+      ds_dt[index] += 0.5 * k2[n];
+      final_spin[n] = initial_spins[index] + dt * ds_dt[index];
+    }
+    store_normalised_spin(final_spin, spins + offset);
+  }
 }
 
 }  // namespace
 
 void HeunLLGSolver::initialize(const libconfig::Setting& settings) {
-  // convert input in seconds to picoseconds for internal units
   initialize_time(settings);
-
-  s_old_.resize(globals::num_spins, 3);
-
   initialize_gyro_eff(settings, gyro_eff_);
 
-  const std::string thermostat_name = jams::config_optional<std::string>(
-      settings, "thermostat", "langevin-white-cpu");
-  register_thermostat(Thermostat::create(thermostat_name, this->time_step()));
-  std::cout << "  thermostat " << thermostat_name.c_str() << "\n";
+  const auto thermostat_name =
+      jams::config_optional<std::string>(settings, "thermostat", "langevin-white-cpu");
+  register_thermostat(Thermostat::create(thermostat_name, time_step()));
+  std::cout << "  thermostat " << thermostat_name << "\n";
+
+  spins_initial_.resize(globals::num_spins, 3);
 }
 
 void HeunLLGSolver::run() {
-  double t0 = time_;
-
-  // copy the spin configuration at the start of the step
-  {
-    const auto spin_view = globals::s.host_view();
-    auto old_spin_view = s_old_.mutable_host_view();
-    const auto* spin_values = spin_view.data();
-    auto* old_spin_values = old_spin_view.data();
-#if HAS_OMP
-#pragma omp parallel for schedule(static)
-#endif
-    for (auto n = 0; n < globals::num_spins3; ++n) {
-      old_spin_values[n] = spin_values[n];
-    }
-  }
+  const double step_start_time = time_;
+  const double dt = step_size_;
 
   update_thermostat();
+  const auto* noise = thermostat_->data();
 
-  Solver::compute_fields();
+  compute_fields();
+  heun_stage_1(dt, noise, gyro_eff_, spins_initial_);
 
-  const auto alpha_view = globals::alpha.host_view();
-  const auto inv_mu_view = globals::inv_mus.host_view();
-  const auto gyro_eff_view = gyro_eff_.host_view();
-  const auto* alpha_values = alpha_view.data();
-  const auto* inv_mu_values = inv_mu_view.data();
-  const auto* gyro_eff_values = gyro_eff_view.data();
-  const auto* thermostat_values = thermostat_->data();
-
-  {
-    auto spin_view = globals::s.mutable_host_view();
-    auto field_view = globals::h.mutable_host_view();
-    auto ds_dt_view = globals::ds_dt.mutable_host_view();
-    auto* spin_values = spin_view.data();
-    auto* field_values = field_view.data();
-    auto* ds_dt_values = ds_dt_view.data();
-
-#if HAS_OMP
-#pragma omp parallel for schedule(static)
-#endif
-    for (auto i = 0; i < globals::num_spins; ++i) {
-      const auto offset = 3 * i;
-      const double inv_mu = static_cast<double>(inv_mu_values[i]);
-      const double hx = static_cast<double>(thermostat_values[offset] + field_values[offset] * inv_mu);
-      const double hy = static_cast<double>(thermostat_values[offset + 1] + field_values[offset + 1] * inv_mu);
-      const double hz = static_cast<double>(thermostat_values[offset + 2] + field_values[offset + 2] * inv_mu);
-
-      field_values[offset] = static_cast<jams::Real>(hx);
-      field_values[offset + 1] = static_cast<jams::Real>(hy);
-      field_values[offset + 2] = static_cast<jams::Real>(hz);
-
-      const double sx = spin_values[offset];
-      const double sy = spin_values[offset + 1];
-      const double sz = spin_values[offset + 2];
-      const auto rhs = llg_rhs(
-          sx,
-          sy,
-          sz,
-          hx,
-          hy,
-          hz,
-          static_cast<double>(alpha_values[i]),
-          static_cast<double>(gyro_eff_values[i]));
-
-      ds_dt_values[offset] = 0.5 * rhs[0];
-      ds_dt_values[offset + 1] = 0.5 * rhs[1];
-      ds_dt_values[offset + 2] = 0.5 * rhs[2];
-
-      const auto spin = normalized_spin(
-          sx + step_size_ * rhs[0],
-          sy + step_size_ * rhs[1],
-          sz + step_size_ * rhs[2]);
-
-      spin_values[offset] = spin[0];
-      spin_values[offset + 1] = spin[1];
-      spin_values[offset + 2] = spin[2];
-    }
-  }
-
-  double mid_time_step = step_size_;
-  time_ = t0 + mid_time_step;
-
-  Solver::compute_fields();
-
-  {
-    auto spin_view = globals::s.mutable_host_view();
-    const auto old_spin_view = s_old_.host_view();
-    auto field_view = globals::h.mutable_host_view();
-    auto ds_dt_view = globals::ds_dt.mutable_host_view();
-    auto* spin_values = spin_view.data();
-    const auto* old_spin_values = old_spin_view.data();
-    auto* field_values = field_view.data();
-    auto* ds_dt_values = ds_dt_view.data();
-
-#if HAS_OMP
-#pragma omp parallel for schedule(static)
-#endif
-    for (auto i = 0; i < globals::num_spins; ++i) {
-      const auto offset = 3 * i;
-      const double inv_mu = static_cast<double>(inv_mu_values[i]);
-      const double hx = static_cast<double>(thermostat_values[offset] + field_values[offset] * inv_mu);
-      const double hy = static_cast<double>(thermostat_values[offset + 1] + field_values[offset + 1] * inv_mu);
-      const double hz = static_cast<double>(thermostat_values[offset + 2] + field_values[offset + 2] * inv_mu);
-
-      field_values[offset] = static_cast<jams::Real>(hx);
-      field_values[offset + 1] = static_cast<jams::Real>(hy);
-      field_values[offset + 2] = static_cast<jams::Real>(hz);
-
-      const double sx = spin_values[offset];
-      const double sy = spin_values[offset + 1];
-      const double sz = spin_values[offset + 2];
-      const auto rhs = llg_rhs(
-          sx,
-          sy,
-          sz,
-          hx,
-          hy,
-          hz,
-          static_cast<double>(alpha_values[i]),
-          static_cast<double>(gyro_eff_values[i]));
-
-      const double dsx = ds_dt_values[offset] + 0.5 * rhs[0];
-      const double dsy = ds_dt_values[offset + 1] + 0.5 * rhs[1];
-      const double dsz = ds_dt_values[offset + 2] + 0.5 * rhs[2];
-
-      ds_dt_values[offset] = dsx;
-      ds_dt_values[offset + 1] = dsy;
-      ds_dt_values[offset + 2] = dsz;
-
-      const auto spin = normalized_spin(
-          old_spin_values[offset] + step_size_ * dsx,
-          old_spin_values[offset + 1] + step_size_ * dsy,
-          old_spin_values[offset + 2] + step_size_ * dsz);
-
-      spin_values[offset] = spin[0];
-      spin_values[offset + 1] = spin[1];
-      spin_values[offset + 2] = spin[2];
-    }
-  }
+  time_ = step_start_time + dt;
+  compute_fields();
+  heun_stage_2(dt, noise, gyro_eff_, spins_initial_);
 
   advance_time();
 }

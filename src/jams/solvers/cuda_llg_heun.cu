@@ -1,89 +1,128 @@
 // Copyright 2014 Joseph Barker. All rights reserved.
 
-#include "cuda_llg_heun.h"
+#include "jams/solvers/cuda_llg_heun.h"
 
-#include <cuda_runtime.h>
+#include <iostream>
+#include <string>
 
-#include <algorithm>
-#include <cmath>
-#include <jams/interface/config.h>
-#include <jams/helpers/defaults.h>
-
-#include "jams/helpers/consts.h"
-#include "jams/core/globals.h"
-#include "jams/core/thermostat.h"
-#include "jams/core/physics.h"
-#include "jams/helpers/error.h"
-#include "jams/cuda/cuda_common.h"
-
-#include "cuda_llg_heun_kernel.cuh"
 #include "jams/common.h"
+#include "jams/core/globals.h"
+#include "jams/cuda/cuda_common.h"
+#include "jams/cuda/cuda_device_vector_ops.h"
+#include "jams/helpers/defaults.h"
+#include "jams/interface/config.h"
+#include "jams/solvers/llg_rhs.h"
 
-void CUDAHeunLLGSolver::initialize(const libconfig::Setting& settings)
-{
-  // convert input in seconds to picoseconds for internal units
-  initialize_time(settings);
+namespace {
 
-  std::string thermostat_name = jams::config_optional<std::string>(globals::config->lookup("solver"), "thermostat", jams::defaults::solver_gpu_thermostat);
-  register_thermostat(Thermostat::create(thermostat_name, this->time_step()));
+__device__ void heun_rhs(const double spin[3], const jams::Real* field, const jams::Real* noise,
+                         const jams::Real inv_mu, const jams::Real gyro_eff, const jams::Real alpha,
+                         double ds_dt[3]) {
+  double effective_field[3];
+  for (int n = 0; n < 3; ++n) {
+    const jams::Real value = field[n] * inv_mu + noise[n];
+    effective_field[n] = value;
+  }
+  jams::solvers::llg_rhs(spin, effective_field, gyro_eff, alpha, ds_dt);
+}
 
-  std::cout << "  thermostat " << thermostat_name.c_str() << "\n";
-
-  std::cout << "done\n";
-
-  initialize_gyro_eff(settings, gyro_eff_);
-
-  s_old_.resize(globals::num_spins, 3);
-  for (auto i = 0; i < globals::num_spins; ++i) {
-    for (auto j = 0; j < 3; ++j) {
-      s_old_(i, j) = globals::s(i, j);
-    }
+__device__ void store_normalised_spin(const double spin[3], double* destination) {
+  const double norm_sq = norm_squared(spin);
+  const double inv_norm = norm_sq > 0.0 ? rsqrt(norm_sq) : 0.0;
+  for (int n = 0; n < 3; ++n) {
+    destination[n] = spin[n] * inv_norm;
   }
 }
 
-void CUDAHeunLLGSolver::run()
-{
-  double t0 = time_;
+__global__ void heun_stage_1(double* spins, double* ds_dt, double* initial_spins,
+                             const jams::Real* fields, const jams::Real* noise,
+                             const jams::Real* gyro_eff, const jams::Real* inverse_moments,
+                             const jams::Real* damping, const double dt,
+                             const unsigned int num_spins) {
+  const unsigned int spin_index = blockIdx.x * blockDim.x + threadIdx.x;
+  if (spin_index >= num_spins) return;
+  const unsigned int offset = 3 * spin_index;
 
-  const dim3 block_size = {84, 3, 1};
-  auto grid_size = cuda_grid_size(block_size, {static_cast<unsigned int>(globals::num_spins), 3, 1});
+  const double spin[3] = {spins[offset], spins[offset + 1], spins[offset + 2]};
+  double k1[3];
+  heun_rhs(spin, fields + offset, noise + offset, inverse_moments[spin_index], gyro_eff[spin_index],
+           damping[spin_index], k1);
 
-  cudaMemcpyAsync(s_old_.mutable_device_data(),           // void *               dst
-                  globals::s.device_data(),               // const void *         src
-                  globals::num_spins3*sizeof(double),   // size_t               count
-             cudaMemcpyDeviceToDevice,    // enum cudaMemcpyKind  kind
-             jams::instance().cuda_master_stream().get());                   // device stream
+  double stage_2_spin[3];
+  for (int n = 0; n < 3; ++n) {
+    initial_spins[offset + n] = spin[n];
+    ds_dt[offset + n] = 0.5 * k1[n];
+    stage_2_spin[n] = spin[n] + dt * k1[n];
+  }
+  store_normalised_spin(stage_2_spin, spins + offset);
+}
 
-  DEBUG_CHECK_CUDA_ASYNC_STATUS
+__global__ void heun_stage_2(double* spins, double* ds_dt, const double* initial_spins,
+                             const jams::Real* fields, const jams::Real* noise,
+                             const jams::Real* gyro_eff, const jams::Real* inverse_moments,
+                             const jams::Real* damping, const double dt,
+                             const unsigned int num_spins) {
+  const unsigned int spin_index = blockIdx.x * blockDim.x + threadIdx.x;
+  if (spin_index >= num_spins) return;
+  const unsigned int offset = 3 * spin_index;
 
-  update_thermostat();
-  thermostat_->record_done();
-  thermostat_->wait_on(jams::instance().cuda_master_stream().get());
+  const double spin[3] = {spins[offset], spins[offset + 1], spins[offset + 2]};
+  double k2[3];
+  heun_rhs(spin, fields + offset, noise + offset, inverse_moments[spin_index], gyro_eff[spin_index],
+           damping[spin_index], k2);
+
+  double final_spin[3];
+  for (int n = 0; n < 3; ++n) {
+    const unsigned int index = offset + n;
+    // Stage 1 stored k1 / 2. Complete the average with k2 / 2.
+    ds_dt[index] += 0.5 * k2[n];
+    final_spin[n] = initial_spins[index] + dt * ds_dt[index];
+  }
+  store_normalised_spin(final_spin, spins + offset);
+}
+
+}  // namespace
+
+void CUDAHeunLLGSolver::initialize(const libconfig::Setting& settings) {
+  initialize_time(settings);
+  initialize_gyro_eff(settings, gyro_eff_);
+
+  const auto thermostat_name = jams::config_optional<std::string>(
+      settings, "thermostat", jams::defaults::solver_gpu_thermostat);
+  register_thermostat(Thermostat::create(thermostat_name, time_step()));
+  std::cout << "  thermostat " << thermostat_name << "\n";
+
+  spins_initial_.resize(globals::num_spins, 3);
+}
+
+void CUDAHeunLLGSolver::run() {
+  const double step_start_time = time_;
+  const double dt = step_size_;
+  const auto stream = jams::instance().cuda_master_stream().get();
+  const dim3 block_size = {256, 1, 1};
+  const auto num_spins = static_cast<unsigned int>(globals::num_spins);
+  const auto grid_size = cuda_grid_size(block_size, {num_spins, 1, 1});
+
+  update_thermostat_on_stream(stream);
+  const auto* noise = thermostat_->device_data();
 
   compute_fields();
-
-
-  cuda_heun_llg_kernelA<<<grid_size, block_size, 0, jams::instance().cuda_master_stream().get()>>>
-    (globals::s.mutable_device_data(), globals::ds_dt.mutable_device_data(), s_old_.device_data(),
-     globals::h.device_data(), thermostat_->device_data(),
-     gyro_eff_.device_data(), globals::inv_mus.device_data(), globals::alpha.device_data(),
-       step_size_, globals::num_spins);
-    DEBUG_CHECK_CUDA_ASYNC_STATUS
+  heun_stage_1<<<grid_size, block_size, 0, stream>>>(
+      globals::s.mutable_device_data(), globals::ds_dt.mutable_device_data(),
+      spins_initial_.mutable_device_data(), globals::h.device_data(), noise,
+      gyro_eff_.device_data(), globals::inv_mus.device_data(), globals::alpha.device_data(), dt,
+      num_spins);
+  DEBUG_CHECK_CUDA_ASYNC_STATUS
   record_spin_barrier_event();
 
-
-  double mid_time_step = step_size_;
-  time_ = t0 + mid_time_step;
-
+  time_ = step_start_time + dt;
   compute_fields();
-
-  cuda_heun_llg_kernelB<<<grid_size, block_size, 0, jams::instance().cuda_master_stream().get()>>>
-    (globals::s.mutable_device_data(), globals::ds_dt.mutable_device_data(), s_old_.device_data(),
-      globals::h.device_data(), thermostat_->device_data(),
-      gyro_eff_.device_data(), globals::inv_mus.device_data(), globals::alpha.device_data(),
-      step_size_, globals::num_spins);
-    DEBUG_CHECK_CUDA_ASYNC_STATUS
-  thermostat_->record_consumed(jams::instance().cuda_master_stream().get());
+  heun_stage_2<<<grid_size, block_size, 0, stream>>>(
+      globals::s.mutable_device_data(), globals::ds_dt.mutable_device_data(),
+      spins_initial_.device_data(), globals::h.device_data(), noise, gyro_eff_.device_data(),
+      globals::inv_mus.device_data(), globals::alpha.device_data(), dt, num_spins);
+  DEBUG_CHECK_CUDA_ASYNC_STATUS
+  thermostat_->record_consumed(stream);
   record_spin_barrier_event();
 
   advance_time();

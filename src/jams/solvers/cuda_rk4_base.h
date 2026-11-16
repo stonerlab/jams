@@ -1,49 +1,44 @@
-// cuda_rk4_base.h                                                          -*-C++-*-
 #ifndef INCLUDED_JAMS_CUDA_RK4_BASE
 #define INCLUDED_JAMS_CUDA_RK4_BASE
 
 #if HAS_CUDA
 
-#include "jams/cuda/cuda_stream.h"
 #include "jams/cuda/cuda_solver.h"
 #include "jams/containers/multiarray.h"
 
 class CudaRK4BaseSolver : public CudaSolver {
-public:
-    CudaRK4BaseSolver() = default;
-    ~CudaRK4BaseSolver() override = default;
+ public:
+  CudaRK4BaseSolver() = default;
+  ~CudaRK4BaseSolver() override = default;
 
-    inline explicit CudaRK4BaseSolver(const libconfig::Setting &settings) {
-      initialize(settings);
-    }
+  inline explicit CudaRK4BaseSolver(const libconfig::Setting& settings) { initialize(settings); }
 
-    void initialize(const libconfig::Setting& settings) override;
-    void run() override;
+  void initialize(const libconfig::Setting& settings) override;
+  void run() override;
 
-protected:
-    // Prepare the stage spins before evaluating the Hamiltonians.
-    virtual void pre_stage(jams::MultiArray<double, 2>& spins, cudaStream_t stream) {}
+ protected:
+  // Prepare the stage spins before evaluating the Hamiltonians.
+  virtual void pre_stage(jams::MultiArray<double, 2>& spins, cudaStream_t stream) {}
 
-    // Evaluate the RHS with the stage fields and noise ready on stream.
-    virtual void function_kernel(jams::MultiArray<double, 2>& spins,
-                                 jams::MultiArray<double, 2>& k, cudaStream_t stream) = 0;
+  // Evaluate the RHS with the stage fields and noise ready on stream.
+  virtual void function_kernel(jams::MultiArray<double, 2>& spins, jams::MultiArray<double, 2>& k,
+                               cudaStream_t stream) = 0;
 
-    // Finish updating the accepted spins on stream.
-    virtual void post_step(jams::MultiArray<double, 2>& spins, cudaStream_t stream) {}
+  // Finish updating the accepted spins on stream.
+  virtual void post_step(jams::MultiArray<double, 2>& spins, cudaStream_t stream) {}
 
-    jams::MultiArray<jams::Real, 1> gyro_eff_;
+  jams::MultiArray<jams::Real, 1> gyro_eff_;
 
-private:
-    void evaluate_stage(jams::MultiArray<double, 2>& k, cudaStream_t stream);
+ private:
+  void evaluate_stage(jams::MultiArray<double, 2>& k, cudaStream_t stream);
 
-    jams::MultiArray<double, 2> s_old_;
-    jams::MultiArray<double, 2> k1_;
-    jams::MultiArray<double, 2> k2_;
-    jams::MultiArray<double, 2> k3_;
-    jams::MultiArray<double, 2> k4_;
+  jams::MultiArray<double, 2> spins_initial_;
+  jams::MultiArray<double, 2> k1_;
+  jams::MultiArray<double, 2> k2_;
+  jams::MultiArray<double, 2> k3_;
+  jams::MultiArray<double, 2> k4_;
 };
 
 #endif
 
 #endif
-// ----------------------------- END-OF-FILE ----------------------------------

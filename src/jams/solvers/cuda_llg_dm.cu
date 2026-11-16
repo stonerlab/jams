@@ -1,68 +1,54 @@
-// cuda_llg_dm.cu
-//
-// Depondt–Mertens (DM) scheme on GPU, in the same style as CUDALLGRKMK2Solver.
-// Deterministic DM step (no noise) is:
-//   1) ω_n = ω(S_n, H(S_n,t_n))
-//   2) S*  = R(Δt ω_n) S_n
-//   3) ω_* = ω(S*,  H(S*,t_{n+1}))   (or t_n+Δt if your fields depend explicitly on time)
-//   4) S_{n+1} = R(Δt * 0.5(ω_n + ω_*)) S_n
-//
-// With Strang splitting for white noise (as you already do):
-//   noise(Δt/2) -> DM_det(Δt) -> noise(Δt/2)
+// Depondt–Mertens with a thermal half-step on each side of the deterministic step.
 
 #include "jams/solvers/cuda_llg_dm.h"
+
+#include <iostream>
+#include <string>
 
 #include "jams/common.h"
 #include "jams/core/globals.h"
 #include "jams/cuda/cuda_device_vector_ops.h"
+#include "jams/helpers/defaults.h"
+#include "jams/interface/config.h"
 #include "jams/solvers/cuda_solver_functions.cuh"
 
-// -----------------------------------------------------------------------------
-// Kernel 1: compute ω_n, store it, and do predictor rotation S* = R(Δt ω_n) S_n
-// -----------------------------------------------------------------------------
-template <typename GyroParam, typename AlphaParam, typename FieldScaleParam>
-__global__ void cuda_llg_dm_kernel_predict
-(
-  const double * s_init_dev,
-  double * omega1_dev,                 // store ω_n (double, 3 per spin)
-  double * s_pred_dev,                 // output S*
-  const jams::Real * h_step_dev,        // field at time t_n for S_n
-  const GyroParam gyro,
-  const FieldScaleParam field_scale,
-  const AlphaParam alpha,
-  const unsigned dev_num_spins,
-  const double dt
-)
-{
-  const unsigned idx = blockIdx.x * blockDim.x + threadIdx.x;
-  if (idx >= dev_num_spins) return;
+namespace {
 
-  const unsigned base = 3u * idx;
+template <typename GyroParam, typename AlphaParam, typename FieldScaleParam>
+__global__ void dm_predict(double* spins, double* initial_spins, double* omega1_dev,
+                           const jams::Real* fields,  // field at time t_n for S_n
+                           const GyroParam gyro, const FieldScaleParam field_scale,
+                           const AlphaParam alpha, const unsigned num_spins, const double dt) {
+  const unsigned spin_index = blockIdx.x * blockDim.x + threadIdx.x;
+  if (spin_index >= num_spins) return;
+
+  const unsigned offset = 3u * spin_index;
 
   jams::Real h[3];
-  #pragma unroll
+#pragma unroll
   for (int n = 0; n < 3; ++n) {
-    h[n] = field_scale.scale(h_step_dev[base + n], idx);
+    h[n] = field_scale.scale(fields[offset + n], spin_index);
   }
 
   double s[3];
-  #pragma unroll
+#pragma unroll
   for (int n = 0; n < 3; ++n) {
-    s[n] = s_init_dev[base + n];
+    s[n] = spins[offset + n];
+    initial_spins[offset + n] = s[n];
   }
 
   double omega1[3];
-  omega_llg(s, h, gyro.get(idx), alpha.get(idx), omega1);
+  omega_llg(s, h, gyro.get(spin_index), alpha.get(spin_index), omega1);
 
-  // store ω_n
-  #pragma unroll
+// store ω_n
+#pragma unroll
   for (int n = 0; n < 3; ++n) {
-    omega1_dev[base + n] = omega1[n];
+    omega1_dev[offset + n] = omega1[n];
   }
 
   // predictor: S* = R(Δt ω_n) S_n
   double phi[3];
-  #pragma unroll
+#pragma unroll
   for (int n = 0; n < 3; ++n) {
     phi[n] = omega1[n] * dt;
   }
@@ -70,73 +56,61 @@ __global__ void cuda_llg_dm_kernel_predict
   double s_pred[3];
   rodrigues_rotate(phi, s, s_pred);
 
-  #pragma unroll
+#pragma unroll
   for (int n = 0; n < 3; ++n) {
-    s_pred_dev[base + n] = s_pred[n];
+    spins[offset + n] = s_pred[n];
   }
 }
 
-
-// -----------------------------------------------------------------------------
-// Kernel 2: compute ω_* from S* and H(S*), average, then rotate original S_n
-// -----------------------------------------------------------------------------
 template <typename GyroParam, typename AlphaParam, typename FieldScaleParam>
-__global__ void cuda_llg_dm_kernel_correct
-(
-  const double * s_init_dev,            // original S_n
-  const double * s_pred_dev,            // S*
-  const double * omega1_dev,            // ω_n
-  double * s_out_dev,                   // S_{n+1}
-  const jams::Real * h_step_dev,        // field at time t_{n+1} (or t_n+Δt) for S*
-  const GyroParam gyro,
-  const FieldScaleParam field_scale,
-  const AlphaParam alpha,
-  const unsigned dev_num_spins,
-  const double dt
-)
-{
-  const unsigned idx = blockIdx.x * blockDim.x + threadIdx.x;
-  if (idx >= dev_num_spins) return;
+__global__ void dm_correct(const double* initial_spins,  // original S_n
+                           const double* omega1_dev,     // ω_n
+                           double* spins,
+                           const jams::Real* fields,  // field at time t_{n+1} (or t_n+Δt) for S*
+                           const GyroParam gyro, const FieldScaleParam field_scale,
+                           const AlphaParam alpha, const unsigned num_spins, const double dt) {
+  const unsigned spin_index = blockIdx.x * blockDim.x + threadIdx.x;
+  if (spin_index >= num_spins) return;
 
-  const unsigned base = 3u * idx;
+  const unsigned offset = 3u * spin_index;
 
   jams::Real h[3];
-  #pragma unroll
+#pragma unroll
   for (int n = 0; n < 3; ++n) {
-    h[n] = field_scale.scale(h_step_dev[base + n], idx);
+    h[n] = field_scale.scale(fields[offset + n], spin_index);
   }
 
   double s_pred[3];
-  #pragma unroll
+#pragma unroll
   for (int n = 0; n < 3; ++n) {
-    s_pred[n] = s_pred_dev[base + n];
+    s_pred[n] = spins[offset + n];
   }
 
   double omega2[3];
-  omega_llg(s_pred, h, gyro.get(idx), alpha.get(idx), omega2);
+  omega_llg(s_pred, h, gyro.get(spin_index), alpha.get(spin_index), omega2);
 
   double omega1[3];
-  #pragma unroll
+#pragma unroll
   for (int n = 0; n < 3; ++n) {
-    omega1[n] = omega1_dev[base + n];
+    omega1[n] = omega1_dev[offset + n];
   }
 
   // average angular velocities (DM)
   double omega_bar[3];
-  #pragma unroll
+#pragma unroll
   for (int n = 0; n < 3; ++n) {
     omega_bar[n] = 0.5 * (omega1[n] + omega2[n]);
   }
 
   // rotate original spin S_n with averaged ω
   double s_init[3];
-  #pragma unroll
+#pragma unroll
   for (int n = 0; n < 3; ++n) {
-    s_init[n] = s_init_dev[base + n];
+    s_init[n] = initial_spins[offset + n];
   }
 
   double phi[3];
-  #pragma unroll
+#pragma unroll
   for (int n = 0; n < 3; ++n) {
     phi[n] = omega_bar[n] * dt;
   }
@@ -144,27 +118,22 @@ __global__ void cuda_llg_dm_kernel_correct
   double s_out[3];
   rodrigues_rotate(phi, s_init, s_out);
 
-  #pragma unroll
+#pragma unroll
   for (int n = 0; n < 3; ++n) {
-    s_out_dev[base + n] = s_out[n];
+    spins[offset + n] = s_out[n];
   }
 }
 
+}  // namespace
 
-// -----------------------------------------------------------------------------
-// Solver class
-// -----------------------------------------------------------------------------
-void CUDALLGDMSolver::initialize(const libconfig::Setting& settings)
-{
+void CUDALLGDMSolver::initialize(const libconfig::Setting& settings) {
   initialize_time(settings);
 
-  std::string thermostat_name =
-    jams::config_optional<std::string>(globals::config->lookup("solver"),
-                                       "thermostat",
-                                       jams::defaults::solver_gpu_thermostat);
+  const auto thermostat_name = jams::config_optional<std::string>(
+      settings, "thermostat", jams::defaults::solver_gpu_thermostat);
 
-  register_thermostat(Thermostat::create(thermostat_name, 0.5 * this->time_step()));
-  std::cout << "  thermostat " << thermostat_name.c_str() << "\n";
+  register_thermostat(Thermostat::create(thermostat_name, 0.5 * time_step()));
+  std::cout << "  thermostat " << thermostat_name << "\n";
 
   initialize_gyro_eff(settings, gyro_eff_);
   const auto gyro_eff_choice = cuda_spin_parameter_choice(gyro_eff_);
@@ -177,131 +146,73 @@ void CUDALLGDMSolver::initialize(const libconfig::Setting& settings)
   mus_is_uniform_ = mus_choice.is_uniform;
   mus_uniform_inv_value_ = mus_choice.uniform_inv_mus;
 
-  s_init_.resize(globals::num_spins, 3);
-  s_pred_.resize(globals::num_spins, 3);
+  spins_initial_.resize(globals::num_spins, 3);
   omega1_.resize(globals::num_spins, 3);
-
-  // initial snapshot (same as your RKMK2)
-  for (auto i = 0; i < globals::num_spins; ++i) {
-    for (auto j = 0; j < 3; ++j) {
-      s_init_(i, j) = globals::s(i, j);
-    }
-  }
 }
 
+void CUDALLGDMSolver::run() {
+  dispatch_cuda_spin_parameters(
+      {gyro_eff_is_uniform_, gyro_eff_uniform_value_}, {alpha_is_uniform_, alpha_uniform_value_},
+      gyro_eff_, globals::alpha, [this](const auto gyro, const auto alpha) {
+        dispatch_cuda_field_scale({mus_is_uniform_, mus_uniform_inv_value_}, globals::inv_mus,
+                                  [this, gyro, alpha](const auto field_scale) {
+                                    run_with_parameters(gyro, alpha, field_scale);
+                                  });
+      });
+}
 
 template <typename GyroParam, typename AlphaParam, typename FieldScaleParam>
-void CUDALLGDMSolver::run_with_parameters(
-    const GyroParam gyro,
-    const AlphaParam alpha,
-    const FieldScaleParam field_scale)
-{
-  const double t0 = time_;
-  const double half_dt = 0.5 * step_size_;
+void CUDALLGDMSolver::run_with_parameters(const GyroParam gyro, const AlphaParam alpha,
+                                          const FieldScaleParam field_scale) {
+  const double step_start_time = time_;
+  const double dt = step_size_;
+  const double half_dt = 0.5 * dt;
+  const auto stream = jams::instance().cuda_master_stream().get();
 
   const dim3 block_size = {256, 1, 1};
-  auto grid_size = cuda_grid_size(block_size, {static_cast<unsigned int>(globals::num_spins), 1, 1});
+  const auto grid_size =
+      cuda_grid_size(block_size, {static_cast<unsigned int>(globals::num_spins), 1, 1});
 
-  // --- Strang: noise half-step
-  update_thermostat();
-  thermostat_->record_done();
-  thermostat_->wait_on(jams::instance().cuda_master_stream().get());
+  // Thermal half-step
+  update_thermostat_on_stream(stream);
 
-  cuda_llg_noise_step_rodrigues_kernel<<<grid_size, block_size, 0, jams::instance().cuda_master_stream().get()>>>(
-    globals::s.mutable_device_data(),
-    thermostat_->device_data(),
-    gyro,
-    alpha,
-    globals::num_spins, half_dt);
+  cuda_llg_noise_step_rodrigues_kernel<<<grid_size, block_size, 0, stream>>>(
+      globals::s.mutable_device_data(), thermostat_->device_data(), gyro, alpha, globals::num_spins,
+      half_dt);
   DEBUG_CHECK_CUDA_ASYNC_STATUS
-  thermostat_->record_consumed(jams::instance().cuda_master_stream().get());
+  thermostat_->record_consumed(stream);
   record_spin_barrier_event();
 
-  // snapshot S_n
-  cudaMemcpyAsync(
-    s_init_.mutable_device_data(),
-    globals::s.device_data(),
-    globals::s.bytes(),
-    cudaMemcpyDeviceToDevice,
-    jams::instance().cuda_master_stream().get());
-  DEBUG_CHECK_CUDA_ASYNC_STATUS
-
-  // --- fields at t_n, S_n
-  time_ = t0;
   compute_fields();
 
   // predictor: S* and store ω_n
-  cuda_llg_dm_kernel_predict<<<grid_size, block_size, 0, jams::instance().cuda_master_stream().get()>>>(
-    s_init_.device_data(),
-    omega1_.mutable_device_data(),
-    s_pred_.mutable_device_data(),
-    globals::h.device_data(),
-    gyro,
-    field_scale,
-    alpha,
-    globals::num_spins, step_size_);
+  dm_predict<<<grid_size, block_size, 0, stream>>>(
+      globals::s.mutable_device_data(), spins_initial_.mutable_device_data(),
+      omega1_.mutable_device_data(), globals::h.device_data(), gyro, field_scale, alpha,
+      globals::num_spins, dt);
   DEBUG_CHECK_CUDA_ASYNC_STATUS
 
-  // --- fields at t_{n+1} using S* (this matches DM for time-dependent fields)
-  // Put predicted spins into globals::s so compute_fields() uses them.
-  cudaMemcpyAsync(
-    globals::s.mutable_device_data(),
-    s_pred_.device_data(),
-    globals::s.bytes(),
-    cudaMemcpyDeviceToDevice,
-    jams::instance().cuda_master_stream().get());
-  DEBUG_CHECK_CUDA_ASYNC_STATUS
-  // Hamiltonian streams must wait for the predicted spins in globals::s.
   record_spin_barrier_event();
 
-  time_ = t0 + step_size_;
+  time_ = step_start_time + dt;
   compute_fields();
 
   // correct: rotate original S_n using averaged ω, output into globals::s
-  cuda_llg_dm_kernel_correct<<<grid_size, block_size, 0, jams::instance().cuda_master_stream().get()>>>(
-    s_init_.device_data(),
-    s_pred_.device_data(),
-    omega1_.device_data(),
-    globals::s.mutable_device_data(),
-    globals::h.device_data(),
-    gyro,
-    field_scale,
-    alpha,
-    globals::num_spins, step_size_);
+  dm_correct<<<grid_size, block_size, 0, stream>>>(
+      spins_initial_.device_data(), omega1_.device_data(), globals::s.mutable_device_data(),
+      globals::h.device_data(), gyro, field_scale, alpha, globals::num_spins, dt);
   DEBUG_CHECK_CUDA_ASYNC_STATUS
   record_spin_barrier_event();
 
-  // --- Strang: noise half-step
-  update_thermostat();
-  thermostat_->record_done();
-  thermostat_->wait_on(jams::instance().cuda_master_stream().get());
+  // Thermal half-step
+  update_thermostat_on_stream(stream);
 
-  cuda_llg_noise_step_rodrigues_kernel<<<grid_size, block_size, 0, jams::instance().cuda_master_stream().get()>>>(
-    globals::s.mutable_device_data(),
-    thermostat_->device_data(),
-    gyro,
-    alpha,
-    globals::num_spins, half_dt);
+  cuda_llg_noise_step_rodrigues_kernel<<<grid_size, block_size, 0, stream>>>(
+      globals::s.mutable_device_data(), thermostat_->device_data(), gyro, alpha, globals::num_spins,
+      half_dt);
   DEBUG_CHECK_CUDA_ASYNC_STATUS
-  thermostat_->record_consumed(jams::instance().cuda_master_stream().get());
+  thermostat_->record_consumed(stream);
   record_spin_barrier_event();
 
   advance_time();
-}
-
-void CUDALLGDMSolver::run()
-{
-  dispatch_cuda_spin_parameters(
-      {gyro_eff_is_uniform_, gyro_eff_uniform_value_},
-      {alpha_is_uniform_, alpha_uniform_value_},
-      gyro_eff_,
-      globals::alpha,
-      [this](const auto gyro, const auto alpha) {
-        dispatch_cuda_field_scale(
-            {mus_is_uniform_, mus_uniform_inv_value_},
-            globals::inv_mus,
-            [this, gyro, alpha](const auto field_scale) {
-              run_with_parameters(gyro, alpha, field_scale);
-            });
-      });
 }

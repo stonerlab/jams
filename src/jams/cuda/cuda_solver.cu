@@ -10,6 +10,11 @@
 
 #include "cuda_array_kernels.h"
 
+void CudaSolver::update_thermostat_on_stream(cudaStream_t stream) {
+  update_thermostat();
+  thermostat_->record_done();
+  thermostat_->wait_on(stream);
+}
 
 void CudaSolver::compute_fields() {
   if (hamiltonians_.empty()) return;

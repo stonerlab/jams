@@ -3,7 +3,6 @@
 
 #if HAS_CUDA
 
-#include "jams/cuda/cuda_stream.h"
 #include "jams/containers/multiarray.h"
 #include "jams/solvers/cuda_rk4_base.h"
 
@@ -50,22 +49,21 @@
 ///
 
 class CudaRK4LLGSOTSolver : public CudaRK4BaseSolver {
-public:
-    explicit CudaRK4LLGSOTSolver(const libconfig::Setting &settings);
+ public:
+  explicit CudaRK4LLGSOTSolver(const libconfig::Setting& settings);
 
-    std::string name() const override { return "llg-sot-rk4-gpu"; }
+  std::string name() const override { return "llg-sot-rk4-gpu"; }
 
-    void pre_stage(jams::MultiArray<double, 2>& spins, cudaStream_t stream) override;
-    void function_kernel(jams::MultiArray<double, 2>& spins,
-                         jams::MultiArray<double, 2>& k, cudaStream_t stream) override;
-    void post_step(jams::MultiArray<double, 2>& spins, cudaStream_t stream) override;
+  void pre_stage(jams::MultiArray<double, 2>& spins, cudaStream_t stream) override;
+  void function_kernel(jams::MultiArray<double, 2>& spins, jams::MultiArray<double, 2>& k,
+                       cudaStream_t stream) override;
+  void post_step(jams::MultiArray<double, 2>& spins, cudaStream_t stream) override;
 
-private:
-    jams::MultiArray<double, 2> spin_polarisation_;
-    jams::MultiArray<double, 1> sot_coefficient_;
+ private:
+  jams::MultiArray<double, 2> spin_polarisation_;
+  jams::MultiArray<double, 1> sot_coefficient_;
 };
 
 #endif
 
-#endif // JAMS_SOLVER_CUDA_RK4_LLG_SOT_H
-
+#endif  // JAMS_SOLVER_CUDA_RK4_LLG_SOT_H

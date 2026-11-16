@@ -980,12 +980,12 @@ void ConstrainedMCSolver::validate_rotation_matricies() const {
     const auto test_forward_vec = rotation_matrix(group) * requested_direction;
     const auto test_back_vec = inverse_rotation_matrix(group) * test_forward_vec;
 
-    for (int component = 0; component < 3; ++component) {
+    for (int n = 0; n < 3; ++n) {
       if (!approximately_equal(
-              constraint_axis[component], test_forward_vec[component],
+              constraint_axis[n], test_forward_vec[n],
               jams::defaults::solver_monte_carlo_constraint_tolerance)
           || !approximately_equal(
-              requested_direction[component], test_back_vec[component],
+              requested_direction[n], test_back_vec[n],
               jams::defaults::solver_monte_carlo_constraint_tolerance)) {
         throw std::runtime_error(
             "ConstrainedMCSolver :: rotation sanity check failed for constraint group "
@@ -1143,8 +1143,8 @@ void ConstrainedMCSolver::align_spins_to_constraint() const {
           * spin_to_order_parameter(spin_index, spin);
       const auto aligned_spin = order_parameter_to_spin(
           spin_index, aligned_order_parameter_spin);
-      for (auto component : {0, 1, 2}) {
-        globals::s(spin_index, component) = aligned_spin[component];
+      for (auto n : {0, 1, 2}) {
+        globals::s(spin_index, n) = aligned_spin[n];
       }
     }
     return;
@@ -1166,8 +1166,8 @@ void ConstrainedMCSolver::align_spins_to_constraint() const {
           * spin_to_order_parameter(spin_index, spin);
       const auto aligned_spin = order_parameter_to_spin(
           spin_index, aligned_order_parameter_spin);
-      for (auto component : {0, 1, 2}) {
-        globals::s(spin_index, component) = aligned_spin[component];
+      for (auto n : {0, 1, 2}) {
+        globals::s(spin_index, n) = aligned_spin[n];
       }
     }
   }

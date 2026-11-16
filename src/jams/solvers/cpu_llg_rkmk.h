@@ -13,9 +13,7 @@ class RKMK2LLGSolver : public Solver {
   RKMK2LLGSolver() = default;
   ~RKMK2LLGSolver() override = default;
 
-  inline explicit RKMK2LLGSolver(const libconfig::Setting& settings) {
-    initialize(settings);
-  }
+  inline explicit RKMK2LLGSolver(const libconfig::Setting& settings) { initialize(settings); }
 
   void initialize(const libconfig::Setting& settings) override;
   void run() override;
@@ -23,16 +21,14 @@ class RKMK2LLGSolver : public Solver {
   std::string name() const override { return "llg-rkmk2-cpu"; }
 
   bool supports_deterministic_spin_rate() const override { return true; }
-  double max_deterministic_spin_rate() override {
-    return max_llg_spin_rate_cpu(gyro_eff_);
-  }
+  double max_deterministic_spin_rate() override { return max_llg_spin_rate_cpu(gyro_eff_); }
 
  private:
   bool supports_persistent_parallel_step() const;
   void run_persistent_parallel_step();
 
   jams::MultiArray<jams::Real, 1> gyro_eff_;
-  jams::MultiArray<double, 2> s_init_;
+  jams::MultiArray<double, 2> spins_initial_;
   jams::MultiArray<double, 2> phi_;
 };
 
@@ -41,9 +37,7 @@ class RKMK4LLGSolver : public Solver {
   RKMK4LLGSolver() = default;
   ~RKMK4LLGSolver() override = default;
 
-  inline explicit RKMK4LLGSolver(const libconfig::Setting& settings) {
-    initialize(settings);
-  }
+  inline explicit RKMK4LLGSolver(const libconfig::Setting& settings) { initialize(settings); }
 
   void initialize(const libconfig::Setting& settings) override;
   void run() override;
@@ -51,13 +45,11 @@ class RKMK4LLGSolver : public Solver {
   std::string name() const override { return "llg-rkmk4-cpu"; }
 
   bool supports_deterministic_spin_rate() const override { return true; }
-  double max_deterministic_spin_rate() override {
-    return max_llg_spin_rate_cpu(gyro_eff_);
-  }
+  double max_deterministic_spin_rate() override { return max_llg_spin_rate_cpu(gyro_eff_); }
 
  private:
   jams::MultiArray<jams::Real, 1> gyro_eff_;
-  jams::MultiArray<double, 2> s_init_;
+  jams::MultiArray<double, 2> spins_initial_;
   jams::MultiArray<double, 2> k1_;
   jams::MultiArray<double, 2> k2_;
   jams::MultiArray<double, 2> k3_;

@@ -192,43 +192,11 @@ void omega_llg(const double s[3], const jams::Real h[3],
 }
 
 
-__device__ __forceinline__
-double3 omega_llg(const double3& s, const jams::Real3& h,
-               const double gyro, const double alpha)
-{
-  return {
-    gyro * (alpha * (s.y * h.z - s.z * h.y) + h.x),
-    gyro * (alpha * (s.z * h.x - s.x * h.z) + h.y),
-    gyro * (alpha * (s.x * h.y - s.y * h.x) + h.z),
-  };
-}
-
-
-__device__ __forceinline__
-double3 project_to_tangent(const double3& A, const double3& S)
-{
-  const double S_dot_A = S.x*A.x + S.y*A.y + S.z*A.z;
-  return {
-    __fma_rn(-S_dot_A, S.x, A.x),
-    __fma_rn(-S_dot_A, S.y, A.y),
-    __fma_rn(-S_dot_A, S.z, A.z)
-  };
-}
-
-__device__ __forceinline__
-double3 cayley_rotate(const double3& A, const double3& S)
-{
-  // AxS
-  double3 AxS = cross_product(A, S);
-
-  const double norm_sq = A.x*A.x + A.y*A.y + A.z*A.z;
-  const double scale = 1.0 / (1.0 + 0.25 * norm_sq);
-
-  return {
-    __fma_rn((AxS.x + 0.5 * (A.y * AxS.z - A.z * AxS.y)), scale, S.x),
-    __fma_rn((AxS.y + 0.5 * (A.z * AxS.x - A.x * AxS.z)), scale, S.y),
-    __fma_rn((AxS.z + 0.5 * (A.x * AxS.y - A.y * AxS.x)), scale, S.z)
-  };
+__device__ __forceinline__ void project_to_tangent(double omega[3], const double spin[3]) {
+  const double spin_dot_omega = dot(spin, omega);
+  for (int n = 0; n < 3; ++n) {
+    omega[n] = __fma_rn(-spin_dot_omega, spin[n], omega[n]);
+  }
 }
 
 __device__ __forceinline__
@@ -239,7 +207,6 @@ void cayley_rotate(const double A[3], const double S[3], double result[3])
   cross_product(A, S, AxS);
 
   const double norm_sq = norm_squared(A);
-  // const double scale = 1.0 / __fma_rn(0.25, norm_sq, 1.0);
   const double scale = 1.0 / (1.0 + 0.25 * norm_sq);
 
   result[0] = __fma_rn((AxS[0] + 0.5 * (A[1] * AxS[2] - A[2] * AxS[1])), scale, S[0]);
@@ -389,50 +356,5 @@ __global__ inline void cuda_llg_noise_step_cayley_kernel(
   s_inout_dev[base+1] = out[1];
   s_inout_dev[base+2] = out[2];
 }
-
-
-
-// __global__ inline void cuda_llg_noise_step_cayley_kernel(
-//   double* __restrict__ s_inout_dev,
-//   const jams::Real* __restrict__ noise_dev,
-//   const jams::Real* __restrict__ gyro_dev,
-//   const jams::Real* __restrict__ alpha_dev,
-//   unsigned num_spins,
-//   jams::Real dt)
-// {
-//   const unsigned idx = blockIdx.x * blockDim.x + threadIdx.x;
-//   if (idx >= num_spins) return;
-//   const unsigned base = 3u * idx;
-//
-//   const double3 s = {
-//     s_inout_dev[base + 0],
-//     s_inout_dev[base + 1],
-//     s_inout_dev[base + 2]
-//   };
-//
-//   const jams::Real gyro = gyro_dev[idx];
-//   const jams::Real3 h = {
-//     noise_dev[base + 0] * dt * gyro,
-//     noise_dev[base + 1] * dt * gyro,
-//     noise_dev[base + 2] * dt * gyro
-//   };
-//
-//   const jams::Real alpha = alpha_dev[idx];
-//   double3 omega = {
-//       alpha * (s.y * h.z - s.z * h.y) + h.x,
-//       alpha * (s.z * h.x - s.x * h.z) + h.y,
-//       alpha * (s.x * h.y - s.y * h.x) + h.z,
-//   };
-//
-//   // This projection is not strictly necessary but can help to reduce
-//   // errors in the spin norm due to floating point arithmetic.
-//   omega = project_to_tangent(omega, s);
-//
-//   double3 out = cayley_rotate(omega, s);
-//
-//   s_inout_dev[base+0] = out.x;
-//   s_inout_dev[base+1] = out.y;
-//   s_inout_dev[base+2] = out.z;
-// }
 
 #endif //JAMS_CUDA_SOLVER_FUNCTIONS_CUH
