@@ -8,13 +8,16 @@
 #include "jams/interface/config.h"
 
 #include "jams/core/globals.h"
-#include "jams/solvers/llg_rkmk_functions.h"
+#include "jams/solvers/llg_rkmk_thermal_kick.h"
 
 namespace {
 
-void apply_noise_step_rodrigues(const double dt, const jams::MultiArray<jams::Real, 1>& gyro_eff,
-                                const jams::Real* const noise_values,
-                                const bool in_parallel = false) {
+using jams::solvers::rkmk::ThermalKick;
+using jams::solvers::rkmk::make_thermal_kick;
+
+void apply_noise_step(const double dt, const jams::MultiArray<jams::Real, 1>& gyro_eff,
+                      const jams::Real* noise_values, const ThermalKick& kick,
+                      const bool in_parallel = false) {
   double* spin_values = nullptr;
   const jams::Real* alpha_values = nullptr;
   const jams::Real* gyro_eff_values = nullptr;
@@ -41,12 +44,9 @@ void apply_noise_step_rodrigues(const double dt, const jams::MultiArray<jams::Re
   const auto update_spin = [&](const int spin_index) {
     const int offset = 3 * spin_index;
     const double s[3] = {spin_values[offset], spin_values[offset + 1], spin_values[offset + 2]};
-    const jams::Real h_noise[3] = {noise_values[offset], noise_values[offset + 1],
-                                   noise_values[offset + 2]};
-
     double s_out[3];
-    jams::solvers::rkmk::noise_step_rodrigues(s, h_noise, gyro_eff_values[spin_index],
-                                              alpha_values[spin_index], dt, s_out);
+    kick.apply(s, noise_values + offset, gyro_eff_values[spin_index],
+               alpha_values[spin_index], dt, spin_index, s_out);
 
     spin_values[offset] = s_out[0];
     spin_values[offset + 1] = s_out[1];
@@ -170,6 +170,7 @@ void rkmk2_stage_2(const double dt, const double noise_dt,
                    const jams::MultiArray<double, 2>& phi,
                    const jams::MultiArray<jams::Real, 1>& gyro_eff,
                    const jams::Real* stage_noise, const jams::Real* split_noise,
+                   const ThermalKick& kick,
                    const bool in_parallel = false) {
   const jams::Real* field_values = nullptr;
   const jams::Real* inv_mu_values = nullptr;
@@ -236,8 +237,8 @@ void rkmk2_stage_2(const double dt, const double noise_dt,
     jams::solvers::rkmk::rodrigues_rotate(k, s0, s_out);
 
     if (split_noise) {
-      jams::solvers::rkmk::noise_step_rodrigues(s_out, split_noise + offset,
-          gyro_eff_values[spin_index], alpha_values[spin_index], noise_dt, s_out);
+      kick.apply(s_out, split_noise + offset, gyro_eff_values[spin_index],
+                 alpha_values[spin_index], noise_dt, spin_index, s_out);
     }
 
     spin_values[offset] = s_out[0];
@@ -433,7 +434,8 @@ void rkmk4_stage_4(const double dt, const double noise_dt,
                    const jams::MultiArray<double, 2>& k1, const jams::MultiArray<double, 2>& k2,
                    const jams::MultiArray<double, 2>& k3,
                    const jams::MultiArray<jams::Real, 1>& gyro_eff,
-                   const jams::Real* stage_noise, const jams::Real* split_noise) {
+                   const jams::Real* stage_noise, const jams::Real* split_noise,
+                   const ThermalKick& kick) {
   const auto field_view = globals::h.host_view();
   const auto inv_mu_view = globals::inv_mus.host_view();
   const auto alpha_view = globals::alpha.host_view();
@@ -489,8 +491,8 @@ void rkmk4_stage_4(const double dt, const double noise_dt,
     jams::solvers::rkmk::rodrigues_rotate(k, s0, s_out);
 
     if (split_noise) {
-      jams::solvers::rkmk::noise_step_rodrigues(s_out, split_noise + offset,
-          gyro_eff_values[spin_index], alpha_values[spin_index], noise_dt, s_out);
+      kick.apply(s_out, split_noise + offset, gyro_eff_values[spin_index],
+                 alpha_values[spin_index], noise_dt, spin_index, s_out);
     }
 
     spin_values[offset] = s_out[0];
@@ -525,9 +527,12 @@ void RKMK2LLGSolver::run() {
   const double dt = step_size_;
   const double half_dt = 0.5 * dt;
 
+  ThermalKick kick;
   if (!uses_stage_thermostat()) {
     update_thermostat();
-    apply_noise_step_rodrigues(half_dt, gyro_eff_, thermostat_->data());
+    kick = make_thermal_kick(*thermostat_, globals::inv_mus, half_dt,
+                            uses_automatic_thermostat_sampling());
+    apply_noise_step(half_dt, gyro_eff_, thermostat_->data(), kick);
   }
 
   compute_fields();
@@ -543,7 +548,7 @@ void RKMK2LLGSolver::run() {
     split_noise = thermostat_->data();
   }
   rkmk2_stage_2(dt, half_dt, spins_initial_, phi_, gyro_eff_,
-                sample_stage_thermostat(1), split_noise);
+                sample_stage_thermostat(1), split_noise, kick);
   sample_stage_thermostat(2);
 
   advance_time();
@@ -570,9 +575,12 @@ void RKMK4LLGSolver::run() {
   const double dt = step_size_;
   const double half_dt = 0.5 * dt;
 
+  ThermalKick kick;
   if (!uses_stage_thermostat()) {
     update_thermostat();
-    apply_noise_step_rodrigues(half_dt, gyro_eff_, thermostat_->data());
+    kick = make_thermal_kick(*thermostat_, globals::inv_mus, half_dt,
+                            uses_automatic_thermostat_sampling());
+    apply_noise_step(half_dt, gyro_eff_, thermostat_->data(), kick);
   }
 
   compute_fields();
@@ -597,7 +605,7 @@ void RKMK4LLGSolver::run() {
     split_noise = thermostat_->data();
   }
   rkmk4_stage_4(dt, half_dt, spins_initial_, k1_, k2_, k3_, gyro_eff_,
-                sample_stage_thermostat(2), split_noise);
+                sample_stage_thermostat(2), split_noise, kick);
 
   advance_time();
 }
@@ -605,6 +613,7 @@ void RKMK4LLGSolver::run() {
 bool RKMK2LLGSolver::supports_persistent_parallel_step() const {
 #if HAS_OMP
   return !uses_stage_thermostat() && thermostat_ && thermostat_->supports_update_in_parallel() &&
+         !(uses_automatic_thermostat_sampling() && thermostat_->supplies_white_field()) &&
          supports_compute_fields_in_parallel();
 #else
   return false;
@@ -626,7 +635,7 @@ void RKMK2LLGSolver::run_persistent_parallel_step() {
     {
       noise_values = thermostat_->data();
     }
-    apply_noise_step_rodrigues(half_dt, gyro_eff_, noise_values, true);
+    apply_noise_step(half_dt, gyro_eff_, noise_values, {}, true);
 
     compute_fields_in_parallel();
     rkmk2_stage_1(dt, spins_initial_, phi_, gyro_eff_, nullptr, true);
@@ -643,7 +652,7 @@ void RKMK2LLGSolver::run_persistent_parallel_step() {
     {
       noise_values = thermostat_->data();
     }
-    rkmk2_stage_2(dt, half_dt, spins_initial_, phi_, gyro_eff_, nullptr, noise_values, true);
+    rkmk2_stage_2(dt, half_dt, spins_initial_, phi_, gyro_eff_, nullptr, noise_values, {}, true);
 
 #pragma omp single
     {

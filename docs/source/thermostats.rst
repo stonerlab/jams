@@ -33,9 +33,8 @@ and carries the endpoint field into the next step.
 Eligible baths are quantum SPDE with zero-point noise disabled and a fixed
 scalar or per-spin temperature, and the GPU Lorentzian and thermal-only
 quantum Ohmic FFT spectra (``quantum-no-zero-ohmic`` or ``bose-einstein``)
-at fixed scalar temperature. Classical white noise, flat FFT spectra,
-``quantum-ohmic`` and other SPDE configurations use the solver's existing
-scheme.
+at fixed scalar temperature. Solvers handle white fields and other spectra
+with their step-based schemes.
 
 Set ``solver.thermostat_sampling = "legacy";`` to recover the previous
 scheme and bath cadence for a given solver and bath. CUDA RS2 uses its
@@ -48,6 +47,53 @@ LLG, LLG-SOT and GSE RK4 refine eligible FFT baths from :math:`h` to
 :math:`h/2` while retaining the legacy spectral cutoff at
 :math:`1/(2h)`. The accuracy of stage integration depends on the regularity
 and resolution of the supplied field.
+
+RKMK white-noise half-steps
+---------------------------
+
+With ``solver.thermostat_sampling = "auto"``, CPU and GPU RKMK2 and RKMK4
+use a variance-corrected Cayley update for classical white thermostats
+and for flat FFT spectra (``classical`` and ``classical-ohmic``). One
+independent field draw is used for each thermal half-step on either side
+of the deterministic RKMK step. The thermostat cadence and Hamiltonian
+evaluation count are unchanged. ``"legacy"`` selects the original
+Rodrigues kicks. Baths that supply correlated fields follow the stage
+sampling or step-based scheme described above.
+
+For a spin of moment :math:`\mu` at temperature :math:`T`, the noise-only
+LLG equation has generator :math:`D\Delta_{S^2}` with
+:math:`D=\alpha\gamma_\mathrm{eff}k_\mathrm{B}T/\mu`.
+Use the site's effective gyromagnetic ratio, moment and bath temperature
+in this expression. Both kicks use the bath temperature for that
+solver step, including per-spin temperature profiles where supported.
+
+For a half-step :math:`\tau=h/2`, set :math:`x=D\tau`. Calculate the
+tangent increment :math:`\mathbf u=\tau\boldsymbol{\omega}_\mathrm{noise}
+                       \times\mathbf s` from the existing Gaussian field draw,
+where :math:`\boldsymbol{\omega}_\mathrm{noise}
+ =\gamma_\mathrm{eff}(\mathbf H_\mathrm{noise}
+       +\alpha\mathbf s\times\mathbf H_\mathrm{noise})`.
+Its two tangent components each have variance :math:`2x`. The update is
+
+.. math::
+
+   \mathbf v=\sqrt{1+x}\,\mathbf u,\qquad
+   a=\frac{\|\mathbf v\|^2}{4},\qquad
+   \mathbf s^+=\frac{(1-a)\mathbf s+\mathbf v}{1+a}.
+
+The implementation preserves the input spin length in exact arithmetic.
+For nonunit input spins it uses :math:`a=\|\mathbf v\|^2/(4\|\mathbf s\|^2)`,
+and a vacancy stays at zero. The following moment estimates apply to
+unit spins. The factor
+:math:`\sqrt{1+x}` adjusts the tangent variance to cancel the Cayley
+map's leading bias in the mean angular deflection.
+For :math:`c=\mathbf s\cdot\mathbf s^+` it matches
+:math:`\mathbb E[1-c]=2x-2x^2+O(x^3)` and
+:math:`\mathbb E[(1-c)^2]=8x^2+O(x^3)` for spherical diffusion.
+Rotational symmetry gives local weak error :math:`O(\tau^3)` for smooth
+observables. At fixed bath parameters, the Strang composition is weak
+second order with either RKMK core. The correction is derived for
+:math:`D\tau\ll1` and targets ensemble statistics.
 
 Position-dependent temperature
 ------------------------------

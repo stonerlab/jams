@@ -5,6 +5,8 @@
 
 #include <cmath>
 
+#include "jams/helpers/mixed_precision.h"
+
 #ifndef JAMS_HOST_DEVICE
 #if defined(__CUDACC__)
 #define JAMS_HOST_DEVICE __host__ __device__
@@ -174,6 +176,60 @@ JAMS_HOST_DEVICE JAMS_FORCEINLINE void noise_step_rodrigues(
   const double phi[3] = {dt * omega[0], dt * omega[1], dt * omega[2]};
   rodrigues_rotate(phi, s, out);
 }
+
+template <typename NoiseReal, typename GyroReal, typename AlphaReal>
+JAMS_HOST_DEVICE JAMS_FORCEINLINE void noise_step_variance_corrected_cayley(
+    const double s[3], const NoiseReal h_noise[3], GyroReal gyro, AlphaReal alpha,
+    double dt, double diffusion_time, double out[3]) {
+  const double spin_norm_sq = norm_squared3(s);
+  if (spin_norm_sq == 0.0) {
+    for (int n = 0; n < 3; ++n) out[n] = s[n];
+    return;
+  }
+
+  double omega[3], tangent[3];
+  omega_llg(s, h_noise, gyro, alpha, omega);
+  cross_product3(omega, s, tangent);
+
+  // With x = D*dt, dt*(omega x s) has covariance 2*x in each tangent
+  // direction. The Cayley map gives 1 - s.s' = |v|^2 / (2 + |v|^2/2).
+  // Scaling the tangent by sqrt(1+x) gives E[1 - s.s'] = 2*x - 2*x^2
+  // and E[(1 - s.s')^2] = 8*x^2, through O(x^2), for spherical diffusion.
+  const double scale = dt * std::sqrt(1.0 + diffusion_time);
+  const double v[3] = {scale * tangent[0], scale * tangent[1], scale * tangent[2]};
+  const double quarter_tangent_norm_sq = 0.25 * norm_squared3(v);
+  // Multiply numerator and denominator by |s|^2 to preserve the input
+  // length even when spin normalisation is disabled.
+  const double inverse_denominator = 1.0 / (spin_norm_sq + quarter_tangent_norm_sq);
+  for (int n = 0; n < 3; ++n) {
+    out[n] = s[n] + (spin_norm_sq * v[n] - 2.0 * quarter_tangent_norm_sq * s[n])
+        * inverse_denominator;
+  }
+}
+
+struct ThermalKick {
+  // Null inverse moments select the legacy Rodrigues update.
+  const Real* inverse_moments = nullptr;
+  const Real* temperatures = nullptr;
+  double thermal_energy_times_dt = 0.0;  // k_B*dt, with T folded in for a uniform bath.
+
+  template <typename GyroReal, typename AlphaReal>
+  JAMS_HOST_DEVICE JAMS_FORCEINLINE void apply(
+      const double s[3], const Real h_noise[3], GyroReal gyro, AlphaReal alpha,
+      double dt, int spin, double out[3]) const {
+    if (!inverse_moments) {
+      noise_step_rodrigues(s, h_noise, gyro, alpha, dt, out);
+      return;
+    }
+
+    double energy_times_dt = thermal_energy_times_dt;
+    if (temperatures) energy_times_dt *= temperatures[spin];
+    // JAMS's LLG fluctuation-dissipation coupling gives D = alpha*gyro*k_B*T/mu.
+    const double diffusion_time = energy_times_dt * inverse_moments[spin]
+        * static_cast<double>(gyro) * static_cast<double>(alpha);
+    noise_step_variance_corrected_cayley(s, h_noise, gyro, alpha, dt, diffusion_time, out);
+  }
+};
 
 }  // namespace jams::solvers::rkmk
 

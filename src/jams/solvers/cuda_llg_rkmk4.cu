@@ -13,6 +13,7 @@
 #include "jams/helpers/defaults.h"
 #include "jams/interface/config.h"
 #include "jams/solvers/cuda_solver_functions.cuh"
+#include "jams/solvers/llg_rkmk_thermal_kick.h"
 
 #ifndef JAMS_DIAGNOSTIC_RKMK4_REALHI_FIELD_SCALE
 #define JAMS_DIAGNOSTIC_RKMK4_REALHI_FIELD_SCALE 0
@@ -31,6 +32,9 @@
 #endif
 
 namespace {
+
+using jams::solvers::rkmk::ThermalKick;
+using jams::solvers::rkmk::make_thermal_kick;
 
 inline void rkmk4_diagnostic_sync(const cudaStream_t stream) {
 #if JAMS_DIAGNOSTIC_RKMK4_EXPLICIT_SYNC
@@ -241,7 +245,8 @@ __global__ void rkmk4_stage_4(const double* initial_spins, const double* stage_s
                               double* output_spins, jams::Real* field_spin_cache,
                               const jams::Real* fields, const jams::Real* stage_noise,
                               const jams::Real* split_noise,
-                              const GyroParam gyro, const FieldScaleParam field_scale,
+                              const ThermalKick kick, const GyroParam gyro,
+                              const FieldScaleParam field_scale,
                               const AlphaParam alpha, const unsigned num_spins, const double dt,
                               const double noise_dt) {
   const unsigned int spin_index = blockIdx.x * blockDim.x + threadIdx.x;
@@ -292,7 +297,8 @@ __global__ void rkmk4_stage_4(const double* initial_spins, const double* stage_s
   rodrigues_rotate(k, s_init, s_out);
 
   if (split_noise) {
-    rkmk_noise_step_rodrigues(s_out, split_noise, gyro, alpha, spin_index, offset, noise_dt, s_out);
+    kick.apply(s_out, split_noise + offset, gyro.get(spin_index), alpha.get(spin_index),
+               noise_dt, spin_index, s_out);
   }
   rkmk_store_spin_and_cache(output_spins, field_spin_cache, offset, s_out);
 }
@@ -361,14 +367,17 @@ void CUDALLGRKMK4Solver::run_with_parameters(const GyroParam gyro, const AlphaPa
 
   jams::Real* field_spin_cache = mutable_field_spin_cache_device_data();
 
+  ThermalKick kick;
   if (uses_stage_thermostat()) {
     // The physics module can modify spins at the start of the step.
     record_spin_barrier_event();
   } else {
     update_thermostat_on_stream(stream);
-    cuda_llg_noise_step_rodrigues_cache_kernel<<<grid_size, block_size, 0, stream>>>(
+    kick = make_thermal_kick(*thermostat_, globals::inv_mus, half_dt,
+                            uses_automatic_thermostat_sampling(), true);
+    cuda_rkmk_noise_step_cache_kernel<<<grid_size, block_size, 0, stream>>>(
         globals::s.mutable_device_data(), field_spin_cache, thermostat_->device_data(), gyro, alpha,
-        globals::num_spins, half_dt);
+        globals::num_spins, half_dt, kick);
     DEBUG_CHECK_CUDA_ASYNC_STATUS
     thermostat_->record_consumed(stream);
     rkmk4_diagnostic_sync(stream);
@@ -425,7 +434,7 @@ void CUDALLGRKMK4Solver::run_with_parameters(const GyroParam gyro, const AlphaPa
   rkmk4_stage_4<<<grid_size, block_size, 0, stream>>>(
       spins_initial_.device_data(), globals::s.mutable_device_data(), k1_.device_data(),
       k2_.device_data(), k3_.device_data(), globals::s.mutable_device_data(), field_spin_cache,
-      globals::h.device_data(), end_noise, split_noise, gyro, field_scale, alpha,
+      globals::h.device_data(), end_noise, split_noise, kick, gyro, field_scale, alpha,
       globals::num_spins, dt, half_dt);
   DEBUG_CHECK_CUDA_ASYNC_STATUS
   thermostat_->record_consumed(stream);

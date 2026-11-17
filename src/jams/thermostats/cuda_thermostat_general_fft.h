@@ -146,6 +146,7 @@ public:
 
     void update() override;
     jams::ThermostatSamples samples() const override { return samples_; }
+    bool supplies_white_field() const override { return samples_ == jams::ThermostatSamples::step_field; }
     bool supports_stage_sampling(bool changing_temperature) const override {
       return stage_sampling_ && !changing_temperature;
     }

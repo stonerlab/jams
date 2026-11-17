@@ -59,6 +59,9 @@ class Thermostat {
   // Publish the starting sample before the caller advances the bath.
   virtual void sample_initial() { update(); }
   virtual jams::ThermostatSamples samples() const { return jams::ThermostatSamples::step_field; }
+  // update() publishes independent Gaussian field components with variance
+  // 2 k_B T eta / dt, where dt is the thermostat's sampling interval.
+  virtual bool supplies_white_field() const { return false; }
   // Eligibility for automatic stage sampling is narrower than availability
   // of a correlated field. An existing solver may already use that field.
   virtual bool supports_stage_sampling(bool /*changing_temperature*/) const { return false; }

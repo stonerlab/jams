@@ -18,6 +18,7 @@ class ThermostatClassical : public Thermostat {
                       int num_spins);
 
   void update() override;
+  bool supplies_white_field() const override { return true; }
 
  private:
   void ensure_random_generators(int count);

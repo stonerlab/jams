@@ -103,6 +103,7 @@ class Solver {
     void initialize_stage_thermostat(const std::string& name, std::span<const double> coupling,
                                     int legacy_ticks, int stage_ticks, const char* legacy_scheme);
     bool uses_stage_thermostat() const { return stage_thermostat_.has_value(); }
+    bool uses_automatic_thermostat_sampling() const { return automatic_thermostat_sampling_; }
     const jams::Real* sample_stage_thermostat(int tick);
 
     int iteration_ = 0;

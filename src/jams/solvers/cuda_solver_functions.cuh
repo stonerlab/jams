@@ -272,14 +272,15 @@ __device__ __forceinline__ void rkmk_noise_step_rodrigues
 }
 
 template <typename GyroParam, typename AlphaParam>
-__global__ inline void cuda_llg_noise_step_rodrigues_cache_kernel(
+__global__ inline void cuda_rkmk_noise_step_cache_kernel(
   double* s_inout_dev,
   jams::Real* s_cache_dev,
   const jams::Real* noise_dev,
   const GyroParam gyro,
   const AlphaParam alpha,
   unsigned num_spins,
-  double dt)
+  double dt,
+  jams::solvers::rkmk::ThermalKick kick)
 {
   const unsigned idx = blockIdx.x * blockDim.x + threadIdx.x;
   if (idx >= num_spins) return;
@@ -292,7 +293,7 @@ __global__ inline void cuda_llg_noise_step_rodrigues_cache_kernel(
   };
 
   double out[3];
-  rkmk_noise_step_rodrigues(s, noise_dev, gyro, alpha, idx, base, dt, out);
+  kick.apply(s, noise_dev + base, gyro.get(idx), alpha.get(idx), dt, idx, out);
   rkmk_store_spin_and_cache(s_inout_dev, s_cache_dev, base, out);
 }
 
