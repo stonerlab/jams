@@ -20,7 +20,7 @@ class CUDAGSERK4Solver : public CudaRK4BaseSolver {
   std::string name() const override { return "gse-rk4-gpu"; }
 
   void function_kernel(jams::MultiArray<double, 2>& spins, jams::MultiArray<double, 2>& k,
-                       cudaStream_t stream) override;
+                       const jams::Real* noise, cudaStream_t stream) override;
 };
 
 #endif

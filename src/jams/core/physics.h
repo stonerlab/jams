@@ -24,6 +24,7 @@ class Physics : public Base {
   inline void set_applied_field(const jams::Vec<double, 3> &field) { applied_field_ = field; }
 
   static Physics* create(const libconfig::Setting &settings);
+  static bool changes_temperature(const libconfig::Setting& settings);
 
  protected:
   double  temperature_;

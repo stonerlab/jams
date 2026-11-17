@@ -40,9 +40,14 @@
 CudaThermostatGeneralFFT::CudaThermostatGeneralFFT(
     const jams::Real &temperature, const std::span<const double> coupling,
     const double timestep, const int num_spins, const std::string& noise_spectrum_type,
-    const std::optional<jams::LorentzianBathParameters> memory_bath)
+    const std::optional<jams::LorentzianBathParameters> memory_bath,
+    const std::optional<double> spectral_cutoff)
 : Thermostat(temperature, 0.0, static_cast<jams::Real>(timestep), num_spins),
-  delta_t_(timestep), filter_temperature_(this->temperature()), site_scale_(num_spins) {
+  delta_t_(timestep), filter_temperature_(this->temperature()),
+  samples_(is_white_spectrum(noise_spectrum_type) ? jams::ThermostatSamples::step_field
+                                                 : jams::ThermostatSamples::correlated_field),
+  stage_sampling_(supports_stage_spectrum(noise_spectrum_type)),
+  site_scale_(num_spins) {
 
   std::cout << "\n  initialising general-fft-gpu thermostat\n";
 
@@ -79,7 +84,7 @@ CudaThermostatGeneralFFT::CudaThermostatGeneralFFT(
   // Define the spectral function P(omega) as a lambda
   std::function<double(double)> psd_function;
 
-  if (noise_spectrum_type == "classical-ohmic" || noise_spectrum_type == "classical") {
+  if (is_white_spectrum(noise_spectrum_type)) {
     psd_function = [&](double omega) {
       return classical_ohmic_spectrum(omega, filter_temperature_, eta_G);
     };
@@ -105,6 +110,12 @@ CudaThermostatGeneralFFT::CudaThermostatGeneralFFT(
     };
   } else {
     throw std::runtime_error("unknown spectrum type '" + noise_spectrum_type +"'");
+  }
+
+  if (spectral_cutoff) {
+    psd_function = [spectrum = std::move(psd_function), cutoff = *spectral_cutoff](double omega) {
+      return omega < cutoff ? spectrum(omega) : 0.0;
+    };
   }
 
   // Autoconfigure the frequency resolution for the PSD omega -> t transform.

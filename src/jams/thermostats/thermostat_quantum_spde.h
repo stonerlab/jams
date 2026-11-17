@@ -101,10 +101,14 @@ class ThermostatQuantumSpde : public Thermostat {
                         int num_spins);
 
   void update() override;
+  void sample_initial() override;
+  jams::ThermostatSamples samples() const override { return jams::ThermostatSamples::correlated_field; }
+  bool supports_stage_sampling(bool changing_temperature) const override;
   bool supports_update_in_parallel() const override { return true; }
   void update_in_parallel() override;
 
  private:
+  bool initial_sample_ready_ = false;
   std::unique_ptr<jams::QuantumSpdeNoiseGenerator> noise_generator_;
   jams::MultiArray<jams::Real, 1> process_temperature_;
 };

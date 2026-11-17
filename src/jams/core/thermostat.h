@@ -21,6 +21,19 @@ namespace libconfig { class Setting; }
 
 namespace jams {
 enum class ThermalTorque { llg, additive, precession };
+enum class ThermostatSamples { step_field, correlated_field, white_diffusion };
+
+struct ThermostatStageRequest {
+  enum class Mode { automatic, rs2 };
+  double interval;
+  Mode mode = Mode::automatic;
+  bool changing_temperature = false;
+};
+
+inline bool spde_supports_stage_sampling(bool zero_point, bool per_spin_temperature,
+                                         bool changing_temperature) {
+  return !zero_point && (per_spin_temperature || !changing_temperature);
+}
 
 // Coefficient eta in the classical field spectrum 2 k_B T eta. Local
 // equations supply gyro_eff. The retarded precession equation supplies
@@ -45,6 +58,11 @@ class Thermostat {
   virtual void update() = 0;
   // Publish the starting sample before the caller advances the bath.
   virtual void sample_initial() { update(); }
+  virtual jams::ThermostatSamples samples() const { return jams::ThermostatSamples::step_field; }
+  // Eligibility for automatic stage sampling is narrower than availability
+  // of a correlated field. An existing solver may already use that field.
+  virtual bool supports_stage_sampling(bool /*changing_temperature*/) const { return false; }
+  virtual jams::MultiArray<double, 1> diffusion_amplitudes(double uniform_temperature) const;
   virtual bool supports_update_in_parallel() const { return false; }
   virtual void update_in_parallel();
 
@@ -54,7 +72,7 @@ class Thermostat {
   // for white noise and the separate stage interval for coloured noise.
   static Thermostat* create(const std::string &thermostat_name, double timestep,
                             std::span<const double> coupling,
-                            std::optional<double> stage_interval = std::nullopt,
+                            std::optional<jams::ThermostatStageRequest> stage_request = std::nullopt,
                             std::optional<jams::LorentzianBathParameters> memory_bath = std::nullopt);
 
   // accessors
@@ -84,7 +102,7 @@ class Thermostat {
     DEBUG_CHECK_CUDA_ASYNC_STATUS
   }
 
-  // Make an external stream wait for this Hamiltonian's work.
+  // Make an external stream wait for the thermostat's work.
   void wait_on(cudaStream_t external) const {
     cudaStreamWaitEvent(external, done_, 0);
     DEBUG_CHECK_CUDA_ASYNC_STATUS

@@ -118,9 +118,14 @@ void Thermostat::update_in_parallel() {
   throw jams::unimplemented_error("Thermostat::update_in_parallel");
 }
 
+jams::MultiArray<double, 1> Thermostat::diffusion_amplitudes(double) const {
+  throw jams::unimplemented_error("Thermostat::diffusion_amplitudes");
+}
+
 Thermostat* Thermostat::create(
     const std::string &thermostat_name, const double timestep,
-    const std::span<const double> coupling, const std::optional<double> stage_interval,
+    const std::span<const double> coupling,
+    const std::optional<jams::ThermostatStageRequest> stage_request,
     const std::optional<jams::LorentzianBathParameters> memory_bath) {
   std::cout << thermostat_name << " thermostat\n";
 
@@ -133,13 +138,23 @@ Thermostat* Thermostat::create(
     throw std::runtime_error("thermostat coupling must be specified for every site");
   }
 
+  const bool rs2 = stage_request && stage_request->mode == jams::ThermostatStageRequest::Mode::rs2;
+  const auto spde_interval = [&]() -> double {
+    if (!stage_request) return legacy_timestep;
+    const auto& config = *globals::config;
+    const bool zero_point = config.exists("thermostat")
+        && jams::config_optional<bool>(config.lookup("thermostat"), "zero_point", false);
+    return (rs2 || jams::spde_supports_stage_sampling(zero_point,
+        config.exists("thermostat.temperature_regions"), stage_request->changing_temperature))
+        ? stage_request->interval : legacy_timestep;
+  };
+
   #if HAS_CUDA
-  const double coloured_interval = stage_interval.value_or(legacy_timestep);
   if (name == "CLASSICAL-GPU" || name == "LANGEVIN-WHITE-GPU" || name == "CUDA_LANGEVIN_WHITE") {
     return new CudaThermostatClassical(temperature, coupling, legacy_timestep, globals::num_spins);
   }
   if (name == "QUANTUM-SPDE-GPU" || name == "LANGEVIN-BOSE-GPU" || name == "CUDA_LANGEVIN_COTH") {
-    return new CudaThermostatQuantumSpde(temperature, coupling, coloured_interval, globals::num_spins);
+    return new CudaThermostatQuantumSpde(temperature, coupling, spde_interval(), globals::num_spins);
   }
   if (name == "GENERAL-FFT-GPU" || name == "LANGEVIN-LORENTZIAN-GPU"
       || name == "LANGEVIN-ARBITRARY-GPU" || name == "CUDA_LANGEVIN_ARBITRARY") {
@@ -147,27 +162,32 @@ Thermostat* Thermostat::create(
     const auto spectrum = lowercase(memory_bath
         ? jams::config_optional<std::string>(settings, "spectrum", "classical-lorentzian")
         : jams::config_required<std::string>(settings, "spectrum"));
-    if (stage_interval && (spectrum == "classical" || spectrum == "classical-ohmic")) {
+    if (rs2 && CudaThermostatGeneralFFT::is_white_spectrum(spectrum)) {
       // Flat FFT noise is white. RS2 needs Wiener increments, not independent
       // stage samples that are combined with the deterministic RK weights.
       return new CudaThermostatClassical(temperature, coupling, legacy_timestep, globals::num_spins);
     }
+    const bool refine = stage_request && !rs2 && !stage_request->changing_temperature
+        && CudaThermostatGeneralFFT::supports_stage_spectrum(spectrum);
+    const double interval = (rs2 || refine) ? stage_request->interval : legacy_timestep;
+    // Finer output samples retain the original FFT bath's frequency band.
+    const auto cutoff = refine ? std::optional<double>(kPi / legacy_timestep) : std::nullopt;
     return new CudaThermostatGeneralFFT(
-        temperature, coupling, coloured_interval, globals::num_spins, spectrum, memory_bath);
+        temperature, coupling, interval, globals::num_spins, spectrum, memory_bath, cutoff);
   }
   #else
   (void)memory_bath;
   #endif
 
-  if (stage_interval) {
-    throw std::runtime_error("thermostat " + thermostat_name + " is unsupported with a stage sampling interval");
+  if (rs2) {
+    throw std::runtime_error("thermostat " + thermostat_name + " is unsupported with RS2 sampling");
   }
 
   if (name == "CLASSICAL-CPU" || name == "LANGEVIN-WHITE-CPU") {
     return new ThermostatClassical(temperature, coupling, legacy_timestep, globals::num_spins);
   }
   if (name == "QUANTUM-SPDE-CPU" || name == "LANGEVIN-BOSE-CPU" || name == "CPU_LANGEVIN_COTH") {
-    return new ThermostatQuantumSpde(temperature, coupling, legacy_timestep, globals::num_spins);
+    return new ThermostatQuantumSpde(temperature, coupling, spde_interval(), globals::num_spins);
   }
 
   #if HAS_CUDA

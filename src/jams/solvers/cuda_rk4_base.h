@@ -25,7 +25,7 @@ class CudaRK4BaseSolver : public CudaSolver {
 
   // Evaluate the RHS with the stage fields and noise ready on stream.
   virtual void function_kernel(jams::MultiArray<double, 2>& spins, jams::MultiArray<double, 2>& k,
-                               cudaStream_t stream) = 0;
+                               const jams::Real* noise, cudaStream_t stream) = 0;
 
   // Finish updating the accepted spins on stream.
   virtual void post_step(jams::MultiArray<double, 2>& spins, cudaStream_t stream) {}
@@ -35,7 +35,7 @@ class CudaRK4BaseSolver : public CudaSolver {
  private:
   jams::ThermalTorque thermal_torque_ = jams::ThermalTorque::llg;
 
-  void evaluate_stage(jams::MultiArray<double, 2>& k, cudaStream_t stream);
+  void evaluate_stage(jams::MultiArray<double, 2>& k, const jams::Real* noise, cudaStream_t stream);
 
   jams::MultiArray<double, 2> spins_initial_;
   jams::MultiArray<double, 2> k1_;

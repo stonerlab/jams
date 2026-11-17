@@ -84,7 +84,8 @@ __device__ __forceinline__ void rkmk4_omega_llg(const double s[3], const Rkmk4Fi
 template <typename GyroParam, typename AlphaParam, typename FieldScaleParam>
 __global__ void rkmk4_stage_1(const double* stage_spins, double* initial_spins, double* k1_dev,
                               double* output_spins, jams::Real* field_spin_cache,
-                              const jams::Real* fields, const GyroParam gyro,
+                              const jams::Real* fields, const jams::Real* stage_noise,
+                              const GyroParam gyro,
                               const FieldScaleParam field_scale, const AlphaParam alpha,
                               const unsigned num_spins, const double dt) {
   const unsigned int spin_index = blockIdx.x * blockDim.x + threadIdx.x;
@@ -95,6 +96,7 @@ __global__ void rkmk4_stage_1(const double* stage_spins, double* initial_spins, 
   Rkmk4FieldReal h[3];
   for (auto n = 0; n < 3; ++n) {
     h[n] = rkmk4_scale_field(field_scale, fields[offset + n], spin_index);
+    if (stage_noise) h[n] += stage_noise[offset + n];
   }
 
   double s[3];
@@ -126,6 +128,7 @@ template <typename GyroParam, typename AlphaParam, typename FieldScaleParam>
 __global__ void rkmk4_stage_2(const double* initial_spins, const double* stage_spins,
                               const double* k1_dev, double* k2_dev, double* output_spins,
                               jams::Real* field_spin_cache, const jams::Real* fields,
+                              const jams::Real* stage_noise,
                               const GyroParam gyro, const FieldScaleParam field_scale,
                               const AlphaParam alpha, const unsigned num_spins, const double dt) {
   const unsigned int spin_index = blockIdx.x * blockDim.x + threadIdx.x;
@@ -136,6 +139,7 @@ __global__ void rkmk4_stage_2(const double* initial_spins, const double* stage_s
   Rkmk4FieldReal h[3];
   for (auto n = 0; n < 3; ++n) {
     h[n] = rkmk4_scale_field(field_scale, fields[offset + n], spin_index);
+    if (stage_noise) h[n] += stage_noise[offset + n];
   }
 
   double s[3];
@@ -182,6 +186,7 @@ template <typename GyroParam, typename AlphaParam, typename FieldScaleParam>
 __global__ void rkmk4_stage_3(const double* initial_spins, const double* stage_spins,
                               const double* k2_dev, double* k3_dev, double* output_spins,
                               jams::Real* field_spin_cache, const jams::Real* fields,
+                              const jams::Real* stage_noise,
                               const GyroParam gyro, const FieldScaleParam field_scale,
                               const AlphaParam alpha, const unsigned num_spins, const double dt) {
   const unsigned int spin_index = blockIdx.x * blockDim.x + threadIdx.x;
@@ -192,6 +197,7 @@ __global__ void rkmk4_stage_3(const double* initial_spins, const double* stage_s
   Rkmk4FieldReal h[3];
   for (auto n = 0; n < 3; ++n) {
     h[n] = rkmk4_scale_field(field_scale, fields[offset + n], spin_index);
+    if (stage_noise) h[n] += stage_noise[offset + n];
   }
 
   double s[3];
@@ -233,7 +239,8 @@ template <typename GyroParam, typename AlphaParam, typename FieldScaleParam>
 __global__ void rkmk4_stage_4(const double* initial_spins, const double* stage_spins,
                               const double* k1_dev, const double* k2_dev, const double* k3_dev,
                               double* output_spins, jams::Real* field_spin_cache,
-                              const jams::Real* fields, const jams::Real* noise,
+                              const jams::Real* fields, const jams::Real* stage_noise,
+                              const jams::Real* split_noise,
                               const GyroParam gyro, const FieldScaleParam field_scale,
                               const AlphaParam alpha, const unsigned num_spins, const double dt,
                               const double noise_dt) {
@@ -245,6 +252,7 @@ __global__ void rkmk4_stage_4(const double* initial_spins, const double* stage_s
   Rkmk4FieldReal h[3];
   for (auto n = 0; n < 3; ++n) {
     h[n] = rkmk4_scale_field(field_scale, fields[offset + n], spin_index);
+    if (stage_noise) h[n] += stage_noise[offset + n];
   }
 
   double s[3];
@@ -283,9 +291,10 @@ __global__ void rkmk4_stage_4(const double* initial_spins, const double* stage_s
   double s_out[3];
   rodrigues_rotate(k, s_init, s_out);
 
-  double s_noisy[3];
-  rkmk_noise_step_rodrigues(s_out, noise, gyro, alpha, spin_index, offset, noise_dt, s_noisy);
-  rkmk_store_spin_and_cache(output_spins, field_spin_cache, offset, s_noisy);
+  if (split_noise) {
+    rkmk_noise_step_rodrigues(s_out, split_noise, gyro, alpha, spin_index, offset, noise_dt, s_out);
+  }
+  rkmk_store_spin_and_cache(output_spins, field_spin_cache, offset, s_out);
 }
 
 }  // namespace
@@ -295,12 +304,9 @@ void CUDALLGRKMK4Solver::initialize(const libconfig::Setting& settings) {
 
   const auto thermostat_name = jams::config_optional<std::string>(
       settings, "thermostat", jams::defaults::solver_gpu_thermostat);
-  // Strang splitting means the thermostat timestep is 1/2 of the RKMK time step
   initialize_gyro_eff(settings, gyro_eff_);
-  register_thermostat(Thermostat::create(
-      thermostat_name, 0.5 * time_step(), jams::thermal_field_coupling(gyro_eff_)));
-
-  std::cout << "  thermostat " << thermostat_name << "\n";
+  initialize_stage_thermostat(thermostat_name, jams::thermal_field_coupling(gyro_eff_),
+                              2, 2, "split kicks");
 #if JAMS_DIAGNOSTIC_REPORT_BUILD
   std::cout << "  diagnostic build flags:\n"
             << "    exchange_realhi_accumulation = " << JAMS_DIAGNOSTIC_EXCHANGE_REALHI_ACCUMULATION
@@ -355,23 +361,29 @@ void CUDALLGRKMK4Solver::run_with_parameters(const GyroParam gyro, const AlphaPa
 
   jams::Real* field_spin_cache = mutable_field_spin_cache_device_data();
 
-  update_thermostat_on_stream(stream);
-
-  cuda_llg_noise_step_rodrigues_cache_kernel<<<grid_size, block_size, 0, stream>>>(
-      globals::s.mutable_device_data(), field_spin_cache, thermostat_->device_data(), gyro, alpha,
-      globals::num_spins, half_dt);
-  DEBUG_CHECK_CUDA_ASYNC_STATUS
-  thermostat_->record_consumed(stream);
-  rkmk4_diagnostic_sync(stream);
-  record_spin_and_field_cache_barrier_event();
+  if (uses_stage_thermostat()) {
+    // The physics module can modify spins at the start of the step.
+    record_spin_barrier_event();
+  } else {
+    update_thermostat_on_stream(stream);
+    cuda_llg_noise_step_rodrigues_cache_kernel<<<grid_size, block_size, 0, stream>>>(
+        globals::s.mutable_device_data(), field_spin_cache, thermostat_->device_data(), gyro, alpha,
+        globals::num_spins, half_dt);
+    DEBUG_CHECK_CUDA_ASYNC_STATUS
+    thermostat_->record_consumed(stream);
+    rkmk4_diagnostic_sync(stream);
+    record_spin_and_field_cache_barrier_event();
+  }
 
   compute_fields();
 
+  const auto* start_noise = sample_stage_thermostat_on_stream(0, stream);
   rkmk4_stage_1<<<grid_size, block_size, 0, stream>>>(
       globals::s.device_data(), spins_initial_.mutable_device_data(), k1_.mutable_device_data(),
-      globals::s.mutable_device_data(), field_spin_cache, globals::h.device_data(), gyro,
-      field_scale, alpha, globals::num_spins, dt);
+      globals::s.mutable_device_data(), field_spin_cache, globals::h.device_data(), start_noise,
+      gyro, field_scale, alpha, globals::num_spins, dt);
   DEBUG_CHECK_CUDA_ASYNC_STATUS
+  if (uses_stage_thermostat()) thermostat_->record_consumed(stream);
   rkmk4_diagnostic_sync(stream);
   record_spin_and_field_cache_barrier_event();
 
@@ -379,10 +391,11 @@ void CUDALLGRKMK4Solver::run_with_parameters(const GyroParam gyro, const AlphaPa
 
   compute_fields();
 
+  const auto* midpoint_noise = sample_stage_thermostat_on_stream(1, stream);
   rkmk4_stage_2<<<grid_size, block_size, 0, stream>>>(
       spins_initial_.device_data(), globals::s.mutable_device_data(), k1_.device_data(),
       k2_.mutable_device_data(), globals::s.mutable_device_data(), field_spin_cache,
-      globals::h.device_data(), gyro, field_scale, alpha, globals::num_spins, dt);
+      globals::h.device_data(), midpoint_noise, gyro, field_scale, alpha, globals::num_spins, dt);
   DEBUG_CHECK_CUDA_ASYNC_STATUS
   rkmk4_diagnostic_sync(stream);
   record_spin_and_field_cache_barrier_event();
@@ -392,8 +405,9 @@ void CUDALLGRKMK4Solver::run_with_parameters(const GyroParam gyro, const AlphaPa
   rkmk4_stage_3<<<grid_size, block_size, 0, stream>>>(
       spins_initial_.device_data(), globals::s.device_data(), k2_.device_data(),
       k3_.mutable_device_data(), globals::s.mutable_device_data(), field_spin_cache,
-      globals::h.device_data(), gyro, field_scale, alpha, globals::num_spins, dt);
+      globals::h.device_data(), midpoint_noise, gyro, field_scale, alpha, globals::num_spins, dt);
   DEBUG_CHECK_CUDA_ASYNC_STATUS
+  if (uses_stage_thermostat()) thermostat_->record_consumed(stream);
   rkmk4_diagnostic_sync(stream);
   record_spin_and_field_cache_barrier_event();
 
@@ -401,12 +415,17 @@ void CUDALLGRKMK4Solver::run_with_parameters(const GyroParam gyro, const AlphaPa
 
   compute_fields();
 
-  update_thermostat_on_stream(stream);
+  const jams::Real* split_noise = nullptr;
+  if (!uses_stage_thermostat()) {
+    update_thermostat_on_stream(stream);
+    split_noise = thermostat_->device_data();
+  }
 
+  const auto* end_noise = sample_stage_thermostat_on_stream(2, stream);
   rkmk4_stage_4<<<grid_size, block_size, 0, stream>>>(
       spins_initial_.device_data(), globals::s.mutable_device_data(), k1_.device_data(),
       k2_.device_data(), k3_.device_data(), globals::s.mutable_device_data(), field_spin_cache,
-      globals::h.device_data(), thermostat_->device_data(), gyro, field_scale, alpha,
+      globals::h.device_data(), end_noise, split_noise, gyro, field_scale, alpha,
       globals::num_spins, dt, half_dt);
   DEBUG_CHECK_CUDA_ASYNC_STATUS
   thermostat_->record_consumed(stream);

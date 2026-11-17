@@ -16,6 +16,12 @@ void CudaSolver::update_thermostat_on_stream(cudaStream_t stream) {
   thermostat_->wait_on(stream);
 }
 
+const jams::Real* CudaSolver::sample_stage_thermostat_on_stream(int tick, cudaStream_t stream) {
+  if (!stage_thermostat_) return nullptr;
+  return stage_thermostat_->sample_device(
+      *thermostat_, physics_module_->temperature(), iteration_, tick, stream);
+}
+
 void CudaSolver::compute_fields() {
   if (hamiltonians_.empty()) return;
 

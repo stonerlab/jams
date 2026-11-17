@@ -54,6 +54,13 @@ return new type(settings); \
 
 
 void Solver::initialize_time(const libconfig::Setting& settings) {
+  const auto sampling = lowercase(
+      jams::config_optional<std::string>(settings, "thermostat_sampling", "auto"));
+  if (sampling != "auto" && sampling != "legacy") {
+    throw jams::ConfigException(settings, "thermostat_sampling must be 'auto' or 'legacy'");
+  }
+  automatic_thermostat_sampling_ = sampling == "auto";
+
   // Configuration uses seconds; dynamics and monitor coordinates use ps.
   const double step = jams::config_required<double>(settings, "t_step") / 1e-12;
   const double t_max = jams::config_required<double>(settings, "t_max") / 1e-12;
@@ -290,6 +297,34 @@ void Solver::register_thermostat(Thermostat* thermostat) {
   thermostat_.reset(thermostat);
 }
 
+void Solver::initialize_stage_thermostat(const std::string& name,
+                                         std::span<const double> coupling,
+                                         int legacy_ticks, int stage_ticks,
+                                         const char* legacy_scheme) {
+  const double legacy_interval = time_step() / legacy_ticks;
+  const bool changing_temperature = automatic_thermostat_sampling_
+      && Physics::changes_temperature(globals::config->lookup("physics"));
+  std::optional<jams::ThermostatStageRequest> request;
+  if (automatic_thermostat_sampling_ && stage_ticks != legacy_ticks) {
+    request = jams::ThermostatStageRequest{
+        time_step() / stage_ticks, jams::ThermostatStageRequest::Mode::automatic, changing_temperature};
+  }
+  register_thermostat(Thermostat::create(name, legacy_interval, coupling, request));
+  stage_thermostat_.reset();
+  if (automatic_thermostat_sampling_ && thermostat_->supports_stage_sampling(changing_temperature)) {
+    stage_thermostat_.emplace(stage_ticks);
+  }
+  const double interval = uses_stage_thermostat() && request
+      ? request->interval : static_cast<jams::Real>(legacy_interval);
+  std::cout << "  thermostat " << name << "\n"
+            << "  thermostat sampling " << (uses_stage_thermostat() ? "stage field" : legacy_scheme)
+            << " (interval " << interval << " ps)\n";
+}
+
+const jams::Real* Solver::sample_stage_thermostat(int tick) {
+  if (!stage_thermostat_) return nullptr;
+  return stage_thermostat_->sample(*thermostat_, physics_module_->temperature(), iteration_, tick);
+}
 
 void Solver::update_thermostat() {
 #if HAS_CUDA

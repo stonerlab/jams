@@ -89,9 +89,8 @@ void CUDAHeunLLGSolver::initialize(const libconfig::Setting& settings) {
 
   const auto thermostat_name = jams::config_optional<std::string>(
       settings, "thermostat", jams::defaults::solver_gpu_thermostat);
-  register_thermostat(Thermostat::create(
-      thermostat_name, time_step(), jams::thermal_field_coupling(gyro_eff_)));
-  std::cout << "  thermostat " << thermostat_name << "\n";
+  initialize_stage_thermostat(thermostat_name, jams::thermal_field_coupling(gyro_eff_),
+                              1, 1, "held field");
 
   spins_initial_.resize(globals::num_spins, 3);
 }
@@ -104,8 +103,13 @@ void CUDAHeunLLGSolver::run() {
   const auto num_spins = static_cast<unsigned int>(globals::num_spins);
   const auto grid_size = cuda_grid_size(block_size, {num_spins, 1, 1});
 
-  update_thermostat_on_stream(stream);
-  const auto* noise = thermostat_->device_data();
+  if (uses_stage_thermostat()) {
+    record_spin_barrier_event();
+  } else {
+    update_thermostat_on_stream(stream);
+  }
+  const auto* noise = uses_stage_thermostat()
+      ? sample_stage_thermostat_on_stream(0, stream) : thermostat_->device_data();
 
   compute_fields();
   heun_stage_1<<<grid_size, block_size, 0, stream>>>(
@@ -114,10 +118,12 @@ void CUDAHeunLLGSolver::run() {
       gyro_eff_.device_data(), globals::inv_mus.device_data(), globals::alpha.device_data(), dt,
       num_spins);
   DEBUG_CHECK_CUDA_ASYNC_STATUS
+  if (uses_stage_thermostat()) thermostat_->record_consumed(stream);
   record_spin_barrier_event();
 
   time_ = step_start_time + dt;
   compute_fields();
+  if (uses_stage_thermostat()) noise = sample_stage_thermostat_on_stream(1, stream);
   heun_stage_2<<<grid_size, block_size, 0, stream>>>(
       globals::s.mutable_device_data(), globals::ds_dt.mutable_device_data(),
       spins_initial_.device_data(), globals::h.device_data(), noise, gyro_eff_.device_data(),

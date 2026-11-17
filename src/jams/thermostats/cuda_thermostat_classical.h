@@ -14,9 +14,10 @@ class CudaThermostatClassical : public Thermostat {
   CudaThermostatClassical(const jams::Real &temperature, std::span<const double> coupling, const jams::Real timestep, const int num_spins);
 
   void update() override;
+  jams::ThermostatSamples samples() const override { return jams::ThermostatSamples::white_diffusion; }
 
   // Timestep-independent amplitude for integrators that draw increments.
-  jams::MultiArray<double, 1> diffusion_amplitudes(double uniform_temperature) const;
+  jams::MultiArray<double, 1> diffusion_amplitudes(double uniform_temperature) const override;
 
   cudaStream_t& get_stream() override;
 

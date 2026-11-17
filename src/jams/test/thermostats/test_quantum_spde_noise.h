@@ -4,6 +4,7 @@
 #include <cmath>
 #include <memory>
 #include <utility>
+#include <vector>
 
 #include <gtest/gtest.h>
 #include <libconfig.h++>
@@ -12,6 +13,7 @@
 #include "jams/containers/multiarray.h"
 #include "jams/core/globals.h"
 #include "jams/core/thermostat.h"
+#include "jams/core/thermostat_stage_sampler.h"
 #include "jams/helpers/consts.h"
 #include "jams/thermostats/quantum_spde_noise.h"
 #include "jams/thermostats/thermostat_quantum_spde.h"
@@ -322,6 +324,65 @@ TEST_F(QuantumSpdeThermostatFactoryCpuTest, FactoryConstructsQuantumSpdeCpuTherm
   const auto* noise = thermostat->data();
   for (auto i = 0; i < globals::num_spins3; ++i) {
     EXPECT_EQ(noise[i], jams::Real{0.0});
+  }
+}
+
+TEST_F(QuantumSpdeThermostatFactoryCpuTest, StageEligibilityAndZeroInitialField) {
+  constexpr double temperature = 80.0;
+  constexpr double interval = 0.02;
+  const std::vector<double> coupling(globals::num_spins, 0.25);
+  ThermostatQuantumSpde bath(temperature, coupling, interval, globals::num_spins);
+  EXPECT_EQ(bath.samples(), jams::ThermostatSamples::correlated_field);
+  EXPECT_TRUE(bath.supports_stage_sampling(false));
+  EXPECT_FALSE(bath.supports_stage_sampling(true));
+  jams::ThermostatStageSampler sampler(2);
+  EXPECT_EQ(sampler.sample(bath, temperature, 0, 0)[0], 0.0);
+  EXPECT_NE(sampler.sample(bath, temperature, 0, 1)[0], 0.0);
+
+  globals::config->lookup("thermostat.zero_point") = true;
+  ThermostatQuantumSpde zero_point_bath(temperature, coupling, interval, globals::num_spins);
+  EXPECT_FALSE(zero_point_bath.supports_stage_sampling(false));
+}
+
+TEST_F(QuantumSpdeThermostatFactoryCpuTest, StageSamplesMatchVarianceAndLagCovariance) {
+  constexpr int spins = 8192;
+  constexpr double temperature = 80.0;
+  constexpr double coupling = 0.25;
+  constexpr double interval = 0.02;
+  globals::config->lookup("thermostat.initialization") = "stationary";
+  const auto previous_rng = jams::instance().random_generator();
+  jams::instance().random_generator().seed(2026u);
+  ThermostatQuantumSpde bath(temperature, std::vector<double>(spins, coupling),
+                            interval, spins);
+  jams::instance().random_generator() = previous_rng;
+  jams::ThermostatStageSampler sampler(2);
+
+  const double reduced_interval = interval * kBoltzmannIU * temperature / kHBarIU;
+  const double field_scale = kBoltzmannIU * temperature * std::sqrt(2.0 * coupling / kHBarIU);
+  const auto covariance = [&](int lag) {
+    const auto mode = [=](double gamma, double omega, double weight) {
+      const auto state = cpu_quantum_spde_stationary_covariance(gamma, omega, reduced_interval);
+      if (lag == 0) return weight * weight * state.p00;
+      const auto m = jams::quantum_spde_bose_update_coefficients(
+          gamma, omega, lag * reduced_interval);
+      return weight * weight * (m.m00 * state.p00 + m.m01 * state.p01);
+    };
+    return field_scale * field_scale *
+        (mode(jams::kQuantumSpdeGamma5, jams::kQuantumSpdeOmega5, jams::kQuantumSpdeWeight5)
+         + mode(jams::kQuantumSpdeGamma6, jams::kQuantumSpdeOmega6, jams::kQuantumSpdeWeight6));
+  };
+
+  const auto* initial = sampler.sample(bath, temperature, 0, 0);
+  const std::vector<double> start(initial, initial + 3 * spins);
+  const double variance = covariance(0);
+  const double tolerance = 0.04 * variance;
+  for (int lag = 1; lag <= 2; ++lag) {
+    const auto* field = sampler.sample(bath, temperature, 0, lag);
+    const std::vector<double> later(field, field + 3 * spins);
+    const auto moments = cpu_quantum_spde_pair_moments(start.data(), later.data(), 3 * spins);
+    EXPECT_NEAR(moments.var0, variance, tolerance);
+    EXPECT_NEAR(moments.var1, variance, tolerance);
+    EXPECT_NEAR(moments.cov01, covariance(lag), tolerance);
   }
 }
 

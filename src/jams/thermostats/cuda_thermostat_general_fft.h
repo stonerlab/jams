@@ -132,6 +132,7 @@
 #include <fstream>
 #include <functional>
 #include <mutex>
+#include <string_view>
 
 #include "jams/core/thermostat.h"
 
@@ -139,10 +140,21 @@ class CudaThermostatGeneralFFT : public Thermostat {
 public:
     CudaThermostatGeneralFFT(const jams::Real &temperature, std::span<const double> coupling,
                              double timestep, int num_spins, const std::string& spectrum,
-                             std::optional<jams::LorentzianBathParameters> memory_bath);
+                             std::optional<jams::LorentzianBathParameters> memory_bath,
+                             std::optional<double> spectral_cutoff = std::nullopt);
     ~CudaThermostatGeneralFFT();
 
-    void update();
+    void update() override;
+    jams::ThermostatSamples samples() const override { return samples_; }
+    bool supports_stage_sampling(bool changing_temperature) const override {
+      return stage_sampling_ && !changing_temperature;
+    }
+    static bool is_white_spectrum(std::string_view spectrum) {
+      return spectrum == "classical" || spectrum == "classical-ohmic";
+    }
+    static bool supports_stage_spectrum(std::string_view spectrum) {
+      return !is_white_spectrum(spectrum) && spectrum != "quantum-ohmic";
+    }
 
     cudaStream_t& get_stream() override { return dev_stream_; }
 
@@ -195,6 +207,8 @@ private:
     double delta_omega_;
     double delta_t_;
     double filter_temperature_;
+    jams::ThermostatSamples samples_;
+    bool stage_sampling_;
     // Splitting solvers can request multiple noise samples per solver step.
     std::uint64_t noise_sample_count_ = 0;
 

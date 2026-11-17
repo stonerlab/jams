@@ -1,6 +1,54 @@
 Thermostats
 ===========
 
+Stage sampling
+--------------
+
+``solver.thermostat_sampling`` defaults to ``"auto"``. The following solvers
+sample the same coloured field realisation at their RHS evaluation times.
+Times are offsets within a solver step of length :math:`h`.
+
+.. list-table::
+   :header-rows: 1
+
+   * - Solver
+     - Stage times
+     - Bath interval
+   * - CPU and GPU Heun
+     - :math:`0, h`
+     - :math:`h`
+   * - CPU and GPU RKMK2, GPU semi-implicit
+     - :math:`0, h/2`
+     - :math:`h/2`
+   * - GPU DM
+     - :math:`0, h`
+     - :math:`h/2`
+   * - CPU and GPU RKMK4, GPU LLG, LLG-SOT and GSE RK4
+     - :math:`0, h/2, h/2, h`
+     - :math:`h/2`
+
+Repeated stages share a sample. The bath advances across intervening ticks
+and carries the endpoint field into the next step.
+
+Eligible baths are quantum SPDE with zero-point noise disabled and a fixed
+scalar or per-spin temperature, and the GPU Lorentzian and thermal-only
+quantum Ohmic FFT spectra (``quantum-no-zero-ohmic`` or ``bose-einstein``)
+at fixed scalar temperature. Classical white noise, flat FFT spectra,
+``quantum-ohmic`` and other SPDE configurations use the solver's existing
+scheme.
+
+Set ``solver.thermostat_sampling = "legacy";`` to recover the previous
+scheme and bath cadence for a given solver and bath. CUDA RS2 uses its
+existing stochastic tableau for white noise and its existing stage
+sampling for coloured fields. Retarded Lorentzian dynamics uses its
+existing scheme.
+
+The timestep must resolve the coloured bath's significant frequencies.
+LLG, LLG-SOT and GSE RK4 refine eligible FFT baths from :math:`h` to
+:math:`h/2` while retaining the legacy spectral cutoff at
+:math:`1/(2h)`. The accuracy of stage integration depends on the regularity
+and resolution of the supplied field.
+
 Position-dependent temperature
 ------------------------------
 

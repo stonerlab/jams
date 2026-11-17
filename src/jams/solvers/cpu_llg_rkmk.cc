@@ -68,9 +68,18 @@ void apply_noise_step_rodrigues(const double dt, const jams::MultiArray<jams::Re
   }
 }
 
+void rkmk_effective_field(const jams::Real* fields, const jams::Real* stage_noise,
+                          int offset, double inv_mu, double h[3]) {
+  for (int n = 0; n < 3; ++n) {
+    h[n] = static_cast<double>(fields[offset + n]) * inv_mu;
+    if (stage_noise) h[n] += stage_noise[offset + n];
+  }
+}
+
 void rkmk2_stage_1(const double dt, jams::MultiArray<double, 2>& spins_initial,
                    jams::MultiArray<double, 2>& phi,
                    const jams::MultiArray<jams::Real, 1>& gyro_eff,
+                   const jams::Real* stage_noise,
                    const bool in_parallel = false) {
   const jams::Real* field_values = nullptr;
   const jams::Real* inv_mu_values = nullptr;
@@ -116,9 +125,8 @@ void rkmk2_stage_1(const double dt, jams::MultiArray<double, 2>& spins_initial,
   const auto update_spin = [&](const int spin_index) {
     const int offset = 3 * spin_index;
     const double inv_mu = static_cast<double>(inv_mu_values[spin_index]);
-    const double h[3] = {static_cast<double>(field_values[offset]) * inv_mu,
-                         static_cast<double>(field_values[offset + 1]) * inv_mu,
-                         static_cast<double>(field_values[offset + 2]) * inv_mu};
+    double h[3];
+    rkmk_effective_field(field_values, stage_noise, offset, inv_mu, h);
     const double s[3] = {spin_values[offset], spin_values[offset + 1], spin_values[offset + 2]};
 
     initial_spins[offset] = s[0];
@@ -161,7 +169,8 @@ void rkmk2_stage_2(const double dt, const double noise_dt,
                    const jams::MultiArray<double, 2>& spins_initial,
                    const jams::MultiArray<double, 2>& phi,
                    const jams::MultiArray<jams::Real, 1>& gyro_eff,
-                   const jams::Real* const noise_values, const bool in_parallel = false) {
+                   const jams::Real* stage_noise, const jams::Real* split_noise,
+                   const bool in_parallel = false) {
   const jams::Real* field_values = nullptr;
   const jams::Real* inv_mu_values = nullptr;
   const jams::Real* alpha_values = nullptr;
@@ -206,9 +215,8 @@ void rkmk2_stage_2(const double dt, const double noise_dt,
   const auto update_spin = [&](const int spin_index) {
     const int offset = 3 * spin_index;
     const double inv_mu = static_cast<double>(inv_mu_values[spin_index]);
-    const double h[3] = {static_cast<double>(field_values[offset]) * inv_mu,
-                         static_cast<double>(field_values[offset + 1]) * inv_mu,
-                         static_cast<double>(field_values[offset + 2]) * inv_mu};
+    double h[3];
+    rkmk_effective_field(field_values, stage_noise, offset, inv_mu, h);
     const double s_step[3] = {spin_values[offset], spin_values[offset + 1],
                               spin_values[offset + 2]};
 
@@ -227,15 +235,14 @@ void rkmk2_stage_2(const double dt, const double noise_dt,
     double s_out[3];
     jams::solvers::rkmk::rodrigues_rotate(k, s0, s_out);
 
-    const jams::Real h_noise[3] = {noise_values[offset], noise_values[offset + 1],
-                                   noise_values[offset + 2]};
-    double s_noisy[3];
-    jams::solvers::rkmk::noise_step_rodrigues(s_out, h_noise, gyro_eff_values[spin_index],
-                                              alpha_values[spin_index], noise_dt, s_noisy);
+    if (split_noise) {
+      jams::solvers::rkmk::noise_step_rodrigues(s_out, split_noise + offset,
+          gyro_eff_values[spin_index], alpha_values[spin_index], noise_dt, s_out);
+    }
 
-    spin_values[offset] = s_noisy[0];
-    spin_values[offset + 1] = s_noisy[1];
-    spin_values[offset + 2] = s_noisy[2];
+    spin_values[offset] = s_out[0];
+    spin_values[offset + 1] = s_out[1];
+    spin_values[offset + 2] = s_out[2];
   };
 
 #if HAS_OMP
@@ -255,7 +262,8 @@ void rkmk2_stage_2(const double dt, const double noise_dt,
 
 void rkmk4_stage_1(const double dt, jams::MultiArray<double, 2>& spins_initial,
                    jams::MultiArray<double, 2>& k1,
-                   const jams::MultiArray<jams::Real, 1>& gyro_eff) {
+                   const jams::MultiArray<jams::Real, 1>& gyro_eff,
+                   const jams::Real* stage_noise) {
   const auto field_view = globals::h.host_view();
   const auto inv_mu_view = globals::inv_mus.host_view();
   const auto alpha_view = globals::alpha.host_view();
@@ -278,9 +286,8 @@ void rkmk4_stage_1(const double dt, jams::MultiArray<double, 2>& spins_initial,
   for (int spin_index = 0; spin_index < globals::num_spins; ++spin_index) {
     const int offset = 3 * spin_index;
     const double inv_mu = static_cast<double>(inv_mu_values[spin_index]);
-    const double h[3] = {static_cast<double>(field_values[offset]) * inv_mu,
-                         static_cast<double>(field_values[offset + 1]) * inv_mu,
-                         static_cast<double>(field_values[offset + 2]) * inv_mu};
+    double h[3];
+    rkmk_effective_field(field_values, stage_noise, offset, inv_mu, h);
     const double s[3] = {spin_values[offset], spin_values[offset + 1], spin_values[offset + 2]};
 
     initial_spins[offset] = s[0];
@@ -308,7 +315,8 @@ void rkmk4_stage_1(const double dt, jams::MultiArray<double, 2>& spins_initial,
 
 void rkmk4_stage_2(const double dt, const jams::MultiArray<double, 2>& spins_initial,
                    const jams::MultiArray<double, 2>& k1, jams::MultiArray<double, 2>& k2,
-                   const jams::MultiArray<jams::Real, 1>& gyro_eff) {
+                   const jams::MultiArray<jams::Real, 1>& gyro_eff,
+                   const jams::Real* stage_noise) {
   const auto field_view = globals::h.host_view();
   const auto inv_mu_view = globals::inv_mus.host_view();
   const auto alpha_view = globals::alpha.host_view();
@@ -333,9 +341,8 @@ void rkmk4_stage_2(const double dt, const jams::MultiArray<double, 2>& spins_ini
   for (int spin_index = 0; spin_index < globals::num_spins; ++spin_index) {
     const int offset = 3 * spin_index;
     const double inv_mu = static_cast<double>(inv_mu_values[spin_index]);
-    const double h[3] = {static_cast<double>(field_values[offset]) * inv_mu,
-                         static_cast<double>(field_values[offset + 1]) * inv_mu,
-                         static_cast<double>(field_values[offset + 2]) * inv_mu};
+    double h[3];
+    rkmk_effective_field(field_values, stage_noise, offset, inv_mu, h);
     const double s_step[3] = {spin_values[offset], spin_values[offset + 1],
                               spin_values[offset + 2]};
 
@@ -366,7 +373,8 @@ void rkmk4_stage_2(const double dt, const jams::MultiArray<double, 2>& spins_ini
 
 void rkmk4_stage_3(const double dt, const jams::MultiArray<double, 2>& spins_initial,
                    const jams::MultiArray<double, 2>& k2, jams::MultiArray<double, 2>& k3,
-                   const jams::MultiArray<jams::Real, 1>& gyro_eff) {
+                   const jams::MultiArray<jams::Real, 1>& gyro_eff,
+                   const jams::Real* stage_noise) {
   const auto field_view = globals::h.host_view();
   const auto inv_mu_view = globals::inv_mus.host_view();
   const auto alpha_view = globals::alpha.host_view();
@@ -391,9 +399,8 @@ void rkmk4_stage_3(const double dt, const jams::MultiArray<double, 2>& spins_ini
   for (int spin_index = 0; spin_index < globals::num_spins; ++spin_index) {
     const int offset = 3 * spin_index;
     const double inv_mu = static_cast<double>(inv_mu_values[spin_index]);
-    const double h[3] = {static_cast<double>(field_values[offset]) * inv_mu,
-                         static_cast<double>(field_values[offset + 1]) * inv_mu,
-                         static_cast<double>(field_values[offset + 2]) * inv_mu};
+    double h[3];
+    rkmk_effective_field(field_values, stage_noise, offset, inv_mu, h);
     const double s_step[3] = {spin_values[offset], spin_values[offset + 1],
                               spin_values[offset + 2]};
 
@@ -426,7 +433,7 @@ void rkmk4_stage_4(const double dt, const double noise_dt,
                    const jams::MultiArray<double, 2>& k1, const jams::MultiArray<double, 2>& k2,
                    const jams::MultiArray<double, 2>& k3,
                    const jams::MultiArray<jams::Real, 1>& gyro_eff,
-                   const jams::Real* const noise_values) {
+                   const jams::Real* stage_noise, const jams::Real* split_noise) {
   const auto field_view = globals::h.host_view();
   const auto inv_mu_view = globals::inv_mus.host_view();
   const auto alpha_view = globals::alpha.host_view();
@@ -453,9 +460,8 @@ void rkmk4_stage_4(const double dt, const double noise_dt,
   for (int spin_index = 0; spin_index < globals::num_spins; ++spin_index) {
     const int offset = 3 * spin_index;
     const double inv_mu = static_cast<double>(inv_mu_values[spin_index]);
-    const double h[3] = {static_cast<double>(field_values[offset]) * inv_mu,
-                         static_cast<double>(field_values[offset + 1]) * inv_mu,
-                         static_cast<double>(field_values[offset + 2]) * inv_mu};
+    double h[3];
+    rkmk_effective_field(field_values, stage_noise, offset, inv_mu, h);
     const double s_step[3] = {spin_values[offset], spin_values[offset + 1],
                               spin_values[offset + 2]};
 
@@ -482,15 +488,14 @@ void rkmk4_stage_4(const double dt, const double noise_dt,
     double s_out[3];
     jams::solvers::rkmk::rodrigues_rotate(k, s0, s_out);
 
-    const jams::Real h_noise[3] = {noise_values[offset], noise_values[offset + 1],
-                                   noise_values[offset + 2]};
-    double s_noisy[3];
-    jams::solvers::rkmk::noise_step_rodrigues(s_out, h_noise, gyro_eff_values[spin_index],
-                                              alpha_values[spin_index], noise_dt, s_noisy);
+    if (split_noise) {
+      jams::solvers::rkmk::noise_step_rodrigues(s_out, split_noise + offset,
+          gyro_eff_values[spin_index], alpha_values[spin_index], noise_dt, s_out);
+    }
 
-    spin_values[offset] = s_noisy[0];
-    spin_values[offset + 1] = s_noisy[1];
-    spin_values[offset + 2] = s_noisy[2];
+    spin_values[offset] = s_out[0];
+    spin_values[offset + 1] = s_out[1];
+    spin_values[offset + 2] = s_out[2];
   }
 }
 
@@ -503,9 +508,8 @@ void RKMK2LLGSolver::initialize(const libconfig::Setting& settings) {
 
   const std::string thermostat_name =
       jams::config_optional<std::string>(settings, "thermostat", "langevin-white-cpu");
-  register_thermostat(Thermostat::create(
-      thermostat_name, 0.5 * time_step(), jams::thermal_field_coupling(gyro_eff_)));
-  std::cout << "  thermostat " << thermostat_name.c_str() << "\n";
+  initialize_stage_thermostat(thermostat_name, jams::thermal_field_coupling(gyro_eff_),
+                              2, 2, "split kicks");
 
   spins_initial_.resize(globals::num_spins, 3);
   phi_.resize(globals::num_spins, 3);
@@ -521,18 +525,26 @@ void RKMK2LLGSolver::run() {
   const double dt = step_size_;
   const double half_dt = 0.5 * dt;
 
-  update_thermostat();
-  apply_noise_step_rodrigues(half_dt, gyro_eff_, thermostat_->data());
+  if (!uses_stage_thermostat()) {
+    update_thermostat();
+    apply_noise_step_rodrigues(half_dt, gyro_eff_, thermostat_->data());
+  }
 
   compute_fields();
-  rkmk2_stage_1(dt, spins_initial_, phi_, gyro_eff_);
+  rkmk2_stage_1(dt, spins_initial_, phi_, gyro_eff_, sample_stage_thermostat(0));
 
   time_ = step_start_time + half_dt;
 
   compute_fields();
 
-  update_thermostat();
-  rkmk2_stage_2(dt, half_dt, spins_initial_, phi_, gyro_eff_, thermostat_->data());
+  const jams::Real* split_noise = nullptr;
+  if (!uses_stage_thermostat()) {
+    update_thermostat();
+    split_noise = thermostat_->data();
+  }
+  rkmk2_stage_2(dt, half_dt, spins_initial_, phi_, gyro_eff_,
+                sample_stage_thermostat(1), split_noise);
+  sample_stage_thermostat(2);
 
   advance_time();
 }
@@ -544,9 +556,8 @@ void RKMK4LLGSolver::initialize(const libconfig::Setting& settings) {
 
   const std::string thermostat_name =
       jams::config_optional<std::string>(settings, "thermostat", "langevin-white-cpu");
-  register_thermostat(Thermostat::create(
-      thermostat_name, 0.5 * time_step(), jams::thermal_field_coupling(gyro_eff_)));
-  std::cout << "  thermostat " << thermostat_name.c_str() << "\n";
+  initialize_stage_thermostat(thermostat_name, jams::thermal_field_coupling(gyro_eff_),
+                              2, 2, "split kicks");
 
   spins_initial_.resize(globals::num_spins, 3);
   k1_.resize(globals::num_spins, 3);
@@ -559,33 +570,41 @@ void RKMK4LLGSolver::run() {
   const double dt = step_size_;
   const double half_dt = 0.5 * dt;
 
-  update_thermostat();
-  apply_noise_step_rodrigues(half_dt, gyro_eff_, thermostat_->data());
+  if (!uses_stage_thermostat()) {
+    update_thermostat();
+    apply_noise_step_rodrigues(half_dt, gyro_eff_, thermostat_->data());
+  }
 
   compute_fields();
-  rkmk4_stage_1(dt, spins_initial_, k1_, gyro_eff_);
+  rkmk4_stage_1(dt, spins_initial_, k1_, gyro_eff_, sample_stage_thermostat(0));
 
   time_ = step_start_time + half_dt;
 
   compute_fields();
-  rkmk4_stage_2(dt, spins_initial_, k1_, k2_, gyro_eff_);
+  const auto* midpoint_noise = sample_stage_thermostat(1);
+  rkmk4_stage_2(dt, spins_initial_, k1_, k2_, gyro_eff_, midpoint_noise);
 
   compute_fields();
-  rkmk4_stage_3(dt, spins_initial_, k2_, k3_, gyro_eff_);
+  rkmk4_stage_3(dt, spins_initial_, k2_, k3_, gyro_eff_, midpoint_noise);
 
   time_ = step_start_time + dt;
 
   compute_fields();
 
-  update_thermostat();
-  rkmk4_stage_4(dt, half_dt, spins_initial_, k1_, k2_, k3_, gyro_eff_, thermostat_->data());
+  const jams::Real* split_noise = nullptr;
+  if (!uses_stage_thermostat()) {
+    update_thermostat();
+    split_noise = thermostat_->data();
+  }
+  rkmk4_stage_4(dt, half_dt, spins_initial_, k1_, k2_, k3_, gyro_eff_,
+                sample_stage_thermostat(2), split_noise);
 
   advance_time();
 }
 
 bool RKMK2LLGSolver::supports_persistent_parallel_step() const {
 #if HAS_OMP
-  return thermostat_ && thermostat_->supports_update_in_parallel() &&
+  return !uses_stage_thermostat() && thermostat_ && thermostat_->supports_update_in_parallel() &&
          supports_compute_fields_in_parallel();
 #else
   return false;
@@ -610,7 +629,7 @@ void RKMK2LLGSolver::run_persistent_parallel_step() {
     apply_noise_step_rodrigues(half_dt, gyro_eff_, noise_values, true);
 
     compute_fields_in_parallel();
-    rkmk2_stage_1(dt, spins_initial_, phi_, gyro_eff_, true);
+    rkmk2_stage_1(dt, spins_initial_, phi_, gyro_eff_, nullptr, true);
 
 #pragma omp single
     {
@@ -624,7 +643,7 @@ void RKMK2LLGSolver::run_persistent_parallel_step() {
     {
       noise_values = thermostat_->data();
     }
-    rkmk2_stage_2(dt, half_dt, spins_initial_, phi_, gyro_eff_, noise_values, true);
+    rkmk2_stage_2(dt, half_dt, spins_initial_, phi_, gyro_eff_, nullptr, noise_values, true);
 
 #pragma omp single
     {

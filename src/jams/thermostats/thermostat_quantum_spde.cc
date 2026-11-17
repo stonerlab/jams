@@ -1074,6 +1074,7 @@ ThermostatQuantumSpde::ThermostatQuantumSpde(const jams::Real& temperature,
       noise_generator_->initialize_stationary(this->temperature());
     }
   } else {
+    initial_sample_ready_ = true;  // The initial state and field are already zero.
     if (has_per_spin_temperature()) {
       noise_generator_->initialize(jams::QuantumSpdeNoiseGenerator::Initialization::Zero,
                                    process_temperature_);
@@ -1098,7 +1099,20 @@ ThermostatQuantumSpde::ThermostatQuantumSpde(const jams::Real& temperature,
       noise_generator_->warmup(num_warm_up_steps, this->temperature(),
                                noise_view.data(), sigma_values_view.data());
     }
+    initial_sample_ready_ = true;
   }
+}
+
+void ThermostatQuantumSpde::sample_initial() {
+  if (initial_sample_ready_) return;
+  // At stationarity the first published field can be anchored at t=0.
+  update();
+  initial_sample_ready_ = true;
+}
+
+bool ThermostatQuantumSpde::supports_stage_sampling(bool changing_temperature) const {
+  return jams::spde_supports_stage_sampling(
+      noise_generator_->zero_point_enabled(), has_per_spin_temperature(), changing_temperature);
 }
 
 void ThermostatQuantumSpde::update() {

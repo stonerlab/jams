@@ -10,6 +10,7 @@
 #include "jams/helpers/output.h"
 #include "jams/containers/multiarray.h"
 #include "jams/core/thermostat.h"
+#include "jams/core/thermostat_stage_sampler.h"
 #include "jams/core/physics.h"
 #include "jams/core/monitor.h"
 #include "jams/core/hamiltonian.h"
@@ -99,6 +100,10 @@ class Solver {
     }
 
     void initialize_gyro_eff(const libconfig::Setting& settings, jams::MultiArray<jams::Real, 1>& gyro_eff) const;
+    void initialize_stage_thermostat(const std::string& name, std::span<const double> coupling,
+                                    int legacy_ticks, int stage_ticks, const char* legacy_scheme);
+    bool uses_stage_thermostat() const { return stage_thermostat_.has_value(); }
+    const jams::Real* sample_stage_thermostat(int tick);
 
     int iteration_ = 0;
     int max_steps_ = 0;
@@ -109,12 +114,16 @@ class Solver {
 
   std::unique_ptr<Physics> physics_module_;
   std::unique_ptr<Thermostat> thermostat_;
+  std::optional<jams::ThermostatStageSampler> stage_thermostat_;
   std::vector<std::unique_ptr<Monitor>> monitors_;
   std::vector<std::unique_ptr<Hamiltonian>> hamiltonians_;
 
 #if DO_MIXED_PRECISION
   jams::MultiArray<jams::Real, 2> field_spin_array_;
 #endif
+
+ private:
+  bool automatic_thermostat_sampling_ = true;
 };
 
 #endif  // JAMS_CORE_SOLVER_H

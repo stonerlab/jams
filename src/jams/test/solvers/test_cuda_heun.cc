@@ -41,7 +41,7 @@ class CudaHeunTest : public testing::Test {
     std::filesystem::remove_all(output_);
   }
 
-  void initialize(int num_spins, double temperature) {
+  void initialize(int num_spins, double temperature, const char* sampling = "auto") {
     const std::string config = R"(
       materials = ({name = "A"; moment = 1.4; alpha = 0.2; spin = [1.0, 0.0, 0.0];});
       unitcell = {parameter = 3e-10;
@@ -55,6 +55,7 @@ class CudaHeunTest : public testing::Test {
         field = [0.0, 2.0, 8.0]; time_center = 0.0;
         freq_bandwidth = 1e12; freq_center = 2e12;});
       solver = {module = "llg-heun-gpu"; thermostat = "quantum-spde-gpu";
+                thermostat_sampling = ")" + std::string(sampling) + R"(";
                 t_step = 2e-14; t_max = 4e-14;};
       monitors = ();
     )";
@@ -131,7 +132,7 @@ TEST_F(CudaHeunTest, SingleSpinUsesEndOfStepField) {
 }
 
 TEST_F(CudaHeunTest, PartialBlockPreservesZeroSpinAndReusesThermalField) {
-  initialize(257, 50.0);
+  initialize(257, 50.0, "legacy");
   // Set a true zero vector after lattice initialisation to exercise normalisation.
   globals::s(0, 0) = 0.0;
   check_step(true);

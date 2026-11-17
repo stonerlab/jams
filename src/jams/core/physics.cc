@@ -65,10 +65,22 @@ Physics::Physics(const libconfig::Setting &physics_settings) :
   }
 }
 
-Physics* Physics::create(const libconfig::Setting &settings) {
+namespace {
 
-  const auto module_name = lowercase(
+std::string physics_module_name(const libconfig::Setting& settings) {
+  return lowercase(
       jams::config_optional<std::string>(settings, "module", jams::defaults::physics_module));
+}
+
+}  // namespace
+
+bool Physics::changes_temperature(const libconfig::Setting& settings) {
+  const auto module = physics_module_name(settings);
+  return module == "two-temperature-model" || module == "field-cool";
+}
+
+Physics* Physics::create(const libconfig::Setting &settings) {
+  const auto module_name = physics_module_name(settings);
 
   if (module_name == "empty") {
     return new EmptyPhysics(settings);

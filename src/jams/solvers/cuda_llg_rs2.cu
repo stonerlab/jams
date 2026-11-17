@@ -11,7 +11,6 @@
 #include "jams/helpers/defaults.h"
 #include "jams/interface/config.h"
 #include "jams/solvers/cuda_solver_functions.cuh"
-#include "jams/thermostats/cuda_thermostat_classical.h"
 
 namespace {
 
@@ -235,10 +234,14 @@ void CUDALLGRS2Solver::initialize(const libconfig::Setting& settings) {
 
   initialize_gyro_eff(settings, gyro_eff_);
   register_thermostat(Thermostat::create(
-      thermostat_name, time_step(), jams::thermal_field_coupling(gyro_eff_), time_step() / 3.0));
-  const auto* white_bath = dynamic_cast<const CudaThermostatClassical*>(thermostat_.get());
-  has_coloured_bath_ = white_bath == nullptr;
-  coloured_sample_ready_ = false;
+      thermostat_name, time_step(), jams::thermal_field_coupling(gyro_eff_),
+      jams::ThermostatStageRequest{time_step() / 3.0, jams::ThermostatStageRequest::Mode::rs2}));
+  const auto samples = thermostat_->samples();
+  if (samples == jams::ThermostatSamples::step_field) {
+    throw jams::ConfigException(settings, "llg-rs2-gpu requires white diffusion or a correlated field");
+  }
+  has_coloured_bath_ = samples == jams::ThermostatSamples::correlated_field;
+  stage_sampler_.reset();
   white_generator_.reset();
 
   const auto gyro_choice = cuda_spin_parameter_choice(gyro_eff_);
@@ -256,9 +259,13 @@ void CUDALLGRS2Solver::initialize(const libconfig::Setting& settings) {
   f2_.resize(num_spins, 3);
   b_.resize(num_spins, 3);
 
-  if (!white_bath) return;
+  if (has_coloured_bath_) {
+    std::cout << "  thermostat sampling stage field (interval " << time_step() / 3.0 << " ps)\n";
+    return;
+  }
+  std::cout << "  thermostat sampling RS2 white diffusion (step " << time_step() << " ps)\n";
   white_temperature_ = jams::config_required<double>(globals::config->lookup("physics"), "temperature");
-  white_sigma_ = white_bath->diffusion_amplitudes(white_temperature_);
+  white_sigma_ = thermostat_->diffusion_amplitudes(white_temperature_);
   const auto amplitudes = white_sigma_.host_span();
 
   if (std::any_of(amplitudes.begin(), amplitudes.end(), [](double sigma) { return sigma > 0.0; })) {
@@ -308,18 +315,11 @@ void CUDALLGRS2Solver::run_with_parameters(const GyroParam gyro, const AlphaPara
   const dim3 block_size = {256, 1, 1};
   const auto grid_size = cuda_grid_size(block_size, {num_spins, 1, 1});
 
-  if (has_coloured_bath_ && !coloured_sample_ready_) {
-    thermostat_->wait_for_consumed();
-    if (thermostat_->has_uniform_temperature()) {
-      thermostat_->set_temperature(physics_module_->temperature());
-    }
-    thermostat_->sample_initial();
-    thermostat_->record_done();
-    thermostat_->wait_on(stream);
-    coloured_sample_ready_ = true;
-  }
-
-  const auto* noise = has_coloured_bath_ ? thermostat_->device_data() : nullptr;
+  const auto sample_stage = [this, stream](int tick) {
+    return stage_sampler_.sample_device(
+        *thermostat_, physics_module_->temperature(), iteration_, tick, stream);
+  };
+  const auto* start_noise = has_coloured_bath_ ? sample_stage(0) : nullptr;
   const auto* sigma = !has_coloured_bath_ && white_generator_ ? white_sigma_.device_data() : nullptr;
   const auto* uniforms = sigma ? uniforms_.device_data() : nullptr;
   const auto stage_fields = [this]() {
@@ -333,21 +333,21 @@ void CUDALLGRS2Solver::run_with_parameters(const GyroParam gyro, const AlphaPara
   compute_fields();
   rs2_stage_1<<<grid_size, block_size, 0, stream>>>(
       spins, spins_initial_.mutable_device_data(), f1_.mutable_device_data(), field_spin_cache,
-      stage_fields(), noise, gyro, field_scale, alpha, num_spins, dt);
+      stage_fields(), start_noise, gyro, field_scale, alpha, num_spins, dt);
   DEBUG_CHECK_CUDA_ASYNC_STATUS
   record_spin_and_field_cache_barrier_event();
 
+  const jams::Real* later_noise = nullptr;
   if (has_coloured_bath_) {
     thermostat_->record_consumed(stream);
-    update_thermostat();                  // t_n + dt/3
-    update_thermostat_on_stream(stream);  // t_n + 2*dt/3
+    later_noise = sample_stage(2);
   }
 
   time_ = stage_time;
   compute_fields();
   rs2_stage_2<<<grid_size, block_size, 0, stream>>>(
       spins_initial_.device_data(), f1_.device_data(), f2_.mutable_device_data(), b_.mutable_device_data(),
-      spins, field_spin_cache, stage_fields(), noise, sigma, uniforms, gyro, field_scale, alpha,
+      spins, field_spin_cache, stage_fields(), later_noise, sigma, uniforms, gyro, field_scale, alpha,
       num_spins, dt, x_amplitude);
   DEBUG_CHECK_CUDA_ASYNC_STATUS
   record_spin_and_field_cache_barrier_event();
@@ -355,14 +355,14 @@ void CUDALLGRS2Solver::run_with_parameters(const GyroParam gyro, const AlphaPara
   compute_fields();
   rs2_stage_3<<<grid_size, block_size, 0, stream>>>(
       spins_initial_.device_data(), f1_.device_data(), f2_.device_data(), b_.device_data(),
-      spins, field_spin_cache, stage_fields(), noise, sigma, uniforms, gyro, field_scale, alpha,
+      spins, field_spin_cache, stage_fields(), later_noise, sigma, uniforms, gyro, field_scale, alpha,
       num_spins, dt, sqrt_dt, x_amplitude);
   DEBUG_CHECK_CUDA_ASYNC_STATUS
   record_spin_and_field_cache_barrier_event();
 
   if (has_coloured_bath_) {
     thermostat_->record_consumed(stream);
-    update_thermostat_on_stream(stream);  // t_n + dt, retained for the next step
+    sample_stage(3);
   }
   advance_time();
 }

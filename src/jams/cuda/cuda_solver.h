@@ -73,6 +73,7 @@ class CudaSolver : public Solver {
 
   protected:
     void update_thermostat_on_stream(cudaStream_t stream);
+    const jams::Real* sample_stage_thermostat_on_stream(int tick, cudaStream_t stream);
     double max_llg_spin_rate_cuda(const jams::MultiArray<jams::Real, 1>& gyro_eff);
 #if DO_MIXED_PRECISION
     jams::Real* mutable_field_spin_cache_device_data()

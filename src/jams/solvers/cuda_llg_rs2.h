@@ -9,6 +9,7 @@
 #include <curand.h>
 
 #include "jams/containers/multiarray.h"
+#include "jams/core/thermostat_stage_sampler.h"
 #include "jams/cuda/cuda_solver.h"
 
 class CUDALLGRS2Solver : public CudaSolver {
@@ -45,7 +46,7 @@ class CUDALLGRS2Solver : public CudaSolver {
   jams::MultiArray<double, 2> b_;
 
   bool has_coloured_bath_ = false;
-  bool coloured_sample_ready_ = false;
+  jams::ThermostatStageSampler stage_sampler_{3};
   double white_temperature_ = 0.0;
   jams::MultiArray<double, 1> white_sigma_;
   jams::MultiArray<double, 2> uniforms_;

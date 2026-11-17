@@ -19,7 +19,7 @@ class CUDALLGRK4Solver : public CudaRK4BaseSolver {
   double max_deterministic_spin_rate() override { return max_llg_spin_rate_cuda(gyro_eff_); }
 
   void function_kernel(jams::MultiArray<double, 2>& spins, jams::MultiArray<double, 2>& k,
-                       cudaStream_t stream) override;
+                       const jams::Real* noise, cudaStream_t stream) override;
   void post_step(jams::MultiArray<double, 2>& spins, cudaStream_t stream) override;
 };
 

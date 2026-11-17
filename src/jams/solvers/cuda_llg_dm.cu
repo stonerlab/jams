@@ -1,4 +1,4 @@
-// Depondt–Mertens with a thermal half-step on each side of the deterministic step.
+// Depondt–Mertens integration with split kicks or a stage-sampled field.
 
 #include "jams/solvers/cuda_llg_dm.h"
 
@@ -17,6 +17,7 @@ namespace {
 template <typename GyroParam, typename AlphaParam, typename FieldScaleParam>
 __global__ void dm_predict(double* spins, double* initial_spins, double* omega1_dev,
                            const jams::Real* fields,  // field at time t_n for S_n
+                           const jams::Real* stage_noise,
                            const GyroParam gyro, const FieldScaleParam field_scale,
                            const AlphaParam alpha, const unsigned num_spins, const double dt) {
   const unsigned spin_index = blockIdx.x * blockDim.x + threadIdx.x;
@@ -28,6 +29,7 @@ __global__ void dm_predict(double* spins, double* initial_spins, double* omega1_
 #pragma unroll
   for (int n = 0; n < 3; ++n) {
     h[n] = field_scale.scale(fields[offset + n], spin_index);
+    if (stage_noise) h[n] += stage_noise[offset + n];
   }
 
   double s[3];
@@ -67,6 +69,7 @@ __global__ void dm_correct(const double* initial_spins,  // original S_n
                            const double* omega1_dev,     // ω_n
                            double* spins,
                            const jams::Real* fields,  // field at time t_{n+1} (or t_n+Δt) for S*
+                           const jams::Real* stage_noise,
                            const GyroParam gyro, const FieldScaleParam field_scale,
                            const AlphaParam alpha, const unsigned num_spins, const double dt) {
   const unsigned spin_index = blockIdx.x * blockDim.x + threadIdx.x;
@@ -78,6 +81,7 @@ __global__ void dm_correct(const double* initial_spins,  // original S_n
 #pragma unroll
   for (int n = 0; n < 3; ++n) {
     h[n] = field_scale.scale(fields[offset + n], spin_index);
+    if (stage_noise) h[n] += stage_noise[offset + n];
   }
 
   double s_pred[3];
@@ -133,9 +137,8 @@ void CUDALLGDMSolver::initialize(const libconfig::Setting& settings) {
       settings, "thermostat", jams::defaults::solver_gpu_thermostat);
 
   initialize_gyro_eff(settings, gyro_eff_);
-  register_thermostat(Thermostat::create(
-      thermostat_name, 0.5 * time_step(), jams::thermal_field_coupling(gyro_eff_)));
-  std::cout << "  thermostat " << thermostat_name << "\n";
+  initialize_stage_thermostat(thermostat_name, jams::thermal_field_coupling(gyro_eff_),
+                              2, 2, "split kicks");
 
   const auto gyro_eff_choice = cuda_spin_parameter_choice(gyro_eff_);
   gyro_eff_is_uniform_ = gyro_eff_choice.is_uniform;
@@ -174,46 +177,46 @@ void CUDALLGDMSolver::run_with_parameters(const GyroParam gyro, const AlphaParam
   const auto grid_size =
       cuda_grid_size(block_size, {static_cast<unsigned int>(globals::num_spins), 1, 1});
 
-  // Thermal half-step
-  update_thermostat_on_stream(stream);
-
-  cuda_llg_noise_step_rodrigues_kernel<<<grid_size, block_size, 0, stream>>>(
-      globals::s.mutable_device_data(), thermostat_->device_data(), gyro, alpha, globals::num_spins,
-      half_dt);
-  DEBUG_CHECK_CUDA_ASYNC_STATUS
-  thermostat_->record_consumed(stream);
+  const auto apply_kick = [&] {
+    update_thermostat_on_stream(stream);
+    cuda_llg_noise_step_rodrigues_kernel<<<grid_size, block_size, 0, stream>>>(
+        globals::s.mutable_device_data(), thermostat_->device_data(), gyro, alpha,
+        globals::num_spins, half_dt);
+    DEBUG_CHECK_CUDA_ASYNC_STATUS
+    thermostat_->record_consumed(stream);
+  };
+  if (!uses_stage_thermostat()) apply_kick();
   record_spin_barrier_event();
 
   compute_fields();
+  const auto* start_noise = sample_stage_thermostat_on_stream(0, stream);
 
   // predictor: S* and store ω_n
   dm_predict<<<grid_size, block_size, 0, stream>>>(
       globals::s.mutable_device_data(), spins_initial_.mutable_device_data(),
-      omega1_.mutable_device_data(), globals::h.device_data(), gyro, field_scale, alpha,
+      omega1_.mutable_device_data(), globals::h.device_data(), start_noise, gyro, field_scale, alpha,
       globals::num_spins, dt);
   DEBUG_CHECK_CUDA_ASYNC_STATUS
+  if (uses_stage_thermostat()) thermostat_->record_consumed(stream);
 
   record_spin_barrier_event();
 
   time_ = step_start_time + dt;
   compute_fields();
+  const auto* end_noise = sample_stage_thermostat_on_stream(2, stream);
 
   // correct: rotate original S_n using averaged ω, output into globals::s
   dm_correct<<<grid_size, block_size, 0, stream>>>(
       spins_initial_.device_data(), omega1_.device_data(), globals::s.mutable_device_data(),
-      globals::h.device_data(), gyro, field_scale, alpha, globals::num_spins, dt);
+      globals::h.device_data(), end_noise, gyro, field_scale, alpha, globals::num_spins, dt);
   DEBUG_CHECK_CUDA_ASYNC_STATUS
+  if (uses_stage_thermostat()) thermostat_->record_consumed(stream);
   record_spin_barrier_event();
 
-  // Thermal half-step
-  update_thermostat_on_stream(stream);
-
-  cuda_llg_noise_step_rodrigues_kernel<<<grid_size, block_size, 0, stream>>>(
-      globals::s.mutable_device_data(), thermostat_->device_data(), gyro, alpha, globals::num_spins,
-      half_dt);
-  DEBUG_CHECK_CUDA_ASYNC_STATUS
-  thermostat_->record_consumed(stream);
-  record_spin_barrier_event();
+  if (!uses_stage_thermostat()) {
+    apply_kick();
+    record_spin_barrier_event();
+  }
 
   advance_time();
 }

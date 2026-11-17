@@ -158,14 +158,15 @@ void CudaRK4LLGSOTSolver::pre_stage(jams::MultiArray<double, 2>& spins, cudaStre
 }
 
 void CudaRK4LLGSOTSolver::function_kernel(jams::MultiArray<double, 2>& spins,
-                                          jams::MultiArray<double, 2>& k, cudaStream_t stream) {
+                                          jams::MultiArray<double, 2>& k, const jams::Real* noise,
+                                          cudaStream_t stream) {
   const dim3 block_size = {64, 1, 1};
   const auto grid_size =
       cuda_grid_size(block_size, {static_cast<unsigned int>(globals::num_spins), 1, 1});
 
   cuda_rk4_llg_sot_kernel<<<grid_size, block_size, 0, stream>>>(
       spins.device_data(), k.mutable_device_data(), globals::h.device_data(),
-      spin_polarisation_.device_data(), sot_coefficient_.device_data(), thermostat_->device_data(),
+      spin_polarisation_.device_data(), sot_coefficient_.device_data(), noise,
       gyro_eff_.device_data(), globals::inv_mus.device_data(), globals::alpha.device_data(),
       globals::num_spins);
   DEBUG_CHECK_CUDA_ASYNC_STATUS

@@ -30,6 +30,7 @@
 #include "jams/test/hamiltonian/test_random_anisotropy.h"
 #include "jams/test/solvers/test_cpu_monte_carlo_constrained.h"
 #include "jams/test/solvers/test_cpu_rotations.h"
+#include "jams/test/solvers/test_stage_thermostat_sampling.h"
 #include "jams/test/thermostats/test_gilbert_prefactor.h"
 #include "jams/test/thermostats/test_quantum_spde_noise.h"
 

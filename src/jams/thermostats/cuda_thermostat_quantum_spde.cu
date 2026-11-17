@@ -140,6 +140,11 @@ CudaThermostatQuantumSpde::CudaThermostatQuantumSpde(
   }
 }
 
+bool CudaThermostatQuantumSpde::supports_stage_sampling(bool changing_temperature) const {
+  return jams::spde_supports_stage_sampling(
+      noise_generator_->zero_point_enabled(), has_per_spin_temperature(), changing_temperature);
+}
+
 void CudaThermostatQuantumSpde::sample_initial() {
   if (initial_sample_ready_) return;
 
